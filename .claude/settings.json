@@ -1,0 +1,35 @@
+{
+  "model": "claude-sonnet-4-5",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(npx prisma *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git status)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(find src *)",
+      "Bash(grep -r * src/)",
+      "Read(**)",
+      "Write(src/**)",
+      "Write(prisma/**)",
+      "Write(tests/**)",
+      "Write(.env.example)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(curl * | bash)",
+      "Bash(wget * | sh)",
+      "Write(.env)",
+      "Write(.env.local)",
+      "Bash(git push *)",
+      "Bash(git commit *)"
+    ]
+  },
+  "rules": [
+    ".claude/rules/code-style.md",
+    ".claude/rules/testing.md",
+    ".claude/rules/api-conventions.md"
+  ]
+}

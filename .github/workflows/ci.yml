@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: TypeScript
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tests
+        run: pnpm test
+        env:
+          ANTHROPIC_API_KEY: dummy
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost
+          SUPABASE_SERVICE_ROLE_KEY: dummy
+          ASAAS_API_KEY: dummy
+          ASAAS_WEBHOOK_TOKEN: dummy
