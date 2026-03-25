@@ -50,7 +50,6 @@ export async function POST(req: Request): Promise<Response> {
   })
 
   if (setResult !== 'OK') {
-    console.log(`[webhook/clerk] Duplicate delivery ignored: ${svixId}`)
     return Response.json({ ok: true, duplicate: true }, { status: 200 })
   }
 
@@ -85,9 +84,6 @@ export async function POST(req: Request): Promise<Response> {
           renews_at: null,
         })
         if (error) throw error
-        console.log(
-          `[webhook/clerk] user.created: ${id} — quota bootstrapped (1 free credit)`
-        )
         break
       }
 
@@ -96,9 +92,6 @@ export async function POST(req: Request): Promise<Response> {
         const email = email_addresses[0]?.email_address ?? null
         const name =
           [first_name, last_name].filter(Boolean).join(' ') || null
-        console.log(
-          `[webhook/clerk] user.updated: ${id} (email: ${email}, name: ${name})`
-        )
         break
       }
 
@@ -110,9 +103,6 @@ export async function POST(req: Request): Promise<Response> {
           .delete()
           .eq('user_id', id)
         if (error) throw error
-        console.log(
-          `[webhook/clerk] user.deleted: ${id} — quota row removed`
-        )
         break
       }
 

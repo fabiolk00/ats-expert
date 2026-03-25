@@ -57,11 +57,14 @@ export default function LoginForm() {
               id="email"
               type="email"
               placeholder="seu@email.com"
+              autoComplete="email"
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? 'email-error' : undefined}
               {...register('email')}
-              className={errors.email ? "border-destructive" : ""}
+              className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
             />
             {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
+              <p id="email-error" className="text-sm text-destructive">{errors.email.message}</p>
             )}
           </div>
           <div className="space-y-2">
@@ -71,20 +74,23 @@ export default function LoginForm() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
+                autoComplete="current-password"
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? 'password-error' : undefined}
                 {...register('password')}
-                className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                className={errors.password ? "border-destructive focus-visible:ring-destructive pr-10" : "pr-10"}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
             {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
+              <p id="password-error" className="text-sm text-destructive">{errors.password.message}</p>
             )}
           </div>
           {errors.root && (

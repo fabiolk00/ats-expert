@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import React from 'react'
 import LoginForm from './login-form'
@@ -50,6 +51,7 @@ describe('LoginForm', () => {
 
   it('submits form when valid data is entered', async () => {
     mockSignIn.mockResolvedValue({ status: 'complete' })
+    const user = userEvent.setup()
 
     render(<LoginForm />)
 
@@ -57,9 +59,9 @@ describe('LoginForm', () => {
     const passwordInput = screen.getByLabelText('Senha')
     const submitButton = screen.getByRole('button', { name: /entrar/i })
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
-    fireEvent.change(passwordInput, { target: { value: 'password123' } })
-    fireEvent.click(submitButton)
+    await user.type(emailInput, 'test@example.com')
+    await user.type(passwordInput, 'password123')
+    await user.click(submitButton)
 
     await waitFor(() => {
       expect(mockSignIn).toHaveBeenCalledWith({
@@ -74,15 +76,17 @@ describe('LoginForm', () => {
   })
 
   it('shows error when email is invalid', async () => {
+    const user = userEvent.setup()
+
     render(<LoginForm />)
 
     const emailInput = screen.getByLabelText('E-mail')
     const passwordInput = screen.getByLabelText('Senha')
     const submitButton = screen.getByRole('button', { name: /entrar/i })
 
-    fireEvent.change(emailInput, { target: { value: 'invalid' } })
-    fireEvent.change(passwordInput, { target: { value: 'password123' } })
-    fireEvent.click(submitButton)
+    await user.type(emailInput, 'invalid')
+    await user.type(passwordInput, 'password123')
+    await user.click(submitButton)
 
     await waitFor(() => {
       expect(screen.getByText('E-mail inválido')).toBeInTheDocument()
@@ -90,15 +94,17 @@ describe('LoginForm', () => {
   })
 
   it('shows error when password is too short', async () => {
+    const user = userEvent.setup()
+
     render(<LoginForm />)
 
     const emailInput = screen.getByLabelText('E-mail')
     const passwordInput = screen.getByLabelText('Senha')
     const submitButton = screen.getByRole('button', { name: /entrar/i })
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
-    fireEvent.change(passwordInput, { target: { value: 'short' } })
-    fireEvent.click(submitButton)
+    await user.type(emailInput, 'test@example.com')
+    await user.type(passwordInput, 'short')
+    await user.click(submitButton)
 
     await waitFor(() => {
       expect(screen.getByText('Senha deve ter pelo menos 8 caracteres')).toBeInTheDocument()
@@ -107,6 +113,7 @@ describe('LoginForm', () => {
 
   it('disables submit button while submitting', async () => {
     mockSignIn.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ status: 'complete' }), 100)))
+    const user = userEvent.setup()
 
     render(<LoginForm />)
 
@@ -114,9 +121,9 @@ describe('LoginForm', () => {
     const passwordInput = screen.getByLabelText('Senha')
     const submitButton = screen.getByRole('button', { name: /entrar/i })
 
-    fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
-    fireEvent.change(passwordInput, { target: { value: 'password123' } })
-    fireEvent.click(submitButton)
+    await user.type(emailInput, 'test@example.com')
+    await user.type(passwordInput, 'password123')
+    await user.click(submitButton)
 
     await waitFor(() => {
       expect(submitButton).toBeDisabled()
