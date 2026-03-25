@@ -58,12 +58,10 @@ export default function SignupForm() {
 
   const signUpForm = useForm<SignUpData>({
     resolver: zodResolver(signUpSchema),
-    mode: 'onChange',
   })
 
   const verifyForm = useForm<VerifyData>({
     resolver: zodResolver(verifySchema),
-    mode: 'onChange',
   })
 
   const onSignUp = async (data: SignUpData) => {
@@ -111,7 +109,7 @@ export default function SignupForm() {
 
   if (step === 'verify') {
     const {
-      formState: { errors, isSubmitting, isValid },
+      formState: { errors, isSubmitting },
     } = verifyForm
 
     return (
@@ -174,7 +172,7 @@ export default function SignupForm() {
             <Button
               type="submit"
               className="w-full"
-              disabled={isSubmitting || !isValid}
+              disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <>
@@ -201,7 +199,7 @@ export default function SignupForm() {
   // ── Sign-up step ────────────────────────────────────────────────────────
 
   const {
-    formState: { errors, isSubmitting, isValid },
+    formState: { errors, isSubmitting },
   } = signUpForm
 
   return (
@@ -320,7 +318,7 @@ export default function SignupForm() {
           <Button
             type="submit"
             className="w-full"
-            disabled={isSubmitting || !isValid}
+            disabled={isSubmitting}
           >
             {isSubmitting ? (
               <>
