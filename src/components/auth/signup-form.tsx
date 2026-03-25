@@ -132,7 +132,7 @@ export default function SignupForm() {
           </div>
         </CardHeader>
 
-        <form onSubmit={verifyForm.handleSubmit(onVerify)}>
+        <form onSubmit={verifyForm.handleSubmit(onVerify)} noValidate>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="code">Código de verificação</Label>
@@ -218,7 +218,7 @@ export default function SignupForm() {
         </div>
       </CardHeader>
 
-      <form onSubmit={signUpForm.handleSubmit(onSignUp)}>
+      <form onSubmit={signUpForm.handleSubmit(onSignUp)} noValidate>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Nome completo</Label>

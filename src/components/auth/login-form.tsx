@@ -49,7 +49,7 @@ export default function LoginForm() {
         </div>
         <h1 className="text-2xl font-semibold">Entrar na sua conta</h1>
       </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
