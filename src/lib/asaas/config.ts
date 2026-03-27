@@ -8,7 +8,7 @@ type PlanConfig = {
 }
 
 export const PLANS: Record<PlanKey, PlanConfig> = {
-  one_time: { label: 'Unitário', value: 19.00, credits: 1,  cycle: null },
-  monthly:  { label: 'Mensal',   value: 39.00, credits: 5,  cycle: 'MONTHLY' },
-  pro:      { label: 'Pro',      value: 97.00, credits: -1, cycle: 'MONTHLY' },
+  one_time: { label: 'Unitário', value: 19.00, credits: 3,  cycle: null },
+  monthly:  { label: 'Mensal',   value: 39.00, credits: 20, cycle: 'MONTHLY' },
+  pro:      { label: 'Pro',      value: 97.00, credits: 50, cycle: 'MONTHLY' },
 }

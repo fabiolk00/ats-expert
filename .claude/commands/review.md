@@ -11,7 +11,7 @@ Review the current git diff for code quality, security, and alignment with proje
    - `.claude/rules/api-conventions.md`
    - `.claude/rules/testing.md`
 4. For any new API route, verify the auth + validation + quota check pattern is present
-5. For any change to `lib/agent/`, verify no model name was changed from `claude-sonnet-4-5`
+5. For any change to `lib/agent/`, verify the model is still `claude-haiku-4-5-20251001` in `config.ts`
 6. For any change to `lib/ats/`, check if a corresponding `.test.ts` was updated
 7. Output a structured review:
 

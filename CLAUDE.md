@@ -9,7 +9,7 @@ a conversational agent analyzes it, suggests improvements, and generates an ATS-
 - **Auth**: Clerk
 - **Database**: Supabase (Postgres + Storage)
 - **ORM**: Prisma
-- **AI**: Anthropic SDK — default model is `claude-sonnet-4-5` (never use Haiku in production)
+- **AI**: Anthropic SDK — default model is `claude-haiku-4-5-20251001`
 - **DOCX generation**: Docxtemplater + PizZip
 - **PDF**: LibreOffice headless via child_process (server-side only)
 - **Payments**: Asaas (Brazilian payment gateway — one-time R$19 + subscriptions)
@@ -65,7 +65,7 @@ UPSTASH_REDIS_TOKEN
 3. **Never** store raw resume text in the database — store only the structured CVState (JSON)
 4. All generated files go to Supabase Storage, never to the server filesystem
 5. Every write API route requires Clerk authentication
-6. The Claude model is **always** `claude-sonnet-4-5` — do not accept PRs that change this
+6. The Claude model is **always** `claude-haiku-4-5-20251001` (configured in `src/lib/agent/config.ts`) — do not accept PRs that change this without cost analysis
 
 ## Naming conventions
 - Files: `kebab-case.ts`

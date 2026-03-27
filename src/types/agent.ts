@@ -15,6 +15,8 @@ export type Session = {
   cvState: CVState
   atsScore?: ATSScoreResult
   creditsUsed: number
+  messageCount: number
+  creditConsumed: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -82,5 +84,13 @@ export type AgentRequest = {
 
 export type AgentStreamChunk =
   | { delta: string }
-  | { done: true; phase: Phase; atsScore?: ATSScoreResult }
-  | { error: string }
+  | {
+      done: true
+      sessionId: string
+      phase: Phase
+      atsScore?: ATSScoreResult
+      messageCount?: number
+      maxMessages?: number
+      isNewSession?: boolean
+    }
+  | { error: string; action?: string; messageCount?: number; maxMessages?: number; upgradeUrl?: string }

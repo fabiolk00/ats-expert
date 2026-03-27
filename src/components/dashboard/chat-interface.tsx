@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -24,12 +25,33 @@ interface Message {
   }
 }
 
-// Welcome message
-const WELCOME_MESSAGE: Message = {
-  id: "welcome",
-  role: "assistant",
-  content: "Olá! Sou a CurrIA. Cole uma descrição de vaga e envie seu currículo para começar a análise.",
-  timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+// Welcome message - personalized if first name is available
+function createWelcomeMessage(firstName?: string): Message {
+  const greeting = firstName ? `Olá, ${firstName}!` : 'Olá!'
+
+  return {
+    id: "welcome",
+    role: "assistant",
+    content: `${greeting} Sou seu consultor especialista em ATS e Recursos Humanos.
+
+Tenho experiência profunda em como os sistemas de rastreamento de candidatos funcionam por dentro — desde a triagem automática até os critérios que recrutadores configuram para filtrar currículos.
+
+Meu objetivo é simples: fazer seu currículo passar pela triagem automatizada e chegar nas mãos do recrutador.
+
+Para começar, preciso de duas coisas:
+
+1. **Seu currículo** — envie o arquivo PDF ou DOCX arrastando aqui no chat
+2. **A vaga que você quer conquistar** — pode ser de duas formas:
+   - Cole o texto da descrição da vaga diretamente aqui
+   - Ou cole o link da vaga (ex: LinkedIn, Gupy, Catho) que eu extraio o conteúdo automaticamente
+
+Com isso, vou analisar a compatibilidade do seu currículo com a vaga, identificar as palavras-chave que estão faltando e te mostrar exatamente o que ajustar para aumentar suas chances de entrevista.
+
+**Cada análise permite até 15 mensagens** — o suficiente para analisar, otimizar e gerar seu currículo completo. Ao enviar sua primeira mensagem, 1 crédito será utilizado.
+
+Vamos começar?`,
+    timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+  }
 }
 
 interface ChatInterfaceProps {
@@ -38,13 +60,18 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
+  const { user } = useUser()
+  const welcomeMessage = createWelcomeMessage(user?.firstName ?? undefined)
+  const [messages, setMessages] = useState<Message[]>([welcomeMessage])
   const [input, setInput] = useState("")
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
   const [phase, setPhase] = useState<Phase>("intake")
   const [atsScore, setAtsScore] = useState<number | undefined>()
+  const [messageCount, setMessageCount] = useState(0)
+  const [maxMessages] = useState(15)
+  const [sessionLimitReached, setSessionLimitReached] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -71,10 +98,10 @@ export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfacePr
             )
           )
         } else {
-          setMessages([WELCOME_MESSAGE])
+          setMessages([welcomeMessage])
         }
       })
-  }, [sessionId])
+  }, [sessionId, welcomeMessage])
 
   // Auto-scroll
   useEffect(() => {
@@ -164,12 +191,17 @@ export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfacePr
             if (chunk.done) {
               setPhase(chunk.phase)
               if (chunk.atsScore?.total) setAtsScore(chunk.atsScore.total)
+              if (chunk.messageCount !== undefined) setMessageCount(chunk.messageCount)
             }
             if (chunk.error) {
+              // Handle session limit separately
+              if (chunk.action === 'new_session') {
+                setSessionLimitReached(true)
+              }
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === agentMsgId
-                    ? { ...m, content: "Erro: " + chunk.error }
+                    ? { ...m, content: "⚠️ " + chunk.error }
                     : m
                 )
               )
@@ -215,6 +247,22 @@ export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfacePr
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
+      {/* Session status bar */}
+      {messageCount > 0 && (
+        <div className="border-b border-border bg-muted/30 px-4 py-2">
+          <div className="max-w-3xl mx-auto flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">
+              Mensagem {messageCount} de {maxMessages} nesta análise
+            </span>
+            {messageCount >= maxMessages - 2 && messageCount < maxMessages && (
+              <span className="text-warning text-xs">
+                {maxMessages - messageCount} mensagens restantes
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Welcome header */}
       {messages.length === 1 && (
         <div className="text-center py-12 px-4">
@@ -299,7 +347,7 @@ export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfacePr
             />
             <Button
               onClick={handleSend}
-              disabled={(!input.trim() && !uploadedFile) || isStreaming}
+              disabled={(!input.trim() && !uploadedFile) || isStreaming || sessionLimitReached}
               size="icon"
               className="shrink-0"
             >
@@ -307,9 +355,15 @@ export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfacePr
             </Button>
           </div>
 
-          <p className="text-xs text-center text-muted-foreground">
-            Arraste e solte um arquivo PDF ou DOCX, ou clique no botão de upload
-          </p>
+          {sessionLimitReached ? (
+            <p className="text-xs text-center text-warning">
+              Esta sessão atingiu o limite de mensagens. Inicie uma nova análise para continuar.
+            </p>
+          ) : (
+            <p className="text-xs text-center text-muted-foreground">
+              Arraste e solte um arquivo PDF ou DOCX, ou clique no botão de upload
+            </p>
+          )}
         </div>
       </div>
     </div>

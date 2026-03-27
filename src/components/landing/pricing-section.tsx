@@ -24,10 +24,10 @@ const plans = [
     name: "Unitário",
     price: "R$ 19",
     period: "",
-    description: "Para uma análise pontual",
+    description: "Para análises pontuais",
     features: [
-      "1 análise ATS completa",
-      "1 arquivo DOCX + PDF",
+      "3 análises ATS completas",
+      "3 arquivos DOCX + PDF",
       "Download imediato",
       "Chat com IA",
     ],
@@ -41,7 +41,7 @@ const plans = [
     period: "/mês",
     description: "Ideal para busca ativa de emprego",
     features: [
-      "5 currículos por mês",
+      "20 currículos por mês",
       "Chat iterativo com IA",
       "Histórico de currículos",
       "Match com vagas",
@@ -56,7 +56,7 @@ const plans = [
     period: "/mês",
     description: "Para profissionais e recrutadores",
     features: [
-      "Currículos ilimitados",
+      "50 currículos por mês",
       "Tudo do plano Mensal",
       "Suporte prioritário",
       "Acesso antecipado a recursos",

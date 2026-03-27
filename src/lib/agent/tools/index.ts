@@ -4,6 +4,41 @@ import { parseFile }    from './parse-file'
 import { generateFile } from './generate-file'
 import { scoreATS }     from '@/lib/ats/score'
 import { updateSession } from '@/lib/db/sessions'
+import { AGENT_CONFIG } from '@/lib/agent/config'
+import { trackApiUsage } from '@/lib/agent/usage-tracker'
+import type Anthropic from '@anthropic-ai/sdk'
+
+async function callAnthropicWithRetry(
+  client: Anthropic,
+  params: Anthropic.MessageCreateParamsNonStreaming,
+  maxRetries: number = 3
+): Promise<Anthropic.Message> {
+  let lastError: Error | null = null
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await client.messages.create(params) as Anthropic.Message
+    } catch (error) {
+      lastError = error as Error
+
+      const AnthropicSDK = (await import('@anthropic-ai/sdk')).default
+      // Only retry on transient errors
+      const isRetryable =
+        error instanceof AnthropicSDK.APIError &&
+        (error.status === 429 || error.status === 500 || error.status === 503 || error.status === 529)
+
+      if (!isRetryable || attempt === maxRetries) {
+        throw error
+      }
+
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = Math.pow(2, attempt - 1) * 1000
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+
+  throw lastError
+}
 
 export const TOOL_DEFINITIONS: Tool[] = [
   {
@@ -85,8 +120,13 @@ export async function dispatchTool(
   try {
     switch (toolName) {
       case 'parse_file': {
-        const result = await parseFile(toolInput as Parameters<typeof parseFile>[0])
+        const result = await parseFile(
+          toolInput as Parameters<typeof parseFile>[0],
+          session.userId,
+          session.id
+        )
         if (result.success) {
+          // Store only the extracted text, not the base64 file data
           session.cvState.rawText = result.text
           await updateSession(session.id, { cvState: session.cvState })
         }
@@ -104,7 +144,11 @@ export async function dispatchTool(
 
       case 'rewrite_section': {
         // Delegate to section-rewriter subagent
-        const result = await callSectionRewriter(toolInput as Parameters<typeof callSectionRewriter>[0])
+        const result = await callSectionRewriter(
+          toolInput as Parameters<typeof callSectionRewriter>[0],
+          session.userId,
+          session.id
+        )
         return JSON.stringify(result)
       }
 
@@ -133,18 +177,24 @@ export async function dispatchTool(
   }
 }
 
-async function callSectionRewriter(input: {
-  section: string
-  current_content: string
-  instructions: string
-  target_keywords?: string[]
-}): Promise<unknown> {
+async function callSectionRewriter(
+  input: {
+    section: string
+    current_content: string
+    instructions: string
+    target_keywords?: string[]
+  },
+  userId: string,
+  sessionId: string
+): Promise<unknown> {
   const Anthropic = (await import('@anthropic-ai/sdk')).default
-  const client    = new Anthropic()
+  const client    = new Anthropic({
+    timeout: AGENT_CONFIG.timeout,
+  })
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 1000,
+  const response = await callAnthropicWithRetry(client, {
+    model: AGENT_CONFIG.model,
+    max_tokens: AGENT_CONFIG.rewriterMaxTokens,
     system: `You are an expert ATS resume writer. Rewrite the provided resume section following the instructions.
 Output ONLY valid JSON matching this shape exactly:
 {
@@ -159,7 +209,16 @@ No markdown, no preamble, no explanation — just the JSON object.`,
     }],
   })
 
-  const text = response.content.find(b => b.type === 'text')?.text ?? '{}'
+  // Track API usage (non-blocking)
+  trackApiUsage({
+    userId,
+    sessionId,
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    endpoint: 'rewriter',
+  }).catch(() => {})
+
+  const text = response.content.find((b: Anthropic.ContentBlock) => b.type === 'text' && 'text' in b)?.text ?? '{}'
   try {
     return { success: true, ...JSON.parse(text) }
   } catch {

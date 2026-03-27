@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { renderSimpleMarkdown } from "@/lib/utils/simple-markdown"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -46,7 +47,9 @@ export function ChatMessage({ role, content, timestamp, analysisResult }: ChatMe
               : "bg-primary text-primary-foreground rounded-tr-md"
           )}
         >
-          <p className="text-sm whitespace-pre-wrap">{content}</p>
+          <div className="text-sm">
+            {isAssistant ? renderSimpleMarkdown(content) : <p className="whitespace-pre-wrap">{content}</p>}
+          </div>
           {timestamp && (
             <p className={cn(
               "text-xs mt-2",

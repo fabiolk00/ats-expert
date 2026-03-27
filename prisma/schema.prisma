@@ -9,16 +9,18 @@ datasource db {
 }
 
 model Session {
-  id           String    @id @default(cuid())
-  userId       String    @map("user_id")
-  phase        String    @default("intake")
-  cvState      Json      @map("cv_state")
-  atsScore     Json?     @map("ats_score")
-  creditsUsed  Int       @default(0) @map("credits_used")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  phase          String    @default("intake")
+  cvState        Json      @map("cv_state")
+  atsScore       Json?     @map("ats_score")
+  creditsUsed    Int       @default(0) @map("credits_used")
+  messageCount   Int       @default(0) @map("message_count")
+  creditConsumed Boolean   @default(false) @map("credit_consumed")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  messages     Message[]
+  messages       Message[]
 
   @@index([userId])
   @@map("sessions")
@@ -61,4 +63,21 @@ model ProcessedEvent {
 
   @@unique([eventId, eventType])
   @@map("processed_events")
+}
+
+model ApiUsage {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  sessionId    String?  @map("session_id")
+  model        String
+  inputTokens  Int      @map("input_tokens")
+  outputTokens Int      @map("output_tokens")
+  totalTokens  Int      @map("total_tokens")
+  costCents    Int      @map("cost_cents") // Cost in cents (USD) for easy integer math
+  endpoint     String   // "agent" | "rewriter" | "ocr"
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("api_usage")
 }
