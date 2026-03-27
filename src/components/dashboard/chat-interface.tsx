@@ -55,13 +55,14 @@ Vamos começar?`,
 }
 
 interface ChatInterfaceProps {
-  sessionId: string
+  sessionId?: string
   userName?: string
 }
 
-export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfaceProps) {
+export function ChatInterface({ sessionId: initialSessionId, userName = "Você" }: ChatInterfaceProps) {
   const { user } = useUser()
   const welcomeMessage = createWelcomeMessage(user?.firstName ?? undefined)
+  const [sessionId, setSessionId] = useState<string | undefined>(initialSessionId)
   const [messages, setMessages] = useState<Message[]>([welcomeMessage])
   const [input, setInput] = useState("")
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -75,8 +76,13 @@ export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfacePr
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Load existing messages on mount
+  // Load existing messages on mount (only if sessionId exists)
   useEffect(() => {
+    if (!sessionId) {
+      setMessages([welcomeMessage])
+      return
+    }
+
     fetch(`/api/session/${sessionId}/messages`)
       .then((r) => r.json())
       .then((data) => {
@@ -100,6 +106,9 @@ export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfacePr
         } else {
           setMessages([welcomeMessage])
         }
+      })
+      .catch(() => {
+        setMessages([welcomeMessage])
       })
   }, [sessionId, welcomeMessage])
 
@@ -160,7 +169,7 @@ export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfacePr
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId,
+          sessionId: sessionId || undefined,
           message: input,
           file: fileBase64,
           fileMime,
@@ -192,6 +201,10 @@ export function ChatInterface({ sessionId, userName = "Você" }: ChatInterfacePr
               setPhase(chunk.phase)
               if (chunk.atsScore?.total) setAtsScore(chunk.atsScore.total)
               if (chunk.messageCount !== undefined) setMessageCount(chunk.messageCount)
+              // Update sessionId if this was a new session
+              if (chunk.sessionId && !sessionId) {
+                setSessionId(chunk.sessionId)
+              }
             }
             if (chunk.error) {
               // Handle session limit separately

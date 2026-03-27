@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-import { PLANS, type PlanKey } from '@/lib/asaas/config'
+import { PLANS, type PlanSlug } from '@/lib/plans'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,11 +9,11 @@ const supabase = createClient(
 
 export async function grantCredits(
   userId: string,
-  plan: PlanKey,
+  plan: PlanSlug,
   asaasSubscriptionId?: string,
 ): Promise<void> {
   const planConfig = PLANS[plan]
-  const renewsAt = plan !== 'one_time'
+  const renewsAt = planConfig.billing === 'monthly'
     ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     : null
 

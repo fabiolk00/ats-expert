@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { createCheckoutLink } from '@/lib/asaas/checkout'
 
 const BodySchema = z.object({
-  plan: z.enum(['one_time', 'monthly', 'pro']),
+  plan: z.enum(['unit', 'monthly', 'pro']),
 })
 
 export async function POST(req: NextRequest): Promise<NextResponse> {

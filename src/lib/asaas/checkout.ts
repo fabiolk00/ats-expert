@@ -1,12 +1,12 @@
 import { asaas } from '@/lib/asaas/client'
-import { PLANS, type PlanKey } from '@/lib/asaas/config'
+import { PLANS, type PlanSlug } from '@/lib/plans'
 import { getOrCreateCustomer } from '@/lib/asaas/customers'
 
 type CreateCheckoutLinkInput = {
   userId: string
   userName: string
   userEmail: string
-  plan: PlanKey
+  plan: PlanSlug
   successUrl: string
 }
 
@@ -26,12 +26,13 @@ export async function createCheckoutLink({
   const planConfig = PLANS[plan]
   const customerId = await getOrCreateCustomer({ userId, name: userName, email: userEmail })
 
-  if (plan === 'one_time') {
+  // One-time payment (Unitário)
+  if (planConfig.billing === 'once') {
     const result = await asaas.post<{ url: string }>('/paymentLinks', {
-      name: `CurrIA — ${planConfig.label}`,
+      name: `CurrIA — ${planConfig.name}`,
       billingType: 'UNDEFINED',
       chargeType: 'DETACHED',
-      value: planConfig.value,
+      value: planConfig.price / 100, // Convert cents to reais
       customer: customerId,
       externalReference: `${userId}:${plan}`,
       successUrl,
@@ -39,11 +40,12 @@ export async function createCheckoutLink({
     return result.url
   }
 
+  // Subscription (Mensal/Pro)
   const result = await asaas.post<{ invoiceUrl: string }>('/subscriptions', {
     customer: customerId,
     billingType: 'CREDIT_CARD',
-    cycle: planConfig.cycle!,
-    value: planConfig.value,
+    cycle: 'MONTHLY',
+    value: planConfig.price / 100, // Convert cents to reais
     nextDueDate: tomorrow(),
     externalReference: `${userId}:${plan}`,
   })

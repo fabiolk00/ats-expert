@@ -23,14 +23,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const requestedSessionId = searchParams.session
 
   // Get user sessions
-  let sessions = await db.getUserSessions(userId)
-
-  if (sessions.length === 0) {
-    // No sessions yet - create the first one
-    await db.createSession(userId)
-    // Fetch again to get the newly created session
-    sessions = await db.getUserSessions(userId)
-  }
+  const sessions = await db.getUserSessions(userId)
 
   // Use requested session if provided and exists, otherwise use most recent
   let activeSessionId = requestedSessionId || sessions[0]?.id
@@ -44,9 +37,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     }
   }
 
-  if (!activeSessionId) {
-    return <div className="p-8 text-center">Erro ao criar sessão. Tente novamente.</div>
-  }
-
+  // Pass sessionId (can be undefined for first-time users)
+  // ChatInterface will handle empty state and create session via /api/agent on first message
   return <ChatInterface sessionId={activeSessionId} userName={userName} />
 }

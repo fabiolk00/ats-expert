@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 import { grantCredits, revokeSubscription } from '@/lib/asaas/quota'
-import type { PlanKey } from '@/lib/asaas/config'
+import type { PlanSlug } from '@/lib/plans'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       if (!payment?.subscription) {
         const [userId, plan] = (payment?.externalReference ?? '').split(':')
         if (userId && plan) {
-          await grantCredits(userId, plan as PlanKey)
+          await grantCredits(userId, plan as PlanSlug)
         }
       }
     } else if (eventType === 'SUBSCRIPTION_RENEWED') {
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       const ref = subscription?.externalReference ?? payment?.externalReference ?? ''
       const [userId, plan] = ref.split(':')
       if (userId && plan) {
-        await grantCredits(userId, plan as PlanKey, subId)
+        await grantCredits(userId, plan as PlanSlug, subId)
       }
     } else if (eventType === 'SUBSCRIPTION_DELETED') {
       if (subscription?.id) await revokeSubscription(subscription.id)
