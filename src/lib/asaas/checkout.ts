@@ -3,7 +3,7 @@ import { PLANS, type PlanSlug } from '@/lib/plans'
 import { getOrCreateCustomer } from '@/lib/asaas/customers'
 
 type CreateCheckoutLinkInput = {
-  userId: string
+  appUserId: string
   userName: string
   userEmail: string
   plan: PlanSlug
@@ -17,14 +17,14 @@ function tomorrow(): string {
 }
 
 export async function createCheckoutLink({
-  userId,
+  appUserId,
   userName,
   userEmail,
   plan,
   successUrl,
 }: CreateCheckoutLinkInput): Promise<string> {
   const planConfig = PLANS[plan]
-  const customerId = await getOrCreateCustomer({ userId, name: userName, email: userEmail })
+  const customerId = await getOrCreateCustomer({ appUserId, name: userName, email: userEmail })
 
   // One-time payment (Unitário)
   if (planConfig.billing === 'once') {
@@ -34,7 +34,7 @@ export async function createCheckoutLink({
       chargeType: 'DETACHED',
       value: planConfig.price / 100, // Convert cents to reais
       customer: customerId,
-      externalReference: `${userId}:${plan}`,
+      externalReference: `${appUserId}:${plan}`,
       successUrl,
     })
     return result.url
@@ -47,7 +47,7 @@ export async function createCheckoutLink({
     cycle: 'MONTHLY',
     value: planConfig.price / 100, // Convert cents to reais
     nextDueDate: tomorrow(),
-    externalReference: `${userId}:${plan}`,
+    externalReference: `${appUserId}:${plan}`,
   })
 
   return result.invoiceUrl

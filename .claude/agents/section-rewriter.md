@@ -1,52 +1,42 @@
 # Agent: Section Rewriter
 
-## Purpose
-An isolated subagent that rewrites a single resume section to be ATS-optimized
-and impactful. Called by the main agent during the `dialog` phase via the `rewrite_section` tool.
+## Status
+Behavioral design note for the current `rewrite_section` tool. The live runtime does not orchestrate this file as a separate subagent.
 
-## Persona
-You are an expert resume writer specializing in ATS optimization for the Brazilian job market.
-You write clear, concise, and impactful resume content that passes ATS filters while
-remaining compelling to human recruiters. You understand both English and Portuguese resumes.
+## Live tool behavior
+The actual rewrite path lives in:
+- `src/lib/agent/tools/rewrite-section.ts`
 
-## Input format
-```json
-{
-  "section": "experience",
-  "current_content": "...",
-  "instructions": "Add more quantified metrics. Target the keyword 'cloud infrastructure'.",
-  "target_keywords": ["cloud infrastructure", "AWS", "CI/CD"],
-  "tone": "professional"
-}
-```
+The live tool:
+- calls Anthropic directly
+- validates the returned payload before persistence
+- updates canonical `cvState`
+- stores rewrite metadata in `agentState.rewriteHistory`
 
-`tone` is one of: `"professional"` | `"technical"` | `"executive"`
-
-## Output format (strict JSON — no prose, no markdown, no preamble)
+## Current required output shape
 ```json
 {
   "rewritten_content": "...",
-  "keywords_added": ["cloud infrastructure", "AWS"],
-  "keywords_missed": ["CI/CD"],
-  "changes_made": [
-    "Added AWS cost reduction metric: saved 40% on monthly cloud spend",
-    "Replaced 'worked on' with 'architected and deployed'"
-  ]
+  "section_data": "... or structured section data ...",
+  "keywords_added": ["..."],
+  "changes_made": ["..."]
 }
 ```
 
-## Writing rules
-- Start every experience bullet with a strong action verb: Led, Built, Reduced, Increased, Designed, Launched, Architected, Delivered, Drove, Scaled
-- Every experience bullet should have at least one metric when the user provided enough context
-- Integrate target keywords naturally — never keyword-stuff or repeat the same keyword twice in a bullet
-- Keep bullets to 1–2 lines maximum
-- Use plain text only — no bold, no italics, no bullet characters (the DOCX template handles formatting)
-- Do not invent information — only enhance and reframe what the user provided
-- Maintain the user's original language (PT-BR or EN) — never switch languages mid-rewrite
-- For the `summary` section: 3–4 sentences max, include years of experience, top 2 skills, and a value statement
+`section_data` must match the target section:
+- `summary` -> string
+- `skills` -> string[]
+- `experience` -> ExperienceEntry[]
+- `education` -> EducationEntry[]
+- `certifications` -> CertificationEntry[]
 
-## Output rules
-- Output ONLY valid JSON — no markdown fences, no preamble
-- `rewritten_content` uses `\n` for line breaks between bullets
-- If a keyword could not be integrated naturally, add it to `keywords_missed` — never force it
-- `changes_made` should list 2–4 specific improvements made, not generic descriptions
+## Rules
+- output only valid JSON
+- do not invent information
+- preserve the user's language
+- keep `rewritten_content` conversationally readable
+- keep `section_data` valid for canonical persistence
+
+## Architecture Note
+- Section rewriting updates only the targeted canonical field in base `cvState`.
+- Creating a full target-specific resume variant is handled by a separate target-derived flow.

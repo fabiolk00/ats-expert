@@ -33,8 +33,6 @@ export type CVState = {
   skills: string[]
   education: EducationEntry[]
   certifications?: CertificationEntry[]
-  rawText?: string        // original extracted text, not persisted long-term
-  targetJobDescription?: string
 }
 
 export type ATSIssue = {
@@ -54,4 +52,48 @@ export type ATSScoreResult = {
   }
   issues: ATSIssue[]
   suggestions: string[]
+}
+
+export type GapAnalysisResult = {
+  matchScore: number
+  missingSkills: string[]
+  weakAreas: string[]
+  improvementSuggestions: string[]
+}
+
+export type CVContactDiff = {
+  before: Pick<CVState, 'fullName' | 'email' | 'phone' | 'linkedin' | 'location'>
+  after: Pick<CVState, 'fullName' | 'email' | 'phone' | 'linkedin' | 'location'>
+  changedFields: Array<'fullName' | 'email' | 'phone' | 'linkedin' | 'location'>
+}
+
+export type CVSummaryDiff = {
+  before: string
+  after: string
+  changed: boolean
+}
+
+export type CVSkillsDiff = {
+  added: string[]
+  removed: string[]
+  unchangedCount: number
+}
+
+export type CVListItemDiff<T> = {
+  added: T[]
+  removed: T[]
+  changed: Array<{
+    before: T
+    after: T
+  }>
+  unchangedCount: number
+}
+
+export type CVStateDiff = {
+  contact?: CVContactDiff
+  summary?: CVSummaryDiff
+  skills?: CVSkillsDiff
+  experience?: CVListItemDiff<ExperienceEntry>
+  education?: CVListItemDiff<EducationEntry>
+  certifications?: CVListItemDiff<CertificationEntry>
 }

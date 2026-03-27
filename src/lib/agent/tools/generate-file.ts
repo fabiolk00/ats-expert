@@ -1,57 +1,161 @@
 import { readFileSync } from 'fs'
 import path from 'path'
+
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import Docxtemplater from 'docxtemplater'
 import PizZip from 'pizzip'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-import type { GenerateFileInput, GenerateFileOutput } from '@/types/agent'
-import type { CVState } from '@/types/cv'
-import { createClient } from '@supabase/supabase-js'
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+import type { GenerateFileInput, GenerateFileOutput, GeneratedOutput, ToolPatch } from '@/types/agent'
+import type { CVState } from '@/types/cv'
+
+type GenerateFileExecutionResult = {
+  output: GenerateFileOutput
+  patch?: ToolPatch
+  generatedOutput?: GeneratedOutput
 }
+
+type SupabaseStorageClient = ReturnType<SupabaseClient['storage']['from']>
+type SignedResumeArtifactUrls = {
+  docxUrl: string
+  pdfUrl: string
+}
+
+type ArtifactScope =
+  | { type: 'session' }
+  | { type: 'target'; targetId: string }
 
 const MARGIN = 50
 const PAGE_WIDTH = 595
 const PAGE_HEIGHT = 842
 const USABLE_WIDTH = PAGE_WIDTH - 2 * MARGIN
 
+function getSupabase(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !serviceRoleKey) {
+    throw new Error('Supabase admin environment variables are not configured.')
+  }
+
+  return createClient(url, serviceRoleKey)
+}
+
+function createSuccessPatch(docxPath: string, pdfPath: string): ToolPatch {
+  return {
+    generatedOutput: createGeneratedOutput('ready', undefined, docxPath, pdfPath),
+  }
+}
+
+function createGeneratedOutput(status: GeneratedOutput['status'], error?: string, docxPath?: string, pdfPath?: string): GeneratedOutput {
+  return {
+    status,
+    docxPath,
+    pdfPath,
+    generatedAt: status === 'ready' ? new Date().toISOString() : undefined,
+    error,
+  }
+}
+
+function createFailurePatch(error: string, docxPath?: string, pdfPath?: string): ToolPatch {
+  return {
+    generatedOutput: createGeneratedOutput('failed', error, docxPath, pdfPath),
+  }
+}
+
+function buildArtifactPaths(
+  userId: string,
+  sessionId: string,
+  scope: ArtifactScope,
+): { docxPath: string; pdfPath: string } {
+  if (scope.type === 'target') {
+    return {
+      docxPath: `${userId}/${sessionId}/targets/${scope.targetId}/resume.docx`,
+      pdfPath: `${userId}/${sessionId}/targets/${scope.targetId}/resume.pdf`,
+    }
+  }
+
+  return {
+    docxPath: `${userId}/${sessionId}/resume.docx`,
+    pdfPath: `${userId}/${sessionId}/resume.pdf`,
+  }
+}
+
+export async function createSignedResumeArtifactUrls(
+  docxPath: string,
+  pdfPath: string,
+  supabase: SupabaseClient = generateFileDeps.getSupabase(),
+): Promise<SignedResumeArtifactUrls> {
+  const [{ data: docxSigned, error: docxError }, { data: pdfSigned, error: pdfError }] = await Promise.all([
+    supabase.storage.from('resumes').createSignedUrl(docxPath, 3600),
+    supabase.storage.from('resumes').createSignedUrl(pdfPath, 3600),
+  ])
+
+  if (docxError || !docxSigned?.signedUrl || pdfError || !pdfSigned?.signedUrl) {
+    throw new Error('Failed to create signed download URLs.')
+  }
+
+  return {
+    docxUrl: docxSigned.signedUrl,
+    pdfUrl: pdfSigned.signedUrl,
+  }
+}
+
 export async function generateFile(
   input: GenerateFileInput,
   userId: string,
   sessionId: string,
-): Promise<GenerateFileOutput> {
-  try {
-    const supabase = getSupabase()
+  scope: ArtifactScope = { type: 'session' },
+): Promise<GenerateFileExecutionResult> {
+  let docxPath: string | undefined
+  let pdfPath: string | undefined
 
-    // Run both in parallel
+  try {
+    const supabase = generateFileDeps.getSupabase()
+
     const [docxBuffer, pdfBuffer] = await Promise.all([
-      generateDOCX(input.cv_state),
-      generatePDF(input.cv_state),
+      generateFileDeps.generateDOCX(input.cv_state),
+      generateFileDeps.generatePDF(input.cv_state),
     ])
 
-    const docxPath = `${userId}/${sessionId}/resume.docx`
-    const pdfPath = `${userId}/${sessionId}/resume.pdf`
+    const artifactPaths = buildArtifactPaths(userId, sessionId, scope)
+    docxPath = artifactPaths.docxPath
+    pdfPath = artifactPaths.pdfPath
 
     await Promise.all([
-      upload(supabase, docxPath, docxBuffer, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
-      upload(supabase, pdfPath, pdfBuffer, 'application/pdf'),
+      generateFileDeps.upload(
+        supabase,
+        docxPath,
+        docxBuffer,
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ),
+      generateFileDeps.upload(
+        supabase,
+        pdfPath,
+        pdfBuffer,
+        'application/pdf',
+      ),
     ])
 
-    const { data: docxSigned } = await supabase.storage.from('resumes').createSignedUrl(docxPath, 3600)
-    const { data: pdfSigned } = await supabase.storage.from('resumes').createSignedUrl(pdfPath, 3600)
+    const signedUrls = await createSignedResumeArtifactUrls(docxPath, pdfPath, supabase)
 
-    if (!docxSigned || !pdfSigned) {
-      return { success: false, error: 'Failed to create signed download URLs.' }
+    return {
+      output: { success: true, docxUrl: signedUrls.docxUrl, pdfUrl: signedUrls.pdfUrl },
+      patch: scope.type === 'session' ? createSuccessPatch(docxPath, pdfPath) : undefined,
+      generatedOutput: createGeneratedOutput('ready', undefined, docxPath, pdfPath),
     }
-
-    return { success: true, docxUrl: docxSigned.signedUrl, pdfUrl: pdfSigned.signedUrl }
   } catch (err) {
     console.error('[generateFile]', err)
-    return { success: false, error: 'File generation failed.' }
+
+    const error = err instanceof Error && err.message
+      ? err.message
+      : 'File generation failed.'
+
+    return {
+      output: { success: false, error: 'File generation failed.' },
+      patch: scope.type === 'session' ? createFailurePatch(error, docxPath, pdfPath) : undefined,
+      generatedOutput: createGeneratedOutput('failed', error, docxPath, pdfPath),
+    }
   }
 }
 
@@ -68,9 +172,9 @@ export async function generateDOCX(cv: CVState): Promise<Buffer> {
     linkedin: cv.linkedin ?? '',
     location: cv.location ?? '',
     summary: cv.summary,
-    experience: cv.experience.map(e => ({
-      ...e,
-      bullets_text: e.bullets.join('\n'),
+    experience: cv.experience.map(entry => ({
+      ...entry,
+      bullets_text: entry.bullets.join('\n'),
     })),
     skills: cv.skills.join(', '),
     education: cv.education,
@@ -89,22 +193,21 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
 
   let currentY = PAGE_HEIGHT - MARGIN
 
-  // Helper functions
   function drawText(
-    p: typeof page,
+    activePage: typeof page,
     text: string,
     x: number,
     y: number,
     size: number,
-    f: typeof font,
-    color = rgb(0, 0, 0)
+    activeFont: typeof font,
+    color = rgb(0, 0, 0),
   ): number {
-    p.drawText(text, { x, y, size, font: f, color })
+    activePage.drawText(text, { x, y, size, font: activeFont, color })
     return y - size - 4
   }
 
-  function drawLine(p: typeof page, y: number): void {
-    p.drawLine({
+  function drawLine(activePage: typeof page, y: number): void {
+    activePage.drawLine({
       start: { x: MARGIN, y },
       end: { x: PAGE_WIDTH - MARGIN, y },
       thickness: 0.5,
@@ -112,14 +215,14 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
     })
   }
 
-  function wrapText(text: string, f: typeof font, size: number, maxWidth: number): string[] {
+  function wrapText(text: string, activeFont: typeof font, size: number, maxWidth: number): string[] {
     const words = text.split(' ')
     const lines: string[] = []
     let currentLine = ''
 
     for (const word of words) {
       const testLine = currentLine ? `${currentLine} ${word}` : word
-      const width = f.widthOfTextAtSize(testLine, size)
+      const width = activeFont.widthOfTextAtSize(testLine, size)
 
       if (width > maxWidth && currentLine) {
         lines.push(currentLine)
@@ -129,37 +232,38 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
       }
     }
 
-    if (currentLine) lines.push(currentLine)
+    if (currentLine) {
+      lines.push(currentLine)
+    }
+
     return lines
   }
 
-  function drawSectionHeading(p: typeof page, title: string, y: number): number {
-    let newY = y - 12 // gap before
-    p.drawText(title.toUpperCase(), {
+  function drawSectionHeading(activePage: typeof page, title: string, y: number): number {
+    let nextY = y - 12
+    activePage.drawText(title.toUpperCase(), {
       x: MARGIN,
-      y: newY,
+      y: nextY,
       size: 10,
       font: fontBold,
       color: rgb(0, 0, 0),
     })
-    newY -= 10 + 6 // text height + gap after
-    drawLine(p, newY)
-    return newY - 6
+    nextY -= 16
+    drawLine(activePage, nextY)
+    return nextY - 6
   }
 
   function checkPageOverflow(y: number): typeof page {
     if (y < MARGIN + 60) {
       page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
       currentY = PAGE_HEIGHT - MARGIN
-      return page
     }
+
     return page
   }
 
-  // 1. Header - full name
   currentY = drawText(page, cv.fullName, MARGIN, currentY, 18, fontBold)
 
-  // Contact line
   const contactParts = [cv.email, cv.phone, cv.linkedin, cv.location].filter(Boolean)
   const contactLine = contactParts.join('  |  ')
   currentY = drawText(page, contactLine, MARGIN, currentY, 10, font)
@@ -167,7 +271,6 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
   drawLine(page, currentY)
   currentY -= 12
 
-  // 2. Summary
   if (cv.summary) {
     page = checkPageOverflow(currentY)
     currentY = drawSectionHeading(page, 'Resumo Profissional', currentY)
@@ -180,39 +283,33 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
     currentY -= 6
   }
 
-  // 3. Experience
   if (cv.experience.length > 0) {
     page = checkPageOverflow(currentY)
-    currentY = drawSectionHeading(page, 'Experiência Profissional', currentY)
+    currentY = drawSectionHeading(page, 'Experiencia Profissional', currentY)
 
-    for (const exp of cv.experience) {
+    for (const experience of cv.experience) {
       page = checkPageOverflow(currentY)
-
-      // Title and company
-      const titleLine = `${exp.title} — ${exp.company}`
+      const titleLine = `${experience.title} - ${experience.company}`
       currentY = drawText(page, titleLine, MARGIN, currentY, 12, fontBold)
 
-      // Date range
-      const dateRange = `${exp.startDate} – ${exp.endDate}`
+      const dateRange = `${experience.startDate} - ${experience.endDate}`
       currentY = drawText(page, dateRange, MARGIN, currentY, 10, font, rgb(0.3, 0.3, 0.3))
       currentY -= 2
 
-      // Bullets
-      for (const bullet of exp.bullets) {
+      for (const bullet of experience.bullets) {
         page = checkPageOverflow(currentY)
         const bulletLines = wrapText(bullet, font, 10, USABLE_WIDTH - 15)
 
-        for (let i = 0; i < bulletLines.length; i++) {
+        for (let lineIndex = 0; lineIndex < bulletLines.length; lineIndex++) {
           page = checkPageOverflow(currentY)
-          const prefix = i === 0 ? '• ' : '  '
-          currentY = drawText(page, prefix + bulletLines[i], MARGIN + 15, currentY, 10, font)
+          const prefix = lineIndex === 0 ? '- ' : '  '
+          currentY = drawText(page, prefix + bulletLines[lineIndex], MARGIN + 15, currentY, 10, font)
         }
       }
       currentY -= 6
     }
   }
 
-  // 4. Skills
   if (cv.skills.length > 0) {
     page = checkPageOverflow(currentY)
     currentY = drawSectionHeading(page, 'Habilidades', currentY)
@@ -226,28 +323,26 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
     currentY -= 6
   }
 
-  // 5. Education
   if (cv.education.length > 0) {
     page = checkPageOverflow(currentY)
-    currentY = drawSectionHeading(page, 'Formação Acadêmica', currentY)
+    currentY = drawSectionHeading(page, 'Formacao Academica', currentY)
 
-    for (const edu of cv.education) {
+    for (const education of cv.education) {
       page = checkPageOverflow(currentY)
-      const eduLine = `${edu.degree} — ${edu.institution} — ${edu.year}`
-      currentY = drawText(page, eduLine, MARGIN, currentY, 10, font)
+      const educationLine = `${education.degree} - ${education.institution} - ${education.year}`
+      currentY = drawText(page, educationLine, MARGIN, currentY, 10, font)
     }
     currentY -= 6
   }
 
-  // 6. Certifications
   if (cv.certifications && cv.certifications.length > 0) {
     page = checkPageOverflow(currentY)
-    currentY = drawSectionHeading(page, 'Certificações', currentY)
+    currentY = drawSectionHeading(page, 'Certificacoes', currentY)
 
-    for (const cert of cv.certifications) {
+    for (const certification of cv.certifications) {
       page = checkPageOverflow(currentY)
-      const certLine = `${cert.name} — ${cert.issuer}  ${cert.year}`
-      currentY = drawText(page, certLine, MARGIN, currentY, 10, font)
+      const certificationLine = `${certification.name} - ${certification.issuer}${certification.year ? `  ${certification.year}` : ''}`
+      currentY = drawText(page, certificationLine, MARGIN, currentY, 10, font)
     }
   }
 
@@ -255,10 +350,26 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
   return Buffer.from(pdfBytes)
 }
 
-async function upload(supabase: ReturnType<typeof getSupabase>, filePath: string, buffer: Buffer, contentType: string): Promise<void> {
+async function upload(
+  supabase: SupabaseClient,
+  filePath: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<void> {
   const { error } = await supabase.storage
     .from('resumes')
     .upload(filePath, buffer, { contentType, upsert: true })
 
-  if (error) throw new Error(`Storage upload failed: ${error.message}`)
+  if (error) {
+    throw new Error(`Storage upload failed: ${error.message}`)
+  }
 }
+
+export const generateFileDeps = {
+  getSupabase,
+  generateDOCX,
+  generatePDF,
+  upload,
+}
+
+export type { GenerateFileExecutionResult, SupabaseStorageClient }

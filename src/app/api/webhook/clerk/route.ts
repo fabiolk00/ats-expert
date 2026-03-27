@@ -2,7 +2,12 @@ import { Webhook } from 'svix'
 import { headers } from 'next/headers'
 import type { WebhookEvent } from '@clerk/nextjs/server'
 import { Redis } from '@upstash/redis'
-import { createClient } from '@supabase/supabase-js'
+
+import {
+  disableAppUserByClerkUserId,
+  getOrCreateAppUserByClerkUserId,
+  syncClerkUserProfile,
+} from '@/lib/auth/app-user'
 
 export const runtime = 'nodejs'
 
@@ -10,11 +15,6 @@ const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 })
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
 
 const TOLERANCE_SECONDS = 5 * 60 // reject webhooks older than 5 minutes
 const IDEMPOTENCY_TTL = 24 * 60 * 60 // deduplicate within 24 hours
@@ -75,34 +75,31 @@ export async function POST(req: Request): Promise<Response> {
     switch (evt.type) {
       case 'user.created': {
         const { id } = evt.data
-        const { error } = await supabase.from('user_quotas').insert({
-          user_id: id,
-          plan: 'free',
-          credits_remaining: 1,
-          asaas_customer_id: null,
-          asaas_subscription_id: null,
-          renews_at: null,
-        })
-        if (error) throw error
+        await getOrCreateAppUserByClerkUserId(id)
         break
       }
 
       case 'user.updated': {
         const { id, email_addresses, first_name, last_name } = evt.data
         const email = email_addresses[0]?.email_address ?? null
-        const name =
-          [first_name, last_name].filter(Boolean).join(' ') || null
+        const emailVerifiedAt =
+          email_addresses[0]?.verification?.status === 'verified'
+            ? new Date().toISOString()
+            : null
+        const name = [first_name, last_name].filter(Boolean).join(' ') || null
+        await syncClerkUserProfile({
+          clerkUserId: id,
+          email,
+          displayName: name,
+          emailVerifiedAt,
+        })
         break
       }
 
       case 'user.deleted': {
         const { id } = evt.data
         if (!id) break
-        const { error } = await supabase
-          .from('user_quotas')
-          .delete()
-          .eq('user_id', id)
-        if (error) throw error
+        await disableAppUserByClerkUserId(id)
         break
       }
 

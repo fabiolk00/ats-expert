@@ -1,0 +1,206 @@
+import { NextRequest } from 'next/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { ResumeTarget, Session } from '@/types/agent'
+
+import { getCurrentAppUser } from '@/lib/auth/app-user'
+import { applyToolPatchWithVersion, getSession } from '@/lib/db/sessions'
+
+import { POST } from './route'
+
+vi.mock('@/lib/auth/app-user', () => ({
+  getCurrentAppUser: vi.fn(),
+}))
+
+vi.mock('@/lib/db/sessions', () => ({
+  getSession: vi.fn(),
+  applyToolPatchWithVersion: vi.fn(),
+  mergeToolPatch: vi.fn((session: Session, patch: { cvState?: Partial<Session['cvState']> }) => ({
+    ...session,
+    cvState: patch.cvState ? { ...session.cvState, ...patch.cvState } : session.cvState,
+  })),
+}))
+
+function buildAppUser(id: string) {
+  return {
+    id,
+    status: 'active' as const,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    authIdentity: {
+      id: `identity_${id}`,
+      userId: id,
+      provider: 'clerk' as const,
+      providerSubject: `clerk_${id}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    creditAccount: {
+      id: `cred_${id}`,
+      userId: id,
+      creditsRemaining: 3,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  }
+}
+
+function buildTarget(): ResumeTarget {
+  return {
+    id: 'target_123',
+    sessionId: 'sess_123',
+    targetJobDescription: 'AWS role',
+    derivedCvState: {
+      fullName: 'Ana Silva',
+      email: 'ana@example.com',
+      phone: '555-0100',
+      summary: 'Target summary',
+      experience: [],
+      skills: ['TypeScript', 'AWS'],
+      education: [],
+    },
+    createdAt: new Date('2026-03-27T12:00:00.000Z'),
+    updatedAt: new Date('2026-03-27T12:00:00.000Z'),
+  }
+}
+
+function buildSession(targets?: ResumeTarget[]): Session & { resumeTargets?: ResumeTarget[] } {
+  return {
+    id: 'sess_123',
+    userId: 'usr_123',
+    stateVersion: 1,
+    phase: 'dialog',
+    cvState: {
+      fullName: 'Ana Silva',
+      email: 'ana@example.com',
+      phone: '555-0100',
+      linkedin: 'linkedin.com/in/anasilva',
+      location: 'Sao Paulo',
+      summary: 'Backend engineer',
+      experience: [],
+      skills: ['TypeScript'],
+      education: [],
+      certifications: [{
+        name: 'AWS SAA',
+        issuer: 'AWS',
+        year: '2024',
+      }],
+    },
+    agentState: {
+      parseStatus: 'parsed',
+      rewriteHistory: {},
+    },
+    generatedOutput: {
+      status: 'idle',
+    },
+    creditsUsed: 1,
+    messageCount: 2,
+    creditConsumed: true,
+    createdAt: new Date('2026-03-27T12:00:00.000Z'),
+    updatedAt: new Date('2026-03-27T12:00:00.000Z'),
+    resumeTargets: targets,
+  }
+}
+
+describe('manual edit route', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('creates a manual version for a successful canonical edit', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        body: JSON.stringify({
+          section: 'summary',
+          value: 'Backend engineer focused on platform reliability.',
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      success: true,
+      section: 'summary',
+      section_data: 'Backend engineer focused on platform reliability.',
+      changed: true,
+    })
+    expect(applyToolPatchWithVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sess_123' }),
+      {
+        cvState: {
+          summary: 'Backend engineer focused on platform reliability.',
+        },
+      },
+      'manual',
+    )
+  })
+
+  it('does not create a version when the content is unchanged', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        body: JSON.stringify({
+          section: 'summary',
+          value: 'Backend engineer',
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      success: true,
+      section: 'summary',
+      section_data: 'Backend engineer',
+      changed: false,
+    })
+    expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+  })
+
+  it('rejects invalid edits and does not persist them', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        body: JSON.stringify({
+          section: 'experience',
+          value: [{ company: 'Acme' }],
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(400)
+    expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+  })
+
+  it('keeps target resumes isolated from base manual edits', async () => {
+    const target = buildTarget()
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession([target]))
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        body: JSON.stringify({
+          section: 'skills',
+          value: ['TypeScript', 'PostgreSQL'],
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(target.derivedCvState.skills).toEqual(['TypeScript', 'AWS'])
+  })
+})

@@ -1,16 +1,16 @@
-import { auth }                    from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 
+import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession, getMessages } from '@/lib/db/sessions'
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const appUser = await getCurrentAppUser()
+  if (!appUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const session = await getSession(params.id, userId)
+  const session = await getSession(params.id, appUser.id)
   if (!session) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   try {

@@ -1,44 +1,33 @@
 import type { Tool } from '@anthropic-ai/sdk/resources/messages'
-import type { Session } from '@/types/agent'
-import { parseFile }    from './parse-file'
+
+import { scoreATS } from '@/lib/ats/score'
+import {
+  getResumeTargetForSession,
+  updateResumeTargetGeneratedOutput,
+} from '@/lib/db/resume-targets'
+import { applyToolPatchWithVersion, mergeToolPatch } from '@/lib/db/sessions'
+import { logError, logInfo, serializeError } from '@/lib/observability/structured-log'
+import { createTargetResumeVariant } from '@/lib/resume-targets/create-target-resume'
+import type {
+  ApplyGapActionInput,
+  AnalyzeGapInput,
+  CVVersionSource,
+  CreateTargetResumeInput,
+  GenerateFileInput,
+  ParseFileInput,
+  RewriteSectionInput,
+  ScoreATSInput,
+  Session,
+  SetPhaseInput,
+  ToolPatch,
+} from '@/types/agent'
+
 import { generateFile } from './generate-file'
-import { scoreATS }     from '@/lib/ats/score'
-import { updateSession } from '@/lib/db/sessions'
-import { AGENT_CONFIG } from '@/lib/agent/config'
-import { trackApiUsage } from '@/lib/agent/usage-tracker'
-import type Anthropic from '@anthropic-ai/sdk'
-
-async function callAnthropicWithRetry(
-  client: Anthropic,
-  params: Anthropic.MessageCreateParamsNonStreaming,
-  maxRetries: number = 3
-): Promise<Anthropic.Message> {
-  let lastError: Error | null = null
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await client.messages.create(params) as Anthropic.Message
-    } catch (error) {
-      lastError = error as Error
-
-      const AnthropicSDK = (await import('@anthropic-ai/sdk')).default
-      // Only retry on transient errors
-      const isRetryable =
-        error instanceof AnthropicSDK.APIError &&
-        (error.status === 429 || error.status === 500 || error.status === 503 || error.status === 529)
-
-      if (!isRetryable || attempt === maxRetries) {
-        throw error
-      }
-
-      // Exponential backoff: 1s, 2s, 4s
-      const delay = Math.pow(2, attempt - 1) * 1000
-      await new Promise(resolve => setTimeout(resolve, delay))
-    }
-  }
-
-  throw lastError
-}
+import { applyGapAction } from './gap-to-action'
+import { analyzeGap } from './gap-analysis'
+import { parseFile } from './parse-file'
+import { ingestResumeText } from './resume-ingestion'
+import { rewriteSection } from './rewrite-section'
 
 export const TOOL_DEFINITIONS: Tool[] = [
   {
@@ -67,10 +56,33 @@ export const TOOL_DEFINITIONS: Tool[] = [
     input_schema: {
       type: 'object' as const,
       properties: {
-        resume_text:      { type: 'string' },
-        job_description:  { type: 'string', description: 'Optional — improves keyword analysis' },
+        resume_text: { type: 'string' },
+        job_description: { type: 'string', description: 'Optional - improves keyword analysis' },
       },
       required: ['resume_text'],
+    },
+  },
+  {
+    name: 'analyze_gap',
+    description: 'Analyze the gap between the canonical resume and a target job description.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        target_job_description: { type: 'string' },
+      },
+      required: ['target_job_description'],
+    },
+  },
+  {
+    name: 'apply_gap_action',
+    description: 'Turn one structured gap-analysis item into a targeted canonical rewrite action.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        item_type: { type: 'string', enum: ['missing_skill', 'weak_area', 'suggestion'] },
+        item_value: { type: 'string' },
+      },
+      required: ['item_type', 'item_value'],
     },
   },
   {
@@ -79,12 +91,23 @@ export const TOOL_DEFINITIONS: Tool[] = [
     input_schema: {
       type: 'object' as const,
       properties: {
-        section:          { type: 'string', enum: ['summary', 'experience', 'skills', 'education', 'certifications'] },
-        current_content:  { type: 'string' },
-        instructions:     { type: 'string' },
-        target_keywords:  { type: 'array', items: { type: 'string' } },
+        section: { type: 'string', enum: ['summary', 'experience', 'skills', 'education', 'certifications'] },
+        current_content: { type: 'string' },
+        instructions: { type: 'string' },
+        target_keywords: { type: 'array', items: { type: 'string' } },
       },
       required: ['section', 'current_content', 'instructions'],
+    },
+  },
+  {
+    name: 'create_target_resume',
+    description: 'Create a target-specific resume variant without overwriting the canonical base resume.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        target_job_description: { type: 'string' },
+      },
+      required: ['target_job_description'],
     },
   },
   {
@@ -93,7 +116,7 @@ export const TOOL_DEFINITIONS: Tool[] = [
     input_schema: {
       type: 'object' as const,
       properties: {
-        phase:  { type: 'string', enum: ['intake', 'analysis', 'dialog', 'confirm', 'generation'] },
+        phase: { type: 'string', enum: ['intake', 'analysis', 'dialog', 'confirm', 'generation'] },
         reason: { type: 'string' },
       },
       required: ['phase'],
@@ -106,122 +129,299 @@ export const TOOL_DEFINITIONS: Tool[] = [
       type: 'object' as const,
       properties: {
         cv_state: { type: 'object', description: 'Final structured resume data' },
+        target_id: { type: 'string', description: 'Optional target resume id to generate from a derived variant' },
       },
       required: ['cv_state'],
     },
   },
 ]
 
+export type ToolExecutionResult = {
+  output: unknown
+  patch?: ToolPatch
+}
+
+function isCvStateEmpty(cvState: Session['cvState']): boolean {
+  return (
+    cvState.fullName.trim().length === 0 &&
+    cvState.email.trim().length === 0 &&
+    cvState.phone.trim().length === 0 &&
+    (cvState.linkedin?.trim().length ?? 0) === 0 &&
+    (cvState.location?.trim().length ?? 0) === 0 &&
+    cvState.summary.trim().length === 0 &&
+    cvState.experience.length === 0 &&
+    cvState.skills.length === 0 &&
+    cvState.education.length === 0 &&
+    (cvState.certifications?.length ?? 0) === 0
+  )
+}
+
+function didCvStateChange(previousCvState: Session['cvState'], nextCvState: Session['cvState']): boolean {
+  return JSON.stringify(previousCvState) !== JSON.stringify(nextCvState)
+}
+
+function resolveCvVersionSource(
+  toolName: string,
+  previousCvState: Session['cvState'],
+  nextCvState: Session['cvState'],
+  execution: ToolExecutionResult,
+): CVVersionSource | undefined {
+  if (!execution.patch?.cvState || !didCvStateChange(previousCvState, nextCvState)) {
+    return undefined
+  }
+
+  if (toolName === 'parse_file' && isCvStateEmpty(previousCvState)) {
+    return 'ingestion'
+  }
+
+  if (toolName === 'rewrite_section' || toolName === 'apply_gap_action') {
+    return 'rewrite'
+  }
+
+  return undefined
+}
+
+export async function executeTool(
+  toolName: string,
+  toolInput: Record<string, unknown>,
+  session: Session,
+): Promise<ToolExecutionResult> {
+  switch (toolName) {
+    case 'parse_file': {
+      const result = await parseFile(
+        toolInput as ParseFileInput,
+        session.userId,
+        session.id,
+      )
+
+      if (!result.success) {
+        return {
+          output: result,
+          patch: {
+            agentState: {
+              parseStatus: 'failed',
+              parseError: result.error,
+            },
+          },
+        }
+      }
+
+      const ingestionResult = await ingestResumeText(
+        result.text,
+        session.cvState,
+        session.userId,
+        session.id,
+      )
+
+      const agentStatePatch = {
+        parseStatus: 'parsed' as const,
+        parseError: undefined,
+        sourceResumeText: result.text,
+        parseConfidenceScore: ingestionResult.confidenceScore,
+      }
+
+      return {
+        output: result,
+        patch: ingestionResult.patch
+          ? {
+              ...ingestionResult.patch,
+              agentState: agentStatePatch,
+            }
+          : {
+              agentState: agentStatePatch,
+            },
+      }
+    }
+
+    case 'score_ats': {
+      const { resume_text, job_description } = toolInput as ScoreATSInput
+      const result = scoreATS(resume_text, job_description)
+
+      return {
+        output: { success: true, result },
+        patch: {
+          atsScore: result,
+          agentState: job_description
+            ? { targetJobDescription: job_description }
+            : undefined,
+        },
+      }
+    }
+
+    case 'analyze_gap': {
+      const { target_job_description } = toolInput as AnalyzeGapInput
+      const result = await analyzeGap(
+        session.cvState,
+        target_job_description,
+        session.userId,
+        session.id,
+      )
+
+      return {
+        output: result.output,
+        patch: result.result
+          ? {
+              agentState: {
+                targetJobDescription: target_job_description,
+                gapAnalysis: {
+                  result: result.result,
+                  analyzedAt: new Date().toISOString(),
+                },
+              },
+            }
+          : undefined,
+      }
+    }
+
+    case 'rewrite_section':
+      return rewriteSection(
+        toolInput as RewriteSectionInput,
+        session.userId,
+        session.id,
+      )
+
+    case 'apply_gap_action':
+      return applyGapAction(
+        toolInput as ApplyGapActionInput,
+        session,
+      )
+
+    case 'create_target_resume': {
+      const { target_job_description } = toolInput as CreateTargetResumeInput
+      const result = await createTargetResumeVariant({
+        sessionId: session.id,
+        userId: session.userId,
+        baseCvState: session.cvState,
+        targetJobDescription: target_job_description,
+      })
+
+      return result.success
+        ? {
+            output: {
+              success: true,
+              targetId: result.target.id,
+              targetJobDescription: result.target.targetJobDescription,
+              derivedCvState: result.target.derivedCvState,
+              gapAnalysis: result.gapAnalysis,
+            },
+            patch: {
+              agentState: {
+                targetJobDescription: target_job_description,
+              },
+            },
+          }
+        : {
+            output: {
+              success: false,
+              error: result.error,
+            },
+          }
+    }
+
+    case 'set_phase': {
+      const { phase } = toolInput as SetPhaseInput
+
+      return {
+        output: { success: true, phase },
+        patch: { phase },
+      }
+    }
+
+    case 'generate_file': {
+      const targetId = typeof toolInput.target_id === 'string' ? toolInput.target_id : undefined
+      const target = targetId
+        ? await getResumeTargetForSession(session.id, targetId)
+        : null
+
+      if (targetId && !target) {
+        return {
+          output: { success: false, error: 'Target resume not found.' },
+        }
+      }
+
+      const result = await generateFile(
+        {
+          cv_state: target?.derivedCvState ?? session.cvState,
+          target_id: targetId,
+        } satisfies GenerateFileInput,
+        session.userId,
+        session.id,
+        target
+          ? { type: 'target', targetId: target.id }
+          : { type: 'session' },
+      )
+
+      if (target && result.generatedOutput) {
+        await updateResumeTargetGeneratedOutput(session.id, target.id, result.generatedOutput)
+
+        return {
+          output: result.output,
+        }
+      }
+
+      return result
+    }
+
+    default:
+      return {
+        output: { success: false, error: `Unknown tool: ${toolName}` },
+      }
+  }
+}
+
 export async function dispatchTool(
   toolName: string,
   toolInput: Record<string, unknown>,
   session: Session,
 ): Promise<string> {
+  const startedAt = Date.now()
+  const previousCvState = structuredClone(session.cvState)
+
   try {
-    switch (toolName) {
-      case 'parse_file': {
-        const result = await parseFile(
-          toolInput as Parameters<typeof parseFile>[0],
-          session.userId,
-          session.id
-        )
-        if (result.success) {
-          // Store only the extracted text, not the base64 file data
-          session.cvState.rawText = result.text
-          await updateSession(session.id, { cvState: session.cvState })
-        }
-        return JSON.stringify(result)
-      }
+    logInfo('agent.tool.started', {
+      sessionId: session.id,
+      appUserId: session.userId,
+      toolName,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+    })
 
-      case 'score_ats': {
-        const { resume_text, job_description } = toolInput as { resume_text: string; job_description?: string }
-        const result = scoreATS(resume_text, job_description)
-        session.atsScore = result
-        if (job_description) session.cvState.targetJobDescription = job_description
-        await updateSession(session.id, { atsScore: result, cvState: session.cvState })
-        return JSON.stringify({ success: true, result })
-      }
+    const execution = await executeTool(toolName, toolInput, session)
 
-      case 'rewrite_section': {
-        // Delegate to section-rewriter subagent
-        const result = await callSectionRewriter(
-          toolInput as Parameters<typeof callSectionRewriter>[0],
-          session.userId,
-          session.id
-        )
-        return JSON.stringify(result)
-      }
-
-      case 'set_phase': {
-        const { phase } = toolInput as { phase: Session['phase'] }
-        session.phase = phase
-        await updateSession(session.id, { phase })
-        return JSON.stringify({ success: true, phase })
-      }
-
-      case 'generate_file': {
-        const result = await generateFile(
-          toolInput as Parameters<typeof generateFile>[0],
-          session.userId,
-          session.id,
-        )
-        return JSON.stringify(result)
-      }
-
-      default:
-        return JSON.stringify({ success: false, error: `Unknown tool: ${toolName}` })
+    if (execution.patch) {
+      const nextSession = mergeToolPatch(session, execution.patch)
+      const versionSource = resolveCvVersionSource(toolName, previousCvState, nextSession.cvState, execution)
+      await applyToolPatchWithVersion(session, execution.patch, versionSource)
     }
+
+    logInfo('agent.tool.completed', {
+      sessionId: session.id,
+      appUserId: session.userId,
+      toolName,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+      latencyMs: Date.now() - startedAt,
+      success: true,
+      updatedPhase: execution.patch?.phase ?? session.phase,
+      touchedCvState: execution.patch?.cvState !== undefined,
+      touchedAgentState: execution.patch?.agentState !== undefined,
+      touchedGeneratedOutput: execution.patch?.generatedOutput !== undefined,
+      touchedAtsScore: execution.patch?.atsScore !== undefined,
+      parseConfidenceScore: execution.patch?.agentState?.parseConfidenceScore,
+    })
+
+    return JSON.stringify(execution.output)
   } catch (err) {
-    console.error(`[dispatchTool:${toolName}]`, err)
+    logError('agent.tool.failed', {
+      sessionId: session.id,
+      appUserId: session.userId,
+      toolName,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      ...serializeError(err),
+    })
     return JSON.stringify({ success: false, error: 'Tool execution failed.' })
-  }
-}
-
-async function callSectionRewriter(
-  input: {
-    section: string
-    current_content: string
-    instructions: string
-    target_keywords?: string[]
-  },
-  userId: string,
-  sessionId: string
-): Promise<unknown> {
-  const Anthropic = (await import('@anthropic-ai/sdk')).default
-  const client    = new Anthropic({
-    timeout: AGENT_CONFIG.timeout,
-  })
-
-  const response = await callAnthropicWithRetry(client, {
-    model: AGENT_CONFIG.model,
-    max_tokens: AGENT_CONFIG.rewriterMaxTokens,
-    system: `You are an expert ATS resume writer. Rewrite the provided resume section following the instructions.
-Output ONLY valid JSON matching this shape exactly:
-{
-  "rewritten_content": string,
-  "keywords_added": string[],
-  "changes_made": string[]
-}
-No markdown, no preamble, no explanation — just the JSON object.`,
-    messages: [{
-      role: 'user',
-      content: JSON.stringify(input),
-    }],
-  })
-
-  // Track API usage (non-blocking)
-  trackApiUsage({
-    userId,
-    sessionId,
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-    endpoint: 'rewriter',
-  }).catch(() => {})
-
-  const text = response.content.find((b: Anthropic.ContentBlock) => b.type === 'text' && 'text' in b)?.text ?? '{}'
-  try {
-    return { success: true, ...JSON.parse(text) }
-  } catch {
-    return { success: false, error: 'Section rewriter returned invalid JSON.' }
   }
 }

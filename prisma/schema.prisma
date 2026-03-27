@@ -8,11 +8,23 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum CVVersionSource {
+  ingestion
+  rewrite
+  manual
+  targetDerived @map("target-derived")
+
+  @@map("cv_version_source")
+}
+
 model Session {
   id             String    @id @default(cuid())
   userId         String    @map("user_id")
+  stateVersion   Int       @default(1) @map("state_version")
   phase          String    @default("intake")
   cvState        Json      @map("cv_state")
+  agentState     Json      @default("{}") @map("agent_state")
+  generatedOutput Json     @default("{}") @map("generated_output")
   atsScore       Json?     @map("ats_score")
   creditsUsed    Int       @default(0) @map("credits_used")
   messageCount   Int       @default(0) @map("message_count")
@@ -20,10 +32,46 @@ model Session {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
+  user           User      @relation(fields: [userId], references: [id], onDelete: Restrict)
   messages       Message[]
+  cvVersions     CVVersion[]
+  resumeTargets  ResumeTarget[]
 
   @@index([userId])
   @@map("sessions")
+}
+
+model CVVersion {
+  id             String       @id @default(cuid())
+  sessionId      String       @map("session_id")
+  targetResumeId String?      @map("target_resume_id")
+  snapshot       Json
+  source         CVVersionSource
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  session        Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  targetResume   ResumeTarget? @relation(fields: [targetResumeId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, createdAt])
+  @@index([targetResumeId])
+  @@map("cv_versions")
+}
+
+model ResumeTarget {
+  id                   String      @id @default(cuid())
+  sessionId            String      @map("session_id")
+  targetJobDescription String      @map("target_job_description")
+  derivedCvState       Json        @map("derived_cv_state")
+  gapAnalysis          Json?       @map("gap_analysis")
+  generatedOutput      Json?       @map("generated_output")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  session              Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  cvVersions           CVVersion[]
+
+  @@index([sessionId, createdAt])
+  @@map("resume_targets")
 }
 
 model Message {
@@ -42,13 +90,15 @@ model Message {
 model UserQuota {
   id                  String    @id @default(cuid())
   userId              String    @unique @map("user_id")
-  plan                String    @default("free")  // "free" | "monthly" | "pro"
-  creditsRemaining    Int       @default(0) @map("credits_remaining")
+  plan                String    @default("free")  // Metadata only: "free" | "monthly" | "pro"
+  creditsRemaining    Int       @default(0) @map("credits_remaining") // Legacy compatibility only; runtime credits live in credit_accounts
   asaasCustomerId     String?   @map("asaas_customer_id")
   asaasSubscriptionId String?   @map("asaas_subscription_id")
   renewsAt            DateTime? @map("renews_at")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user                User      @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([asaasCustomerId])
   @@index([asaasSubscriptionId])
@@ -77,7 +127,55 @@ model ApiUsage {
   endpoint     String   // "agent" | "rewriter" | "ocr"
   createdAt    DateTime @default(now()) @map("created_at")
 
+  user         User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
   @@index([userId])
   @@index([createdAt])
   @@map("api_usage")
+}
+
+model User {
+  id             String             @id
+  status         String             @default("active")
+  displayName    String?            @map("display_name")
+  primaryEmail   String?            @map("primary_email")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  authIdentities UserAuthIdentity[]
+  creditAccount  CreditAccount?
+  sessions       Session[]
+  quota          UserQuota?
+  apiUsage       ApiUsage[]
+
+  @@map("users")
+}
+
+model UserAuthIdentity {
+  id              String    @id
+  userId          String    @map("user_id")
+  provider        String
+  providerSubject String    @map("provider_subject")
+  email           String?
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSubject])
+  @@index([userId])
+  @@map("user_auth_identities")
+}
+
+model CreditAccount {
+  id               String   @id
+  userId           String   @unique @map("user_id")
+  creditsRemaining Int      @default(0) @map("credits_remaining") // Authoritative credit balance for all runtime checks and mutations
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("credit_accounts")
 }

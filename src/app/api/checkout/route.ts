@@ -1,7 +1,8 @@
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { currentUser } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { createCheckoutLink } from '@/lib/asaas/checkout'
 
 const BodySchema = z.object({
@@ -9,8 +10,8 @@ const BodySchema = z.object({
 })
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const appUser = await getCurrentAppUser()
+  if (!appUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = BodySchema.safeParse(await req.json())
   if (!body.success) return NextResponse.json({ error: body.error.flatten() }, { status: 400 })
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const successUrl = `${origin}/dashboard`
 
     const url = await createCheckoutLink({
-      userId,
+      appUserId: appUser.id,
       userName,
       userEmail,
       plan: body.data.plan,

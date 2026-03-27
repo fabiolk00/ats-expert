@@ -1,6 +1,81 @@
-import type { CVState, Phase, ATSScoreResult } from './cv'
+import type {
+  ATSScoreResult,
+  CVState,
+  CertificationEntry,
+  EducationEntry,
+  ExperienceEntry,
+  GapAnalysisResult,
+  Phase,
+} from './cv'
 
 export type { Phase }
+
+export type AgentState = {
+  sourceResumeText?: string
+  targetJobDescription?: string
+  parseConfidenceScore?: number
+  parseStatus: 'empty' | 'attached' | 'parsed' | 'failed'
+  parseError?: string
+  attachedFile?: {
+    mimeType?: ParseFileInput['mime_type']
+    receivedAt?: string
+  }
+  rewriteHistory: Partial<Record<
+    RewriteSectionInput['section'],
+    {
+      rewrittenContent: string
+      keywordsAdded: string[]
+      changesMade: string[]
+      updatedAt: string
+    }
+  >>
+  gapAnalysis?: {
+    result: GapAnalysisResult
+    analyzedAt: string
+  }
+  phaseMeta?: {
+    analysisCompletedAt?: string
+    confirmRequestedAt?: string
+    generationConfirmedAt?: string
+  }
+}
+
+export type CVVersionSource = 'ingestion' | 'rewrite' | 'manual' | 'target-derived'
+export type CVVersionScope = 'base' | 'target-derived'
+
+export type CVVersion = {
+  id: string
+  sessionId: string
+  targetResumeId?: string
+  snapshot: CVState
+  source: CVVersionSource
+  createdAt: Date
+}
+
+export type CVTimelineEntry = CVVersion & {
+  label: string
+  timestamp: string
+  scope: CVVersionScope
+}
+
+export type ResumeTarget = {
+  id: string
+  sessionId: string
+  targetJobDescription: string
+  derivedCvState: CVState
+  gapAnalysis?: GapAnalysisResult
+  generatedOutput?: GeneratedOutput
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type GeneratedOutput = {
+  status: 'idle' | 'generating' | 'ready' | 'failed'
+  docxPath?: string
+  pdfPath?: string
+  generatedAt?: string
+  error?: string
+}
 
 export type Message = {
   role: 'user' | 'assistant'
@@ -11,8 +86,11 @@ export type Message = {
 export type Session = {
   id: string
   userId: string
+  stateVersion: number
   phase: Phase
   cvState: CVState
+  agentState: AgentState
+  generatedOutput: GeneratedOutput
   atsScore?: ATSScoreResult
   creditsUsed: number
   messageCount: number
@@ -20,6 +98,19 @@ export type Session = {
   createdAt: Date
   updatedAt: Date
 }
+
+export type AgentStatePatch = Partial<Omit<AgentState, 'attachedFile' | 'phaseMeta'>> & {
+  attachedFile?: Partial<NonNullable<AgentState['attachedFile']>>
+  phaseMeta?: Partial<NonNullable<AgentState['phaseMeta']>>
+}
+
+export type ToolPatch = Partial<{
+  phase: Session['phase']
+  cvState: Partial<CVState>
+  agentState: AgentStatePatch
+  generatedOutput: Partial<GeneratedOutput>
+  atsScore: ATSScoreResult
+}>
 
 // ── Tool input/output types ───────────────────────────────────────────
 
@@ -45,6 +136,28 @@ export type ScoreATSOutput =
   | { success: true; result: ATSScoreResult }
   | { success: false; error: string }
 
+export type AnalyzeGapInput = {
+  target_job_description: string
+}
+
+export type AnalyzeGapOutput =
+  | { success: true; result: GapAnalysisResult }
+  | { success: false; error: string }
+
+export type ApplyGapActionInput = {
+  item_type: 'missing_skill' | 'weak_area' | 'suggestion'
+  item_value: string
+}
+
+export type ApplyGapActionOutput =
+  | ({
+      success: true
+      section: RewriteSectionInput['section']
+      item_type: ApplyGapActionInput['item_type']
+      item_value: string
+    } & Extract<RewriteSectionOutput, { success: true }>)
+  | { success: false; error: string }
+
 export type RewriteSectionInput = {
   section: 'summary' | 'experience' | 'skills' | 'education' | 'certifications'
   current_content: string
@@ -52,8 +165,21 @@ export type RewriteSectionInput = {
   target_keywords?: string[]
 }
 
+export type RewriteSectionData =
+  | string
+  | string[]
+  | ExperienceEntry[]
+  | EducationEntry[]
+  | CertificationEntry[]
+
 export type RewriteSectionOutput =
-  | { success: true; rewritten_content: string; keywords_added: string[]; changes_made: string[] }
+  | {
+      success: true
+      rewritten_content: string
+      section_data: RewriteSectionData
+      keywords_added: string[]
+      changes_made: string[]
+    }
   | { success: false; error: string }
 
 export type SetPhaseInput = {
@@ -67,10 +193,69 @@ export type SetPhaseOutput =
 
 export type GenerateFileInput = {
   cv_state: CVState
+  target_id?: string
 }
 
 export type GenerateFileOutput =
   | { success: true; docxUrl: string; pdfUrl: string }
+  | { success: false; error: string }
+
+export type ManualEditSection = 'contact' | RewriteSectionInput['section']
+
+export type ManualEditSectionData =
+  | Pick<CVState, 'fullName' | 'email' | 'phone' | 'linkedin' | 'location'>
+  | string
+  | string[]
+  | ExperienceEntry[]
+  | EducationEntry[]
+  | CertificationEntry[]
+
+export type ManualEditInput =
+  | {
+      section: 'contact'
+      value: Pick<CVState, 'fullName' | 'email' | 'phone' | 'linkedin' | 'location'>
+    }
+  | {
+      section: 'summary'
+      value: string
+    }
+  | {
+      section: 'skills'
+      value: string[]
+    }
+  | {
+      section: 'experience'
+      value: ExperienceEntry[]
+    }
+  | {
+      section: 'education'
+      value: EducationEntry[]
+    }
+  | {
+      section: 'certifications'
+      value: CertificationEntry[]
+    }
+
+export type ManualEditOutput =
+  | {
+      success: true
+      section: ManualEditSection
+      section_data: ManualEditSectionData
+    }
+  | { success: false; error: string }
+
+export type CreateTargetResumeInput = {
+  target_job_description: string
+}
+
+export type CreateTargetResumeOutput =
+  | {
+      success: true
+      targetId: string
+      targetJobDescription: string
+      derivedCvState: CVState
+      gapAnalysis?: GapAnalysisResult
+    }
   | { success: false; error: string }
 
 // ── Agent API request/response ────────────────────────────────────────

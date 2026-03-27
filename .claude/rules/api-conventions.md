@@ -1,68 +1,112 @@
 # API Conventions
 
-## Route handler structure
-Every API route in `src/app/api/` follows this exact pattern:
+## Current Route Surface
+- `POST /api/agent`
+- `GET /api/session`
+- `POST /api/session` returns `403`
+- `GET /api/session/[id]/messages`
+- `GET /api/session/[id]/versions`
+- `GET /api/session/[id]/targets`
+- `POST /api/session/[id]/targets`
+- `GET /api/file/[sessionId]`
+- `POST /api/checkout`
+- `POST /api/webhook/asaas`
+- `POST /api/webhook/clerk`
+- `GET /api/cron/cleanup`
+
+## Default route pattern
+Use this pattern for authenticated JSON routes when applicable:
 
 ```ts
-import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+
+import { getCurrentAppUser } from '@/lib/auth/app-user'
 
 const BodySchema = z.object({ ... })
 
 export async function POST(req: NextRequest) {
-  // 1. Auth
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const appUser = await getCurrentAppUser()
+  if (!appUser) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-  // 2. Parse + validate body
   const body = BodySchema.safeParse(await req.json())
-  if (!body.success) return NextResponse.json({ error: body.error.flatten() }, { status: 400 })
+  if (!body.success) {
+    return NextResponse.json({ error: body.error.flatten() }, { status: 400 })
+  }
 
-  // 3. Quota check
-  const allowed = await checkUserQuota(userId)
-  if (!allowed) return NextResponse.json({ error: 'Quota exceeded' }, { status: 402 })
-
-  // 4. Business logic
   try {
-    const result = await doTheThing(body.data)
+    const result = await doThing(appUser.id, body.data)
     return NextResponse.json(result)
-  } catch (err) {
-    console.error('[api/route]', err)
+  } catch (error) {
+    console.error('[api/route]', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 ```
 
-## Agent route — /api/agent
-- Accepts: `{ sessionId: string, message: string, file?: string (base64) }`
-- Returns: streaming `text/event-stream` with `{ delta: string }` chunks + final `{ done: true, phase: Phase }`
-- Never returns the full CVState to the client — only the phase and the agent's text response
-- Max request body: 10MB (for file uploads)
+## `/api/agent`
+- Requires an authenticated app user
+- Applies Upstash rate limiting
+- Validates `{ sessionId?, message, file?, fileMime? }`
+- Creates sessions only through this route
+- Consumes one credit on new session creation only
+- Enforces the 15-message cap
+- Streams SSE responses
+- Executes the tool loop and persists tool patches centrally
 
-## File route — /api/file/[sessionId]
-- GET: returns a signed Supabase Storage URL (expires in 1 hour)
-- Only accessible if the session belongs to the authenticated user
-- Never stream file bytes through the API — always redirect to the signed URL
+## `/api/session`
+- `GET` returns the current app user's sessions
+- `POST` is intentionally blocked to prevent bypassing credit consumption
 
-## Webhook route — /api/webhook/asaas
-- Verify Asaas webhook token before processing
-- Idempotent: check if the event was already processed before writing to DB
-- Return 200 immediately; do heavy work asynchronously
+## `/api/session/[id]/messages`
+- Requires auth
+- Verifies ownership through `getSession()`
+- Returns recent message history
 
-## HTTP status codes
+## `/api/session/[id]/versions`
+- Requires auth
+- Verifies ownership through `getSession()`
+- Returns immutable CV snapshots for that session
+
+## `/api/session/[id]/targets`
+- Requires auth
+- Verifies ownership through `getSession()`
+- `GET` lists target-specific derived resumes
+- `POST` creates a target-derived resume without overwriting base `cvState`
+
+## `/api/checkout`
+- Requires auth
+- Validates the requested plan with Zod
+- Creates an Asaas checkout link
+
+## `/api/webhook/asaas`
+- Public webhook
+- Verifies `asaas-access-token`
+- Parses and validates payload before processing
+- Uses processed-event deduplication
+- Marks events processed only after successful side effects
+
+## `/api/webhook/clerk`
+- Public webhook
+- Verifies Svix signature
+- Deduplicates with Upstash Redis
+- Bootstraps or syncs internal users
+
+## `/api/cron/cleanup`
+- Protected by `Authorization: Bearer ${CRON_SECRET}`
+- Deletes old `processed_events` rows
+
+## Common status codes
 | Situation | Status |
 |---|---|
 | Success | 200 |
 | Created | 201 |
 | Bad input | 400 |
 | Unauthenticated | 401 |
-| Quota / payment required | 402 |
-| Forbidden (wrong user) | 403 |
+| Quota exhausted | 402 |
+| Forbidden | 403 |
 | Not found | 404 |
+| Rate limited | 429 |
 | Server error | 500 |
-
-## Rate limiting
-All public routes are rate-limited via Upstash Redis:
-- Free tier: 10 requests/minute per IP
-- Authenticated: 60 requests/minute per userId

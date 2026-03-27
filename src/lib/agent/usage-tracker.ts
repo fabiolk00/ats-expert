@@ -1,10 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
 import { AGENT_CONFIG } from '@/lib/agent/config'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
+import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 
 // Approximate costs per million tokens (check Anthropic pricing page for current rates)
 // Claude Sonnet 4.5 pricing as of 2025
@@ -16,8 +11,9 @@ export async function trackApiUsage(params: {
   sessionId?: string
   inputTokens: number
   outputTokens: number
-  endpoint: 'agent' | 'rewriter' | 'ocr'
+  endpoint: 'agent' | 'rewriter' | 'ocr' | 'gap_analysis' | 'target_resume'
 }): Promise<void> {
+  const supabase = getSupabaseAdminClient()
   const totalTokens = params.inputTokens + params.outputTokens
   const costCents = Math.ceil(
     (params.inputTokens / 1_000_000) * COST_PER_MILLION_INPUT +

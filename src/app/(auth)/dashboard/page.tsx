@@ -1,5 +1,6 @@
 import { Metadata } from "next"
-import { auth, currentUser } from "@clerk/nextjs/server"
+import { currentUser } from "@clerk/nextjs/server"
+import { getCurrentAppUser } from "@/lib/auth/app-user"
 import { db } from "@/lib/db/sessions"
 import { ChatInterface } from "@/components/dashboard/chat-interface"
 
@@ -13,8 +14,8 @@ interface DashboardPageProps {
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
-  const { userId } = await auth()
-  if (!userId) return null
+  const appUser = await getCurrentAppUser()
+  if (!appUser) return null
 
   const user = await currentUser()
   const userName = user?.firstName || "Você"
@@ -23,7 +24,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const requestedSessionId = searchParams.session
 
   // Get user sessions
-  const sessions = await db.getUserSessions(userId)
+  const sessions = await db.getUserSessions(appUser.id)
 
   // Use requested session if provided and exists, otherwise use most recent
   let activeSessionId = requestedSessionId || sessions[0]?.id

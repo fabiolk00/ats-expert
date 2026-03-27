@@ -1,42 +1,73 @@
 # Testing Rules
 
 ## Framework
-- Unit and integration tests: **Vitest**
-- Component tests: **React Testing Library**
-- E2E: **Playwright** (critical flows only: upload → analysis → download)
+- Unit and integration tests: Vitest
+- Component tests: React Testing Library
+- No Playwright setup is committed today
 
-## What must be tested
-- All ATS scoring functions in `lib/ats/` — these are pure functions, 100% coverage required
-- All agent tool handlers in `lib/agent/tools/` — mock the Anthropic SDK
-- All Stripe webhook handlers — mock Stripe events
-- API route happy paths and error paths
+## What must be tested when touched
 
-## What does NOT need tests
-- UI components that are purely presentational
-- shadcn/ui wrappers
-- Prisma schema migrations
+### Agent tools
+- success path
+- invalid or failure path
+- patch shape
+- merge behavior for unrelated state
 
-## Test file location
-Co-located with the source file:
-```
-src/lib/ats/score.ts
-src/lib/ats/score.test.ts
-```
+### Session state and dispatcher
+- partial patch merge behavior
+- persistence through `applyToolPatch()`
+- in-memory session snapshot updates
+- state-version normalization when relevant
+
+### Billing and webhooks
+- credit consumption and quota checks
+- duplicate webhook delivery behavior
+- failure retry behavior
+- no double-credit regressions
+
+### File generation
+- reads canonical `cvState`
+- persists only artifact metadata
+- does not persist signed URLs
+
+## Current high-value coverage
+- `src/lib/ats/score.test.ts`
+- `src/lib/db/sessions.test.ts`
+- `src/lib/db/cv-versions.test.ts`
+- `src/lib/agent/tools/index.test.ts`
+- `src/lib/agent/tools/rewrite-section.test.ts`
+- `src/lib/agent/tools/generate-file.test.ts`
+- `src/lib/agent/tools/gap-analysis.test.ts`
+- `src/lib/agent/tools/pipeline.test.ts`
+- `src/lib/resume-targets/create-target-resume.test.ts`
+- `src/app/api/webhook/asaas/route.test.ts`
+- `src/app/api/session/[id]/targets/route.test.ts`
+
+## Additional Coverage Requirements
+- CV version creation on trusted canonical state changes
+- Gap analysis validation success and failure
+- Target-derived resume isolation from base `cvState`
+- Multiple targets coexisting for one session
+- Ownership checks on session history and target routes
 
 ## Mocking rules
-- Mock `@anthropic-ai/sdk` at the module level — never make real API calls in tests
-- Mock Supabase Storage — never write real files in tests
-- Use `vitest-mock-extended` for type-safe mocks
-- Seed data lives in `tests/fixtures/` — reuse across test files
+- Mock `@anthropic-ai/sdk` at the module level.
+- Mock Supabase Storage and Supabase admin clients.
+- Do not make real network or storage calls in tests.
+- Prefer co-located tests near the code they validate.
 
-## Test naming
+## Naming
+Use concrete behavioral names:
+
 ```ts
-describe('scoreATS', () => {
-  it('returns 0 for a resume with no keywords', () => { ... })
-  it('penalizes two-column layouts', () => { ... })
-  it('boosts score when job description keywords match', () => { ... })
+describe('rewriteSection', () => {
+  it('updates only the targeted canonical cvState field', () => { ... })
+  it('rejects malformed model output before persistence', () => { ... })
 })
 ```
 
-## CI
-All tests run on every PR via GitHub Actions. PRs cannot merge if any test fails.
+## CI expectation
+Changes should pass:
+- `npm run typecheck`
+- `npm test`
+- `npm run lint`

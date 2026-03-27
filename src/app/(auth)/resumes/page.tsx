@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { auth } from "@clerk/nextjs/server"
+import { getCurrentAppUser } from "@/lib/auth/app-user"
 import { db } from "@/lib/db/sessions"
 import SessionList from "@/components/dashboard/session-list"
 import { Button } from "@/components/ui/button"
@@ -12,10 +12,10 @@ export const metadata: Metadata = {
 }
 
 export default async function ResumesPage() {
-  const { userId } = await auth()
-  if (!userId) return null
+  const appUser = await getCurrentAppUser()
+  if (!appUser) return null
 
-  const sessions = await db.getUserSessions(userId)
+  const sessions = await db.getUserSessions(appUser.id)
 
   const formattedSessions = sessions.map((session) => ({
     id: session.id,

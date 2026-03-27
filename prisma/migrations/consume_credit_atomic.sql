@@ -10,7 +10,7 @@ DECLARE
 BEGIN
   -- Atomic UPDATE: decrement credits_remaining by 1 ONLY if > 0
   -- FOR UPDATE would lock the row, but UPDATE with WHERE is atomic enough
-  UPDATE user_quotas
+  UPDATE credit_accounts
   SET
     credits_remaining = credits_remaining - 1,
     updated_at = NOW()

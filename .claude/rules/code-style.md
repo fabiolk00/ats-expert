@@ -1,34 +1,48 @@
 # Code Style Rules
 
 ## TypeScript
-- Always use strict TypeScript — no `any`, no `// @ts-ignore`
-- Prefer `type` over `interface` for data shapes; use `interface` only for extensible contracts
-- All async functions must have explicit return types: `Promise<CVState>` not `Promise<any>`
-- Use Zod for all external input validation (API route bodies, tool call arguments, env vars)
+- Use strict TypeScript.
+- No `any`.
+- No `// @ts-ignore`.
+- Prefer `type` over `interface` for data shapes.
+- Validate external input explicitly with Zod or equivalent typed guards.
+
+## Architecture-aware rules
+- Use internal app user IDs in domain logic, not Clerk IDs.
+- Treat `cvState` as canonical structured resume truth.
+- Treat `agentState` as operational context only.
+- Treat `generatedOutput` as artifact metadata only.
+- Tool-originated state changes must return `ToolPatch`; do not mutate `session` directly.
+- Do not persist signed URLs in `generatedOutput`.
 
 ## React / Next.js
-- Server Components by default — only add `"use client"` when strictly needed (event handlers, hooks)
-- Never fetch data inside client components — use server actions or route handlers
-- All forms use `react-hook-form` + Zod schema validation
-- Loading states use `<Suspense>` boundaries, not `isLoading` booleans in client state
+- Server Components by default.
+- Add `"use client"` only when required.
+- Keep data writes in route handlers or server actions.
+- Use `react-hook-form` + Zod when forms have non-trivial validation.
 
 ## Styling
-- Tailwind only — no inline styles, no CSS modules, no styled-components
-- Use `cn()` from `lib/utils` to merge classNames conditionally
-- Responsive breakpoints always mobile-first: `sm:`, `md:`, `lg:`
-- Colors from the design token system — no raw hex values in components
+- Tailwind only.
+- Use `cn()` for conditional class merging.
+- Keep breakpoints mobile-first.
 
 ## Imports
-- Absolute imports via `@/` alias (e.g. `import { db } from '@/lib/db'`)
-- Group imports: 1) React/Next, 2) third-party, 3) internal — separated by blank line
-- Never import from `src/` directly — always use `@/`
+- Use `@/` absolute imports.
+- Group imports: framework, third-party, internal.
+- Do not import from `src/` directly.
 
 ## Error handling
-- API routes always return `{ error: string }` with the appropriate HTTP status on failure
-- Agent tools wrap their logic in try/catch and return `{ success: false, error: string }`
-- Never let unhandled promise rejections reach the client
+- Route handlers should return structured JSON errors with proper status codes.
+- Agent tools should return `{ success: false, error: string }` on failure.
+- Reject malformed model output before it reaches canonical state.
 
 ## Comments
-- No inline comments explaining *what* the code does — code should be self-documenting
-- JSDoc only on exported functions that are non-obvious (e.g. scoring algorithms)
-- TODO comments must include a GitHub issue number: `// TODO(#42): handle scanned PDFs`
+- Prefer self-documenting code.
+- Use comments only when they explain intent, invariants, or tricky behavior.
+- TODOs should include an issue number.
+
+## Resume-State Boundaries
+- `cvState` is the canonical base resume only.
+- `agentState` may store structured gap analysis and operational targeting context, but not target-derived resume variants.
+- Immutable resume history belongs in `cv_versions`.
+- Target-specific derived resume variants belong in `resume_targets`.

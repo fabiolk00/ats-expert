@@ -1,15 +1,16 @@
-import { auth }          from '@clerk/nextjs/server'
 import { NextRequest }   from 'next/server'
 import Anthropic         from '@anthropic-ai/sdk'
 import { z }             from 'zod'
 
 import { buildSystemPrompt, trimMessages } from '@/lib/agent/context-builder'
 import { TOOL_DEFINITIONS, dispatchTool }  from '@/lib/agent/tools'
+import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
   getSession, createSession,
   getMessages, appendMessage,
   checkUserQuota,
   incrementMessageCount,
+  updateSession,
 } from '@/lib/db/sessions'
 import { consumeCredit } from '@/lib/asaas/quota'
 import { agentLimiter } from '@/lib/rate-limit'
@@ -17,6 +18,7 @@ import { AGENT_CONFIG } from '@/lib/agent/config'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
 import { extractUrl } from '@/lib/agent/url-extractor'
 import { scrapeJobPosting } from '@/lib/agent/scraper'
+import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 
 const client = new Anthropic({
   timeout: AGENT_CONFIG.timeout,
@@ -24,7 +26,13 @@ const client = new Anthropic({
 
 async function callAnthropicWithRetry(
   params: Anthropic.MessageCreateParamsNonStreaming,
-  maxRetries: number = 3
+  maxRetries: number = 3,
+  traceContext?: {
+    sessionId?: string
+    appUserId?: string
+    phase?: string
+    stateVersion?: number
+  },
 ): Promise<Anthropic.Message> {
   let lastError: Error | null = null
 
@@ -45,7 +53,17 @@ async function callAnthropicWithRetry(
 
       // Exponential backoff: 1s, 2s, 4s
       const delay = Math.pow(2, attempt - 1) * 1000
-      console.log(`[api/agent] Retrying after ${delay}ms (attempt ${attempt}/${maxRetries})`)
+      logWarn('agent.model.retrying', {
+        sessionId: traceContext?.sessionId,
+        appUserId: traceContext?.appUserId,
+        phase: traceContext?.phase,
+        stateVersion: traceContext?.stateVersion,
+        attempt,
+        maxRetries,
+        retryDelayMs: delay,
+        success: false,
+        ...serializeError(error),
+      })
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
@@ -76,30 +94,63 @@ function sanitizeUserInput(input: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const requestStartedAt = Date.now()
+
   // 1. Auth
-  const { userId } = await auth()
-  if (!userId) {
+  const appUser = await getCurrentAppUser()
+  if (!appUser) {
+    logWarn('agent.request.unauthorized', {
+      success: false,
+      latencyMs: Date.now() - requestStartedAt,
+    })
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
   }
+  const appUserId = appUser.id
 
   // 1.5. Rate limit
-  const { success } = await agentLimiter.limit(userId)
+  const { success } = await agentLimiter.limit(appUserId)
   if (!success) {
+    logWarn('agent.request.rate_limited', {
+      appUserId,
+      success: false,
+      latencyMs: Date.now() - requestStartedAt,
+    })
     return new Response(JSON.stringify({ error: 'Too many requests. Please wait a moment.' }), { status: 429 })
   }
 
   // 2. Parse body
   const raw = BodySchema.safeParse(await req.json())
   if (!raw.success) {
+    logWarn('agent.request.invalid_body', {
+      appUserId,
+      success: false,
+      latencyMs: Date.now() - requestStartedAt,
+    })
     return new Response(JSON.stringify({ error: raw.error.flatten() }), { status: 400 })
   }
   const { sessionId, file, fileMime } = raw.data
   let message = sanitizeUserInput(raw.data.message)
 
+  logInfo('agent.request.received', {
+    appUserId,
+    requestedSessionId: sessionId,
+    messageLength: message.length,
+    hasFile: Boolean(file && fileMime),
+    fileMime,
+    success: true,
+  })
+
   // 2.5. Check if user message contains a URL and scrape it
   const detectedUrl = extractUrl(message)
   if (detectedUrl) {
     const scrapeResult = await scrapeJobPosting(detectedUrl)
+    const detectedUrlHost = (() => {
+      try {
+        return new URL(detectedUrl).hostname
+      } catch {
+        return 'invalid-url'
+      }
+    })()
 
     if (scrapeResult.success && scrapeResult.text) {
       // Replace or augment the message with extracted content
@@ -107,22 +158,54 @@ export async function POST(req: NextRequest) {
         detectedUrl,
         `[Link da vaga: ${detectedUrl}]\n\n[Conteúdo extraído automaticamente]:\n${scrapeResult.text}`
       )
+      logInfo('agent.scrape.completed', {
+        appUserId,
+        detectedUrlHost,
+        scrapeSucceeded: true,
+        scrapedTextLength: scrapeResult.text.length,
+        success: true,
+      })
     } else {
       // If scraping failed, let the AI know and ask user to paste manually
+      logWarn('agent.scrape.completed', {
+        appUserId,
+        detectedUrlHost,
+        scrapeSucceeded: false,
+        success: false,
+      })
       message = `${message}\n\n[Nota do sistema: Tentei acessar o link ${detectedUrl} mas não consegui extrair o conteúdo. Motivo: ${scrapeResult.error}]`
     }
   }
 
   // 3. Load or create session (NEW: credit consumption happens here for new sessions only)
   let session = sessionId
-    ? await getSession(sessionId, userId)
+    ? await getSession(sessionId, appUserId)
     : null
 
   let isNewSession = false
 
   if (session) {
+    logInfo('agent.session.loaded', {
+      sessionId: session.id,
+      appUserId,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+      messageCount: session.messageCount,
+      isNewSession: false,
+      success: true,
+    })
+
     // Existing session - check message cap
     if (session.messageCount >= AGENT_CONFIG.maxMessagesPerSession) {
+      logWarn('agent.session.message_cap_reached', {
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        messageCount: session.messageCount,
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        success: false,
+      })
       return new Response(JSON.stringify({
         error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
         action: 'new_session',
@@ -132,8 +215,13 @@ export async function POST(req: NextRequest) {
     }
   } else {
     // Creating new session - check and consume credit NOW
-    const hasCredits = await checkUserQuota(userId)
+    const hasCredits = await checkUserQuota(appUserId)
     if (!hasCredits) {
+      logWarn('agent.session.create_blocked_no_credit', {
+        appUserId,
+        success: false,
+        latencyMs: Date.now() - requestStartedAt,
+      })
       return new Response(JSON.stringify({
         error: 'Seus créditos acabaram. Faça upgrade do seu plano para continuar.',
         upgradeUrl: '/pricing',
@@ -141,20 +229,45 @@ export async function POST(req: NextRequest) {
     }
 
     // Consume credit IMMEDIATELY on session creation
-    const creditConsumed = await consumeCredit(userId)
+    const creditConsumed = await consumeCredit(appUserId)
     if (!creditConsumed) {
+      logError('agent.credit.consume_failed', {
+        appUserId,
+        creditConsumed: 0,
+        success: false,
+        latencyMs: Date.now() - requestStartedAt,
+      })
       return new Response(JSON.stringify({
         error: 'Erro ao processar crédito. Tente novamente.',
       }), { status: 500 })
     }
 
-    session = await createSession(userId)
+    session = await createSession(appUserId)
     isNewSession = true
+    logInfo('agent.session.created', {
+      sessionId: session.id,
+      appUserId,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+      isNewSession: true,
+      creditConsumed: 1,
+      success: true,
+      latencyMs: Date.now() - requestStartedAt,
+    })
   }
 
   // 4. Increment message count for this session (atomic operation)
   const messageCountIncremented = await incrementMessageCount(session.id)
   if (!messageCountIncremented) {
+    logWarn('agent.session.message_cap_reached', {
+      sessionId: session.id,
+      appUserId,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+      messageCount: AGENT_CONFIG.maxMessagesPerSession,
+      maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+      success: false,
+    })
     // Session hit 15 message cap during increment (race condition prevented)
     return new Response(JSON.stringify({
       error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
@@ -178,10 +291,24 @@ export async function POST(req: NextRequest) {
   if (file && fileMime && lastMsg.role === 'user') {
     // The agent will call parse_file via tool use — we just note the file is available
     lastMsg.content += `\n\n[File attached: ${fileMime}]`
-    // Temporarily store base64 in cvState for parse_file tool to retrieve
-    // NOTE: This is replaced with extracted text when parse_file tool succeeds
-    // The base64 data is NOT persisted long-term in the database
-    session.cvState.rawText = `__FILE__:${file}:${fileMime}`
+    session.agentState = {
+      ...session.agentState,
+      parseStatus: 'attached',
+      parseError: undefined,
+      attachedFile: {
+        mimeType: fileMime,
+        receivedAt: new Date().toISOString(),
+      },
+    }
+    await updateSession(session.id, { agentState: session.agentState })
+    logInfo('agent.file.attached', {
+      sessionId: session.id,
+      appUserId,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+      fileMime,
+      success: true,
+    })
   }
 
   // 7. Stream response
@@ -201,7 +328,15 @@ export async function POST(req: NextRequest) {
           toolIterations++
 
           if (toolIterations > AGENT_CONFIG.maxToolIterations) {
-            console.error(`[api/agent] Tool loop exceeded ${AGENT_CONFIG.maxToolIterations} iterations for user ${userId}`)
+            logError('agent.tool_loop.exceeded', {
+              sessionId: session!.id,
+              appUserId,
+              phase: session!.phase,
+              stateVersion: session!.stateVersion,
+              toolIterations,
+              maxToolIterations: AGENT_CONFIG.maxToolIterations,
+              success: false,
+            })
             break
           }
 
@@ -218,11 +353,16 @@ export async function POST(req: NextRequest) {
             tools:      TOOL_DEFINITIONS,
             messages:   messages as Anthropic.MessageParam[],
             stream:     false,
+          }, 3, {
+            sessionId: session!.id,
+            appUserId,
+            phase: session!.phase,
+            stateVersion: session!.stateVersion,
           })
 
           // Track API usage (non-blocking)
           trackApiUsage({
-            userId: userId,
+            userId: appUserId,
             sessionId: session!.id,
             inputTokens: response.usage.input_tokens,
             outputTokens: response.usage.output_tokens,
@@ -278,8 +418,29 @@ export async function POST(req: NextRequest) {
           maxMessages: AGENT_CONFIG.maxMessagesPerSession,
           isNewSession,
         })
+        logInfo('agent.request.completed', {
+          sessionId: session!.id,
+          appUserId,
+          phase: session!.phase,
+          stateVersion: session!.stateVersion,
+          isNewSession,
+          messageCount: session!.messageCount + 1,
+          toolIterations,
+          parseConfidenceScore: session!.agentState.parseConfidenceScore,
+          success: true,
+          latencyMs: Date.now() - requestStartedAt,
+        })
       } catch (err) {
-        console.error('[api/agent]', err)
+        logError('agent.request.failed', {
+          sessionId: session?.id,
+          appUserId,
+          phase: session?.phase,
+          stateVersion: session?.stateVersion,
+          parseConfidenceScore: session?.agentState.parseConfidenceScore,
+          success: false,
+          latencyMs: Date.now() - requestStartedAt,
+          ...serializeError(err),
+        })
 
         // Provide specific error messages in Portuguese
         let errorMessage = 'Algo deu errado. Por favor, tente novamente.'
