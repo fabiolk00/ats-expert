@@ -1,3 +1,4 @@
+import React from 'react'
 import { redirect } from 'next/navigation'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import DashboardShell from '@/components/dashboard/dashboard-shell'
