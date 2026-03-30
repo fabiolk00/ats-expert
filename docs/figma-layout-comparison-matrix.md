@@ -35,6 +35,12 @@ Applied strategy:
 | [dashboard-shell.tsx](/c:/CurrIA/src/components/dashboard/dashboard-shell.tsx) | `temp-figma-import/src/app/components/dashboard/DashboardShell.tsx` | Moved desktop layout to left-nav shell, preserved auth layout contract |
 | [navbar.tsx](/c:/CurrIA/src/components/dashboard/navbar.tsx) | imported dashboard/top bar styling | Rebuilt visually, preserved theme toggle and Clerk user menu |
 | [sidebar.tsx](/c:/CurrIA/src/components/dashboard/sidebar.tsx) | `temp-figma-import/src/app/components/dashboard/DashboardSidebar.tsx` | Rebuilt visually, preserved real routes and sign-out |
+| [chat-interface.tsx](/c:/CurrIA/src/components/dashboard/chat-interface.tsx) | `temp-figma-import/src/app/components/dashboard/ChatInterface.tsx` | Rebuilt visually on top of the live SSE, upload, and session-loading flow |
+| [chat-message.tsx](/c:/CurrIA/src/components/dashboard/chat-message.tsx) | imported dashboard chat treatment | Rebuilt visually, preserved markdown rendering and analysis payload structure |
+| [resume-workspace.tsx](/c:/CurrIA/src/components/dashboard/resume-workspace.tsx) | `temp-figma-import/src/app/components/dashboard/ResumeWorkspace.tsx` | Rebuilt live workspace hierarchy, preserved all workspace mutations and downloads |
+| [manual-edit-dialog.tsx](/c:/CurrIA/src/components/dashboard/manual-edit-dialog.tsx) | imported modal treatment | Restyled overlay only, preserved edit payload logic |
+| [compare-drawer.tsx](/c:/CurrIA/src/components/dashboard/compare-drawer.tsx) | imported side-panel treatment | Restyled comparison panel, preserved snapshot diff logic |
+| [session-card.tsx](/c:/CurrIA/src/components/session-card.tsx) | imported dashboard card language | Rebuilt visually, preserved session routing and generation actions |
 | [login-form.tsx](/c:/CurrIA/src/components/auth/login-form.tsx) | `temp-figma-import/src/app/pages/LoginPage.tsx` | Preserved Clerk sign-in logic, updated wrapper styling only |
 | [signup-form.tsx](/c:/CurrIA/src/components/auth/signup-form.tsx) | imported auth card treatment | Preserved Clerk sign-up and verification flow, updated presentation |
 
@@ -68,18 +74,23 @@ Completed:
 - landing shell refresh
 - auth page and form refresh
 - dashboard shell, navbar, and sidebar refresh
-- validation boundary update in [tsconfig.json](/c:/CurrIA/tsconfig.json) to exclude the imported temp app and avoid stale `.next` route-type coupling during standalone typecheck
+- live workspace refresh for [chat-interface.tsx](/c:/CurrIA/src/components/dashboard/chat-interface.tsx)
+- live workspace refresh for [chat-message.tsx](/c:/CurrIA/src/components/dashboard/chat-message.tsx)
+- live workspace refresh for [resume-workspace.tsx](/c:/CurrIA/src/components/dashboard/resume-workspace.tsx)
+- supporting workspace overlay refresh for [manual-edit-dialog.tsx](/c:/CurrIA/src/components/dashboard/manual-edit-dialog.tsx) and [compare-drawer.tsx](/c:/CurrIA/src/components/dashboard/compare-drawer.tsx)
+- session card refresh for [session-card.tsx](/c:/CurrIA/src/components/session-card.tsx)
+- validation boundary update in [tsconfig.json](/c:/CurrIA/tsconfig.json) to keep the imported temp app out of the project scope during validation
 
-Remaining optional polish:
-- deeper workspace visual treatment for [chat-interface.tsx](/c:/CurrIA/src/components/dashboard/chat-interface.tsx)
-- deeper workspace visual treatment for [resume-workspace.tsx](/c:/CurrIA/src/components/dashboard/resume-workspace.tsx)
+Remaining follow-up work:
 - responsive spot-checks against the imported design on real devices
+- optional fine-tuning of lower-priority pages and any remaining utility components not covered in the live shell/workspace pass
 
 ## Verification
 
 Validated after the migration slice:
 - `npm run typecheck`
+- `npm run lint`
 - `npm run build`
 - `npm test`
 
-All three passed on March 30, 2026.
+The earlier shell migration passed these checks on March 30, 2026. They must be re-run after the workspace pass before claiming the Figma migration slice is complete.

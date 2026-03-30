@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useUser } from "@clerk/nextjs"
-import { FileText, Send, Upload, X } from "lucide-react"
+import { Activity, FileText, Send, Sparkles, Upload, X } from "lucide-react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
@@ -325,121 +326,167 @@ export function ChatInterface({
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
-      {messageCount > 0 && (
-        <div className="border-b border-border bg-muted/30 px-4 py-2">
-          <div className="mx-auto flex max-w-3xl items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              Mensagem {messageCount} de {maxMessages} nesta analise
-            </span>
-            <div className="flex items-center gap-2 text-xs">
-              {phase !== "intake" && (
-                <span className="text-muted-foreground">Fase: {phase}</span>
-              )}
-              {atsScore !== undefined && (
-                <span className="text-muted-foreground">ATS: {atsScore}</span>
-              )}
+    <div className="relative flex h-[calc(100vh-4rem)] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,oklch(var(--primary)/0.06),transparent_32%),linear-gradient(180deg,oklch(var(--background))_0%,oklch(var(--muted)/0.25)_100%)]">
+      <div className="border-b border-border/70 bg-background/80 px-4 py-4 backdrop-blur-xl md:px-6">
+        <div className="mx-auto flex max-w-4xl flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <Badge
+              variant="secondary"
+              className="w-fit rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
+            >
+              Workspace AI
+            </Badge>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+                Ola, {userName}!
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground md:text-[15px]">
+                Cole a descricao da vaga, envie seu curriculo e acompanhe a analise em tempo real sem sair do workspace.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[22rem]">
+            <div className="rounded-2xl border border-border/70 bg-card/80 p-3 shadow-sm">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Mensagens
+              </p>
+              <p className="mt-1 text-lg font-semibold text-foreground">
+                {messageCount > 0 ? `${messageCount}/${maxMessages}` : `0/${maxMessages}`}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-card/80 p-3 shadow-sm">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Fase</p>
+              <p className="mt-1 text-lg font-semibold capitalize text-foreground">{phase}</p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-card/80 p-3 shadow-sm">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">ATS</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">{atsScore ?? "--"}</p>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {messages.length === 1 && (
-        <div className="px-4 py-12 text-center">
-          <h1 className="mb-3 text-2xl font-bold md:text-3xl">
-            Ola, {userName}!
-          </h1>
-          <p className="mx-auto max-w-md text-muted-foreground">
-            Cole a descricao da vaga e envie seu curriculo para iniciar a analise ATS.
-          </p>
-        </div>
-      )}
-
-      <ScrollArea className="flex-1 px-4 md:px-6">
-        <div className="mx-auto max-w-3xl space-y-6 py-6">
-          {messages.map((message) => (
-            <ChatMessage key={message.id} {...message} />
-          ))}
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
-
-      <div
-        className={cn(
-          "border-t border-border p-4 transition-colors",
-          isDragging && "border-primary bg-primary/5",
-        )}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <div className="mx-auto max-w-3xl space-y-3">
-          {uploadedFile && (
-            <div className="flex w-fit items-center gap-2 rounded-lg bg-muted px-3 py-2">
-              <FileText className="h-4 w-4 text-primary" />
-              <span className="text-sm text-foreground">{uploadedFile.name}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5"
-                disabled={isInputDisabled}
-                onClick={() => setUploadedFile(null)}
-              >
-                <X className="h-3 w-3" />
-              </Button>
+      <div className="flex-1 px-4 pb-4 pt-4 md:px-6">
+        <div
+          className={cn(
+            "mx-auto flex h-full max-w-4xl flex-col overflow-hidden rounded-[30px] border border-border/70 bg-background/90 shadow-[0_28px_120px_-70px_rgba(15,23,42,0.55)] backdrop-blur-xl transition-colors",
+            isDragging && "border-primary/50 bg-primary/5",
+          )}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {messages.length === 1 && (
+            <div className="border-b border-border/60 bg-muted/20 px-6 py-6">
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-border/60 bg-card/75 p-4">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <p className="mt-3 text-sm font-semibold">Analise ATS orientada por vaga</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    O chat usa a descricao da vaga para apontar lacunas, prioridades e proximos passos.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card/75 p-4">
+                  <Upload className="h-5 w-5 text-primary" />
+                  <p className="mt-3 text-sm font-semibold">Upload direto no fluxo</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    PDF e DOCX entram no mesmo workspace para parsing, revisao e geracao final.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card/75 p-4">
+                  <Activity className="h-5 w-5 text-primary" />
+                  <p className="mt-3 text-sm font-semibold">Streaming visivel</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Cada resposta aparece em tempo real para manter a conversa transparente e rapida.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
-          <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              disabled={isInputDisabled}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="h-4 w-4" />
-            </Button>
-            <Textarea
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="Cole a descricao da vaga aqui..."
-              className="max-h-[200px] min-h-[44px] resize-none"
-              rows={1}
-              disabled={isInputDisabled}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault()
-                  void handleSend()
-                }
-              }}
-            />
-            <Button
-              size="icon"
-              className="shrink-0"
-              disabled={(!input.trim() && !uploadedFile) || isInputDisabled}
-              onClick={() => void handleSend()}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
+          <ScrollArea className="flex-1 px-4 md:px-6">
+            <div className="mx-auto flex max-w-3xl flex-col gap-6 py-6">
+              {messages.map((message) => (
+                <ChatMessage key={message.id} {...message} />
+              ))}
+              <div ref={bottomRef} />
+            </div>
+          </ScrollArea>
 
-          {sessionLimitReached ? (
-            <p className="text-center text-xs text-amber-600">
-              Esta sessao atingiu o limite de mensagens. Inicie uma nova analise para continuar.
-            </p>
-          ) : (
-            <p className="text-center text-xs text-muted-foreground">
-              Arraste um arquivo PDF ou DOCX, ou clique no botao de upload.
-            </p>
-          )}
+          <div className="border-t border-border/60 bg-background/88 p-4 backdrop-blur-xl md:p-5">
+            <div className="mx-auto max-w-3xl space-y-3">
+              {uploadedFile && (
+                <div className="flex w-fit items-center gap-2 rounded-full border border-border/70 bg-muted/60 px-3 py-2 shadow-sm">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <span className="max-w-[220px] truncate text-sm text-foreground">{uploadedFile.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 rounded-full"
+                    disabled={isInputDisabled}
+                    onClick={() => setUploadedFile(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+
+              <div className="rounded-[28px] border border-border/70 bg-card/85 p-3 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.45)]">
+                <div className="flex gap-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="mt-1 h-11 w-11 shrink-0 rounded-2xl"
+                    disabled={isInputDisabled}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                  <Textarea
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    placeholder="Cole a descricao da vaga aqui..."
+                    className="min-h-[88px] flex-1 resize-none rounded-2xl border-0 bg-transparent px-1 py-2 text-sm shadow-none focus-visible:ring-0"
+                    rows={3}
+                    disabled={isInputDisabled}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault()
+                        void handleSend()
+                      }
+                    }}
+                  />
+                  <Button
+                    size="icon"
+                    className="mt-1 h-11 w-11 shrink-0 rounded-2xl"
+                    disabled={(!input.trim() && !uploadedFile) || isInputDisabled}
+                    onClick={() => void handleSend()}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="mt-3 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                  {sessionLimitReached ? (
+                    <p className="text-amber-600">
+                      Esta sessao atingiu o limite de mensagens. Inicie uma nova analise para continuar.
+                    </p>
+                  ) : (
+                    <p>Arraste um arquivo PDF ou DOCX, ou clique no botao de upload.</p>
+                  )}
+                  <p>Enter envia. Shift + Enter quebra a linha.</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
