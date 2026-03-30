@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+import { getHttpStatusForToolError } from '@/lib/agent/tool-errors'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession } from '@/lib/db/sessions'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
@@ -60,7 +61,10 @@ export async function POST(
     })
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 })
+      return NextResponse.json(
+        { success: false, error: result.error, code: result.code },
+        { status: getHttpStatusForToolError(result.code) },
+      )
     }
 
     return NextResponse.json({ target: result.target })

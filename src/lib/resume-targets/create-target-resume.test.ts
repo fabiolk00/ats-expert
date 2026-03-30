@@ -234,12 +234,18 @@ describe('createTargetResumeVariant', () => {
       return await Promise.reject(new Error('Transactional insert failed'))
     })
 
-    await expect(createTargetResumeVariant({
+    const result = await createTargetResumeVariant({
       sessionId: 'sess_123',
       userId: 'usr_123',
       baseCvState,
       targetJobDescription: 'AWS backend role',
-    })).rejects.toThrow('Transactional insert failed')
+    })
+
+    expect(result).toEqual({
+      success: false,
+      code: 'INTERNAL_ERROR',
+      error: 'Failed to create target resume.',
+    })
 
     expect(persistedTargets).toEqual([])
     expect(baseCvState).toEqual(buildBaseCvState())

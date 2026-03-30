@@ -4,8 +4,7 @@ import type { Session } from '@/types/agent'
 
 import { scoreATS } from '@/lib/ats/score'
 import { getResumeTargetForSession, updateResumeTargetGeneratedOutput } from '@/lib/db/resume-targets'
-import { applyToolPatchWithVersion } from '@/lib/db/sessions'
-import { mergeToolPatch } from '@/lib/db/sessions'
+import { applyGeneratedOutputPatch, applyToolPatchWithVersion, mergeToolPatch } from '@/lib/db/sessions'
 
 import { analyzeGap } from './gap-analysis'
 import { generateFile } from './generate-file'
@@ -15,6 +14,13 @@ import { ingestResumeText } from './resume-ingestion'
 import { dispatchTool, executeTool } from './index'
 import { rewriteSection } from './rewrite-section'
 import { createTargetResumeVariant } from '@/lib/resume-targets/create-target-resume'
+
+const { logError, logInfo, logWarn, serializeError } = vi.hoisted(() => ({
+  logError: vi.fn(),
+  logInfo: vi.fn(),
+  logWarn: vi.fn(),
+  serializeError: vi.fn(() => ({})),
+}))
 
 vi.mock('./parse-file', () => ({
   parseFile: vi.fn(),
@@ -45,6 +51,12 @@ vi.mock('@/lib/ats/score', () => ({
 }))
 
 vi.mock('@/lib/db/sessions', () => ({
+  applyGeneratedOutputPatch: vi.fn(async (session: Session, patch: Partial<Session['generatedOutput']>) => {
+    session.generatedOutput = {
+      ...session.generatedOutput,
+      ...patch,
+    }
+  }),
   applyToolPatchWithVersion: vi.fn(),
   mergeToolPatch: vi.fn((session: Session, patch: Parameters<typeof mergeToolPatch>[1]) => ({
     ...session,
@@ -68,6 +80,13 @@ vi.mock('@/lib/resume-targets/create-target-resume', () => ({
 
 vi.mock('@/lib/agent/usage-tracker', () => ({
   trackApiUsage: vi.fn(),
+}))
+
+vi.mock('@/lib/observability/structured-log', () => ({
+  logError,
+  logInfo,
+  logWarn,
+  serializeError,
 }))
 
 function buildSession(): Session {
@@ -120,6 +139,12 @@ function buildEmptySession(): Session {
 describe('agent tool dispatch', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(applyGeneratedOutputPatch).mockImplementation(async (session, patch) => {
+      session.generatedOutput = {
+        ...session.generatedOutput,
+        ...patch,
+      }
+    })
     vi.mocked(getResumeTargetForSession).mockResolvedValue(null)
     vi.mocked(updateResumeTargetGeneratedOutput).mockResolvedValue(undefined)
     vi.mocked(applyToolPatchWithVersion).mockImplementation(async (session, patch) => {
@@ -410,6 +435,7 @@ describe('agent tool dispatch', () => {
 
     expect(JSON.parse(rawResult)).toEqual({
       success: false,
+      code: 'INTERNAL_ERROR',
       error: 'Tool execution failed.',
     })
     expect(session).toEqual(originalSessionSnapshot)
@@ -421,6 +447,7 @@ describe('agent tool dispatch', () => {
     vi.mocked(rewriteSection).mockResolvedValue({
       output: {
         success: false,
+        code: 'LLM_INVALID_OUTPUT',
         error: 'Invalid rewrite payload for section "skills".',
       },
     })
@@ -433,9 +460,112 @@ describe('agent tool dispatch', () => {
 
     expect(JSON.parse(rawResult)).toEqual({
       success: false,
+      code: 'LLM_INVALID_OUTPUT',
       error: 'Invalid rewrite payload for section "skills".',
     })
     expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+  })
+
+  it('persists session generatedOutput.status=failed when generate_file validation fails', async () => {
+    const session = buildSession()
+
+    vi.mocked(generateFile).mockResolvedValue({
+      output: {
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: 'summary is required.',
+      },
+      patch: {
+        generatedOutput: {
+          status: 'failed',
+          docxPath: undefined,
+          pdfPath: undefined,
+          generatedAt: undefined,
+          error: 'summary is required.',
+        },
+      },
+      generatedOutput: {
+        status: 'failed',
+        docxPath: undefined,
+        pdfPath: undefined,
+        generatedAt: undefined,
+        error: 'summary is required.',
+      },
+    })
+
+    const rawResult = await dispatchTool('generate_file', {
+      cv_state: session.cvState,
+    }, session)
+
+    expect(JSON.parse(rawResult)).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'summary is required.',
+    })
+    expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+    expect(applyGeneratedOutputPatch).toHaveBeenCalledWith(session, {
+      status: 'failed',
+      docxPath: undefined,
+      pdfPath: undefined,
+      generatedAt: undefined,
+      error: 'summary is required.',
+    })
+    expect(session.generatedOutput).toEqual({
+      status: 'failed',
+      docxPath: undefined,
+      pdfPath: undefined,
+      generatedAt: undefined,
+      error: 'summary is required.',
+    })
+  })
+
+  it('does not mutate cvState or agentState when generate_file fails', async () => {
+    const session = buildSession()
+    const originalCvState = structuredClone(session.cvState)
+    session.agentState = {
+      parseStatus: 'parsed',
+      rewriteHistory: {
+        summary: {
+          rewrittenContent: 'Existing summary',
+          keywordsAdded: ['TypeScript'],
+          changesMade: ['Strengthened summary'],
+          updatedAt: '2026-03-27T12:05:00.000Z',
+        },
+      },
+    }
+    const originalAgentState = structuredClone(session.agentState)
+
+    vi.mocked(generateFile).mockResolvedValue({
+      output: {
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: 'phone is required.',
+      },
+      patch: {
+        generatedOutput: {
+          status: 'failed',
+          docxPath: undefined,
+          pdfPath: undefined,
+          generatedAt: undefined,
+          error: 'phone is required.',
+        },
+      },
+      generatedOutput: {
+        status: 'failed',
+        docxPath: undefined,
+        pdfPath: undefined,
+        generatedAt: undefined,
+        error: 'phone is required.',
+      },
+    })
+
+    await dispatchTool('generate_file', {
+      cv_state: session.cvState,
+    }, session)
+
+    expect(session.cvState).toEqual(originalCvState)
+    expect(session.agentState).toEqual(originalAgentState)
+    expect(session.generatedOutput.status).toBe('failed')
   })
 
   it('rejects malformed gap-driven rewrite output without persisting changes', async () => {
@@ -444,6 +574,7 @@ describe('agent tool dispatch', () => {
     vi.mocked(applyGapAction).mockResolvedValue({
       output: {
         success: false,
+        code: 'LLM_INVALID_OUTPUT',
         error: 'Invalid rewrite payload for section "summary".',
       },
     })
@@ -455,9 +586,79 @@ describe('agent tool dispatch', () => {
 
     expect(JSON.parse(rawResult)).toEqual({
       success: false,
+      code: 'LLM_INVALID_OUTPUT',
       error: 'Invalid rewrite payload for section "summary".',
     })
     expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+  })
+
+  it('logs structured tool failure codes when a tool returns a failure payload', async () => {
+    const session = buildSession()
+
+    vi.mocked(rewriteSection).mockResolvedValue({
+      output: {
+        success: false,
+        code: 'LLM_INVALID_OUTPUT',
+        error: 'Invalid rewrite payload for section "summary".',
+      },
+    })
+
+    await dispatchTool('rewrite_section', {
+      section: 'summary',
+      current_content: 'Backend engineer',
+      instructions: 'Improve it',
+    }, session)
+
+    expect(logWarn).toHaveBeenCalledWith(
+      'agent.tool.completed',
+      expect.objectContaining({
+        success: false,
+        errorCode: 'LLM_INVALID_OUTPUT',
+        errorMessage: 'Invalid rewrite payload for section "summary".',
+      }),
+    )
+  })
+
+  it('logs that generatedOutput was persisted when generate_file fails', async () => {
+    const session = buildSession()
+
+    vi.mocked(generateFile).mockResolvedValue({
+      output: {
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: 'summary is required.',
+      },
+      patch: {
+        generatedOutput: {
+          status: 'failed',
+          docxPath: undefined,
+          pdfPath: undefined,
+          generatedAt: undefined,
+          error: 'summary is required.',
+        },
+      },
+      generatedOutput: {
+        status: 'failed',
+        docxPath: undefined,
+        pdfPath: undefined,
+        generatedAt: undefined,
+        error: 'summary is required.',
+      },
+    })
+
+    await dispatchTool('generate_file', {
+      cv_state: session.cvState,
+    }, session)
+
+    expect(logInfo).toHaveBeenCalledWith(
+      'agent.tool.generated_output.persisted',
+      expect.objectContaining({
+        toolName: 'generate_file',
+        status: 'failed',
+        errorCode: 'VALIDATION_ERROR',
+        errorMessage: 'summary is required.',
+      }),
+    )
   })
 
   it('reads generate_file input from canonical session cvState', async () => {
@@ -577,6 +778,101 @@ describe('agent tool dispatch', () => {
     })
     expect(execution.patch).toBeUndefined()
     expect(session.cvState).toEqual(originalCvState)
+  })
+
+  it('persists target generatedOutput on failure without updating the session generatedOutput', async () => {
+    const session = buildSession()
+    const originalGeneratedOutput = structuredClone(session.generatedOutput)
+
+    vi.mocked(getResumeTargetForSession).mockResolvedValue({
+      id: 'target_123',
+      sessionId: session.id,
+      targetJobDescription: 'AWS backend role',
+      derivedCvState: {
+        ...session.cvState,
+        email: '',
+      },
+      createdAt: new Date('2026-03-27T12:00:00.000Z'),
+      updatedAt: new Date('2026-03-27T12:00:00.000Z'),
+    })
+    vi.mocked(generateFile).mockResolvedValue({
+      output: {
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: 'email is required.',
+      },
+      generatedOutput: {
+        status: 'failed',
+        docxPath: undefined,
+        pdfPath: undefined,
+        generatedAt: undefined,
+        error: 'email is required.',
+      },
+    })
+
+    const rawResult = await dispatchTool('generate_file', {
+      cv_state: session.cvState,
+      target_id: 'target_123',
+    }, session)
+
+    expect(JSON.parse(rawResult)).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'email is required.',
+    })
+    expect(updateResumeTargetGeneratedOutput).toHaveBeenCalledWith(
+      session.id,
+      'target_123',
+      {
+        status: 'failed',
+        docxPath: undefined,
+        pdfPath: undefined,
+        generatedAt: undefined,
+        error: 'email is required.',
+      },
+    )
+    expect(applyGeneratedOutputPatch).not.toHaveBeenCalled()
+    expect(session.generatedOutput).toEqual(originalGeneratedOutput)
+  })
+
+  it('does not persist patch for non-generate_file tool failures', async () => {
+    const session = buildSession()
+    const originalAgentState = structuredClone(session.agentState)
+
+    vi.mocked(rewriteSection).mockResolvedValue({
+      output: {
+        success: false,
+        code: 'LLM_INVALID_OUTPUT',
+        error: 'Invalid rewrite payload.',
+      },
+      patch: {
+        agentState: {
+          rewriteHistory: {
+            summary: {
+              rewrittenContent: 'Unexpected rewrite',
+              keywordsAdded: ['AWS'],
+              changesMade: ['Added unsupported claim'],
+              updatedAt: '2026-03-27T12:05:00.000Z',
+            },
+          },
+        },
+      },
+    })
+
+    const rawResult = await dispatchTool('rewrite_section', {
+      section: 'summary',
+      current_content: 'Backend engineer',
+      instructions: 'Improve it',
+    }, session)
+
+    expect(JSON.parse(rawResult)).toEqual({
+      success: false,
+      code: 'LLM_INVALID_OUTPUT',
+      error: 'Invalid rewrite payload.',
+    })
+    expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+    expect(applyGeneratedOutputPatch).not.toHaveBeenCalled()
+    expect(session.agentState).toEqual(originalAgentState)
   })
 
   it('builds an agentState patch from validated gap analysis output', async () => {

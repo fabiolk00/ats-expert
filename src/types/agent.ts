@@ -7,6 +7,7 @@ import type {
   GapAnalysisResult,
   Phase,
 } from './cv'
+import type { ToolErrorCode, ToolFailure } from '@/lib/agent/tool-errors'
 
 export type { Phase }
 
@@ -112,6 +113,8 @@ export type ToolPatch = Partial<{
   atsScore: ATSScoreResult
 }>
 
+export type { ToolErrorCode, ToolFailure }
+
 // ── Tool input/output types ───────────────────────────────────────────
 
 export type ParseFileInput = {
@@ -125,7 +128,7 @@ export type ParseFileInput = {
 
 export type ParseFileOutput =
   | { success: true; text: string; pageCount: number }
-  | { success: false; error: string }
+  | ToolFailure
 
 export type ScoreATSInput = {
   resume_text: string
@@ -134,7 +137,7 @@ export type ScoreATSInput = {
 
 export type ScoreATSOutput =
   | { success: true; result: ATSScoreResult }
-  | { success: false; error: string }
+  | ToolFailure
 
 export type AnalyzeGapInput = {
   target_job_description: string
@@ -142,7 +145,7 @@ export type AnalyzeGapInput = {
 
 export type AnalyzeGapOutput =
   | { success: true; result: GapAnalysisResult }
-  | { success: false; error: string }
+  | ToolFailure
 
 export type ApplyGapActionInput = {
   item_type: 'missing_skill' | 'weak_area' | 'suggestion'
@@ -156,7 +159,7 @@ export type ApplyGapActionOutput =
       item_type: ApplyGapActionInput['item_type']
       item_value: string
     } & Extract<RewriteSectionOutput, { success: true }>)
-  | { success: false; error: string }
+  | ToolFailure
 
 export type RewriteSectionInput = {
   section: 'summary' | 'experience' | 'skills' | 'education' | 'certifications'
@@ -180,7 +183,7 @@ export type RewriteSectionOutput =
       keywords_added: string[]
       changes_made: string[]
     }
-  | { success: false; error: string }
+  | ToolFailure
 
 export type SetPhaseInput = {
   phase: Phase
@@ -189,7 +192,7 @@ export type SetPhaseInput = {
 
 export type SetPhaseOutput =
   | { success: true; phase: Phase }
-  | { success: false; error: string }
+  | ToolFailure
 
 export type GenerateFileInput = {
   cv_state: CVState
@@ -198,7 +201,7 @@ export type GenerateFileInput = {
 
 export type GenerateFileOutput =
   | { success: true; docxUrl: string; pdfUrl: string }
-  | { success: false; error: string }
+  | ToolFailure
 
 export type ManualEditSection = 'contact' | RewriteSectionInput['section']
 
@@ -242,7 +245,7 @@ export type ManualEditOutput =
       section: ManualEditSection
       section_data: ManualEditSectionData
     }
-  | { success: false; error: string }
+  | ToolFailure
 
 export type CreateTargetResumeInput = {
   target_job_description: string
@@ -256,7 +259,7 @@ export type CreateTargetResumeOutput =
       derivedCvState: CVState
       gapAnalysis?: GapAnalysisResult
     }
-  | { success: false; error: string }
+  | ToolFailure
 
 // ── Agent API request/response ────────────────────────────────────────
 

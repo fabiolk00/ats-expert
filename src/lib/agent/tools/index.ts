@@ -5,8 +5,9 @@ import {
   getResumeTargetForSession,
   updateResumeTargetGeneratedOutput,
 } from '@/lib/db/resume-targets'
-import { applyToolPatchWithVersion, mergeToolPatch } from '@/lib/db/sessions'
-import { logError, logInfo, serializeError } from '@/lib/observability/structured-log'
+import { applyToolPatchWithVersion, applyGeneratedOutputPatch as applySessionGeneratedOutputPatch, mergeToolPatch } from '@/lib/db/sessions'
+import { isToolFailure, TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
+import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import { createTargetResumeVariant } from '@/lib/resume-targets/create-target-resume'
 import type {
   ApplyGapActionInput,
@@ -311,10 +312,7 @@ export async function executeTool(
             },
           }
         : {
-            output: {
-              success: false,
-              error: result.error,
-            },
+            output: result,
           }
     }
 
@@ -335,7 +333,7 @@ export async function executeTool(
 
       if (targetId && !target) {
         return {
-          output: { success: false, error: 'Target resume not found.' },
+          output: toolFailure(TOOL_ERROR_CODES.NOT_FOUND, 'Target resume not found.'),
         }
       }
 
@@ -364,7 +362,7 @@ export async function executeTool(
 
     default:
       return {
-        output: { success: false, error: `Unknown tool: ${toolName}` },
+        output: toolFailure(TOOL_ERROR_CODES.VALIDATION_ERROR, `Unknown tool: ${toolName}`),
       }
   }
 }
@@ -387,31 +385,62 @@ export async function dispatchTool(
     })
 
     const execution = await executeTool(toolName, toolInput, session)
+    const outputFailure = isToolFailure(execution.output) ? execution.output : undefined
+    let persistedGeneratedOutput = false
 
-    if (execution.patch) {
+    if (execution.patch && !outputFailure) {
       const nextSession = mergeToolPatch(session, execution.patch)
       const versionSource = resolveCvVersionSource(toolName, previousCvState, nextSession.cvState, execution)
       await applyToolPatchWithVersion(session, execution.patch, versionSource)
+      persistedGeneratedOutput = execution.patch.generatedOutput !== undefined
     }
 
-    logInfo('agent.tool.completed', {
+    if (outputFailure && execution.patch?.generatedOutput) {
+      await applySessionGeneratedOutputPatch(session, execution.patch.generatedOutput)
+      persistedGeneratedOutput = true
+    }
+
+    if (persistedGeneratedOutput) {
+      logInfo('agent.tool.generated_output.persisted', {
+        sessionId: session.id,
+        appUserId: session.userId,
+        toolName,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        status: session.generatedOutput.status,
+        errorCode: outputFailure?.code,
+        errorMessage: session.generatedOutput.error,
+      })
+    }
+
+    const logFields = {
       sessionId: session.id,
       appUserId: session.userId,
       toolName,
       phase: session.phase,
       stateVersion: session.stateVersion,
       latencyMs: Date.now() - startedAt,
-      success: true,
+      success: outputFailure === undefined,
       updatedPhase: execution.patch?.phase ?? session.phase,
       touchedCvState: execution.patch?.cvState !== undefined,
       touchedAgentState: execution.patch?.agentState !== undefined,
-      touchedGeneratedOutput: execution.patch?.generatedOutput !== undefined,
+      touchedGeneratedOutput: persistedGeneratedOutput,
       touchedAtsScore: execution.patch?.atsScore !== undefined,
       parseConfidenceScore: execution.patch?.agentState?.parseConfidenceScore,
-    })
+      errorCode: outputFailure?.code,
+      errorMessage: outputFailure?.error,
+    }
+
+    if (outputFailure) {
+      logWarn('agent.tool.completed', logFields)
+    } else {
+      logInfo('agent.tool.completed', logFields)
+    }
 
     return JSON.stringify(execution.output)
   } catch (err) {
+    const failure = toolFailureFromUnknown(err, 'Tool execution failed.')
+
     logError('agent.tool.failed', {
       sessionId: session.id,
       appUserId: session.userId,
@@ -421,7 +450,9 @@ export async function dispatchTool(
       latencyMs: Date.now() - startedAt,
       success: false,
       ...serializeError(err),
+      errorCode: failure.code,
+      errorMessage: failure.error,
     })
-    return JSON.stringify({ success: false, error: 'Tool execution failed.' })
+    return JSON.stringify(failure)
   }
 }

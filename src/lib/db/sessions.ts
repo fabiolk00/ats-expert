@@ -287,6 +287,23 @@ export async function applyToolPatch(session: Session, patch?: ToolPatch): Promi
   session.updatedAt = mergedSession.updatedAt
 }
 
+export async function applyGeneratedOutputPatch(
+  session: Session,
+  generatedOutputPatch: Partial<GeneratedOutput>,
+): Promise<void> {
+  const nextGeneratedOutput = normalizeGeneratedOutput({
+    ...session.generatedOutput,
+    ...generatedOutputPatch,
+  })
+
+  await updateSession(session.id, {
+    generatedOutput: nextGeneratedOutput,
+  })
+
+  session.generatedOutput = nextGeneratedOutput
+  session.updatedAt = new Date()
+}
+
 export async function applyToolPatchWithVersion(
   session: Session,
   patch: ToolPatch | undefined,
@@ -386,6 +403,7 @@ export const db = {
   getSession,
   createSession,
   updateSession,
+  applyGeneratedOutputPatch,
   applyToolPatch,
   applyToolPatchWithVersion,
   getMessages,

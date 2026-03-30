@@ -5,7 +5,12 @@ import type { CVState } from '@/types/cv'
 
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 
-import { createCvVersion, getCvTimelineForSession, toTimelineEntry } from './cv-versions'
+import {
+  createCvVersion,
+  getCvTimelineForSession,
+  shouldSkipCvVersionInsert,
+  toTimelineEntry,
+} from './cv-versions'
 
 vi.mock('@/lib/db/supabase-admin', () => ({
   getSupabaseAdminClient: vi.fn(),
@@ -15,6 +20,36 @@ describe('cv versions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
+
+  function buildSnapshot(overrides: Partial<CVState> = {}): CVState {
+    return {
+      fullName: 'Ana Silva',
+      email: 'ana@example.com',
+      phone: '555-0100',
+      summary: 'Backend engineer',
+      experience: [],
+      skills: ['TypeScript'],
+      education: [],
+      ...overrides,
+    }
+  }
+
+  function buildVersion(input: {
+    id: string
+    createdAt: string
+    snapshot?: CVState
+    source?: CVVersion['source']
+    targetResumeId?: string
+  }): CVVersion {
+    return {
+      id: input.id,
+      sessionId: 'sess_123',
+      targetResumeId: input.targetResumeId,
+      snapshot: input.snapshot ?? buildSnapshot(),
+      source: input.source ?? (input.targetResumeId ? 'target-derived' : 'rewrite'),
+      createdAt: new Date(input.createdAt),
+    }
+  }
 
   it('stores immutable snapshots', async () => {
     let insertedSnapshot: CVState | null = null
@@ -69,6 +104,85 @@ describe('cv versions', () => {
       education: [],
     })
     expect(version.snapshot).toEqual(insertedSnapshot)
+  })
+
+  it('skips an identical consecutive base snapshot', () => {
+    const versions = [
+      buildVersion({
+        id: 'ver_base_2',
+        createdAt: '2026-03-27T12:10:00.000Z',
+        source: 'rewrite',
+      }),
+      buildVersion({
+        id: 'ver_base_1',
+        createdAt: '2026-03-27T12:00:00.000Z',
+        snapshot: buildSnapshot({ summary: 'Imported summary' }),
+        source: 'ingestion',
+      }),
+    ]
+
+    expect(shouldSkipCvVersionInsert(versions, buildSnapshot())).toBe(true)
+  })
+
+  it('skips an identical consecutive target-derived snapshot', () => {
+    const versions = [
+      buildVersion({
+        id: 'ver_target_2',
+        createdAt: '2026-03-27T12:10:00.000Z',
+        targetResumeId: 'target_123',
+      }),
+      buildVersion({
+        id: 'ver_target_other',
+        createdAt: '2026-03-27T12:09:00.000Z',
+        targetResumeId: 'target_other',
+        snapshot: buildSnapshot({ summary: 'Other target summary' }),
+      }),
+    ]
+
+    expect(shouldSkipCvVersionInsert(versions, buildSnapshot(), 'target_123')).toBe(true)
+  })
+
+  it('creates a new version when the canonical snapshot changed', () => {
+    const versions = [
+      buildVersion({
+        id: 'ver_base_2',
+        createdAt: '2026-03-27T12:10:00.000Z',
+        snapshot: buildSnapshot({ summary: 'Original summary' }),
+      }),
+      buildVersion({
+        id: 'ver_base_1',
+        createdAt: '2026-03-27T12:00:00.000Z',
+        snapshot: buildSnapshot({ summary: 'Imported summary' }),
+        source: 'ingestion',
+      }),
+    ]
+
+    expect(
+      shouldSkipCvVersionInsert(
+        versions,
+        buildSnapshot({ summary: 'Updated summary with AWS ownership' }),
+      ),
+    ).toBe(false)
+  })
+
+  it('ignores unrelated target history when deciding whether to insert for the current target', () => {
+    const nextSnapshot = buildSnapshot({ summary: 'Platform engineer focused on AWS.' })
+    const versions = [
+      buildVersion({
+        id: 'ver_target_other',
+        createdAt: '2026-03-27T12:15:00.000Z',
+        targetResumeId: 'target_other',
+        snapshot: nextSnapshot,
+      }),
+      buildVersion({
+        id: 'ver_target_current',
+        createdAt: '2026-03-27T12:10:00.000Z',
+        targetResumeId: 'target_current',
+        snapshot: buildSnapshot({ summary: 'Platform engineer focused on APIs.' }),
+      }),
+    ]
+
+    expect(shouldSkipCvVersionInsert(versions, nextSnapshot, 'target_current')).toBe(false)
   })
 
   it('sorts timeline entries in descending timestamp order', async () => {

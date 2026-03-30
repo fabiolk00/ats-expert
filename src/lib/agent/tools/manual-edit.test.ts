@@ -68,6 +68,7 @@ describe('manualEditSection', () => {
     expect(result).toEqual({
       output: {
         success: false,
+        code: 'VALIDATION_ERROR',
         error: 'Invalid manual edit payload.',
       },
     })

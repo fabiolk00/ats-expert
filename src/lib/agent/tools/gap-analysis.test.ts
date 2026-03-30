@@ -115,6 +115,7 @@ describe('gap analysis', () => {
     expect(result).toEqual({
       output: {
         success: false,
+        code: 'LLM_INVALID_OUTPUT',
         error: 'Invalid gap analysis payload.',
       },
     })

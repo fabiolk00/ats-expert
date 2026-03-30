@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
 
 import { AGENT_CONFIG } from '@/lib/agent/config'
+import { TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
 import type {
   CertificationEntry,
@@ -224,14 +225,15 @@ export async function rewriteSection(
   userId: string,
   sessionId: string,
 ): Promise<RewriteSectionExecutionResult> {
-  const client = new Anthropic({
-    timeout: AGENT_CONFIG.timeout,
-  })
+  try {
+    const client = new Anthropic({
+      timeout: AGENT_CONFIG.timeout,
+    })
 
-  const response = await callAnthropicWithRetry(client, {
-    model: AGENT_CONFIG.model,
-    max_tokens: AGENT_CONFIG.rewriterMaxTokens,
-    system: `You are an expert ATS resume writer. Rewrite the provided resume section following the instructions.
+    const response = await callAnthropicWithRetry(client, {
+      model: AGENT_CONFIG.model,
+      max_tokens: AGENT_CONFIG.rewriterMaxTokens,
+      system: `You are an expert ATS resume writer. Rewrite the provided resume section following the instructions.
 Output ONLY valid JSON matching this shape exactly:
 {
   "rewritten_content": string,
@@ -243,41 +245,46 @@ Rules:
 - "rewritten_content" must stay human-readable plain text for conversational display
 - "section_data" must be fully structured and valid for the requested section
 - Do not include markdown, preamble, or explanation outside the JSON object.`,
-    messages: [{
-      role: 'user',
-      content: JSON.stringify(input),
-    }],
-  })
+      messages: [{
+        role: 'user',
+        content: JSON.stringify(input),
+      }],
+    })
 
-  trackApiUsage({
-    userId,
-    sessionId,
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-    endpoint: 'rewriter',
-  }).catch(() => {})
+    trackApiUsage({
+      userId,
+      sessionId,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      endpoint: 'rewriter',
+    }).catch(() => {})
 
-  const text = response.content.find((block: Anthropic.ContentBlock) => block.type === 'text' && 'text' in block)?.text ?? '{}'
-  const validatedPayload = validateRewritePayload(input.section, text)
+    const text = response.content.find((block: Anthropic.ContentBlock) => block.type === 'text' && 'text' in block)?.text ?? '{}'
+    const validatedPayload = validateRewritePayload(input.section, text)
 
-  if (!validatedPayload) {
+    if (!validatedPayload) {
+      return {
+        output: toolFailure(
+          TOOL_ERROR_CODES.LLM_INVALID_OUTPUT,
+          `Invalid rewrite payload for section "${input.section}".`,
+        ),
+      }
+    }
+
     return {
       output: {
-        success: false,
-        error: `Invalid rewrite payload for section "${input.section}".`,
+        success: true,
+        rewritten_content: validatedPayload.rewritten_content,
+        section_data: validatedPayload.section_data,
+        keywords_added: validatedPayload.keywords_added,
+        changes_made: validatedPayload.changes_made,
       },
+      patch: buildRewritePatch(validatedPayload),
     }
-  }
-
-  return {
-    output: {
-      success: true,
-      rewritten_content: validatedPayload.rewritten_content,
-      section_data: validatedPayload.section_data,
-      keywords_added: validatedPayload.keywords_added,
-      changes_made: validatedPayload.changes_made,
-    },
-    patch: buildRewritePatch(validatedPayload),
+  } catch (error) {
+    return {
+      output: toolFailureFromUnknown(error, 'Failed to rewrite resume section.'),
+    }
   }
 }
 

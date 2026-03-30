@@ -10,7 +10,15 @@ function buildCvState(): CVState {
     email: 'ana@example.com',
     phone: '555-0100',
     summary: 'Backend engineer',
-    experience: [],
+    experience: [
+      {
+        title: 'Backend Engineer',
+        company: 'Acme',
+        startDate: '2022',
+        endDate: 'present',
+        bullets: ['Built billing APIs'],
+      },
+    ],
     skills: ['TypeScript', 'PostgreSQL'],
     education: [],
   }
@@ -33,6 +41,7 @@ function buildSupabase() {
 describe('generateFile', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   it('persists generated output paths but not signed URLs', async () => {
@@ -81,6 +90,7 @@ describe('generateFile', () => {
 
     expect(result.output).toEqual({
       success: false,
+      code: 'GENERATION_ERROR',
       error: 'File generation failed.',
     })
     expect(result.patch).toEqual({
@@ -140,5 +150,129 @@ describe('generateFile', () => {
       generatedAt: expect.any(String),
       error: undefined,
     })
+  })
+
+  it('returns a validation error for malformed generation input', async () => {
+    const result = await generateFile({
+      cv_state: {
+        fullName: 'Ana Silva',
+      } as never,
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output.success).toBe(false)
+    if (result.output.success) {
+      throw new Error('Expected validation failure.')
+    }
+
+    expect(result.output.code).toBe('VALIDATION_ERROR')
+    expect(result.output.error).toContain('email')
+  })
+
+  it('returns VALIDATION_ERROR when base cvState is invalid', async () => {
+    const result = await generateFile({
+      cv_state: {
+        ...buildCvState(),
+        fullName: '',
+      },
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: expect.stringContaining('fullName'),
+    })
+    expect(result.patch).toEqual({
+      generatedOutput: {
+        status: 'failed',
+        docxPath: undefined,
+        pdfPath: undefined,
+        generatedAt: undefined,
+        error: expect.stringContaining('fullName'),
+      },
+    })
+  })
+
+  it('returns VALIDATION_ERROR when target cvState is invalid', async () => {
+    const result = await generateFile({
+      cv_state: {
+        ...buildCvState(),
+        email: '',
+      },
+      target_id: 'target_123',
+    }, 'usr_123', 'sess_123', { type: 'target', targetId: 'target_123' })
+
+    expect(result.output).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: expect.stringContaining('email'),
+    })
+    expect(result.patch).toBeUndefined()
+    expect(result.generatedOutput).toEqual({
+      status: 'failed',
+      docxPath: undefined,
+      pdfPath: undefined,
+      generatedAt: undefined,
+      error: expect.stringContaining('email'),
+    })
+  })
+
+  it('persists generatedOutput.status=failed with error message on validation failure', async () => {
+    const result = await generateFile({
+      cv_state: {
+        ...buildCvState(),
+        experience: [],
+      },
+    }, 'usr_123', 'sess_123')
+
+    expect(result.patch).toEqual({
+      generatedOutput: {
+        status: 'failed',
+        docxPath: undefined,
+        pdfPath: undefined,
+        generatedAt: undefined,
+        error: expect.stringContaining('experience'),
+      },
+    })
+  })
+
+  it('does not call generation or storage dependencies on validation failure', async () => {
+    const getSupabase = vi.spyOn(generateFileDeps, 'getSupabase')
+    const generateDOCX = vi.spyOn(generateFileDeps, 'generateDOCX')
+    const generatePDF = vi.spyOn(generateFileDeps, 'generatePDF')
+    const upload = vi.spyOn(generateFileDeps, 'upload')
+
+    const result = await generateFile({
+      cv_state: {
+        ...buildCvState(),
+        summary: '',
+      },
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: expect.stringContaining('summary'),
+    })
+    expect(getSupabase).not.toHaveBeenCalled()
+    expect(generateDOCX).not.toHaveBeenCalled()
+    expect(generatePDF).not.toHaveBeenCalled()
+    expect(upload).not.toHaveBeenCalled()
+  })
+
+  it('returns VALIDATION_ERROR instead of GENERATION_ERROR on schema failure', async () => {
+    const result = await generateFile({
+      cv_state: {
+        ...buildCvState(),
+        phone: 999,
+      } as unknown as CVState,
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output.success).toBe(false)
+    if (result.output.success) {
+      throw new Error('Expected validation failure.')
+    }
+
+    expect(result.output.code).toBe('VALIDATION_ERROR')
+    expect(result.output.error).toContain('phone')
   })
 })

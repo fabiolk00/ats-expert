@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ResumeTarget, Session } from '@/types/agent'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
+import { manualEditSection } from '@/lib/agent/tools/manual-edit'
 import { applyToolPatchWithVersion, getSession } from '@/lib/db/sessions'
 
 import { POST } from './route'
@@ -11,6 +12,15 @@ import { POST } from './route'
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn(),
 }))
+
+vi.mock('@/lib/agent/tools/manual-edit', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/agent/tools/manual-edit')>('@/lib/agent/tools/manual-edit')
+
+  return {
+    ...actual,
+    manualEditSection: vi.fn(actual.manualEditSection),
+  }
+})
 
 vi.mock('@/lib/db/sessions', () => ({
   getSession: vi.fn(),
@@ -181,6 +191,37 @@ describe('manual edit route', () => {
     )
 
     expect(response.status).toBe(400)
+    expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+  })
+
+  it('propagates structured manual edit failures', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(manualEditSection).mockResolvedValueOnce({
+      output: {
+        success: false,
+        code: 'VALIDATION_ERROR',
+        error: 'Invalid manual edit payload.',
+      },
+    })
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        body: JSON.stringify({
+          section: 'summary',
+          value: 'Backend engineer focused on platform reliability.',
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'Invalid manual edit payload.',
+    })
     expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
   })
 

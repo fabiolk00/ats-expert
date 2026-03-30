@@ -6,6 +6,7 @@ import {
   EducationEntrySchema,
   ExperienceEntrySchema,
 } from '@/lib/cv/schema'
+import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
 import type {
   ManualEditInput,
   ManualEditOutput,
@@ -75,10 +76,7 @@ export async function manualEditSection(input: ManualEditInput): Promise<ManualE
 
   if (!parsed.success) {
     return {
-      output: {
-        success: false,
-        error: 'Invalid manual edit payload.',
-      },
+      output: toolFailure(TOOL_ERROR_CODES.VALIDATION_ERROR, 'Invalid manual edit payload.'),
     }
   }
 

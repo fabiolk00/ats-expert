@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { getHttpStatusForToolError } from '@/lib/agent/tool-errors'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { manualEditSection, ManualEditInputSchema } from '@/lib/agent/tools/manual-edit'
 import { applyToolPatchWithVersion, getSession, mergeToolPatch } from '@/lib/db/sessions'
@@ -31,7 +32,10 @@ export async function POST(
     const result = await manualEditSection(body.data)
 
     if (!result.output.success) {
-      return NextResponse.json({ error: result.output.error }, { status: 400 })
+      return NextResponse.json(
+        { success: false, error: result.output.error, code: result.output.code },
+        { status: getHttpStatusForToolError(result.output.code) },
+      )
     }
 
     const nextSession = mergeToolPatch(session, result.patch ?? {})

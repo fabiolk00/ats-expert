@@ -3,9 +3,12 @@ import type {
   ApplyGapActionOutput,
   RewriteSectionInput,
   Session,
+  ToolFailure,
   ToolPatch,
 } from '@/types/agent'
 import type { GapAnalysisResult } from '@/types/cv'
+
+import { isToolFailure, TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
 
 import { rewriteSection } from './rewrite-section'
 
@@ -104,15 +107,18 @@ export function mapGapItemToSection(
 function buildGapRewriteInput(
   input: ApplyGapActionInput,
   session: Session,
-): RewriteSectionInput | { error: string } {
+): RewriteSectionInput | ToolFailure {
   const gapAnalysis = session.agentState.gapAnalysis?.result
   if (!gapAnalysis) {
-    return { error: 'No structured gap analysis is available for this session.' }
+    return toolFailure(TOOL_ERROR_CODES.NOT_FOUND, 'No structured gap analysis is available for this session.')
   }
 
   const validItems = getGapItemsByType(gapAnalysis, input.item_type)
   if (!validItems.includes(input.item_value)) {
-    return { error: 'Selected gap item was not found in the current structured gap analysis.' }
+    return toolFailure(
+      TOOL_ERROR_CODES.NOT_FOUND,
+      'Selected gap item was not found in the current structured gap analysis.',
+    )
   }
 
   const section = mapGapItemToSection(input.item_type, input.item_value, session.cvState)
@@ -151,12 +157,9 @@ export async function applyGapAction(
   session: Session,
 ): Promise<GapActionExecutionResult> {
   const rewriteInput = buildGapRewriteInput(input, session)
-  if ('error' in rewriteInput) {
+  if (isToolFailure(rewriteInput)) {
     return {
-      output: {
-        success: false,
-        error: rewriteInput.error,
-      },
+      output: rewriteInput,
     }
   }
 
@@ -164,10 +167,7 @@ export async function applyGapAction(
 
   if (!rewriteResult.output.success) {
     return {
-      output: {
-        success: false,
-        error: rewriteResult.output.error,
-      },
+      output: rewriteResult.output,
     }
   }
 

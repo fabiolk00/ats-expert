@@ -185,6 +185,7 @@ describe('rewriteSection', () => {
     expect(result).toEqual({
       output: {
         success: false,
+        code: 'LLM_INVALID_OUTPUT',
         error: 'Invalid rewrite payload for section "skills".',
       },
     })

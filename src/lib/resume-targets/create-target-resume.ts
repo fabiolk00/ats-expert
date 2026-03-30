@@ -1,11 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk'
 
 import { AGENT_CONFIG } from '@/lib/agent/config'
+import { TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
 import { CVStateSchema } from '@/lib/cv/schema'
 import { createResumeTarget } from '@/lib/db/resume-targets'
-import type { ResumeTarget } from '@/types/agent'
+import type { ResumeTarget, ToolFailure } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
 
 type CreateTargetResumeResult =
@@ -14,10 +15,7 @@ type CreateTargetResumeResult =
       target: ResumeTarget
       gapAnalysis?: GapAnalysisResult
     }
-  | {
-      success: false
-      error: string
-    }
+  | ToolFailure
 
 async function callAnthropicWithRetry(
   client: Anthropic,
@@ -67,30 +65,28 @@ export async function createTargetResumeVariant(input: {
   baseCvState: CVState
   targetJobDescription: string
 }): Promise<CreateTargetResumeResult> {
-  const gapAnalysisExecution = await analyzeGap(
-    input.baseCvState,
-    input.targetJobDescription,
-    input.userId,
-    input.sessionId,
-  )
+  try {
+    const gapAnalysisExecution = await analyzeGap(
+      input.baseCvState,
+      input.targetJobDescription,
+      input.userId,
+      input.sessionId,
+    )
 
-  if (!gapAnalysisExecution.result) {
-    return {
-      success: false,
-      error: gapAnalysisExecution.output.success
-        ? 'Gap analysis did not return a validated result.'
-        : gapAnalysisExecution.output.error,
+    if (!gapAnalysisExecution.result) {
+      return gapAnalysisExecution.output.success
+        ? toolFailure(TOOL_ERROR_CODES.INTERNAL_ERROR, 'Gap analysis did not return a validated result.')
+        : gapAnalysisExecution.output
     }
-  }
 
-  const client = new Anthropic({
-    timeout: AGENT_CONFIG.timeout,
-  })
+    const client = new Anthropic({
+      timeout: AGENT_CONFIG.timeout,
+    })
 
-  const response = await callAnthropicWithRetry(client, {
-    model: AGENT_CONFIG.model,
-    max_tokens: AGENT_CONFIG.rewriterMaxTokens,
-    system: `Create a target-specific resume variant from the canonical base resume.
+    const response = await callAnthropicWithRetry(client, {
+      model: AGENT_CONFIG.model,
+      max_tokens: AGENT_CONFIG.rewriterMaxTokens,
+      system: `Create a target-specific resume variant from the canonical base resume.
 Output ONLY valid JSON matching this exact CV state shape:
 {
   "fullName": string,
@@ -125,46 +121,46 @@ Rules:
 - optimize emphasis, ordering, and wording for the target job description
 - do not invent companies, dates, degrees, certifications, or metrics
 - keep the output fully structured and valid JSON only`,
-    messages: [{
-      role: 'user',
-      content: JSON.stringify({
-        baseCvState: input.baseCvState,
-        targetJobDescription: input.targetJobDescription,
-        gapAnalysis: gapAnalysisExecution.result,
-      }),
-    }],
-  })
+      messages: [{
+        role: 'user',
+        content: JSON.stringify({
+          baseCvState: input.baseCvState,
+          targetJobDescription: input.targetJobDescription,
+          gapAnalysis: gapAnalysisExecution.result,
+        }),
+      }],
+    })
 
-  trackApiUsage({
-    userId: input.userId,
-    sessionId: input.sessionId,
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-    endpoint: 'target_resume',
-  }).catch(() => {})
+    trackApiUsage({
+      userId: input.userId,
+      sessionId: input.sessionId,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      endpoint: 'target_resume',
+    }).catch(() => {})
 
-  const responseText = response.content.find((block: Anthropic.ContentBlock) => block.type === 'text' && 'text' in block)?.text ?? '{}'
-  const derivedCvState = parseDerivedCvState(responseText)
+    const responseText = response.content.find((block: Anthropic.ContentBlock) => block.type === 'text' && 'text' in block)?.text ?? '{}'
+    const derivedCvState = parseDerivedCvState(responseText)
 
-  if (!derivedCvState) {
-    return {
-      success: false,
-      error: 'Invalid target resume payload.',
+    if (!derivedCvState) {
+      return toolFailure(TOOL_ERROR_CODES.LLM_INVALID_OUTPUT, 'Invalid target resume payload.')
     }
-  }
 
-  const target = await createResumeTarget({
-    sessionId: input.sessionId,
-    userId: input.userId,
-    targetJobDescription: input.targetJobDescription,
-    derivedCvState,
-    gapAnalysis: gapAnalysisExecution.result,
-  })
+    const target = await createResumeTarget({
+      sessionId: input.sessionId,
+      userId: input.userId,
+      targetJobDescription: input.targetJobDescription,
+      derivedCvState,
+      gapAnalysis: gapAnalysisExecution.result,
+    })
 
-  return {
-    success: true,
-    target,
-    gapAnalysis: gapAnalysisExecution.result,
+    return {
+      success: true,
+      target,
+      gapAnalysis: gapAnalysisExecution.result,
+    }
+  } catch (error) {
+    return toolFailureFromUnknown(error, 'Failed to create target resume.')
   }
 }
 

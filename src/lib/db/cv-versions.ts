@@ -16,6 +16,96 @@ function cloneCvState(snapshot: CVState): CVState {
   return structuredClone(snapshot)
 }
 
+function normalizeTargetResumeId(targetResumeId?: string): string | null {
+  return targetResumeId ?? null
+}
+
+function compareCvVersionRecency(
+  left: Pick<CVVersion, 'createdAt' | 'id'>,
+  right: Pick<CVVersion, 'createdAt' | 'id'>,
+): number {
+  const createdAtDelta = left.createdAt.getTime() - right.createdAt.getTime()
+
+  if (createdAtDelta !== 0) {
+    return createdAtDelta
+  }
+
+  return left.id.localeCompare(right.id)
+}
+
+export function serializeCvSnapshotForComparison(snapshot: CVState): string {
+  return JSON.stringify({
+    fullName: snapshot.fullName,
+    email: snapshot.email,
+    phone: snapshot.phone,
+    linkedin: snapshot.linkedin ?? null,
+    location: snapshot.location ?? null,
+    summary: snapshot.summary,
+    experience: snapshot.experience.map((entry) => ({
+      title: entry.title,
+      company: entry.company,
+      location: entry.location ?? null,
+      startDate: entry.startDate,
+      endDate: entry.endDate,
+      bullets: [...entry.bullets],
+    })),
+    skills: [...snapshot.skills],
+    education: snapshot.education.map((entry) => ({
+      degree: entry.degree,
+      institution: entry.institution,
+      year: entry.year,
+      gpa: entry.gpa ?? null,
+    })),
+    certifications: snapshot.certifications?.map((entry) => ({
+      name: entry.name,
+      issuer: entry.issuer,
+      year: entry.year ?? null,
+    })) ?? null,
+  })
+}
+
+export function areCvSnapshotsIdentical(left: CVState, right: CVState): boolean {
+  return serializeCvSnapshotForComparison(left) === serializeCvSnapshotForComparison(right)
+}
+
+export function isCvVersionInComparisonScope(
+  version: Pick<CVVersion, 'targetResumeId'>,
+  targetResumeId?: string,
+): boolean {
+  return normalizeTargetResumeId(version.targetResumeId) === normalizeTargetResumeId(targetResumeId)
+}
+
+export function getLatestRelevantCvVersion(
+  versions: readonly CVVersion[],
+  targetResumeId?: string,
+): CVVersion | undefined {
+  return versions.reduce<CVVersion | undefined>((latestVersion, version) => {
+    if (!isCvVersionInComparisonScope(version, targetResumeId)) {
+      return latestVersion
+    }
+
+    if (!latestVersion) {
+      return version
+    }
+
+    return compareCvVersionRecency(version, latestVersion) > 0
+      ? version
+      : latestVersion
+  }, undefined)
+}
+
+// Keep this aligned with the SQL write-path dedupe in create_cv_version_record.
+export function shouldSkipCvVersionInsert(
+  versions: readonly CVVersion[],
+  nextSnapshot: CVState,
+  targetResumeId?: string,
+): boolean {
+  const latestRelevantVersion = getLatestRelevantCvVersion(versions, targetResumeId)
+
+  return latestRelevantVersion !== undefined
+    && areCvSnapshotsIdentical(latestRelevantVersion.snapshot, nextSnapshot)
+}
+
 function mapCvVersionRow(row: CVVersionRow): CVVersion {
   const parsedSnapshot = CVStateSchema.parse(row.snapshot)
 

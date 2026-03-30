@@ -119,4 +119,29 @@ describe('gap action route', () => {
       item_value: 'AWS',
     }, expect.objectContaining({ id: 'sess_123' }))
   })
+
+  it('propagates structured gap action failures', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(dispatchTool).mockResolvedValue(JSON.stringify({
+      success: false,
+      code: 'NOT_FOUND',
+      error: 'Selected gap item was not found in the current structured gap analysis.',
+    }))
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/gap-action', {
+        method: 'POST',
+        body: JSON.stringify({ itemType: 'missing_skill', itemValue: 'AWS' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'NOT_FOUND',
+      error: 'Selected gap item was not found in the current structured gap analysis.',
+    })
+  })
 })

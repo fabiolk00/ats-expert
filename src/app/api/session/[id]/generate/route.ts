@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+import { getHttpStatusForToolError, isToolFailure } from '@/lib/agent/tool-errors'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { dispatchTool } from '@/lib/agent/tools'
 import { getSession } from '@/lib/db/sessions'
@@ -39,13 +40,13 @@ export async function POST(
       cv_state: session.cvState,
       target_id: body.data.scope === 'target' ? body.data.targetId : undefined,
     }, session)
-    const result = JSON.parse(rawResult) as {
-      success: boolean
-      error?: string
-    }
+    const result = JSON.parse(rawResult) as unknown
 
-    if (!result.success) {
-      return NextResponse.json({ error: result.error ?? 'Generation failed.' }, { status: 400 })
+    if (isToolFailure(result)) {
+      return NextResponse.json(
+        { success: false, error: result.error, code: result.code },
+        { status: getHttpStatusForToolError(result.code) },
+      )
     }
 
     return NextResponse.json({

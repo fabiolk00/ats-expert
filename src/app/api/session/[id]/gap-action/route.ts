@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+import { getHttpStatusForToolError, isToolFailure } from '@/lib/agent/tool-errors'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession } from '@/lib/db/sessions'
 import { dispatchTool } from '@/lib/agent/tools'
@@ -34,20 +35,13 @@ export async function POST(
       item_type: body.data.itemType,
       item_value: body.data.itemValue,
     }, session)
-    const result = JSON.parse(rawResult) as {
-      success: boolean
-      error?: string
-      section?: string
-      item_type?: string
-      item_value?: string
-      rewritten_content?: string
-      section_data?: unknown
-      keywords_added?: string[]
-      changes_made?: string[]
-    }
+    const result = JSON.parse(rawResult) as unknown
 
-    if (!result.success) {
-      return NextResponse.json({ error: result.error ?? 'Gap action failed.' }, { status: 400 })
+    if (isToolFailure(result)) {
+      return NextResponse.json(
+        { success: false, error: result.error, code: result.code },
+        { status: getHttpStatusForToolError(result.code) },
+      )
     }
 
     return NextResponse.json({

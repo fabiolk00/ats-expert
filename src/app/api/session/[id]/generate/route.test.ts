@@ -124,4 +124,54 @@ describe('generate route', () => {
       targetId: 'target_123',
     })
   })
+
+  it('propagates structured generation failures', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(dispatchTool).mockResolvedValue(JSON.stringify({
+      success: false,
+      code: 'GENERATION_ERROR',
+      error: 'File generation failed.',
+    }))
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/generate', {
+        method: 'POST',
+        body: JSON.stringify({ scope: 'base' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'GENERATION_ERROR',
+      error: 'File generation failed.',
+    })
+  })
+
+  it('propagates structured validation failures', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(dispatchTool).mockResolvedValue(JSON.stringify({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'summary is required.',
+    }))
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/generate', {
+        method: 'POST',
+        body: JSON.stringify({ scope: 'base' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'summary is required.',
+    })
+  })
 })

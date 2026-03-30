@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 
 import { AGENT_CONFIG } from '@/lib/agent/config'
+import { TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
 import { GapAnalysisResultSchema } from '@/lib/cv/schema'
 import type { AnalyzeGapOutput } from '@/types/agent'
@@ -59,14 +60,15 @@ export async function analyzeGap(
   userId: string,
   sessionId: string,
 ): Promise<GapAnalysisExecutionResult> {
-  const client = new Anthropic({
-    timeout: AGENT_CONFIG.timeout,
-  })
+  try {
+    const client = new Anthropic({
+      timeout: AGENT_CONFIG.timeout,
+    })
 
-  const response = await callAnthropicWithRetry(client, {
-    model: AGENT_CONFIG.model,
-    max_tokens: AGENT_CONFIG.rewriterMaxTokens,
-    system: `Compare the provided canonical resume JSON against the target job description.
+    const response = await callAnthropicWithRetry(client, {
+      model: AGENT_CONFIG.model,
+      max_tokens: AGENT_CONFIG.rewriterMaxTokens,
+      system: `Compare the provided canonical resume JSON against the target job description.
 Output ONLY valid JSON matching this exact shape:
 {
   "matchScore": number,
@@ -80,41 +82,43 @@ Rules:
 - weakAreas must describe resume sections or competency gaps, not raw prose
 - improvementSuggestions must be concise, actionable resume improvements
 - do not include markdown or explanation outside the JSON object`,
-    messages: [{
-      role: 'user',
-      content: JSON.stringify({
-        cvState,
-        targetJobDescription,
-      }),
-    }],
-  })
+      messages: [{
+        role: 'user',
+        content: JSON.stringify({
+          cvState,
+          targetJobDescription,
+        }),
+      }],
+    })
 
-  trackApiUsage({
-    userId,
-    sessionId,
-    inputTokens: response.usage.input_tokens,
-    outputTokens: response.usage.output_tokens,
-    endpoint: 'gap_analysis',
-  }).catch(() => {})
+    trackApiUsage({
+      userId,
+      sessionId,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      endpoint: 'gap_analysis',
+    }).catch(() => {})
 
-  const responseText = response.content.find((block: Anthropic.ContentBlock) => block.type === 'text' && 'text' in block)?.text ?? '{}'
-  const result = parseGapAnalysis(responseText)
+    const responseText = response.content.find((block: Anthropic.ContentBlock) => block.type === 'text' && 'text' in block)?.text ?? '{}'
+    const result = parseGapAnalysis(responseText)
 
-  if (!result) {
+    if (!result) {
+      return {
+        output: toolFailure(TOOL_ERROR_CODES.LLM_INVALID_OUTPUT, 'Invalid gap analysis payload.'),
+      }
+    }
+
     return {
       output: {
-        success: false,
-        error: 'Invalid gap analysis payload.',
+        success: true,
+        result,
       },
-    }
-  }
-
-  return {
-    output: {
-      success: true,
       result,
-    },
-    result,
+    }
+  } catch (error) {
+    return {
+      output: toolFailureFromUnknown(error, 'Failed to analyze resume gap.'),
+    }
   }
 }
 

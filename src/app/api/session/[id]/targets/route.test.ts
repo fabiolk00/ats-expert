@@ -188,4 +188,31 @@ describe('session targets route', () => {
       }],
     })
   })
+
+  it('propagates structured target creation failures', async () => {
+    const session = buildSession()
+
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(session)
+    vi.mocked(createTargetResumeVariant).mockResolvedValue({
+      success: false,
+      code: 'LLM_INVALID_OUTPUT',
+      error: 'Invalid target resume payload.',
+    })
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/targets', {
+        method: 'POST',
+        body: JSON.stringify({ targetJobDescription: 'AWS backend role' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'LLM_INVALID_OUTPUT',
+      error: 'Invalid target resume payload.',
+    })
+  })
 })

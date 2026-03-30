@@ -5,7 +5,10 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import Docxtemplater from 'docxtemplater'
 import PizZip from 'pizzip'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { z } from 'zod'
 
+import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
+import { CVStateSchema } from '@/lib/cv/schema'
 import type { GenerateFileInput, GenerateFileOutput, GeneratedOutput, ToolPatch } from '@/types/agent'
 import type { CVState } from '@/types/cv'
 
@@ -29,6 +32,134 @@ const MARGIN = 50
 const PAGE_WIDTH = 595
 const PAGE_HEIGHT = 842
 const USABLE_WIDTH = PAGE_WIDTH - 2 * MARGIN
+const MAX_VALIDATION_ERROR_MESSAGE_LENGTH = 500
+const DEFAULT_VALIDATION_ERROR_MESSAGE = 'Resume state is incomplete. Please ensure all required fields are filled.'
+
+const GenerationReadyCVStateSchema = CVStateSchema.superRefine((cvState, ctx) => {
+  const requireNonEmptyString = (
+    value: string,
+    path: Array<string | number>,
+    label: string,
+  ): void => {
+    if (value.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path,
+        message: `${label} is required.`,
+      })
+    }
+  }
+
+  requireNonEmptyString(cvState.fullName, ['fullName'], 'fullName')
+  requireNonEmptyString(cvState.email, ['email'], 'email')
+  requireNonEmptyString(cvState.phone, ['phone'], 'phone')
+  requireNonEmptyString(cvState.summary, ['summary'], 'summary')
+
+  if (cvState.experience.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['experience'],
+      message: 'At least one work experience entry is required.',
+    })
+  }
+
+  cvState.experience.forEach((entry, index) => {
+    requireNonEmptyString(entry.title, ['experience', index, 'title'], `experience[${index}].title`)
+    requireNonEmptyString(entry.company, ['experience', index, 'company'], `experience[${index}].company`)
+    requireNonEmptyString(entry.startDate, ['experience', index, 'startDate'], `experience[${index}].startDate`)
+    requireNonEmptyString(entry.endDate, ['experience', index, 'endDate'], `experience[${index}].endDate`)
+
+    if (entry.bullets.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['experience', index, 'bullets'],
+        message: `experience[${index}].bullets must include at least one bullet.`,
+      })
+    }
+
+    entry.bullets.forEach((bullet, bulletIndex) => {
+      requireNonEmptyString(
+        bullet,
+        ['experience', index, 'bullets', bulletIndex],
+        `experience[${index}].bullets[${bulletIndex}]`,
+      )
+    })
+  })
+
+  cvState.skills.forEach((skill, index) => {
+    requireNonEmptyString(skill, ['skills', index], `skills[${index}]`)
+  })
+
+  cvState.education.forEach((entry, index) => {
+    requireNonEmptyString(entry.degree, ['education', index, 'degree'], `education[${index}].degree`)
+    requireNonEmptyString(entry.institution, ['education', index, 'institution'], `education[${index}].institution`)
+    requireNonEmptyString(entry.year, ['education', index, 'year'], `education[${index}].year`)
+  })
+
+  cvState.certifications?.forEach((entry, index) => {
+    requireNonEmptyString(entry.name, ['certifications', index, 'name'], `certifications[${index}].name`)
+    requireNonEmptyString(entry.issuer, ['certifications', index, 'issuer'], `certifications[${index}].issuer`)
+  })
+})
+
+type GenerationValidationResult =
+  | {
+      success: true
+      cvState: CVState
+    }
+  | {
+      success: false
+      errorMessage: string
+    }
+
+function capValidationErrorMessage(message: string): string {
+  return message.length > MAX_VALIDATION_ERROR_MESSAGE_LENGTH
+    ? `${message.slice(0, MAX_VALIDATION_ERROR_MESSAGE_LENGTH - 1)}…`
+    : message
+}
+
+function formatValidationPath(path: ReadonlyArray<string | number>): string {
+  return path.reduce<string>((formattedPath, segment) => {
+    if (typeof segment === 'number') {
+      return `${formattedPath}[${segment}]`
+    }
+
+    return formattedPath.length === 0
+      ? segment
+      : `${formattedPath}.${segment}`
+  }, '')
+}
+
+function getValidationErrorMessage(error: z.ZodError<CVState>): string {
+  const [firstIssue] = error.issues
+
+  if (!firstIssue) {
+    return DEFAULT_VALIDATION_ERROR_MESSAGE
+  }
+
+  const path = formatValidationPath(firstIssue.path)
+  const baseMessage = firstIssue.code === z.ZodIssueCode.custom || path.length === 0
+    ? firstIssue.message
+    : `${path}: ${firstIssue.message}`
+
+  return capValidationErrorMessage(baseMessage || DEFAULT_VALIDATION_ERROR_MESSAGE)
+}
+
+function validateGenerationCvState(cvState: GenerateFileInput['cv_state']): GenerationValidationResult {
+  const parsedCvState = GenerationReadyCVStateSchema.safeParse(cvState)
+
+  if (!parsedCvState.success) {
+    return {
+      success: false,
+      errorMessage: getValidationErrorMessage(parsedCvState.error),
+    }
+  }
+
+  return {
+    success: true,
+    cvState: parsedCvState.data,
+  }
+}
 
 function getSupabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -110,12 +241,23 @@ export async function generateFile(
   let docxPath: string | undefined
   let pdfPath: string | undefined
 
+  const validation = validateGenerationCvState(input.cv_state)
+  if (!validation.success) {
+    return {
+      output: toolFailure(TOOL_ERROR_CODES.VALIDATION_ERROR, validation.errorMessage),
+      patch: scope.type === 'session'
+        ? createFailurePatch(validation.errorMessage, docxPath, pdfPath)
+        : undefined,
+      generatedOutput: createGeneratedOutput('failed', validation.errorMessage, docxPath, pdfPath),
+    }
+  }
+
   try {
     const supabase = generateFileDeps.getSupabase()
 
     const [docxBuffer, pdfBuffer] = await Promise.all([
-      generateFileDeps.generateDOCX(input.cv_state),
-      generateFileDeps.generatePDF(input.cv_state),
+      generateFileDeps.generateDOCX(validation.cvState),
+      generateFileDeps.generatePDF(validation.cvState),
     ])
 
     const artifactPaths = buildArtifactPaths(userId, sessionId, scope)
@@ -152,7 +294,7 @@ export async function generateFile(
       : 'File generation failed.'
 
     return {
-      output: { success: false, error: 'File generation failed.' },
+      output: toolFailure(TOOL_ERROR_CODES.GENERATION_ERROR, 'File generation failed.'),
       patch: scope.type === 'session' ? createFailurePatch(error, docxPath, pdfPath) : undefined,
       generatedOutput: createGeneratedOutput('failed', error, docxPath, pdfPath),
     }
