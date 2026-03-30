@@ -279,6 +279,41 @@ describe('Asaas billing event handlers', () => {
     })
   })
 
+  it('rejects subscription creation when Asaas reports the subscription as inactive or deleted', async () => {
+    vi.mocked(getCheckoutRecord).mockResolvedValueOnce({
+      id: 'bc_234',
+      userId: 'usr_123',
+      checkoutReference: 'chk_234',
+      plan: 'monthly',
+      amountMinor: 3900,
+      currency: 'BRL',
+      status: 'created',
+      asaasLink: 'https://asaas.test/subscription',
+      asaasPaymentId: null,
+      asaasSubscriptionId: null,
+      createdAt: '2026-03-29T00:00:00.000Z',
+      updatedAt: '2026-03-29T00:00:00.000Z',
+    })
+
+    await expect(handleSubscriptionCreated({
+      event: 'SUBSCRIPTION_CREATED',
+      subscription: {
+        id: 'sub_bad',
+        externalReference: 'curria:v1:c:chk_234',
+        nextDueDate: '2099-04-29',
+        status: 'INACTIVE',
+        deleted: true,
+        value: 39,
+      },
+    }, 'fp_inactive_deleted')).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+    })
+
+    expect(grantCreditsForEvent).not.toHaveBeenCalled()
+    expect(markCheckoutSubscriptionActive).not.toHaveBeenCalled()
+  })
+
   it('uses persisted subscription metadata on subscription renewal', async () => {
     await handleSubscriptionRenewed({
       event: 'SUBSCRIPTION_RENEWED',

@@ -58,6 +58,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const userEmail = user?.emailAddresses[0]?.emailAddress ?? null
     const origin = req.headers.get('origin') ?? 'http://localhost:3000'
     const successUrl = `${origin}/dashboard`
+    const pricingUrl = `${origin}/pricing`
     const checkout = await createCheckoutRecordPending(appUser.id, plan.slug, plan.price)
     checkoutReference = checkout.checkoutReference
     const externalReference = formatExternalReference(appUser.id, checkout.checkoutReference)
@@ -70,6 +71,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       checkoutReference: checkout.checkoutReference,
       externalReference,
       successUrl,
+      cancelUrl: pricingUrl,
+      expiredUrl: pricingUrl,
     })
 
     await markCheckoutCreated(checkout.checkoutReference, url)

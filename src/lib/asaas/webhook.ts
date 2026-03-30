@@ -22,6 +22,8 @@ const AsaasSubscriptionSchema = z.object({
   externalReference: z.string().optional(),
   status: z.string().optional(),
   nextDueDate: z.string().optional(),
+  value: z.number().optional(),
+  deleted: z.boolean().optional(),
 })
 
 export const AsaasWebhookEventSchema = z.object({
@@ -78,5 +80,17 @@ export function parseAsaasWebhookEvent(value: unknown): AsaasWebhookEvent {
 }
 
 export function getWebhookAmount(event: AsaasWebhookEvent): number | undefined {
-  return event.amount ?? event.payment?.amount
+  if (typeof event.amount === 'number') {
+    return event.amount
+  }
+
+  if (typeof event.payment?.amount === 'number') {
+    return event.payment.amount
+  }
+
+  if (typeof event.subscription?.value === 'number') {
+    return Math.round(event.subscription.value * 100)
+  }
+
+  return undefined
 }

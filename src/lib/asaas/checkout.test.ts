@@ -17,6 +17,7 @@ vi.mock('@/lib/asaas/client', () => ({
 describe('Asaas checkout link creation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    process.env.ASAAS_SANDBOX = 'true'
   })
 
   it('creates one-time hosted checkouts via payment links', async () => {
@@ -46,8 +47,8 @@ describe('Asaas checkout link creation', () => {
     })
   })
 
-  it('creates recurring hosted checkouts via recurring payment links instead of subscriptions', async () => {
-    mockPost.mockResolvedValueOnce({ url: 'https://sandbox.asaas.com/payment-link/monthly' })
+  it('creates recurring hosted checkouts via Asaas Checkout sessions', async () => {
+    mockPost.mockResolvedValueOnce({ id: 'checkout_123' })
 
     await expect(createCheckoutLink({
       appUserId: 'usr_123',
@@ -56,22 +57,36 @@ describe('Asaas checkout link creation', () => {
       plan: 'monthly',
       checkoutReference: 'chk_monthly',
       externalReference: 'curria:v1:c:chk_monthly',
-      successUrl: 'https://curria.test/pricing',
-    })).resolves.toBe('https://sandbox.asaas.com/payment-link/monthly')
+      successUrl: 'https://curria.test/dashboard',
+      cancelUrl: 'https://curria.test/pricing',
+      expiredUrl: 'https://curria.test/pricing',
+    })).resolves.toBe('https://sandbox.asaas.com/checkoutSession/show?id=checkout_123')
 
-    expect(mockPost).toHaveBeenCalledWith('/paymentLinks', {
-      name: `CurrIA - ${PLANS.monthly.name}`,
-      description: PLANS.monthly.description,
-      billingType: 'CREDIT_CARD',
-      chargeType: 'RECURRENT',
-      subscriptionCycle: 'MONTHLY',
-      value: 39,
-      externalReference: 'curria:v1:c:chk_monthly',
+    expect(mockPost).toHaveBeenCalledWith('/checkouts', {
+      billingTypes: ['CREDIT_CARD'],
+      chargeTypes: ['RECURRENT'],
+      minutesToExpire: 60,
       callback: {
-        successUrl: 'https://curria.test/pricing',
-        autoRedirect: false,
+        successUrl: 'https://curria.test/dashboard',
+        cancelUrl: 'https://curria.test/pricing',
+        expiredUrl: 'https://curria.test/pricing',
       },
+      items: [
+        {
+          name: `CurrIA - ${PLANS.monthly.name}`,
+          description: PLANS.monthly.description,
+          quantity: 1,
+          value: 39,
+        },
+      ],
+      subscription: {
+        cycle: 'MONTHLY',
+        nextDueDate: expect.any(String),
+      },
+      externalReference: 'curria:v1:c:chk_monthly',
     })
-    expect(mockPost).not.toHaveBeenCalledWith('/subscriptions', expect.anything())
+    expect(mockPost).not.toHaveBeenCalledWith('/paymentLinks', expect.objectContaining({
+      chargeType: 'RECURRENT',
+    }))
   })
 })

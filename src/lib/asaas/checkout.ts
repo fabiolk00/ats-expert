@@ -9,6 +9,8 @@ type CreateCheckoutLinkInput = {
   checkoutReference: string
   externalReference: string
   successUrl: string
+  cancelUrl?: string
+  expiredUrl?: string
 }
 
 function buildPaymentLinkName(planName: string): string {
@@ -22,6 +24,22 @@ function buildCallback(successUrl: string) {
   }
 }
 
+function getAsaasHostedOrigin(): string {
+  return process.env.ASAAS_SANDBOX === 'true'
+    ? 'https://sandbox.asaas.com'
+    : 'https://www.asaas.com'
+}
+
+function buildCheckoutSessionUrl(checkoutId: string): string {
+  return `${getAsaasHostedOrigin()}/checkoutSession/show?id=${encodeURIComponent(checkoutId)}`
+}
+
+function tomorrowDateTime(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 19).replace('T', ' ')
+}
+
 export async function createCheckoutLink({
   appUserId,
   userName,
@@ -30,6 +48,8 @@ export async function createCheckoutLink({
   checkoutReference,
   externalReference,
   successUrl,
+  cancelUrl,
+  expiredUrl,
 }: CreateCheckoutLinkInput): Promise<string> {
   const planConfig = PLANS[plan]
 
@@ -40,7 +60,7 @@ export async function createCheckoutLink({
   void checkoutReference
 
   if (planConfig.billing === 'once') {
-    const result = await asaas.post<{ url: string }>('/paymentLinks', {
+  const result = await asaas.post<{ url: string }>('/paymentLinks', {
       name: buildPaymentLinkName(planConfig.name),
       description: planConfig.description,
       billingType: 'UNDEFINED',
@@ -53,16 +73,29 @@ export async function createCheckoutLink({
     return result.url
   }
 
-  const result = await asaas.post<{ url: string }>('/paymentLinks', {
-    name: buildPaymentLinkName(planConfig.name),
-    description: planConfig.description,
-    billingType: 'CREDIT_CARD',
-    chargeType: 'RECURRENT',
-    subscriptionCycle: 'MONTHLY',
-    value: planConfig.price / 100,
+  const recurringCheckout = await asaas.post<{ id: string }>('/checkouts', {
+    billingTypes: ['CREDIT_CARD'],
+    chargeTypes: ['RECURRENT'],
+    minutesToExpire: 60,
+    callback: {
+      successUrl,
+      cancelUrl: cancelUrl ?? successUrl,
+      expiredUrl: expiredUrl ?? cancelUrl ?? successUrl,
+    },
+    items: [
+      {
+        name: buildPaymentLinkName(planConfig.name),
+        description: planConfig.description,
+        quantity: 1,
+        value: planConfig.price / 100,
+      },
+    ],
+    subscription: {
+      cycle: 'MONTHLY',
+      nextDueDate: tomorrowDateTime(),
+    },
     externalReference,
-    callback: buildCallback(successUrl),
   })
 
-  return result.url
+  return buildCheckoutSessionUrl(recurringCheckout.id)
 }

@@ -37,11 +37,27 @@ describe('Asaas webhook parsing', () => {
         externalReference: 'usr_123',
         status: 'ACTIVE',
         nextDueDate: '2026-04-29',
+        value: 39,
       },
     })
 
     expect(event.subscription?.id).toBe('sub_123')
     expect(event.subscription?.nextDueDate).toBe('2026-04-29')
+  })
+
+  it('uses subscription value as an amount fallback when top-level amount is omitted', () => {
+    const event = parseAsaasWebhookEvent({
+      event: 'SUBSCRIPTION_CREATED',
+      subscription: {
+        id: 'sub_123',
+        externalReference: 'curria:v1:c:chk_123',
+        status: 'ACTIVE',
+        nextDueDate: '2026-04-29',
+        value: 39,
+      },
+    })
+
+    expect(getWebhookAmount(event)).toBe(3900)
   })
 
   it('rejects invalid webhook shapes', () => {

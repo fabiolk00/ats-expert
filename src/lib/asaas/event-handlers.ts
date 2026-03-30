@@ -97,6 +97,26 @@ function requireFutureRenewalDate(value: string | undefined, context: string): s
   return value
 }
 
+function assertSubscriptionCreatedState(subscription: AsaasWebhookEvent['subscription']): void {
+  if (!subscription) {
+    return
+  }
+
+  if (subscription.deleted === true) {
+    throw createBillingError(
+      TOOL_ERROR_CODES.VALIDATION_ERROR,
+      'Subscription creation webhook references a deleted subscription.',
+    )
+  }
+
+  if (subscription.status && subscription.status !== 'ACTIVE') {
+    throw createBillingError(
+      TOOL_ERROR_CODES.VALIDATION_ERROR,
+      `Subscription creation webhook must be ACTIVE, got ${subscription.status}.`,
+    )
+  }
+}
+
 function parseExternalReferenceStrict(
   value: string,
   eventType: AsaasWebhookEvent['event'],
@@ -235,6 +255,7 @@ export async function handleSubscriptionCreated(
 
   const externalReference = requireExternalReference(subscription.externalReference, 'Subscription')
   const parsedReference = parseExternalReferenceStrict(externalReference, event.event)
+  assertSubscriptionCreatedState(subscription)
   const renewsAt = requireFutureRenewalDate(subscription.nextDueDate, 'Subscription event')
   const referencedCheckout = await getCheckoutRecord(parsedReference.checkoutReference ?? '')
   const amountMinor = resolveSubscriptionCreatedAmount(event, referencedCheckout)
