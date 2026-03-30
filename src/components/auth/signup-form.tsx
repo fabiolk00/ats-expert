@@ -3,7 +3,7 @@
 import React, { useState } from "react"
 import Link from "next/link"
 import { useSignUp } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { getSafeRedirectPath } from "@/lib/auth/redirects"
 import Logo from "@/components/logo"
 import { AlertCircle, Eye, EyeOff, Loader2, Mail } from "lucide-react"
 
@@ -56,6 +57,8 @@ export default function SignupForm() {
   const [showPassword, setShowPassword] = useState(false)
   const { signUp, isLoaded, setActive } = useSignUp()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = getSafeRedirectPath(searchParams.get('redirect_to'))
 
   const signUpForm = useForm<SignUpData>({
     resolver: zodResolver(signUpSchema),
@@ -71,7 +74,7 @@ export default function SignupForm() {
       await signUp.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/dashboard',
+        redirectUrlComplete: redirectTo,
       })
     } catch (err) {
       console.error('Google sign-up error:', err)
@@ -109,7 +112,7 @@ export default function SignupForm() {
 
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId })
-        router.push('/dashboard')
+        router.push(redirectTo)
       }
     } catch (err: unknown) {
       const message =
@@ -373,7 +376,7 @@ export default function SignupForm() {
           <p className="text-sm text-muted-foreground text-center">
             Já tem conta?{' '}
             <Link
-              href="/login"
+              href={`/login?redirect_to=${encodeURIComponent(redirectTo)}`}
               className="text-primary hover:underline font-medium"
             >
               Entrar

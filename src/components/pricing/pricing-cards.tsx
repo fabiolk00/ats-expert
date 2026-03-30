@@ -1,10 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import React, { useEffect, useRef, useState } from "react"
+import { useAuth } from "@clerk/nextjs"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Check, Loader2 } from "lucide-react"
+import { navigateToUrl } from "@/lib/navigation/external"
 import { cn } from "@/lib/utils"
 import { PLANS, formatPrice } from "@/lib/plans"
 
@@ -24,9 +27,23 @@ const plans = [
 ]
 
 export default function PricingCards() {
+  const { isSignedIn } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState<string | null>(null)
+  const autoCheckoutStartedRef = useRef(false)
+
+  const redirectToAuth = (plan: 'unit' | 'monthly' | 'pro') => {
+    const redirectTo = `/pricing?checkoutPlan=${plan}`
+    router.push(`/signup?redirect_to=${encodeURIComponent(redirectTo)}`)
+  }
 
   const handleCheckout = async (plan: 'unit' | 'monthly' | 'pro') => {
+    if (!isSignedIn) {
+      redirectToAuth(plan)
+      return
+    }
+
     setLoading(plan)
     try {
       const res = await fetch('/api/checkout', {
@@ -34,14 +51,43 @@ export default function PricingCards() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan }),
       })
+
+      if (res.status === 401) {
+        router.push(`/login?redirect_to=${encodeURIComponent(`/pricing?checkoutPlan=${plan}`)}`)
+        return
+      }
+
       const data = await res.json()
-      if (data.url) window.location.href = data.url
+
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Checkout failed')
+      }
+
+      if (data.url) {
+        navigateToUrl(data.url)
+      }
     } catch (err) {
       console.error('Checkout error:', err)
     } finally {
       setLoading(null)
     }
   }
+
+  useEffect(() => {
+    const checkoutPlan = searchParams.get('checkoutPlan')
+    if (!isSignedIn || autoCheckoutStartedRef.current || !checkoutPlan) {
+      return
+    }
+
+    if (checkoutPlan !== 'unit' && checkoutPlan !== 'monthly' && checkoutPlan !== 'pro') {
+      return
+    }
+
+    autoCheckoutStartedRef.current = true
+    router.replace('/pricing')
+    void handleCheckout(checkoutPlan)
+  }, [isSignedIn, router, searchParams])
+
   return (
     <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
       {plans.map((plan) => {

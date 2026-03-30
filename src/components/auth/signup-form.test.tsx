@@ -1,0 +1,81 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import '@testing-library/jest-dom'
+import React from 'react'
+
+import SignupForm from './signup-form'
+
+const mockCreate = vi.fn()
+const mockPrepareEmailAddressVerification = vi.fn()
+const mockAttemptEmailAddressVerification = vi.fn()
+const mockSetActive = vi.fn()
+const mockPush = vi.fn()
+const mockSearchParamsGet = vi.fn()
+
+vi.mock('@clerk/nextjs', () => ({
+  useSignUp: () => ({
+    isLoaded: true,
+    signUp: {
+      create: mockCreate,
+      prepareEmailAddressVerification: mockPrepareEmailAddressVerification,
+      attemptEmailAddressVerification: mockAttemptEmailAddressVerification,
+      authenticateWithRedirect: vi.fn(),
+    },
+    setActive: mockSetActive,
+  }),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+  useSearchParams: () => ({
+    get: mockSearchParamsGet,
+  }),
+}))
+
+vi.mock('@/components/logo', () => ({
+  default: () => <div>Logo</div>,
+}))
+
+describe('SignupForm', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSearchParamsGet.mockReturnValue(null)
+    mockCreate.mockResolvedValue(undefined)
+    mockPrepareEmailAddressVerification.mockResolvedValue(undefined)
+    mockAttemptEmailAddressVerification.mockResolvedValue({
+      status: 'complete',
+      createdSessionId: 'sess_123',
+    })
+    mockSetActive.mockResolvedValue(undefined)
+  })
+
+  it('redirects to the requested safe path after signup verification completes', async () => {
+    mockSearchParamsGet.mockImplementation((key: string) => (
+      key === 'redirect_to' ? '/pricing?checkoutPlan=monthly' : null
+    ))
+    const user = userEvent.setup()
+
+    render(<SignupForm />)
+
+    await user.type(screen.getByLabelText('Nome completo'), 'Test User')
+    await user.type(screen.getByLabelText('E-mail'), 'test@example.com')
+    await user.type(screen.getByLabelText('Senha'), 'password123')
+    await user.click(screen.getByRole('button', { name: /Criar conta gr[aá]tis/i }))
+
+    await waitFor(() => {
+      expect(mockCreate).toHaveBeenCalled()
+      expect(mockPrepareEmailAddressVerification).toHaveBeenCalled()
+    })
+
+    await user.type(screen.getByLabelText(/C.digo de verifica..o/i), '123456')
+    await user.click(screen.getByRole('button', { name: /Confirmar e entrar/i }))
+
+    await waitFor(() => {
+      expect(mockSetActive).toHaveBeenCalledWith({ session: 'sess_123' })
+      expect(mockPush).toHaveBeenCalledWith('/pricing?checkoutPlan=monthly')
+    })
+  })
+})

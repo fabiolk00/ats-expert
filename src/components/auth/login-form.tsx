@@ -3,7 +3,7 @@
 import React, { useState } from "react"
 import Link from "next/link"
 import { useSignIn } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -12,6 +12,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { getSafeRedirectPath } from "@/lib/auth/redirects"
 import Logo from "@/components/logo"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 
@@ -25,6 +26,8 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const { signIn, isLoaded } = useSignIn()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = getSafeRedirectPath(searchParams.get('redirect_to'))
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -35,7 +38,7 @@ export default function LoginForm() {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/dashboard',
+        redirectUrlComplete: redirectTo,
       })
     } catch (err) {
       console.error('Google sign-in error:', err)
@@ -47,7 +50,7 @@ export default function LoginForm() {
     try {
       const result = await signIn.create({ identifier: data.email, password: data.password })
       if (result.status === 'complete') {
-        router.push('/dashboard')
+        router.push(redirectTo)
       }
     } catch (err: unknown) {
       const message = (err as { errors?: { message: string }[] })?.errors?.[0]?.message ?? 'Erro ao entrar. Tente novamente.'
@@ -151,7 +154,10 @@ export default function LoginForm() {
           </Button>
           <p className="text-sm text-muted-foreground text-center">
             Não tem conta?{" "}
-            <Link href="/signup" className="text-primary hover:underline">
+            <Link
+              href={`/signup?redirect_to=${encodeURIComponent(redirectTo)}`}
+              className="text-primary hover:underline"
+            >
               Criar conta
             </Link>
           </p>

@@ -8,6 +8,7 @@ import LoginForm from './login-form'
 // Mock Clerk hooks
 const mockSignIn = vi.fn()
 const mockPush = vi.fn()
+const mockSearchParamsGet = vi.fn()
 
 vi.mock('@clerk/nextjs', () => ({
   useSignIn: () => ({
@@ -22,6 +23,9 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
   }),
+  useSearchParams: () => ({
+    get: mockSearchParamsGet,
+  }),
 }))
 
 vi.mock('@/components/logo', () => ({
@@ -31,6 +35,7 @@ vi.mock('@/components/logo', () => ({
 describe('LoginForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSearchParamsGet.mockReturnValue(null)
   })
 
   it('renders the login form', () => {
@@ -72,6 +77,24 @@ describe('LoginForm', () => {
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/dashboard')
+    })
+  })
+
+  it('redirects to the requested safe path after sign in', async () => {
+    mockSearchParamsGet.mockImplementation((key: string) => (
+      key === 'redirect_to' ? '/pricing?checkoutPlan=monthly' : null
+    ))
+    mockSignIn.mockResolvedValue({ status: 'complete' })
+    const user = userEvent.setup()
+
+    render(<LoginForm />)
+
+    await user.type(screen.getByLabelText('E-mail'), 'test@example.com')
+    await user.type(screen.getByLabelText('Senha'), 'password123')
+    await user.click(screen.getByRole('button', { name: /^entrar$/i }))
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/pricing?checkoutPlan=monthly')
     })
   })
 
