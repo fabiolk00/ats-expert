@@ -1,9 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
 
-import { AGENT_CONFIG } from '@/lib/agent/config'
+import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
 import { TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
+import { openai } from '@/lib/openai/client'
+import { callOpenAIWithRetry, getChatCompletionText, getChatCompletionUsage } from '@/lib/openai/chat'
 import type {
   CertificationEntry,
   CVState,
@@ -61,35 +62,6 @@ const CertificationEntrySchema = z.object({
   issuer: z.string(),
   year: z.string().optional(),
 })
-
-async function callAnthropicWithRetry(
-  client: Anthropic,
-  params: Anthropic.MessageCreateParamsNonStreaming,
-  maxRetries: number = 3,
-): Promise<Anthropic.Message> {
-  let lastError: Error | null = null
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await client.messages.create(params) as Anthropic.Message
-    } catch (error) {
-      lastError = error as Error
-
-      const isRetryable =
-        error instanceof Anthropic.APIError &&
-        (error.status === 429 || error.status === 500 || error.status === 503 || error.status === 529)
-
-      if (!isRetryable || attempt === maxRetries) {
-        throw error
-      }
-
-      const delay = Math.pow(2, attempt - 1) * 1000
-      await new Promise(resolve => setTimeout(resolve, delay))
-    }
-  }
-
-  throw lastError
-}
 
 function getSectionDataDescription(section: RewriteSectionInput['section']): string {
   switch (section) {
@@ -226,15 +198,16 @@ export async function rewriteSection(
   sessionId: string,
 ): Promise<RewriteSectionExecutionResult> {
   try {
-    const client = new Anthropic({
-      timeout: AGENT_CONFIG.timeout,
-    })
-
-    const response = await callAnthropicWithRetry(client, {
-      model: AGENT_CONFIG.model,
-      max_tokens: AGENT_CONFIG.rewriterMaxTokens,
-      system: `You are an expert ATS resume writer. Rewrite the provided resume section following the instructions.
-Output ONLY valid JSON matching this shape exactly:
+    const response = await callOpenAIWithRetry(() =>
+      openai.chat.completions.create({
+        model: MODEL_CONFIG.structured,
+        max_tokens: AGENT_CONFIG.rewriterMaxTokens,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert ATS resume writer. Rewrite the provided resume section following the instructions.
+Output valid JSON matching this shape exactly:
 {
   "rewritten_content": string,
   ${getSectionDataDescription(input.section)},
@@ -243,23 +216,27 @@ Output ONLY valid JSON matching this shape exactly:
 }
 Rules:
 - "rewritten_content" must stay human-readable plain text for conversational display
-- "section_data" must be fully structured and valid for the requested section
-- Do not include markdown, preamble, or explanation outside the JSON object.`,
-      messages: [{
-        role: 'user',
-        content: JSON.stringify(input),
-      }],
-    })
+- "section_data" must be fully structured and valid for the requested section`,
+          },
+          {
+            role: 'user',
+            content: JSON.stringify(input),
+          },
+        ],
+      }),
+    )
 
+    const usage = getChatCompletionUsage(response)
     trackApiUsage({
       userId,
       sessionId,
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
+      model: MODEL_CONFIG.structured,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
       endpoint: 'rewriter',
     }).catch(() => {})
 
-    const text = response.content.find((block: Anthropic.ContentBlock) => block.type === 'text' && 'text' in block)?.text ?? '{}'
+    const text = getChatCompletionText(response)
     const validatedPayload = validateRewritePayload(input.section, text)
 
     if (!validatedPayload) {

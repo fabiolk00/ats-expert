@@ -97,7 +97,7 @@ Key files:
 - `src/lib/agent/tool-errors.ts`
 - `docs/error-codes.md`
 - `docs/logging.md`
-- `.claude/rules/error-handling.md`
+- `docs/tool-development.md`
 
 Current runtime behavior:
 - tool failures use `{ success: false, code, error }`
@@ -106,7 +106,7 @@ Current runtime behavior:
 - route-level auth/body validation may still return plain `{ error: ... }` responses outside the tool layer
 
 Developer guidance:
-- use `.claude/rules/error-handling.md` when adding or modifying a tool
+- use `docs/tool-development.md` and `docs/error-codes.md` when adding or modifying a tool
 - use `docs/error-codes.md` to choose the right code
 - use `docs/logging.md` to query production failures by `errorCode`
 
@@ -192,7 +192,7 @@ Rules:
 7. Increment message count with the atomic session cap helper
 8. Persist the user message
 9. Build system context from `cvState`, `agentState`, and `atsScore`
-10. Run the Anthropic tool loop
+10. Run the OpenAI tool loop
 11. Stream SSE chunks to the client
 
 ### Tool-to-state flow
@@ -234,7 +234,7 @@ Rules:
 - `GET /api/cron/cleanup`
 
 ### Important route realities
-- `/api/agent` uses SSE, but Anthropic is currently called with `stream: false` and the server re-streams word chunks.
+- `/api/agent` uses SSE, but OpenAI is currently called with non-streaming completions and the server re-streams word chunks.
 - `/api/file/[sessionId]` is not implemented.
 - File delivery currently happens through signed URLs returned by `generate_file`.
 
@@ -285,7 +285,7 @@ Rules:
 - Clerk
 - Supabase JS runtime access to Postgres and Storage
 - Prisma schema and SQL migration helpers
-- Anthropic SDK
+- OpenAI SDK
 - Asaas
 - Upstash Redis / Ratelimit
 - Vitest + React Testing Library

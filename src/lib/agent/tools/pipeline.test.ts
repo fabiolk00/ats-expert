@@ -14,28 +14,20 @@ import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { generateFileDeps } from './generate-file'
 import { dispatchTool } from './index'
 
-const { createMessage, pdfParse } = vi.hoisted(() => ({
-  createMessage: vi.fn(),
+const { createCompletion, pdfParse } = vi.hoisted(() => ({
+  createCompletion: vi.fn(),
   pdfParse: vi.fn(),
 }))
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class MockAnthropic {
-    static APIError = class APIError extends Error {
-      status?: number
-    }
-
-    messages = {
-      create: createMessage,
-    }
-
-    constructor(_: unknown) {}
-  }
-
-  return {
-    default: MockAnthropic,
-  }
-})
+vi.mock('@/lib/openai/client', () => ({
+  openai: {
+    chat: {
+      completions: {
+        create: createCompletion,
+      },
+    },
+  },
+}))
 
 vi.mock('pdf-parse', () => ({
   default: pdfParse,
@@ -104,12 +96,12 @@ function buildSession(): Session {
   }
 }
 
-function buildAnthropicResponse(text: string) {
+function buildOpenAIResponse(text: string) {
   return {
-    content: [{ type: 'text', text }],
+    choices: [{ message: { content: text } }],
     usage: {
-      input_tokens: 10,
-      output_tokens: 20,
+      prompt_tokens: 10,
+      completion_tokens: 20,
     },
   }
 }
@@ -168,8 +160,8 @@ describe('agent pipeline session state evolution', () => {
       numpages: 2,
     })
 
-    createMessage
-      .mockResolvedValueOnce(buildAnthropicResponse(JSON.stringify({
+    createCompletion
+      .mockResolvedValueOnce(buildOpenAIResponse(JSON.stringify({
         fullName: 'Ana Silva',
         email: 'ana@example.com',
         phone: '555-0100',
@@ -202,7 +194,7 @@ describe('agent pipeline session state evolution', () => {
         ],
         confidenceScore: 0.9,
       })))
-      .mockResolvedValueOnce(buildAnthropicResponse(JSON.stringify({
+      .mockResolvedValueOnce(buildOpenAIResponse(JSON.stringify({
         rewritten_content: rewrittenSummary,
         section_data: rewrittenSummary,
         keywords_added: ['billing modernization'],

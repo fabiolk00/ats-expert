@@ -4,27 +4,19 @@ import type { CVState } from '@/types/cv'
 
 import { ingestResumeText } from './resume-ingestion'
 
-const { createMessage } = vi.hoisted(() => ({
-  createMessage: vi.fn(),
+const { createCompletion } = vi.hoisted(() => ({
+  createCompletion: vi.fn(),
 }))
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class MockAnthropic {
-    static APIError = class APIError extends Error {
-      status?: number
-    }
-
-    messages = {
-      create: createMessage,
-    }
-
-    constructor(_: unknown) {}
-  }
-
-  return {
-    default: MockAnthropic,
-  }
-})
+vi.mock('@/lib/openai/client', () => ({
+  openai: {
+    chat: {
+      completions: {
+        create: createCompletion,
+      },
+    },
+  },
+}))
 
 vi.mock('@/lib/agent/usage-tracker', () => ({
   trackApiUsage: vi.fn(() => Promise.resolve(undefined)),
@@ -42,12 +34,12 @@ function buildEmptyCvState(): CVState {
   }
 }
 
-function buildAnthropicResponse(text: string) {
+function buildOpenAIResponse(text: string) {
   return {
-    content: [{ type: 'text', text }],
+    choices: [{ message: { content: text } }],
     usage: {
-      input_tokens: 10,
-      output_tokens: 20,
+      prompt_tokens: 10,
+      completion_tokens: 20,
     },
   }
 }
@@ -58,7 +50,7 @@ describe('ingestResumeText', () => {
   })
 
   it('populates an empty cvState from parsed resume text', async () => {
-    createMessage.mockResolvedValue(buildAnthropicResponse(JSON.stringify({
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       fullName: 'Ana Silva',
       email: 'ana@example.com',
       phone: '+55 11 99999-9999',
@@ -138,7 +130,7 @@ describe('ingestResumeText', () => {
   })
 
   it('merges into a partial cvState without data loss', async () => {
-    createMessage.mockResolvedValue(buildAnthropicResponse(JSON.stringify({
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       fullName: 'Ana Silva',
       email: 'ana.updated@example.com',
       phone: '+55 11 99999-9999',
@@ -212,7 +204,7 @@ describe('ingestResumeText', () => {
   })
 
   it('returns no patch for invalid structured output', async () => {
-    createMessage.mockResolvedValue(buildAnthropicResponse(JSON.stringify({
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       fullName: 'Ana Silva',
       email: ['ana@example.com'],
       phone: '+55 11 99999-9999',

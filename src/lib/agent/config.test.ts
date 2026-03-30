@@ -1,9 +1,14 @@
-import { describe, it, expect } from 'vitest'
-import { AGENT_CONFIG } from './config'
+import { describe, expect, it } from 'vitest'
+
+import { AGENT_CONFIG, MODEL_CONFIG } from './config'
 
 describe('AGENT_CONFIG', () => {
-  it('uses claude-haiku-4-5-20251001 model', () => {
-    expect(AGENT_CONFIG.model).toBe('claude-haiku-4-5-20251001')
+  it('uses OpenAI model routing', () => {
+    expect(MODEL_CONFIG).toEqual({
+      agent: 'gpt-5.4-mini',
+      structured: 'gpt-5-mini',
+      vision: 'gpt-5-mini',
+    })
   })
 
   it('has maxMessagesPerSession set to 15', () => {

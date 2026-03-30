@@ -24,7 +24,7 @@ Use `errorCode` for aggregation and alerting. Use `errorMessage` for debugging c
 
 See also:
 - [Error Codes](./error-codes.md)
-- [Error Handling Rules](../.claude/rules/error-handling.md)
+- [Tool Development Guide](./tool-development.md)
 
 ## Log Shape
 

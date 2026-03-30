@@ -6,23 +6,19 @@ import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession, checkUserQuota } from '@/lib/db/sessions'
 import { agentLimiter } from '@/lib/rate-limit'
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class MockAnthropic {
-    static APIError = class APIError extends Error {
-      status?: number
-    }
+const { createCompletion } = vi.hoisted(() => ({
+  createCompletion: vi.fn(),
+}))
 
-    messages = {
-      create: vi.fn(),
-    }
-
-    constructor(_: unknown) {}
-  }
-
-  return {
-    default: MockAnthropic,
-  }
-})
+vi.mock('@/lib/openai/client', () => ({
+  openai: {
+    chat: {
+      completions: {
+        create: createCompletion,
+      },
+    },
+  },
+}))
 
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn(),
@@ -118,7 +114,7 @@ describe('agent route billing guard', () => {
 
     expect(response.status).toBe(402)
     expect(await response.json()).toEqual({
-      error: 'Seus créditos acabaram. Faça upgrade do seu plano para continuar.',
+      error: 'Seus creditos acabaram. Faca upgrade do seu plano para continuar.',
       upgradeUrl: '/pricing',
     })
   })

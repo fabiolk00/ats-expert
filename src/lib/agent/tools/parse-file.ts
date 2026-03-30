@@ -1,39 +1,9 @@
-import type Anthropic from '@anthropic-ai/sdk'
-
-import { AGENT_CONFIG } from '@/lib/agent/config'
+import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
 import { TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
+import { openai } from '@/lib/openai/client'
+import { callOpenAIWithRetry, getChatCompletionText, getChatCompletionUsage } from '@/lib/openai/chat'
 import type { ParseFileInput, ParseFileOutput } from '@/types/agent'
-
-async function callAnthropicWithRetry(
-  client: Anthropic,
-  params: Anthropic.MessageCreateParamsNonStreaming,
-  maxRetries: number = 3,
-): Promise<Anthropic.Message> {
-  let lastError: Error | null = null
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await client.messages.create(params) as Anthropic.Message
-    } catch (error) {
-      lastError = error as Error
-
-      const AnthropicSDK = (await import('@anthropic-ai/sdk')).default
-      const isRetryable =
-        error instanceof AnthropicSDK.APIError &&
-        (error.status === 429 || error.status === 500 || error.status === 503 || error.status === 529)
-
-      if (!isRetryable || attempt === maxRetries) {
-        throw error
-      }
-
-      const delay = Math.pow(2, attempt - 1) * 1000
-      await new Promise((resolve) => setTimeout(resolve, delay))
-    }
-  }
-
-  throw lastError
-}
 
 export async function parseFile(
   input: ParseFileInput,
@@ -93,42 +63,44 @@ async function parseImageOCR(
   userId?: string,
   sessionId?: string,
 ): Promise<ParseFileOutput> {
-  const AnthropicSDK = (await import('@anthropic-ai/sdk')).default
-  const client = new AnthropicSDK({
-    timeout: AGENT_CONFIG.timeout,
-  })
-
   const mediaType = mime as 'image/png' | 'image/jpeg'
-
-  const response = await callAnthropicWithRetry(client, {
-    model: AGENT_CONFIG.model,
-    max_tokens: AGENT_CONFIG.ocrMaxTokens,
-    messages: [{
-      role: 'user',
-      content: [
+  const response = await callOpenAIWithRetry(() =>
+    openai.chat.completions.create({
+      model: MODEL_CONFIG.vision,
+      max_tokens: AGENT_CONFIG.ocrMaxTokens,
+      messages: [
         {
-          type: 'image',
-          source: { type: 'base64', media_type: mediaType, data: buffer.toString('base64') },
-        },
-        {
-          type: 'text',
-          text: 'Extract all text from this resume image. Output only the raw text, preserving the logical reading order. No commentary.',
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mediaType};base64,${buffer.toString('base64')}`,
+              },
+            },
+            {
+              type: 'text',
+              text: 'Extract all text from this resume image. Output only the raw text, preserving the logical reading order. No commentary.',
+            },
+          ],
         },
       ],
-    }],
-  })
+    }),
+  )
 
   if (userId) {
+    const usage = getChatCompletionUsage(response)
     trackApiUsage({
       userId,
       sessionId,
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
+      model: MODEL_CONFIG.vision,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
       endpoint: 'ocr',
     }).catch(() => {})
   }
 
-  const text = response.content.find((block: Anthropic.ContentBlock) => block.type === 'text' && 'text' in block)?.text ?? ''
+  const text = getChatCompletionText(response)
 
   if (text.length < 100) {
     return toolFailure(TOOL_ERROR_CODES.PARSE_ERROR, 'Could not read text from image.')

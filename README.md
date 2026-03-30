@@ -1,78 +1,93 @@
 # CurrIA
 
-CurrIA is a resume optimization SaaS built on Next.js, Clerk, Supabase, Anthropic, and Asaas. The current system uses an internal app-user model, canonical structured resume state, patch-based agent tools, and persisted file-generation metadata.
+CurrIA is an AI-powered resume optimization SaaS. The product combines ATS analysis, assisted rewriting, versioned resume history, job-targeted resume variants, and billing through hosted Asaas checkout flows.
 
-## What exists today
-- Internal user model: `users` + `user_auth_identities`
-- Runtime credits in `credit_accounts`
-- Asaas webhook idempotency with processed delivery tracking
-- Session state split into:
-  - `cvState`
-  - `agentState`
-  - `generatedOutput`
-- Patch-based tool dispatch
-- Canonical `rewrite_section` persistence
-- Canonical `generate_file` pipeline
-- Immutable `cv_versions` snapshots
-- Structured gap analysis
-- Multi-target derived resumes in `resume_targets`
-- Manual canonical base-section editing with versioned persistence
-- End-to-end session state evolution coverage
+## What the project does
 
-## Quick start
+- authenticates users with Clerk
+- resolves each authenticated session to an internal application user
+- analyzes and rewrites resumes with AI
+- maintains a canonical resume version plus job-specific variants
+- generates output files while persisting only durable output metadata
+- manages usage credits
+- charges one-time and recurring plans through Asaas
 
-### 1. Install dependencies
-```bash
-npm install
-```
+## Core stack
 
-### 2. Configure environment variables
-Copy `.env.example` to `.env` and fill in real values.
+- Next.js 14 + App Router
+- React 18 + TypeScript
+- Tailwind CSS
+- Clerk for authentication
+- Supabase + Postgres
+- Prisma
+- OpenAI for AI workflows in the current migration candidate
+- Asaas for billing and checkout
+- Vitest + Testing Library
 
-### 3. Run the app
-```bash
-npm run dev
-```
+## AI migration status
 
-### 4. Verify locally
-```bash
-npm run typecheck
-npm test
-npm run lint
-```
+- the current codebase is prepared as an OpenAI migration candidate
+- the final production provider decision still depends on the human pt-BR quality gate
+- the official protocol is documented in [openai-portuguese-quality-gate.md](/c:/CurrIA/docs/openai-portuguese-quality-gate.md)
+- the rollout checklist is documented in [openai-migration-checklist.md](/c:/CurrIA/docs/openai-migration-checklist.md)
 
-## Core architecture
+## Main flows
+
+### Resume and AI
+
+- `cvState` stores the canonical resume
+- `agentState` stores the agent's operational context
+- `resume_targets` stores job-specific derived resume variants
+- `cv_versions` stores immutable resume snapshots
 
 ### Identity
-- Clerk authenticates the user.
-- Runtime code resolves the request to an internal app user via `src/lib/auth/app-user.ts`.
-- Domain logic should use app user IDs, not Clerk IDs.
 
-### Session state
-- `cvState`: canonical resume truth
-- `agentState`: operational context such as parsed text and rewrite metadata
-- `generatedOutput`: artifact metadata only
-- `stateVersion`: top-level version for the session state bundle
-- `cv_versions`: immutable snapshots of trusted `cvState` milestones
-- `resume_targets`: target-specific derived resume states kept separate from the base canonical resume
+- Clerk authenticates the user
+- the app maps the authenticated user to an internal record in `users`
+- domain logic should always use the `app user id`, not the Clerk id
 
-### Tool pipeline
-- Tools return `{ output, patch? }`
-- `dispatchTool()` persists session patches through `applyToolPatchWithVersion()`
-- The merged state updates both the database and the in-memory session snapshot
-- First canonical ingestion and canonical rewrites create immutable CV versions
-- Gap analysis is validated before it is stored
-- Target-specific resumes are derived and persisted without overwriting the base `cvState`
+### Billing
 
-### Credits
-- `credit_accounts` is the runtime source of truth
-- `/api/agent` consumes one credit when creating a new session
-- Existing sessions do not consume more credits per message
+- `credit_accounts` is the source of truth for runtime credits
+- one-time purchases use Asaas payment links
+- recurring subscriptions use hosted Asaas Checkout
+- credits are granted only through webhook processing
+- Asaas events are deduplicated through `processed_events`
+- paid checkouts are tracked in `billing_checkouts`
 
-## Implemented API routes
+## Project structure
+
+```text
+src/
+  app/                  public, authenticated, and API routes
+  components/           UI and forms
+  lib/
+    asaas/              checkout, webhooks, credits, idempotency
+    auth/               internal user resolution
+    db/                 database clients and helpers
+    templates/          file/template utilities
+prisma/
+  schema.prisma         Prisma schema
+  migrations/           SQL migrations
+docs/                   technical, billing, and operational docs
+```
+
+## Important routes
+
+### UI
+
+- `/`
+- `/pricing`
+- `/login`
+- `/signup`
+- `/dashboard`
+- `/chat/[sessionId]`
+- `/resumes`
+
+### API
+
 - `POST /api/agent`
 - `GET /api/session`
-- `POST /api/session` returns `403`
 - `GET /api/session/[id]/messages`
 - `GET /api/session/[id]/versions`
 - `GET /api/session/[id]/targets`
@@ -84,66 +99,221 @@ npm run lint
 - `POST /api/webhook/clerk`
 - `GET /api/cron/cleanup`
 
-## Resume history and targeting
+## Requirements
 
-### CV versioning
-- `cv_versions` stores immutable `CVState` snapshots
-- current sources:
-  - `ingestion`
-  - `rewrite`
-  - `manual`
-  - `target-derived`
-- raw parsed resume text is never stored in version snapshots
+- Node.js 20+
+- npm
+- Postgres or Supabase
+- valid Clerk credentials
+- an OpenAI API key
+- an Asaas account
 
-### Manual canonical edits
-- Manual edits currently apply only to base `session.cvState`
-- One canonical section may be edited at a time:
-  - `contact`
-  - `summary`
-  - `skills`
-  - `experience`
-  - `education`
-  - `certifications`
-- Valid manual edits persist through the same controlled patch flow and create `cv_versions` entries with source `manual` only when canonical state actually changes
-- Target-specific manual edits are intentionally deferred; they should be modeled later as `resume_targets`-owned edit flows rather than mutations to base `cvState`
+## Local setup
 
-### Gap analysis
-- `analyze_gap` compares canonical `cvState` against a target job description
-- output is structured and validated
-- the latest result is stored in `agentState.gapAnalysis`
+### 1. Install dependencies
 
-### Multi-target resumes
-- one session owns one canonical base `cvState`
-- multiple target-specific variants can coexist in `resume_targets`
-- each target stores:
-  - target job description
-  - derived `cvState`
-  - optional structured gap analysis
-  - optional generated artifact metadata for target-specific files
-  - timestamps
-- target creation must not overwrite the base canonical resume
+```bash
+npm install
+```
 
-### File generation
-- Base resume generation persists artifact metadata in `session.generatedOutput`
-- Target resume generation persists artifact metadata in `resume_targets.generatedOutput`
-- `GET /api/file/[sessionId]` serves the base artifact by default
-- `GET /api/file/[sessionId]?targetId=<resumeTargetId>` serves a target-derived artifact for the same owned session
-- signed URLs are minted on demand and are never persisted
+### 2. Configure the environment
 
-## Important docs
-- [CLAUDE.md](/C:/CurrIA/CLAUDE.md)
-- [Architecture Overview](/C:/CurrIA/docs/architecture-overview.md)
-- [State Model](/C:/CurrIA/docs/state-model.md)
-- [Tool Development Guide](/C:/CurrIA/docs/tool-development.md)
+Copy `.env.example` to `.env` and fill in real values:
 
-## Commands
+```bash
+copy .env.example .env
+```
+
+Main variables:
+
+```env
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+CLERK_WEBHOOK_SECRET=
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Database
+DATABASE_URL=
+DIRECT_URL=
+
+# OpenAI
+OPENAI_API_KEY=
+
+# Asaas
+ASAAS_API_KEY=
+ASAAS_WEBHOOK_TOKEN=
+ASAAS_SANDBOX=true
+
+# Upstash
+UPSTASH_REDIS_URL=
+UPSTASH_REDIS_TOKEN=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+
+# Cron
+CRON_SECRET=
+```
+
+### 3. Prepare the database
+
+Generate the Prisma client:
+
+```bash
+npm run db:generate
+```
+
+If you are using the Prisma migration flow:
+
+```bash
+npm run db:migrate
+```
+
+If you are applying SQL manually, use the files in `prisma/migrations/`. The most relevant ones for the current project state include:
+
+- `internal_user_model.sql`
+- `session_state_foundation.sql`
+- `session_state_version.sql`
+- `billing_webhook_hardening.sql`
+- `cv_versioning_and_targets.sql`
+- `cv_versioning_atomicity.sql`
+- `cv_version_deduplication.sql`
+- `target_generated_output.sql`
+
+For rollout and validation details, see [billing-migration-guide.md](/c:/CurrIA/docs/billing-migration-guide.md).
+
+### 4. Run the project
+
+```bash
+npm run dev
+```
+
+Local app:
+
+- `http://localhost:3000`
+
+## Useful scripts
+
 ```bash
 npm run dev
 npm run build
+npm run start
 npm run lint
 npm run typecheck
 npm test
+npm run test:watch
+npm run db:generate
 npm run db:push
 npm run db:migrate
 npm run db:studio
 ```
+
+## How billing works
+
+### Plans
+
+Defined in [plans.ts](/c:/CurrIA/src/lib/plans.ts):
+
+- `free`
+- `unit`
+- `monthly`
+- `pro`
+
+### Checkout flow
+
+1. the client calls `POST /api/checkout`
+2. the API creates a `pending` row in `billing_checkouts`
+3. it generates a short `externalReference` in the format `curria:v1:c:<checkoutReference>`
+4. it creates the checkout in Asaas
+5. it marks the checkout as `created` or `failed`
+
+### Webhook flow
+
+- `PAYMENT_RECEIVED` resolves through `billing_checkouts`
+- `SUBSCRIPTION_CREATED` resolves through `billing_checkouts`
+- `SUBSCRIPTION_RENEWED` resolves through `user_quotas.asaas_subscription_id`
+- `SUBSCRIPTION_CANCELED` updates metadata only and does not revoke credits
+
+### Important rules
+
+- credits are additive
+- the frontend must never grant credits directly
+- duplicate events must never grant credits twice
+- pre-cutover subscriptions remain supported through `asaas_subscription_id`
+
+## Quality and testing
+
+The project includes test coverage for:
+
+- checkout routes
+- Asaas webhooks
+- event deduplication
+- resume versioning
+- sessions and targets
+- auth and pricing flows
+
+Recommended local checklist:
+
+```bash
+npm run typecheck
+npm test
+npm run lint
+```
+
+## Important documentation
+
+### Architecture
+
+- [architecture-overview.md](/c:/CurrIA/docs/architecture-overview.md)
+- [state-model.md](/c:/CurrIA/docs/state-model.md)
+- [tool-development.md](/c:/CurrIA/docs/tool-development.md)
+- [openai-portuguese-quality-gate.md](/c:/CurrIA/docs/openai-portuguese-quality-gate.md)
+- [openai-migration-checklist.md](/c:/CurrIA/docs/openai-migration-checklist.md)
+- [portuguese-quality-test-results.md](/c:/CurrIA/docs/portuguese-quality-test-results.md)
+- [openai-migration-monitoring.md](/c:/CurrIA/docs/openai-migration-monitoring.md)
+- [openai-migration-rollback.md](/c:/CurrIA/docs/openai-migration-rollback.md)
+
+### Billing and operations
+
+- [billing-implementation.md](/c:/CurrIA/docs/billing-implementation.md)
+- [billing-migration-guide.md](/c:/CurrIA/docs/billing-migration-guide.md)
+- [billing-ops-runbook.md](/c:/CurrIA/docs/billing-ops-runbook.md)
+- [billing-monitoring.md](/c:/CurrIA/docs/billing-monitoring.md)
+- [error-codes.md](/c:/CurrIA/docs/error-codes.md)
+- [PRODUCTION-READINESS-CHECKLIST.md](/c:/CurrIA/docs/PRODUCTION-READINESS-CHECKLIST.md)
+
+### Staging
+
+- [staging-setup-guide.md](/c:/CurrIA/docs/staging-setup-guide.md)
+- [staging-validation-plan.md](/c:/CurrIA/docs/staging-validation-plan.md)
+- [staging-validation-agent-prompt.md](/c:/CurrIA/docs/staging-validation-agent-prompt.md)
+
+## Contribution notes
+
+- prefer `app user id` in all domain logic
+- do not write credits directly into `user_quotas`; use `credit_accounts`
+- do not grant credits outside the webhook flow
+- keep `cvState` as the canonical source of truth for the base resume
+- new state mutations should preserve versioning and idempotency where applicable
+
+## Current status
+
+The project already includes:
+
+- authentication and internal-user bootstrap
+- chat and resume session flows
+- job-targeted resume variants
+- versioned resume history
+- Asaas checkout and billing
+- operational documentation for staging and production
+
+If you want to run the project now, the best path is:
+
+1. configure `.env`
+2. apply the schema and migrations
+3. run `npm run typecheck`
+4. run `npm test`
+5. run `npm run dev`

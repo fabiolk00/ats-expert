@@ -1,11 +1,15 @@
-import type { Tool } from '@anthropic-ai/sdk/resources/messages'
+import type OpenAI from 'openai'
 
 import { scoreATS } from '@/lib/ats/score'
 import {
   getResumeTargetForSession,
   updateResumeTargetGeneratedOutput,
 } from '@/lib/db/resume-targets'
-import { applyToolPatchWithVersion, applyGeneratedOutputPatch as applySessionGeneratedOutputPatch, mergeToolPatch } from '@/lib/db/sessions'
+import {
+  applyToolPatchWithVersion,
+  applyGeneratedOutputPatch as applySessionGeneratedOutputPatch,
+  mergeToolPatch,
+} from '@/lib/db/sessions'
 import { isToolFailure, TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import { createTargetResumeVariant } from '@/lib/resume-targets/create-target-resume'
@@ -30,109 +34,135 @@ import { parseFile } from './parse-file'
 import { ingestResumeText } from './resume-ingestion'
 import { rewriteSection } from './rewrite-section'
 
-export const TOOL_DEFINITIONS: Tool[] = [
+type OpenAITool = OpenAI.Chat.Completions.ChatCompletionTool
+
+export const TOOL_DEFINITIONS: OpenAITool[] = [
   {
-    name: 'parse_file',
-    description: 'Extract text from an uploaded resume file (PDF, DOCX, or image).',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        file_base64: { type: 'string', description: 'Base64-encoded file content' },
-        mime_type: {
-          type: 'string',
-          enum: [
-            'application/pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'image/png',
-            'image/jpeg',
-          ],
+    type: 'function',
+    function: {
+      name: 'parse_file',
+      description: 'Extract text from an uploaded resume file (PDF, DOCX, or image).',
+      parameters: {
+        type: 'object',
+        properties: {
+          file_base64: { type: 'string', description: 'Base64-encoded file content' },
+          mime_type: {
+            type: 'string',
+            enum: [
+              'application/pdf',
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              'image/png',
+              'image/jpeg',
+            ],
+          },
         },
+        required: ['file_base64', 'mime_type'],
       },
-      required: ['file_base64', 'mime_type'],
     },
   },
   {
-    name: 'score_ats',
-    description: 'Score a resume for ATS compatibility and return section-level feedback.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        resume_text: { type: 'string' },
-        job_description: { type: 'string', description: 'Optional - improves keyword analysis' },
+    type: 'function',
+    function: {
+      name: 'score_ats',
+      description: 'Score a resume for ATS compatibility and return section-level feedback.',
+      parameters: {
+        type: 'object',
+        properties: {
+          resume_text: { type: 'string' },
+          job_description: { type: 'string', description: 'Optional - improves keyword analysis' },
+        },
+        required: ['resume_text'],
       },
-      required: ['resume_text'],
     },
   },
   {
-    name: 'analyze_gap',
-    description: 'Analyze the gap between the canonical resume and a target job description.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        target_job_description: { type: 'string' },
+    type: 'function',
+    function: {
+      name: 'analyze_gap',
+      description: 'Analyze the gap between the canonical resume and a target job description.',
+      parameters: {
+        type: 'object',
+        properties: {
+          target_job_description: { type: 'string' },
+        },
+        required: ['target_job_description'],
       },
-      required: ['target_job_description'],
     },
   },
   {
-    name: 'apply_gap_action',
-    description: 'Turn one structured gap-analysis item into a targeted canonical rewrite action.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        item_type: { type: 'string', enum: ['missing_skill', 'weak_area', 'suggestion'] },
-        item_value: { type: 'string' },
+    type: 'function',
+    function: {
+      name: 'apply_gap_action',
+      description: 'Turn one structured gap-analysis item into a targeted canonical rewrite action.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item_type: { type: 'string', enum: ['missing_skill', 'weak_area', 'suggestion'] },
+          item_value: { type: 'string' },
+        },
+        required: ['item_type', 'item_value'],
       },
-      required: ['item_type', 'item_value'],
     },
   },
   {
-    name: 'rewrite_section',
-    description: 'Rewrite a specific resume section to improve ATS score and impact.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        section: { type: 'string', enum: ['summary', 'experience', 'skills', 'education', 'certifications'] },
-        current_content: { type: 'string' },
-        instructions: { type: 'string' },
-        target_keywords: { type: 'array', items: { type: 'string' } },
+    type: 'function',
+    function: {
+      name: 'rewrite_section',
+      description: 'Rewrite a specific resume section to improve ATS score and impact.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'string', enum: ['summary', 'experience', 'skills', 'education', 'certifications'] },
+          current_content: { type: 'string' },
+          instructions: { type: 'string' },
+          target_keywords: { type: 'array', items: { type: 'string' } },
+        },
+        required: ['section', 'current_content', 'instructions'],
       },
-      required: ['section', 'current_content', 'instructions'],
     },
   },
   {
-    name: 'create_target_resume',
-    description: 'Create a target-specific resume variant without overwriting the canonical base resume.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        target_job_description: { type: 'string' },
+    type: 'function',
+    function: {
+      name: 'create_target_resume',
+      description: 'Create a target-specific resume variant without overwriting the canonical base resume.',
+      parameters: {
+        type: 'object',
+        properties: {
+          target_job_description: { type: 'string' },
+        },
+        required: ['target_job_description'],
       },
-      required: ['target_job_description'],
     },
   },
   {
-    name: 'set_phase',
-    description: 'Advance the conversation to the next phase of the agent.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        phase: { type: 'string', enum: ['intake', 'analysis', 'dialog', 'confirm', 'generation'] },
-        reason: { type: 'string' },
+    type: 'function',
+    function: {
+      name: 'set_phase',
+      description: 'Advance the conversation to the next phase of the agent.',
+      parameters: {
+        type: 'object',
+        properties: {
+          phase: { type: 'string', enum: ['intake', 'analysis', 'dialog', 'confirm', 'generation'] },
+          reason: { type: 'string' },
+        },
+        required: ['phase'],
       },
-      required: ['phase'],
     },
   },
   {
-    name: 'generate_file',
-    description: 'Generate the final ATS-optimized DOCX and PDF files for download.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        cv_state: { type: 'object', description: 'Final structured resume data' },
-        target_id: { type: 'string', description: 'Optional target resume id to generate from a derived variant' },
+    type: 'function',
+    function: {
+      name: 'generate_file',
+      description: 'Generate the final ATS-optimized DOCX and PDF files for download.',
+      parameters: {
+        type: 'object',
+        properties: {
+          cv_state: { type: 'object', description: 'Final structured resume data' },
+          target_id: { type: 'string', description: 'Optional target resume id to generate from a derived variant' },
+        },
+        required: ['cv_state'],
       },
-      required: ['cv_state'],
     },
   },
 ]

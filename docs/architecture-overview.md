@@ -2,6 +2,12 @@
 
 ## Runtime boundaries
 
+## Provider rollout status
+
+- O código atual está montado como candidato OpenAI.
+- A decisão final de produção do provider ainda depende do gate humano definido em `docs/openai-portuguese-quality-gate.md`.
+- Até esse gate ser executado, o repositório não deve ser tratado como decisão final de cutover de provider.
+
 ### Identity boundary
 - External identity: Clerk
 - Internal identity: app user in `users`
@@ -32,7 +38,7 @@ After the auth boundary, use app user IDs in domain code.
 6. Increment message count
 7. Persist the user message
 8. Build prompt context from the session bundle
-9. Run the Anthropic tool loop
+9. Run the OpenAI tool loop
 10. Apply tool patches centrally
 11. Stream SSE deltas and final session metadata
 
@@ -82,7 +88,7 @@ Additional resume persistence rules:
 - target-derived resume creation persists in `resume_targets` and also creates a `cv_versions` snapshot
 
 ## Current route and feature realities
-- Anthropic tool loop currently uses non-streaming calls and re-streams word chunks over SSE
+- OpenAI tool loop currently uses non-streaming calls and re-streams word chunks over SSE
 - `generate_file` returns signed URLs directly
 - `/api/file/[sessionId]` returns fresh signed URLs from persisted artifact metadata
 - `/api/file/[sessionId]?targetId=<resumeTargetId>` returns fresh signed URLs for an owned target-derived artifact

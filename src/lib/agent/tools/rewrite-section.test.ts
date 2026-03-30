@@ -7,27 +7,19 @@ import { mergeToolPatch } from '@/lib/db/sessions'
 
 import { rewriteSection } from './rewrite-section'
 
-const { createMessage } = vi.hoisted(() => ({
-  createMessage: vi.fn(),
+const { createCompletion } = vi.hoisted(() => ({
+  createCompletion: vi.fn(),
 }))
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class MockAnthropic {
-    static APIError = class APIError extends Error {
-      status?: number
-    }
-
-    messages = {
-      create: createMessage,
-    }
-
-    constructor(_: unknown) {}
-  }
-
-  return {
-    default: MockAnthropic,
-  }
-})
+vi.mock('@/lib/openai/client', () => ({
+  openai: {
+    chat: {
+      completions: {
+        create: createCompletion,
+      },
+    },
+  },
+}))
 
 vi.mock('@/lib/agent/usage-tracker', () => ({
   trackApiUsage: vi.fn(() => Promise.resolve(undefined)),
@@ -84,12 +76,12 @@ function buildSession(): Session {
   }
 }
 
-function buildAnthropicResponse(text: string) {
+function buildOpenAIResponse(text: string) {
   return {
-    content: [{ type: 'text', text }],
+    choices: [{ message: { content: text } }],
     usage: {
-      input_tokens: 10,
-      output_tokens: 20,
+      prompt_tokens: 10,
+      completion_tokens: 20,
     },
   }
 }
@@ -100,7 +92,7 @@ describe('rewriteSection', () => {
   })
 
   it('updates the correct canonical cvState field', async () => {
-    createMessage.mockResolvedValue(buildAnthropicResponse(JSON.stringify({
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       rewritten_content: 'TypeScript, PostgreSQL, Redis',
       section_data: ['TypeScript', 'PostgreSQL', 'Redis'],
       keywords_added: ['Redis'],
@@ -122,7 +114,7 @@ describe('rewriteSection', () => {
   })
 
   it('keeps unrelated cvState fields unchanged', async () => {
-    createMessage.mockResolvedValue(buildAnthropicResponse(JSON.stringify({
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       rewritten_content: 'TypeScript, PostgreSQL',
       section_data: ['TypeScript', 'PostgreSQL'],
       keywords_added: ['PostgreSQL'],
@@ -145,7 +137,7 @@ describe('rewriteSection', () => {
   })
 
   it('stores rewrite metadata in agentState', async () => {
-    createMessage.mockResolvedValue(buildAnthropicResponse(JSON.stringify({
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       rewritten_content: 'TypeScript, PostgreSQL',
       section_data: ['TypeScript', 'PostgreSQL'],
       keywords_added: ['PostgreSQL'],
@@ -169,7 +161,7 @@ describe('rewriteSection', () => {
   })
 
   it('rejects invalid rewrite payloads and returns no patch', async () => {
-    createMessage.mockResolvedValue(buildAnthropicResponse(JSON.stringify({
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       rewritten_content: 'TypeScript, PostgreSQL',
       section_data: 'TypeScript, PostgreSQL',
       keywords_added: ['PostgreSQL'],

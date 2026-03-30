@@ -4,27 +4,19 @@ import type { CVState } from '@/types/cv'
 
 import { analyzeGap } from './gap-analysis'
 
-const { createMessage } = vi.hoisted(() => ({
-  createMessage: vi.fn(),
+const { createCompletion } = vi.hoisted(() => ({
+  createCompletion: vi.fn(),
 }))
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class MockAnthropic {
-    static APIError = class APIError extends Error {
-      status?: number
-    }
-
-    messages = {
-      create: createMessage,
-    }
-
-    constructor(_: unknown) {}
-  }
-
-  return {
-    default: MockAnthropic,
-  }
-})
+vi.mock('@/lib/openai/client', () => ({
+  openai: {
+    chat: {
+      completions: {
+        create: createCompletion,
+      },
+    },
+  },
+}))
 
 vi.mock('@/lib/agent/usage-tracker', () => ({
   trackApiUsage: vi.fn(() => Promise.resolve(undefined)),
@@ -42,27 +34,32 @@ function buildCvState(): CVState {
   }
 }
 
+function buildOpenAIResponse(content: string) {
+  return {
+    choices: [{
+      message: {
+        content,
+      },
+    }],
+    usage: {
+      prompt_tokens: 10,
+      completion_tokens: 20,
+    },
+  }
+}
+
 describe('gap analysis', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('returns validated structured output', async () => {
-    createMessage.mockResolvedValue({
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          matchScore: 72,
-          missingSkills: ['AWS'],
-          weakAreas: ['summary'],
-          improvementSuggestions: ['Add AWS experience to the summary and skills sections'],
-        }),
-      }],
-      usage: {
-        input_tokens: 10,
-        output_tokens: 20,
-      },
-    })
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      matchScore: 72,
+      missingSkills: ['AWS'],
+      weakAreas: ['summary'],
+      improvementSuggestions: ['Add AWS experience to the summary and skills sections'],
+    })))
 
     const result = await analyzeGap(
       buildCvState(),
@@ -91,19 +88,10 @@ describe('gap analysis', () => {
   })
 
   it('rejects invalid gap analysis output', async () => {
-    createMessage.mockResolvedValue({
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          matchScore: 120,
-          missingSkills: 'AWS',
-        }),
-      }],
-      usage: {
-        input_tokens: 10,
-        output_tokens: 20,
-      },
-    })
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      matchScore: 120,
+      missingSkills: 'AWS',
+    })))
 
     const result = await analyzeGap(
       buildCvState(),

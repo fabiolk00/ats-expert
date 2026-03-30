@@ -1,30 +1,38 @@
-import { AGENT_CONFIG } from '@/lib/agent/config'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 
-// Approximate costs per million tokens (check Anthropic pricing page for current rates)
-// Claude Sonnet 4.5 pricing as of 2025
-const COST_PER_MILLION_INPUT = 300  // $3.00 per 1M input tokens
-const COST_PER_MILLION_OUTPUT = 1500 // $15.00 per 1M output tokens
+const MODEL_PRICING_CENTS_PER_MILLION = {
+  'gpt-5': { input: 125, output: 1000 },
+  'gpt-5.4': { input: 250, output: 1500 },
+  'gpt-5.4-mini': { input: 75, output: 450 },
+  'gpt-5-mini': { input: 25, output: 200 },
+} as const
+
+function getModelPricing(model: string): { input: number; output: number } {
+  return MODEL_PRICING_CENTS_PER_MILLION[model as keyof typeof MODEL_PRICING_CENTS_PER_MILLION]
+    ?? MODEL_PRICING_CENTS_PER_MILLION['gpt-5.4-mini']
+}
 
 export async function trackApiUsage(params: {
   userId: string
   sessionId?: string
+  model: string
   inputTokens: number
   outputTokens: number
   endpoint: 'agent' | 'rewriter' | 'ocr' | 'gap_analysis' | 'target_resume'
 }): Promise<void> {
   const supabase = getSupabaseAdminClient()
   const totalTokens = params.inputTokens + params.outputTokens
+  const pricing = getModelPricing(params.model)
   const costCents = Math.ceil(
-    (params.inputTokens / 1_000_000) * COST_PER_MILLION_INPUT +
-    (params.outputTokens / 1_000_000) * COST_PER_MILLION_OUTPUT
+    (params.inputTokens / 1_000_000) * pricing.input +
+    (params.outputTokens / 1_000_000) * pricing.output,
   )
 
   try {
     await supabase.from('api_usage').insert({
       user_id: params.userId,
       session_id: params.sessionId ?? null,
-      model: AGENT_CONFIG.model,
+      model: params.model,
       input_tokens: params.inputTokens,
       output_tokens: params.outputTokens,
       total_tokens: totalTokens,
@@ -32,7 +40,6 @@ export async function trackApiUsage(params: {
       endpoint: params.endpoint,
     })
   } catch (error) {
-    // Never fail the request because of tracking errors
     console.error('[usage-tracker] Failed to track usage:', error)
   }
 }

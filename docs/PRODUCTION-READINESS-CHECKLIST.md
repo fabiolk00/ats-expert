@@ -88,7 +88,7 @@ npm test -- src/lib/asaas
   - Pre-cutover audit procedures
   - Monitoring setup
 
-- ✅ **`CLAUDE.md`**
+- ✅ **`docs/architecture-overview.md`**
   - Updated with billing architecture section
   - Link to all billing documentation
 
@@ -219,7 +219,7 @@ scripts/
 
 .env.staging.example                     ← Staging credentials template
 
-CLAUDE.md                               ← Updated with billing section
+docs/architecture-overview.md          ← Updated with billing section
 ```
 
 ---
@@ -328,3 +328,4 @@ Weekly Metrics:
 - **Validation:** `docs/staging-validation-plan.md`
 - **Operations:** `docs/billing-ops-runbook.md`
 - **Monitoring:** `docs/billing-monitoring.md`
+

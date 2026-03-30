@@ -30,7 +30,7 @@ Important boundary:
 See also:
 - `src/lib/agent/tool-errors.ts`
 - [Logging and Error Queries](./logging.md)
-- [Error Handling Rules](../.claude/rules/error-handling.md)
+- [Tool Development Guide](./tool-development.md)
 
 ## Error Code Reference
 
@@ -117,7 +117,7 @@ See also:
 - model output shape is fundamentally wrong for the tool
 
 **Who creates it:**
-- tools that call Anthropic and validate structured output
+- tools that call the model provider and validate structured output
 - `rewrite_section`
 - `analyze_gap`
 - `create_target_resume`

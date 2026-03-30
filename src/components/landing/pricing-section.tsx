@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Check } from "lucide-react"
 
-// Real pricing from CLAUDE.md - matches pricing-cards.tsx
+// Real pricing from the architecture guide - matches pricing-cards.tsx
 const plans = [
   {
     name: "Grátis",

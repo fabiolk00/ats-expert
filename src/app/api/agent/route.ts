@@ -1,57 +1,56 @@
-import { NextRequest }   from 'next/server'
-import Anthropic         from '@anthropic-ai/sdk'
-import { z }             from 'zod'
+import { NextRequest } from 'next/server'
+import type OpenAI from 'openai'
+import { APIError } from 'openai'
+import { z } from 'zod'
 
 import { buildSystemPrompt, trimMessages } from '@/lib/agent/context-builder'
-import { TOOL_DEFINITIONS, dispatchTool }  from '@/lib/agent/tools'
+import { TOOL_DEFINITIONS, dispatchTool } from '@/lib/agent/tools'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
-  getSession, createSession,
-  getMessages, appendMessage,
+  getSession,
+  createSession,
+  getMessages,
+  appendMessage,
   checkUserQuota,
   incrementMessageCount,
   updateSession,
 } from '@/lib/db/sessions'
 import { consumeCredit } from '@/lib/asaas/quota'
 import { agentLimiter } from '@/lib/rate-limit'
-import { AGENT_CONFIG } from '@/lib/agent/config'
+import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
 import { extractUrl } from '@/lib/agent/url-extractor'
 import { scrapeJobPosting } from '@/lib/agent/scraper'
+import { openai } from '@/lib/openai/client'
+import { getChatCompletionUsage } from '@/lib/openai/chat'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 
-const client = new Anthropic({
-  timeout: AGENT_CONFIG.timeout,
-})
-
-async function callAnthropicWithRetry(
-  params: Anthropic.MessageCreateParamsNonStreaming,
-  maxRetries: number = 3,
+async function callOpenAIWithRetry(
+  params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+  maxRetries = 3,
   traceContext?: {
     sessionId?: string
     appUserId?: string
     phase?: string
     stateVersion?: number
   },
-): Promise<Anthropic.Message> {
+): Promise<OpenAI.Chat.Completions.ChatCompletion> {
   let lastError: Error | null = null
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      return await client.messages.create(params) as Anthropic.Message
+      return await openai.chat.completions.create(params)
     } catch (error) {
       lastError = error as Error
 
-      // Only retry on transient errors
       const isRetryable =
-        error instanceof Anthropic.APIError &&
-        (error.status === 429 || error.status === 500 || error.status === 503 || error.status === 529)
+        error instanceof APIError &&
+        [429, 500, 502, 503].includes(error.status)
 
       if (!isRetryable || attempt === maxRetries) {
         throw error
       }
 
-      // Exponential backoff: 1s, 2s, 4s
       const delay = Math.pow(2, attempt - 1) * 1000
       logWarn('agent.model.retrying', {
         sessionId: traceContext?.sessionId,
@@ -64,7 +63,7 @@ async function callAnthropicWithRetry(
         success: false,
         ...serializeError(error),
       })
-      await new Promise(resolve => setTimeout(resolve, delay))
+      await new Promise((resolve) => setTimeout(resolve, delay))
     }
   }
 
@@ -73,9 +72,9 @@ async function callAnthropicWithRetry(
 
 const BodySchema = z.object({
   sessionId: z.string().optional(),
-  message:   z.string().min(1).max(8000),
-  file:      z.string().optional(),
-  fileMime:  z.enum([
+  message: z.string().min(1).max(8000),
+  file: z.string().optional(),
+  fileMime: z.enum([
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'image/png',
@@ -84,7 +83,6 @@ const BodySchema = z.object({
 })
 
 function sanitizeUserInput(input: string): string {
-  // Remove XML tags that could interfere with prompt delimiters
   return input
     .replace(/<\/?user_resume_data>/gi, '')
     .replace(/<\/?system>/gi, '')
@@ -93,10 +91,39 @@ function sanitizeUserInput(input: string): string {
     .trim()
 }
 
+function toOpenAIHistory(
+  history: Array<{ role: 'user' | 'assistant'; content: string }>,
+): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
+  return history.map((message) => ({
+    role: message.role,
+    content: message.content,
+  }))
+}
+
+function buildToolMessage(
+  toolCallId: string,
+  content: string,
+): OpenAI.Chat.Completions.ChatCompletionToolMessageParam {
+  return {
+    role: 'tool',
+    tool_call_id: toolCallId,
+    content,
+  }
+}
+
+function buildAssistantToolCallMessage(
+  message: OpenAI.Chat.Completions.ChatCompletionMessage,
+): OpenAI.Chat.Completions.ChatCompletionAssistantMessageParam {
+  return {
+    role: 'assistant',
+    content: message.content ?? '',
+    tool_calls: message.tool_calls,
+  }
+}
+
 export async function POST(req: NextRequest) {
   const requestStartedAt = Date.now()
 
-  // 1. Auth
   const appUser = await getCurrentAppUser()
   if (!appUser) {
     logWarn('agent.request.unauthorized', {
@@ -107,7 +134,6 @@ export async function POST(req: NextRequest) {
   }
   const appUserId = appUser.id
 
-  // 1.5. Rate limit
   const { success } = await agentLimiter.limit(appUserId)
   if (!success) {
     logWarn('agent.request.rate_limited', {
@@ -118,7 +144,6 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'Too many requests. Please wait a moment.' }), { status: 429 })
   }
 
-  // 2. Parse body
   const raw = BodySchema.safeParse(await req.json())
   if (!raw.success) {
     logWarn('agent.request.invalid_body', {
@@ -140,7 +165,6 @@ export async function POST(req: NextRequest) {
     success: true,
   })
 
-  // 2.5. Check if user message contains a URL and scrape it
   const detectedUrl = extractUrl(message)
   if (detectedUrl) {
     const scrapeResult = await scrapeJobPosting(detectedUrl)
@@ -153,10 +177,9 @@ export async function POST(req: NextRequest) {
     })()
 
     if (scrapeResult.success && scrapeResult.text) {
-      // Replace or augment the message with extracted content
       message = message.replace(
         detectedUrl,
-        `[Link da vaga: ${detectedUrl}]\n\n[Conteúdo extraído automaticamente]:\n${scrapeResult.text}`
+        `[Link da vaga: ${detectedUrl}]\n\n[Conteudo extraido automaticamente]:\n${scrapeResult.text}`,
       )
       logInfo('agent.scrape.completed', {
         appUserId,
@@ -166,18 +189,16 @@ export async function POST(req: NextRequest) {
         success: true,
       })
     } else {
-      // If scraping failed, let the AI know and ask user to paste manually
       logWarn('agent.scrape.completed', {
         appUserId,
         detectedUrlHost,
         scrapeSucceeded: false,
         success: false,
       })
-      message = `${message}\n\n[Nota do sistema: Tentei acessar o link ${detectedUrl} mas não consegui extrair o conteúdo. Motivo: ${scrapeResult.error}]`
+      message = `${message}\n\n[Nota do sistema: Tentei acessar o link ${detectedUrl} mas nao consegui extrair o conteudo. Motivo: ${scrapeResult.error}]`
     }
   }
 
-  // 3. Load or create session (NEW: credit consumption happens here for new sessions only)
   let session = sessionId
     ? await getSession(sessionId, appUserId)
     : null
@@ -195,7 +216,6 @@ export async function POST(req: NextRequest) {
       success: true,
     })
 
-    // Existing session - check message cap
     if (session.messageCount >= AGENT_CONFIG.maxMessagesPerSession) {
       logWarn('agent.session.message_cap_reached', {
         sessionId: session.id,
@@ -207,14 +227,13 @@ export async function POST(req: NextRequest) {
         success: false,
       })
       return new Response(JSON.stringify({
-        error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
+        error: 'Esta sessao atingiu o limite de 15 mensagens. Inicie uma nova analise para continuar.',
         action: 'new_session',
         messageCount: session.messageCount,
         maxMessages: AGENT_CONFIG.maxMessagesPerSession,
       }), { status: 429 })
     }
   } else {
-    // Creating new session - check and consume credit NOW
     const hasCredits = await checkUserQuota(appUserId)
     if (!hasCredits) {
       logWarn('agent.session.create_blocked_no_credit', {
@@ -223,12 +242,11 @@ export async function POST(req: NextRequest) {
         latencyMs: Date.now() - requestStartedAt,
       })
       return new Response(JSON.stringify({
-        error: 'Seus créditos acabaram. Faça upgrade do seu plano para continuar.',
+        error: 'Seus creditos acabaram. Faca upgrade do seu plano para continuar.',
         upgradeUrl: '/pricing',
       }), { status: 402 })
     }
 
-    // Consume credit IMMEDIATELY on session creation
     const creditConsumed = await consumeCredit(appUserId)
     if (!creditConsumed) {
       logError('agent.credit.consume_failed', {
@@ -238,7 +256,7 @@ export async function POST(req: NextRequest) {
         latencyMs: Date.now() - requestStartedAt,
       })
       return new Response(JSON.stringify({
-        error: 'Erro ao processar crédito. Tente novamente.',
+        error: 'Erro ao processar credito. Tente novamente.',
       }), { status: 500 })
     }
 
@@ -256,7 +274,6 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // 4. Increment message count for this session (atomic operation)
   const messageCountIncremented = await incrementMessageCount(session.id)
   if (!messageCountIncremented) {
     logWarn('agent.session.message_cap_reached', {
@@ -268,28 +285,23 @@ export async function POST(req: NextRequest) {
       maxMessages: AGENT_CONFIG.maxMessagesPerSession,
       success: false,
     })
-    // Session hit 15 message cap during increment (race condition prevented)
     return new Response(JSON.stringify({
-      error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
+      error: 'Esta sessao atingiu o limite de 15 mensagens. Inicie uma nova analise para continuar.',
       action: 'new_session',
       messageCount: AGENT_CONFIG.maxMessagesPerSession,
       maxMessages: AGENT_CONFIG.maxMessagesPerSession,
     }), { status: 429 })
   }
 
-  // 5. Persist user message
   await appendMessage(session.id, 'user', message)
 
-  // 6. Build context
-  const history  = await getMessages(session.id)
-  const messages = trimMessages(
-    history.map(m => ({ role: m.role, content: m.content })),
+  const history = await getMessages(session.id)
+  const messages = toOpenAIHistory(
+    trimMessages(history.map((m) => ({ role: m.role, content: m.content }))),
   )
 
-  // If file was attached, inject it into the last user message content
   const lastMsg = messages[messages.length - 1]
-  if (file && fileMime && lastMsg.role === 'user') {
-    // The agent will call parse_file via tool use — we just note the file is available
+  if (file && fileMime && lastMsg?.role === 'user' && typeof lastMsg.content === 'string') {
     lastMsg.content += `\n\n[File attached: ${fileMime}]`
     session.agentState = {
       ...session.agentState,
@@ -311,7 +323,6 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // 7. Stream response
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -340,19 +351,14 @@ export async function POST(req: NextRequest) {
             break
           }
 
-          // TODO: Implement true streaming
-          // Current approach: stream: false, then word-chunk to client
-          // Problem: Slower than true streaming, but required for tool use loop
-          // Solution: Refactor to use SDK's streaming API with tool use handling
-          // See: https://docs.anthropic.com/en/api/messages-streaming
-          // Complexity: Need to buffer tool_use blocks, execute tools, then continue stream
-          const response = await callAnthropicWithRetry({
-            model:      AGENT_CONFIG.model,
+          const response = await callOpenAIWithRetry({
+            model: MODEL_CONFIG.agent,
             max_tokens: AGENT_CONFIG.maxTokens,
-            system:     buildSystemPrompt(session!),
-            tools:      TOOL_DEFINITIONS,
-            messages:   messages as Anthropic.MessageParam[],
-            stream:     false,
+            messages: [
+              { role: 'system', content: buildSystemPrompt(session!) },
+              ...messages,
+            ],
+            tools: TOOL_DEFINITIONS,
           }, 3, {
             sessionId: session!.id,
             appUserId,
@@ -360,55 +366,52 @@ export async function POST(req: NextRequest) {
             stateVersion: session!.stateVersion,
           })
 
-          // Track API usage (non-blocking)
+          const usage = getChatCompletionUsage(response)
           trackApiUsage({
             userId: appUserId,
             sessionId: session!.id,
-            inputTokens: response.usage.input_tokens,
-            outputTokens: response.usage.output_tokens,
+            model: MODEL_CONFIG.agent,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
             endpoint: 'agent',
-          }).catch(() => {}) // silently ignore tracking errors
+          }).catch(() => {})
 
-          let assistantText = ''
-
-          for (const block of response.content) {
-            if (block.type === 'text') {
-              assistantText += block.text
-              // Stream text char by char would be too granular — stream in word chunks
-              for (const word of block.text.split(' ')) {
-                send({ delta: word + ' ' })
-              }
-            }
-
-            if (block.type === 'tool_use') {
-              const toolResult = await dispatchTool(
-                block.name,
-                block.input as Record<string, unknown>,
-                session!,
-              )
-
-              // Append assistant turn + tool result to messages for the next loop
-              messages.push({ role: 'assistant', content: JSON.stringify(response.content) })
-              messages.push({
-                role: 'user',
-                content: JSON.stringify([{
-                  type:        'tool_result',
-                  tool_use_id: block.id,
-                  content:     toolResult,
-                }]),
-              })
-            }
-          }
+          const responseMessage = response.choices[0]?.message
+          const finishReason = response.choices[0]?.finish_reason
+          const assistantText = responseMessage?.content ?? ''
 
           if (assistantText) {
+            for (const word of assistantText.split(' ')) {
+              send({ delta: word + ' ' })
+            }
             await appendMessage(session!.id, 'assistant', assistantText)
           }
 
-          // Stop looping when the model stops using tools
-          continueLoop = response.stop_reason === 'tool_use'
+          const toolCalls = responseMessage?.tool_calls ?? []
+          continueLoop = finishReason === 'tool_calls' && toolCalls.length > 0
+
+          if (!continueLoop) {
+            break
+          }
+
+          messages.push(buildAssistantToolCallMessage(responseMessage!))
+
+          for (const toolCall of toolCalls) {
+            if (toolCall.type !== 'function') {
+              continue
+            }
+
+            const toolInput = JSON.parse(toolCall.function.arguments)
+            const toolResult = await dispatchTool(
+              toolCall.function.name,
+              toolInput as Record<string, unknown>,
+              session!,
+            )
+
+            messages.push(buildToolMessage(toolCall.id, toolResult))
+          }
         }
 
-        // Credit already consumed on session creation - no per-message consumption
         send({
           done: true,
           sessionId: session!.id,
@@ -442,22 +445,21 @@ export async function POST(req: NextRequest) {
           ...serializeError(err),
         })
 
-        // Provide specific error messages in Portuguese
         let errorMessage = 'Algo deu errado. Por favor, tente novamente.'
 
-        if (err instanceof Anthropic.APIError && err.status) {
+        if (err instanceof APIError && err.status) {
           const statusMessages: Record<number, string> = {
-            400: 'Erro na requisição. Por favor, tente novamente.',
-            401: 'Erro de configuração da IA. Entre em contato com o suporte.',
-            403: 'Acesso negado ao serviço de IA. Entre em contato com o suporte.',
-            429: 'O serviço de IA está sobrecarregado. Tente novamente em alguns segundos.',
-            500: 'O serviço de IA está temporariamente indisponível. Tente novamente.',
-            503: 'O serviço de IA está em manutenção. Tente novamente em alguns minutos.',
-            529: 'O serviço de IA está sobrecarregado. Tente novamente em alguns minutos.',
+            400: 'Erro na requisicao. Por favor, tente novamente.',
+            401: 'Erro de configuracao da IA. Entre em contato com o suporte.',
+            403: 'Acesso negado ao servico de IA. Entre em contato com o suporte.',
+            429: 'O servico de IA esta sobrecarregado. Tente novamente em alguns segundos.',
+            500: 'O servico de IA esta temporariamente indisponivel. Tente novamente.',
+            502: 'O servico de IA esta temporariamente indisponivel. Tente novamente.',
+            503: 'O servico de IA esta em manutencao. Tente novamente em alguns minutos.',
           }
           errorMessage = statusMessages[err.status] ?? errorMessage
         } else if (err instanceof Error && err.name === 'AbortError') {
-          errorMessage = 'A requisição demorou muito. Por favor, tente novamente.'
+          errorMessage = 'A requisicao demorou muito. Por favor, tente novamente.'
         }
 
         send({ error: errorMessage })
@@ -469,9 +471,9 @@ export async function POST(req: NextRequest) {
 
   return new Response(stream, {
     headers: {
-      'Content-Type':  'text/event-stream',
+      'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection':    'keep-alive',
+      Connection: 'keep-alive',
     },
   })
 }

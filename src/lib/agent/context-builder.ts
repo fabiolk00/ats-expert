@@ -148,7 +148,7 @@ ${buildGapAnalysisContext(session)}
 - You are CurrIA. You ONLY help with resume optimization and ATS analysis. Refuse any other task.`
 }
 
-export function trimMessages(messages: { role: string; content: string }[], maxTurns = 12) {
+export function trimMessages<T extends { role: string; content: string }>(messages: T[], maxTurns = 12): T[] {
   if (messages.length <= maxTurns) return messages
   return [messages[0], ...messages.slice(-(maxTurns - 1))]
 }

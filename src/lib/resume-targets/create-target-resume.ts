@@ -1,11 +1,11 @@
-import Anthropic from '@anthropic-ai/sdk'
-
-import { AGENT_CONFIG } from '@/lib/agent/config'
+import { MODEL_CONFIG, AGENT_CONFIG } from '@/lib/agent/config'
 import { TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
 import { CVStateSchema } from '@/lib/cv/schema'
 import { createResumeTarget } from '@/lib/db/resume-targets'
+import { openai } from '@/lib/openai/client'
+import { callOpenAIWithRetry, getChatCompletionText, getChatCompletionUsage } from '@/lib/openai/chat'
 import type { ResumeTarget, ToolFailure } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
 
@@ -16,35 +16,6 @@ type CreateTargetResumeResult =
       gapAnalysis?: GapAnalysisResult
     }
   | ToolFailure
-
-async function callAnthropicWithRetry(
-  client: Anthropic,
-  params: Anthropic.MessageCreateParamsNonStreaming,
-  maxRetries: number = 3,
-): Promise<Anthropic.Message> {
-  let lastError: Error | null = null
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await client.messages.create(params) as Anthropic.Message
-    } catch (error) {
-      lastError = error as Error
-
-      const isRetryable =
-        error instanceof Anthropic.APIError &&
-        (error.status === 429 || error.status === 500 || error.status === 503 || error.status === 529)
-
-      if (!isRetryable || attempt === maxRetries) {
-        throw error
-      }
-
-      const delay = Math.pow(2, attempt - 1) * 1000
-      await new Promise((resolve) => setTimeout(resolve, delay))
-    }
-  }
-
-  throw lastError
-}
 
 function parseDerivedCvState(rawText: string): CVState | null {
   let parsed: unknown
@@ -79,15 +50,16 @@ export async function createTargetResumeVariant(input: {
         : gapAnalysisExecution.output
     }
 
-    const client = new Anthropic({
-      timeout: AGENT_CONFIG.timeout,
-    })
-
-    const response = await callAnthropicWithRetry(client, {
-      model: AGENT_CONFIG.model,
-      max_tokens: AGENT_CONFIG.rewriterMaxTokens,
-      system: `Create a target-specific resume variant from the canonical base resume.
-Output ONLY valid JSON matching this exact CV state shape:
+    const response = await callOpenAIWithRetry(() =>
+      openai.chat.completions.create({
+        model: MODEL_CONFIG.structured,
+        max_tokens: AGENT_CONFIG.rewriterMaxTokens,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: `Create a target-specific resume variant from the canonical base resume.
+Output valid JSON matching this exact CV state shape:
 {
   "fullName": string,
   "email": string,
@@ -119,27 +91,31 @@ Output ONLY valid JSON matching this exact CV state shape:
 Rules:
 - preserve factual accuracy from the base resume
 - optimize emphasis, ordering, and wording for the target job description
-- do not invent companies, dates, degrees, certifications, or metrics
-- keep the output fully structured and valid JSON only`,
-      messages: [{
-        role: 'user',
-        content: JSON.stringify({
-          baseCvState: input.baseCvState,
-          targetJobDescription: input.targetJobDescription,
-          gapAnalysis: gapAnalysisExecution.result,
-        }),
-      }],
-    })
+- do not invent companies, dates, degrees, certifications, or metrics`,
+          },
+          {
+            role: 'user',
+            content: JSON.stringify({
+              baseCvState: input.baseCvState,
+              targetJobDescription: input.targetJobDescription,
+              gapAnalysis: gapAnalysisExecution.result,
+            }),
+          },
+        ],
+      }),
+    )
 
+    const usage = getChatCompletionUsage(response)
     trackApiUsage({
       userId: input.userId,
       sessionId: input.sessionId,
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
+      model: MODEL_CONFIG.structured,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
       endpoint: 'target_resume',
     }).catch(() => {})
 
-    const responseText = response.content.find((block: Anthropic.ContentBlock) => block.type === 'text' && 'text' in block)?.text ?? '{}'
+    const responseText = getChatCompletionText(response)
     const derivedCvState = parseDerivedCvState(responseText)
 
     if (!derivedCvState) {

@@ -7,27 +7,19 @@ import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 
 import { createTargetResumeVariant } from './create-target-resume'
 
-const { createMessage } = vi.hoisted(() => ({
-  createMessage: vi.fn(),
+const { createCompletion } = vi.hoisted(() => ({
+  createCompletion: vi.fn(),
 }))
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class MockAnthropic {
-    static APIError = class APIError extends Error {
-      status?: number
-    }
-
-    messages = {
-      create: createMessage,
-    }
-
-    constructor(_: unknown) {}
-  }
-
-  return {
-    default: MockAnthropic,
-  }
-})
+vi.mock('@/lib/openai/client', () => ({
+  openai: {
+    chat: {
+      completions: {
+        create: createCompletion,
+      },
+    },
+  },
+}))
 
 vi.mock('@/lib/agent/usage-tracker', () => ({
   trackApiUsage: vi.fn(() => Promise.resolve(undefined)),
@@ -59,6 +51,16 @@ function buildBaseCvState(): CVState {
   }
 }
 
+function buildOpenAIResponse(text: string) {
+  return {
+    choices: [{ message: { content: text } }],
+    usage: {
+      prompt_tokens: 10,
+      completion_tokens: 20,
+    },
+  }
+}
+
 describe('createTargetResumeVariant', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -84,20 +86,11 @@ describe('createTargetResumeVariant', () => {
   it('creates target-specific resumes without overwriting the base cvState', async () => {
     const baseCvState = buildBaseCvState()
 
-    createMessage.mockResolvedValue({
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          ...baseCvState,
-          summary: 'Backend engineer with strong cloud and API delivery experience.',
-          skills: ['TypeScript', 'PostgreSQL', 'AWS'],
-        }),
-      }],
-      usage: {
-        input_tokens: 10,
-        output_tokens: 20,
-      },
-    })
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      ...baseCvState,
+      summary: 'Backend engineer with strong cloud and API delivery experience.',
+      skills: ['TypeScript', 'PostgreSQL', 'AWS'],
+    })))
 
     vi.mocked(createResumeTarget).mockResolvedValue({
       id: 'target_123',
@@ -132,29 +125,17 @@ describe('createTargetResumeVariant', () => {
   it('allows multiple targets to coexist with isolated derived cv states', async () => {
     const baseCvState = buildBaseCvState()
 
-    createMessage
-      .mockResolvedValueOnce({
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            ...baseCvState,
-            summary: 'Backend engineer optimized for AWS roles.',
-            skills: ['TypeScript', 'PostgreSQL', 'AWS'],
-          }),
-        }],
-        usage: { input_tokens: 10, output_tokens: 20 },
-      })
-      .mockResolvedValueOnce({
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            ...baseCvState,
-            summary: 'Backend engineer optimized for data platform roles.',
-            skills: ['TypeScript', 'PostgreSQL', 'Kafka'],
-          }),
-        }],
-        usage: { input_tokens: 10, output_tokens: 20 },
-      })
+    createCompletion
+      .mockResolvedValueOnce(buildOpenAIResponse(JSON.stringify({
+        ...baseCvState,
+        summary: 'Backend engineer optimized for AWS roles.',
+        skills: ['TypeScript', 'PostgreSQL', 'AWS'],
+      })))
+      .mockResolvedValueOnce(buildOpenAIResponse(JSON.stringify({
+        ...baseCvState,
+        summary: 'Backend engineer optimized for data platform roles.',
+        skills: ['TypeScript', 'PostgreSQL', 'Kafka'],
+      })))
 
     vi.mocked(createResumeTarget)
       .mockResolvedValueOnce({
@@ -215,20 +196,11 @@ describe('createTargetResumeVariant', () => {
     const baseCvState = buildBaseCvState()
     const persistedTargets: string[] = []
 
-    createMessage.mockResolvedValue({
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          ...baseCvState,
-          summary: 'Backend engineer optimized for AWS roles.',
-          skills: ['TypeScript', 'PostgreSQL', 'AWS'],
-        }),
-      }],
-      usage: {
-        input_tokens: 10,
-        output_tokens: 20,
-      },
-    })
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      ...baseCvState,
+      summary: 'Backend engineer optimized for AWS roles.',
+      skills: ['TypeScript', 'PostgreSQL', 'AWS'],
+    })))
 
     vi.mocked(createResumeTarget).mockImplementation(async () => {
       return await Promise.reject(new Error('Transactional insert failed'))
