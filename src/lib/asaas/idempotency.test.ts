@@ -37,7 +37,7 @@ describe('Asaas webhook idempotency', () => {
       event: 'PAYMENT_RECEIVED' as const,
       payment: {
         id: 'pay_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_123',
+        externalReference: 'curria:v1:c:chk_123',
         subscription: null,
         amount: 1900,
       },
@@ -49,7 +49,7 @@ describe('Asaas webhook idempotency', () => {
       payment: {
         subscription: null,
         amount: 1900,
-        externalReference: 'curria:v1:u:usr_123:c:chk_123',
+        externalReference: 'curria:v1:c:chk_123',
         id: 'pay_123',
       },
       event: 'PAYMENT_RECEIVED' as const,
@@ -97,7 +97,7 @@ describe('Asaas webhook idempotency', () => {
       amount: 1900,
       payment: {
         id: 'pay_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_123',
+        externalReference: 'curria:v1:c:chk_123',
         subscription: null,
         amount: 1900,
       },
@@ -120,7 +120,7 @@ describe('Asaas webhook idempotency', () => {
       amount: 3900,
       subscription: {
         id: 'sub_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_123',
+        externalReference: 'curria:v1:c:chk_123',
         status: 'ACTIVE',
         nextDueDate: '2026-04-29',
       },

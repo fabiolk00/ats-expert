@@ -69,7 +69,7 @@ function normalizeExternalReference(value: string | undefined): JsonValue {
   return {
     raw: null,
     version: parsed.version,
-    appUserId: parsed.appUserId,
+    appUserId: parsed.version === 'legacy' ? parsed.appUserId : null,
     checkoutReference: parsed.checkoutReference ?? null,
   }
 }

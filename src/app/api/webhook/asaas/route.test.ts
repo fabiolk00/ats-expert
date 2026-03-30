@@ -48,7 +48,7 @@ describe('Asaas webhook route', () => {
     const response = await POST(createRequest({
       event: 'PAYMENT_RECEIVED',
       amount: 1900,
-      payment: { id: 'pay_123', externalReference: 'curria:v1:u:usr_123:c:chk_123', amount: 1900 },
+      payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', amount: 1900 },
     }, 'wrong-token'))
 
     expect(response.status).toBe(401)
@@ -65,7 +65,7 @@ describe('Asaas webhook route', () => {
     const response = await POST(createRequest({
       event: 'PAYMENT_RECEIVED',
       amount: 1900,
-      payment: { id: 'pay_123', externalReference: 'curria:v1:u:usr_123:c:chk_123', amount: 1900 },
+      payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', amount: 1900 },
     }))
 
     expect(response.status).toBe(200)
@@ -77,7 +77,7 @@ describe('Asaas webhook route', () => {
     const response = await POST(createRequest({
       event: 'PAYMENT_RECEIVED',
       amount: 1900,
-      payment: { id: 'pay_123', externalReference: 'curria:v1:u:usr_123:c:chk_123', amount: 1900 },
+      payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', amount: 1900 },
     }))
 
     expect(response.status).toBe(200)
@@ -85,7 +85,7 @@ describe('Asaas webhook route', () => {
     expect(handlePaymentReceived).toHaveBeenCalledWith({
       event: 'PAYMENT_RECEIVED',
       amount: 1900,
-      payment: { id: 'pay_123', externalReference: 'curria:v1:u:usr_123:c:chk_123', amount: 1900 },
+      payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', amount: 1900 },
     }, 'fp_123')
   })
 
@@ -100,7 +100,7 @@ describe('Asaas webhook route', () => {
     const response = await POST(createRequest({
       event: 'PAYMENT_RECEIVED',
       amount: 1900,
-      payment: { id: 'pay_123', externalReference: 'curria:v1:u:usr_123:c:chk_missing', amount: 1900 },
+      payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_missing', amount: 1900 },
     }))
 
     expect(response.status).toBe(400)
@@ -117,7 +117,7 @@ describe('Asaas webhook route', () => {
     const response = await POST(createRequest({
       event: 'PAYMENT_RECEIVED',
       amount: 1900,
-      payment: { id: 'pay_123', externalReference: 'curria:v1:u:usr_123:c:chk_123', amount: 1900 },
+      payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', amount: 1900 },
     }))
 
     expect(response.status).toBe(500)
@@ -139,7 +139,7 @@ describe('Asaas webhook route', () => {
     const payload = {
       event: 'PAYMENT_RECEIVED' as const,
       amount: 1900,
-      payment: { id: 'pay_123', externalReference: 'curria:v1:u:usr_123:c:chk_123', amount: 1900 },
+      payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', amount: 1900 },
     }
 
     const firstResponse = await POST(createRequest(payload))
@@ -171,7 +171,7 @@ describe('Asaas webhook route', () => {
     const payload = {
       event: 'PAYMENT_RECEIVED' as const,
       amount: 1900,
-      payment: { id: 'pay_123', externalReference: 'curria:v1:u:usr_123:c:chk_123', amount: 1900 },
+      payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', amount: 1900 },
     }
 
     const firstRequest = POST(createRequest(payload))

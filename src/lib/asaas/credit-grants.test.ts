@@ -44,7 +44,7 @@ describe('billing credit grants', () => {
       amount: 1900,
       payment: {
         id: 'pay_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_123',
+        externalReference: 'curria:v1:c:chk_123',
         subscription: null,
         amount: 1900,
       },
@@ -139,7 +139,7 @@ describe('billing credit grants', () => {
       amount: 1900,
       payment: {
         id: 'pay_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_123',
+        externalReference: 'curria:v1:c:chk_123',
       },
     }
 
@@ -214,7 +214,7 @@ describe('billing credit grants', () => {
       amount: 1900,
       payment: {
         id: 'pay_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_missing',
+        externalReference: 'curria:v1:c:chk_missing',
         subscription: null,
         amount: 1900,
       },

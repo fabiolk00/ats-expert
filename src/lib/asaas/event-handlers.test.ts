@@ -65,7 +65,7 @@ describe('Asaas billing event handlers', () => {
       amount: 1900,
       payment: {
         id: 'pay_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_123',
+        externalReference: 'curria:v1:c:chk_123',
         subscription: null,
         amount: 1900,
       },
@@ -79,7 +79,7 @@ describe('Asaas billing event handlers', () => {
         amount: 1900,
         payment: {
           id: 'pay_123',
-          externalReference: 'curria:v1:u:usr_123:c:chk_123',
+          externalReference: 'curria:v1:c:chk_123',
           subscription: null,
           amount: 1900,
         },
@@ -100,7 +100,7 @@ describe('Asaas billing event handlers', () => {
       amount: 1900,
       payment: {
         id: 'pay_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_123',
+        externalReference: 'curria:v1:c:chk_123',
         subscription: null,
         amount: 1900,
       },
@@ -150,7 +150,7 @@ describe('Asaas billing event handlers', () => {
       amount: 9700,
       subscription: {
         id: 'sub_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_234',
+        externalReference: 'curria:v1:c:chk_234',
         nextDueDate: '2099-04-29',
       },
     }, 'fp_234')
@@ -163,7 +163,7 @@ describe('Asaas billing event handlers', () => {
         amount: 9700,
         subscription: {
           id: 'sub_123',
-          externalReference: 'curria:v1:u:usr_123:c:chk_234',
+          externalReference: 'curria:v1:c:chk_234',
           nextDueDate: '2099-04-29',
         },
       },
@@ -201,7 +201,7 @@ describe('Asaas billing event handlers', () => {
       amount: 9700,
       subscription: {
         id: 'sub_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_234',
+        externalReference: 'curria:v1:c:chk_234',
         nextDueDate: '2099-04-29',
       },
     }, 'fp_mark_subscription_failure')).rejects.toThrow('failed to mark subscription active')
@@ -235,7 +235,7 @@ describe('Asaas billing event handlers', () => {
       amount: 3900,
       subscription: {
         id: 'sub_123',
-        externalReference: 'curria:v1:u:usr_123:c:chk_234',
+        externalReference: 'curria:v1:c:chk_234',
         nextDueDate: '2000-01-01',
       },
     }, 'fp_past')).rejects.toMatchObject({

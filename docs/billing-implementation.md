@@ -48,7 +48,7 @@ CurrIA billing is webhook-driven.
 
 1. Validate authenticated user and requested paid plan.
 2. Create a `billing_checkouts` row in `pending`.
-3. Format `externalReference` as `curria:v1:u:<appUserId>:c:<checkoutReference>`.
+3. Format `externalReference` as `curria:v1:c:<checkoutReference>`.
 4. Call Asaas with that `externalReference`.
 5. If Asaas succeeds, mark the checkout `created`.
 6. If Asaas fails, mark the checkout `failed`.
@@ -89,7 +89,11 @@ CurrIA billing is webhook-driven.
 
 ### Standard v1
 
-- `curria:v1:u:<appUserId>:c:<checkoutReference>`
+- `curria:v1:c:<checkoutReference>`
+
+Operational note:
+
+- The parser still accepts the previously-issued `curria:v1:u:<appUserId>:c:<checkoutReference>` shape for webhook compatibility, but new checkouts always emit the shorter v1 format because Asaas enforces a 100-character maximum on `externalReference`.
 
 ### Temporary legacy support
 

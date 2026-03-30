@@ -121,13 +121,6 @@ function assertInitialCheckout(
     )
   }
 
-  if (checkout.userId !== parsedReference.appUserId) {
-    throw createBillingError(
-      TOOL_ERROR_CODES.VALIDATION_ERROR,
-      'Billing checkout does not match the referenced user.',
-    )
-  }
-
   if (checkout.checkoutReference !== parsedReference.checkoutReference) {
     throw createBillingError(
       TOOL_ERROR_CODES.VALIDATION_ERROR,

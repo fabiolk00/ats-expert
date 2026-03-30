@@ -88,7 +88,7 @@ curl -X POST http://localhost:3000/api/webhook/asaas \
     "amount": 1900,
     "payment": {
       "id": "pay_staging_001",
-      "externalReference": "curria:v1:u:usr_staging_001:c:550e8400-e29b-41d4-a716-446655440000",
+      "externalReference": "curria:v1:c:550e8400-e29b-41d4-a716-446655440000",
       "subscription": null,
       "amount": 1900
     }
@@ -136,7 +136,7 @@ curl -X POST http://localhost:3000/api/webhook/asaas \
     "amount": 1900,
     "payment": {
       "id": "pay_staging_001",
-      "externalReference": "curria:v1:u:usr_staging_001:c:550e8400-e29b-41d4-a716-446655440000",
+      "externalReference": "curria:v1:c:550e8400-e29b-41d4-a716-446655440000",
       "subscription": null,
       "amount": 1900
     }
@@ -234,7 +234,7 @@ curl -X POST http://localhost:3000/api/webhook/asaas \
     \"amount\": 3900,
     \"subscription\": {
       \"id\": \"sub_staging_001\",
-      \"externalReference\": \"curria:v1:u:usr_staging_001:c:${CHECKOUT_REF}\",
+      \"externalReference\": \"curria:v1:c:${CHECKOUT_REF}\",
       \"nextDueDate\": \"$(date -d '+30 days' +%Y-%m-%d)\"
     }
   }"
@@ -460,7 +460,7 @@ curl -X POST http://localhost:3000/api/webhook/asaas \
     "amount": 1900,
     "payment": {
       "id": "pay_staging_002",
-      "externalReference": "curria:v1:u:usr_staging_001:c:<new_checkout_ref>",
+      "externalReference": "curria:v1:c:<new_checkout_ref>",
       "subscription": null,
       "amount": 1900
     }
@@ -508,7 +508,7 @@ curl -X POST http://localhost:3000/api/webhook/asaas \
     "amount": 1900,
     "payment": {
       "id": "pay_staging_003",
-      "externalReference": "curria:v1:u:usr_staging_001:c:<checkout_ref>",
+      "externalReference": "curria:v1:c:<checkout_ref>",
       "subscription": null,
       "amount": 1900
     }
