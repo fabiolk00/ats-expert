@@ -7,32 +7,22 @@ import ATSScoreBadge from "@/components/ats-score-badge"
 import PhaseBadge from "@/components/phase-badge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import {
   applyGapAction,
   compareSnapshots,
+  createTarget,
   generateResume,
   getDownloadUrls,
   getSessionWorkspace,
   isGeneratedOutputReady,
   listVersions,
   manualEditBaseSection,
-  createTarget,
 } from "@/lib/dashboard/workspace-client"
-import type {
-  ManualEditInput,
-  ManualEditSection,
-  ManualEditSectionData,
-} from "@/types/agent"
+import type { ManualEditInput, ManualEditSection, ManualEditSectionData } from "@/types/agent"
 import type {
   CompareSnapshotRef,
   CompareSnapshotsResponse,
@@ -125,10 +115,10 @@ function buildCompareDefaultsForTarget(targetId: string): {
   }
 }
 
-export function ResumeWorkspace({
-  initialSessionId,
-  userName,
-}: ResumeWorkspaceProps) {
+const panelClassName =
+  "rounded-[2rem] border border-border/60 bg-card/85 py-0 shadow-[0_28px_90px_-70px_oklch(var(--foreground)/0.9)]"
+
+export function ResumeWorkspace({ initialSessionId, userName }: ResumeWorkspaceProps) {
   const [sessionId, setSessionId] = useState<string | undefined>(initialSessionId)
   const [workspace, setWorkspace] = useState<SessionWorkspace | null>(null)
   const [versions, setVersions] = useState<SerializedTimelineEntry[]>([])
@@ -344,8 +334,8 @@ export function ResumeWorkspace({
 
   return (
     <>
-      <div className="grid min-h-[calc(100vh-4rem)] gap-6 p-4 lg:grid-cols-[minmax(0,1.25fr)_420px] lg:p-6">
-        <div className="overflow-hidden rounded-xl border border-border bg-background">
+      <div className="grid min-h-[calc(100vh-5rem)] gap-6 p-4 lg:grid-cols-[minmax(0,1.15fr)_420px] lg:p-8">
+        <div className="overflow-hidden rounded-[2rem] border border-border/60 bg-background/90 shadow-[0_32px_110px_-75px_oklch(var(--foreground)/0.9)] backdrop-blur">
           <ChatInterface
             sessionId={sessionId}
             userName={userName}
@@ -360,49 +350,51 @@ export function ResumeWorkspace({
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
+          <Card className={panelClassName}>
+            <CardHeader className="pt-8">
               <CardTitle>Base canonica</CardTitle>
               <CardDescription>
                 Esta area reflete o estado canonico atual da sessao e sempre volta do backend.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pb-8">
               {workspace ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
                     <PhaseBadge phase={workspace.session.phase} />
-                    {workspace.session.atsScore && (
+                    {workspace.session.atsScore ? (
                       <ATSScoreBadge score={workspace.session.atsScore.total} />
-                    )}
-                    <Badge variant="outline">
+                    ) : null}
+                    <Badge variant="outline" className="rounded-full">
                       Versao {workspace.session.stateVersion}
                     </Badge>
-                    {isStreaming && (
-                      <Badge variant="outline" className="gap-1">
+                    {isStreaming ? (
+                      <Badge variant="outline" className="gap-1 rounded-full">
                         <Spinner className="size-3" />
                         SSE ativo
                       </Badge>
-                    )}
-                    {activeMutation === "generate" && (
-                      <Badge variant="outline" className="gap-1">
+                    ) : null}
+                    {activeMutation === "generate" ? (
+                      <Badge variant="outline" className="gap-1 rounded-full">
                         <Loader2 className="size-3 animate-spin" />
                         Gerando
                       </Badge>
-                    )}
+                    ) : null}
                   </div>
 
-                  <div className="space-y-2 rounded-lg border border-border p-4">
+                  <div className="space-y-2 rounded-[1.5rem] border border-border/60 bg-background/70 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">{workspace.session.cvState.fullName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {workspace.session.cvState.email} {workspace.session.cvState.phone ? `• ${workspace.session.cvState.phone}` : ""}
+                          {workspace.session.cvState.email}
+                          {workspace.session.cvState.phone ? ` • ${workspace.session.cvState.phone}` : ""}
                         </p>
                       </div>
                       <Button
                         variant="outline"
                         size="sm"
+                        className="rounded-full"
                         disabled={isBusy}
                         onClick={() => openManualEdit("contact")}
                       >
@@ -411,16 +403,18 @@ export function ResumeWorkspace({
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {workspace.session.cvState.linkedin || "LinkedIn ausente"} {workspace.session.cvState.location ? `• ${workspace.session.cvState.location}` : ""}
+                      {workspace.session.cvState.linkedin || "LinkedIn ausente"}
+                      {workspace.session.cvState.location ? ` • ${workspace.session.cvState.location}` : ""}
                     </p>
                   </div>
 
-                  <div className="space-y-2 rounded-lg border border-border p-4">
+                  <div className="space-y-2 rounded-[1.5rem] border border-border/60 bg-background/70 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <h3 className="text-sm font-semibold">Resumo</h3>
                       <Button
                         variant="outline"
                         size="sm"
+                        className="rounded-full"
                         disabled={isBusy}
                         onClick={() => openManualEdit("summary")}
                       >
@@ -428,17 +422,18 @@ export function ResumeWorkspace({
                         Editar
                       </Button>
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm leading-6 text-muted-foreground">
                       {workspace.session.cvState.summary || "Resumo ainda nao preenchido."}
                     </p>
                   </div>
 
-                  <div className="space-y-2 rounded-lg border border-border p-4">
+                  <div className="space-y-2 rounded-[1.5rem] border border-border/60 bg-background/70 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <h3 className="text-sm font-semibold">Skills</h3>
                       <Button
                         variant="outline"
                         size="sm"
+                        className="rounded-full"
                         disabled={isBusy}
                         onClick={() => openManualEdit("skills")}
                       >
@@ -449,7 +444,7 @@ export function ResumeWorkspace({
                     <div className="flex flex-wrap gap-2">
                       {workspace.session.cvState.skills.length > 0 ? (
                         workspace.session.cvState.skills.map((skill) => (
-                          <Badge key={skill} variant="secondary">
+                          <Badge key={skill} variant="secondary" className="rounded-full">
                             {skill}
                           </Badge>
                         ))
@@ -462,41 +457,43 @@ export function ResumeWorkspace({
                   <div className="grid gap-3 sm:grid-cols-3">
                     <button
                       type="button"
-                      className="rounded-lg border border-border p-4 text-left"
+                      className="rounded-[1.5rem] border border-border/60 bg-background/70 p-4 text-left transition-colors hover:bg-accent"
                       disabled={isBusy}
                       onClick={() => openManualEdit("experience")}
                     >
-                      <p className="text-xs uppercase text-muted-foreground">Experiencia</p>
-                      <p className="mt-1 text-lg font-semibold">
-                        {workspace.session.cvState.experience.length}
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Experiencia
                       </p>
+                      <p className="mt-2 text-2xl font-bold">{workspace.session.cvState.experience.length}</p>
                     </button>
                     <button
                       type="button"
-                      className="rounded-lg border border-border p-4 text-left"
+                      className="rounded-[1.5rem] border border-border/60 bg-background/70 p-4 text-left transition-colors hover:bg-accent"
                       disabled={isBusy}
                       onClick={() => openManualEdit("education")}
                     >
-                      <p className="text-xs uppercase text-muted-foreground">Educacao</p>
-                      <p className="mt-1 text-lg font-semibold">
-                        {workspace.session.cvState.education.length}
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Educacao
                       </p>
+                      <p className="mt-2 text-2xl font-bold">{workspace.session.cvState.education.length}</p>
                     </button>
                     <button
                       type="button"
-                      className="rounded-lg border border-border p-4 text-left"
+                      className="rounded-[1.5rem] border border-border/60 bg-background/70 p-4 text-left transition-colors hover:bg-accent"
                       disabled={isBusy}
                       onClick={() => openManualEdit("certifications")}
                     >
-                      <p className="text-xs uppercase text-muted-foreground">Certificacoes</p>
-                      <p className="mt-1 text-lg font-semibold">
+                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                        Certificacoes
+                      </p>
+                      <p className="mt-2 text-2xl font-bold">
                         {workspace.session.cvState.certifications?.length ?? 0}
                       </p>
                     </button>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <Button disabled={isBusy} onClick={() => void handleGenerateBase()}>
+                    <Button className="rounded-full" disabled={isBusy} onClick={() => void handleGenerateBase()}>
                       {activeMutation === "generate" ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
@@ -506,6 +503,7 @@ export function ResumeWorkspace({
                     </Button>
                     <Button
                       variant="outline"
+                      className="rounded-full"
                       disabled={!baseOutputReady || isBusy}
                       onClick={() => void handleDownload()}
                     >
@@ -515,15 +513,15 @@ export function ResumeWorkspace({
                   </div>
                 </>
               ) : (
-                <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                <div className="rounded-[1.5rem] border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
                   Envie sua primeira mensagem no chat para criar a sessao e carregar o workspace.
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          <Card className={panelClassName}>
+            <CardHeader className="pt-8">
               <CardTitle className="flex items-center gap-2">
                 <History className="h-4 w-4" />
                 Timeline de versoes
@@ -532,29 +530,28 @@ export function ResumeWorkspace({
                 Historico imutavel da base canonica e das derivacoes target.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!sessionId || isBusy}
-                  onClick={() => {
-                    setCompareDefaults({})
-                    setCompareResult(null)
-                    setCompareOpen(true)
-                  }}
-                >
-                  <GitCompare className="mr-2 h-4 w-4" />
-                  Abrir comparador
-                </Button>
-              </div>
+            <CardContent className="space-y-4 pb-8">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                disabled={!sessionId || isBusy}
+                onClick={() => {
+                  setCompareDefaults({})
+                  setCompareResult(null)
+                  setCompareOpen(true)
+                }}
+              >
+                <GitCompare className="mr-2 h-4 w-4" />
+                Abrir comparador
+              </Button>
 
               {timelinePreview.length > 0 ? (
                 <div className="space-y-3">
                   {timelinePreview.map((version) => (
                     <div
                       key={version.id}
-                      className="rounded-lg border border-border p-4"
+                      className="rounded-[1.5rem] border border-border/60 bg-background/70 p-4"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -563,36 +560,36 @@ export function ResumeWorkspace({
                             {formatDateTime(version.createdAt)}
                           </p>
                         </div>
-                        <Badge variant="outline">{version.scope}</Badge>
+                        <Badge variant="outline" className="rounded-full">
+                          {version.scope}
+                        </Badge>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                <div className="rounded-[1.5rem] border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
                   As versoes aparecerao aqui depois da ingestao ou de atualizacoes canonicas.
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
+          <Card className={panelClassName}>
+            <CardHeader className="pt-8">
               <CardTitle>Targets e acoes</CardTitle>
               <CardDescription>
                 Variantes derivadas ficam separadas da base. Toda acao recarrega o workspace.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {gapAnalysis && (
-                <div className="space-y-3 rounded-lg border border-border p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold">Gap analysis</p>
-                      <p className="text-xs text-muted-foreground">
-                        Match score: {gapAnalysis.matchScore}
-                      </p>
-                    </div>
+            <CardContent className="space-y-4 pb-8">
+              {gapAnalysis ? (
+                <div className="space-y-3 rounded-[1.5rem] border border-border/60 bg-background/70 p-4">
+                  <div>
+                    <p className="text-sm font-semibold">Gap analysis</p>
+                    <p className="text-xs text-muted-foreground">
+                      Match score: {gapAnalysis.matchScore}
+                    </p>
                   </div>
 
                   {gapAnalysis.missingSkills.slice(0, 3).map((item) => (
@@ -601,6 +598,7 @@ export function ResumeWorkspace({
                       <Button
                         variant="outline"
                         size="sm"
+                        className="rounded-full"
                         disabled={isBusy}
                         onClick={() => void handleGapAction("missing_skill", item)}
                       >
@@ -615,6 +613,7 @@ export function ResumeWorkspace({
                       <Button
                         variant="outline"
                         size="sm"
+                        className="rounded-full"
                         disabled={isBusy}
                         onClick={() => void handleGapAction("weak_area", item)}
                       >
@@ -629,6 +628,7 @@ export function ResumeWorkspace({
                       <Button
                         variant="outline"
                         size="sm"
+                        className="rounded-full"
                         disabled={isBusy}
                         onClick={() => void handleGapAction("suggestion", item)}
                       >
@@ -637,9 +637,9 @@ export function ResumeWorkspace({
                     </div>
                   ))}
                 </div>
-              )}
+              ) : null}
 
-              <div className="space-y-3 rounded-lg border border-border p-4">
+              <div className="space-y-3 rounded-[1.5rem] border border-border/60 bg-background/70 p-4">
                 <p className="text-sm font-semibold">Criar novo target</p>
                 <Textarea
                   value={targetJobDescription}
@@ -649,6 +649,7 @@ export function ResumeWorkspace({
                   onChange={(event) => setTargetJobDescription(event.target.value)}
                 />
                 <Button
+                  className="rounded-full"
                   disabled={!sessionId || !targetJobDescription.trim() || isBusy}
                   onClick={() => void handleCreateTarget()}
                 >
@@ -665,22 +666,23 @@ export function ResumeWorkspace({
                     const targetReady = isGeneratedOutputReady(target.generatedOutput)
 
                     return (
-                      <div key={target.id} className="space-y-3 rounded-lg border border-border p-4">
+                      <div
+                        key={target.id}
+                        className="space-y-3 rounded-[1.5rem] border border-border/60 bg-background/70 p-4"
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div className="space-y-1">
-                            <p className="text-sm font-semibold">
-                              Target {target.id.slice(0, 8)}
-                            </p>
+                            <p className="text-sm font-semibold">Target {target.id.slice(0, 8)}</p>
                             <p className="text-xs text-muted-foreground">
                               Atualizado em {formatDateTime(target.updatedAt)}
                             </p>
                           </div>
-                          <Badge variant="outline">
+                          <Badge variant="outline" className="rounded-full">
                             {target.gapAnalysis ? `Match ${target.gapAnalysis.matchScore}` : "Sem gap"}
                           </Badge>
                         </div>
 
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm leading-6 text-muted-foreground">
                           {shortenText(target.targetJobDescription)}
                         </p>
 
@@ -688,6 +690,7 @@ export function ResumeWorkspace({
                           <Button
                             variant="outline"
                             size="sm"
+                            className="rounded-full"
                             disabled={isBusy}
                             onClick={() => void handleGenerateTarget(target.id)}
                           >
@@ -697,6 +700,7 @@ export function ResumeWorkspace({
                           <Button
                             variant="outline"
                             size="sm"
+                            className="rounded-full"
                             disabled={!targetReady || isBusy}
                             onClick={() => void handleDownload(target.id)}
                           >
@@ -706,6 +710,7 @@ export function ResumeWorkspace({
                           <Button
                             variant="outline"
                             size="sm"
+                            className="rounded-full"
                             disabled={isBusy}
                             onClick={() => handleOpenCompareWithTarget(target.id)}
                           >
@@ -717,7 +722,7 @@ export function ResumeWorkspace({
                     )
                   })
                 ) : (
-                  <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                  <div className="rounded-[1.5rem] border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
                     Nenhum target criado ainda para esta sessao.
                   </div>
                 )}
@@ -725,18 +730,17 @@ export function ResumeWorkspace({
             </CardContent>
           </Card>
 
-          {(errorMessage || statusMessage) && (
-            <Card>
+          {errorMessage || statusMessage ? (
+            <Card className={panelClassName}>
               <CardContent className="pt-6">
-                {errorMessage && (
+                {errorMessage ? (
                   <p className="text-sm text-destructive">{errorMessage}</p>
-                )}
-                {!errorMessage && statusMessage && (
+                ) : (
                   <p className="text-sm text-muted-foreground">{statusMessage}</p>
                 )}
               </CardContent>
             </Card>
-          )}
+          ) : null}
         </div>
       </div>
 

@@ -37,6 +37,7 @@
   "exclude": [
     "node_modules",
     "v0",
-    "temp-figma-import"
+    "temp-figma-import",
+    "modernize-design-files"
   ]
 }

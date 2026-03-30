@@ -27,7 +27,7 @@ const plans = [
     slug: "pro" as const,
     popular: false,
   },
-]
+] as const
 
 const CHECKOUT_ERROR_MESSAGE = "Nao foi possivel iniciar o checkout. Tente novamente."
 
@@ -169,7 +169,7 @@ export default function PricingCards() {
   }, [handleCheckout, isLoaded, isSignedIn, router, searchParams])
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3">
+    <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3">
       {plans.map((plan) => {
         const config = PLANS[plan.slug]
         const period = config.billing === "monthly" ? "/mes" : ""
@@ -178,42 +178,42 @@ export default function PricingCards() {
           <Card
             key={config.name}
             className={cn(
-              "relative flex h-full flex-col border-border/60 bg-card/80 shadow-sm transition-all",
+              "relative flex h-full flex-col rounded-[2rem] border border-border/60 bg-card/85 py-0 shadow-[0_28px_90px_-65px_oklch(var(--foreground)/0.8)] transition-all",
               plan.popular
-                ? "border-primary/70 shadow-xl shadow-primary/10"
-                : "hover:-translate-y-1 hover:shadow-lg",
+                ? "border-primary/70 lg:scale-[1.03]"
+                : "hover:-translate-y-1 hover:border-border hover:shadow-xl",
             )}
           >
-            {plan.popular && (
-              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-4">
+            {plan.popular ? (
+              <Badge className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-[11px] uppercase tracking-[0.2em]">
                 Mais popular
               </Badge>
-            )}
+            ) : null}
 
             <CardHeader className="pb-2 pt-8 text-center">
-              <CardTitle className="text-xl">{config.name}</CardTitle>
+              <CardTitle className="text-2xl">{config.name}</CardTitle>
               <CardDescription>{config.description}</CardDescription>
             </CardHeader>
 
             <CardContent className="flex flex-1 flex-col justify-between text-center">
-              <div className="mb-6">
-                <span className="text-4xl font-bold">{formatPrice(config.price)}</span>
+              <div className="mb-8">
+                <span className="text-5xl font-black tracking-tight">{formatPrice(config.price)}</span>
                 <span className="text-muted-foreground">{period}</span>
               </div>
 
-              <ul className="space-y-3 text-left">
+              <ul className="space-y-4 text-left">
                 {config.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-3">
-                    <Check className="h-4 w-4 flex-shrink-0 text-primary" />
+                  <li key={feature} className="flex items-start gap-3">
+                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                     <span className="text-sm font-medium">{feature}</span>
                   </li>
                 ))}
               </ul>
             </CardContent>
 
-            <CardFooter>
+            <CardFooter className="pb-8">
               <Button
-                className="w-full rounded-full"
+                className="h-12 w-full rounded-full font-semibold"
                 variant={plan.popular ? "default" : "outline"}
                 onClick={() => handleCheckout(plan.slug)}
                 disabled={!isLoaded || loading !== null}

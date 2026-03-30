@@ -2,22 +2,45 @@
 
 import { SignedIn, UserButton } from "@clerk/nextjs"
 import { Menu, Moon, Sun } from "lucide-react"
+import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 
 import Logo from "@/components/logo"
 import { Button } from "@/components/ui/button"
 
 interface DashboardNavbarProps {
-  pageTitle?: string
   onMenuClick?: () => void
 }
 
-export function DashboardNavbar({ pageTitle, onMenuClick }: DashboardNavbarProps) {
+function getPageMeta(pathname: string) {
+  if (pathname.startsWith("/resumes")) {
+    return {
+      eyebrow: "Biblioteca",
+      title: "Meus curriculos",
+    }
+  }
+
+  if (pathname.startsWith("/what-is-ats")) {
+    return {
+      eyebrow: "Guia",
+      title: "Entenda o ATS",
+    }
+  }
+
+  return {
+    eyebrow: "Workspace",
+    title: "CurrIA Dashboard",
+  }
+}
+
+export function DashboardNavbar({ onMenuClick }: DashboardNavbarProps) {
+  const pathname = usePathname()
   const { theme, setTheme } = useTheme()
+  const pageMeta = getPageMeta(pathname)
 
   return (
-    <header className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
-      <div className="flex h-16 items-center justify-between px-4 lg:px-6">
+    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
+      <div className="flex h-20 items-center justify-between px-4 lg:px-8">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -34,12 +57,10 @@ export function DashboardNavbar({ pageTitle, onMenuClick }: DashboardNavbarProps
           </div>
 
           <div className="hidden lg:block">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Workspace
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              {pageMeta.eyebrow}
             </p>
-            <p className="text-sm font-semibold text-foreground">
-              {pageTitle ?? "CurrIA Dashboard"}
-            </p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{pageMeta.title}</p>
           </div>
         </div>
 
@@ -60,7 +81,7 @@ export function DashboardNavbar({ pageTitle, onMenuClick }: DashboardNavbarProps
               afterSignOutUrl="/"
               appearance={{
                 elements: {
-                  avatarBox: "h-9 w-9",
+                  avatarBox: "h-10 w-10",
                 },
               }}
             />
