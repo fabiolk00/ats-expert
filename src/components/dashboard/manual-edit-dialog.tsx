@@ -218,10 +218,10 @@ export function ManualEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden rounded-[32px] border-border/70 bg-card/95 shadow-[0_36px_140px_-70px_rgba(15,23,42,0.6)] backdrop-blur-xl sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl">Editar {formatSectionTitle(section)}</DialogTitle>
-          <DialogDescription className="leading-6">{description}</DialogDescription>
+          <DialogTitle>Editar {formatSectionTitle(section)}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -230,7 +230,6 @@ export function ManualEditDialog({
               <Input
                 value={contactDraft.fullName}
                 placeholder="Nome completo"
-                className="rounded-2xl border-border/70 bg-background/80"
                 disabled={busy}
                 onChange={(event) =>
                   setContactDraft((previous) => ({
@@ -242,7 +241,6 @@ export function ManualEditDialog({
               <Input
                 value={contactDraft.email}
                 placeholder="Email"
-                className="rounded-2xl border-border/70 bg-background/80"
                 disabled={busy}
                 onChange={(event) =>
                   setContactDraft((previous) => ({
@@ -254,7 +252,6 @@ export function ManualEditDialog({
               <Input
                 value={contactDraft.phone}
                 placeholder="Telefone"
-                className="rounded-2xl border-border/70 bg-background/80"
                 disabled={busy}
                 onChange={(event) =>
                   setContactDraft((previous) => ({
@@ -266,7 +263,6 @@ export function ManualEditDialog({
               <Input
                 value={contactDraft.linkedin}
                 placeholder="LinkedIn"
-                className="rounded-2xl border-border/70 bg-background/80"
                 disabled={busy}
                 onChange={(event) =>
                   setContactDraft((previous) => ({
@@ -278,7 +274,7 @@ export function ManualEditDialog({
               <Input
                 value={contactDraft.location}
                 placeholder="Localizacao"
-                className="rounded-2xl border-border/70 bg-background/80 sm:col-span-2"
+                className="sm:col-span-2"
                 disabled={busy}
                 onChange={(event) =>
                   setContactDraft((previous) => ({
@@ -295,7 +291,6 @@ export function ManualEditDialog({
               value={textDraft}
               disabled={busy}
               rows={10}
-              className="rounded-[24px] border-border/70 bg-background/80"
               placeholder="Edite o resumo estruturado."
               onChange={(event) => setTextDraft(event.target.value)}
             />
@@ -306,7 +301,6 @@ export function ManualEditDialog({
               value={textDraft}
               disabled={busy}
               rows={10}
-              className="rounded-[24px] border-border/70 bg-background/80"
               placeholder={"Uma skill por linha\nExemplo:\nTypeScript\nNode.js"}
               onChange={(event) => setTextDraft(event.target.value)}
             />
@@ -319,20 +313,20 @@ export function ManualEditDialog({
               value={jsonDraft}
               disabled={busy}
               rows={16}
-              className="rounded-[24px] border-border/70 bg-background/80 font-mono text-xs"
+              className="font-mono text-xs"
               placeholder="Cole um array JSON valido."
               onChange={(event) => setJsonDraft(event.target.value)}
             />
           )}
 
-          {error && <p className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" className="rounded-full" disabled={busy} onClick={() => onOpenChange(false)}>
+          <Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button className="rounded-full" disabled={busy || section === null} onClick={() => void handleSubmit()}>
+          <Button disabled={busy || section === null} onClick={() => void handleSubmit()}>
             {busy ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>

@@ -118,10 +118,10 @@ export function CompareDrawer({
 
   return (
     <Drawer direction="right" open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-2xl border-border/70 bg-card/95 shadow-[0_36px_140px_-70px_rgba(15,23,42,0.6)] backdrop-blur-xl">
+      <DrawerContent className="max-w-2xl">
         <DrawerHeader>
-          <DrawerTitle className="text-xl">Comparar snapshots</DrawerTitle>
-          <DrawerDescription className="leading-6">
+          <DrawerTitle>Comparar snapshots</DrawerTitle>
+          <DrawerDescription>
             Compare base, versoes historicas e variantes derivadas sem mutar o estado.
           </DrawerDescription>
         </DrawerHeader>
@@ -131,7 +131,7 @@ export function CompareDrawer({
             <span className="font-medium">Snapshot esquerdo</span>
             <select
               value={leftValue}
-              className="border-input bg-background h-11 w-full rounded-2xl border px-3 text-sm"
+              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
               disabled={busy}
               onChange={(event) => setLeftValue(event.target.value)}
             >
@@ -147,7 +147,7 @@ export function CompareDrawer({
             <span className="font-medium">Snapshot direito</span>
             <select
               value={rightValue}
-              className="border-input bg-background h-11 w-full rounded-2xl border px-3 text-sm"
+              className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
               disabled={busy}
               onChange={(event) => setRightValue(event.target.value)}
             >
@@ -162,7 +162,6 @@ export function CompareDrawer({
 
         <div className="px-4 pt-4">
           <Button
-            className="rounded-full"
             disabled={busy || leftValue === rightValue}
             onClick={() => void onCompare(parseSnapshotRef(leftValue), parseSnapshotRef(rightValue))}
           >
@@ -174,13 +173,13 @@ export function CompareDrawer({
           <div className="space-y-4 pb-4">
             {result && (
               <>
-                <div className="rounded-[24px] border border-border/70 bg-background/75 p-4">
+                <div className="rounded-lg border border-border p-4">
                   <p className="text-sm font-medium">{result.left.label}</p>
                   <p className="text-xs text-muted-foreground">
                     {result.left.source ?? result.left.kind}
                   </p>
                 </div>
-                <div className="rounded-[24px] border border-border/70 bg-background/75 p-4">
+                <div className="rounded-lg border border-border p-4">
                   <p className="text-sm font-medium">{result.right.label}</p>
                   <p className="text-xs text-muted-foreground">
                     {result.right.source ?? result.right.kind}
@@ -190,14 +189,14 @@ export function CompareDrawer({
                 <Separator />
 
                 {Object.keys(result.diff).length === 0 ? (
-                  <div className="rounded-[24px] border border-dashed border-border/70 bg-background/55 p-6 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
                     Nenhuma diferenca estrutural detectada entre os snapshots selecionados.
                   </div>
                 ) : (
                   Object.entries(result.diff).map(([section, value]) => (
-                    <div key={section} className="space-y-2 rounded-[24px] border border-border/70 bg-background/75 p-4">
+                    <div key={section} className="space-y-2 rounded-lg border border-border p-4">
                       <h3 className="text-sm font-semibold capitalize">{section}</h3>
-                      <pre className="overflow-x-auto whitespace-pre-wrap rounded-2xl bg-muted/60 p-3 text-xs">
+                      <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
                         {renderSectionValue(value)}
                       </pre>
                     </div>
@@ -207,7 +206,7 @@ export function CompareDrawer({
             )}
 
             {!result && (
-              <div className="rounded-[24px] border border-dashed border-border/70 bg-background/55 p-6 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
                 Selecione dois snapshots e execute a comparacao para ver o diff estruturado.
               </div>
             )}
@@ -215,7 +214,7 @@ export function CompareDrawer({
         </ScrollArea>
 
         <DrawerFooter>
-          <Button variant="outline" className="rounded-full" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
         </DrawerFooter>

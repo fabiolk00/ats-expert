@@ -1,5 +1,4 @@
 import Link from "next/link"
-
 import Logo from "@/components/logo"
 
 const links = [
@@ -15,7 +14,7 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <Logo size="sm" />
-
+          
           <nav className="flex items-center gap-6">
             {links.map((link) => (
               <Link
@@ -27,7 +26,7 @@ export default function Footer() {
               </Link>
             ))}
           </nav>
-
+          
           <p className="text-sm text-muted-foreground">
             CurrIA © {new Date().getFullYear()}
           </p>
