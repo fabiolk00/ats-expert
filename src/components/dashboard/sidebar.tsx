@@ -23,7 +23,7 @@ const navItems = [
   },
   {
     label: "Meus Curriculos",
-    href: "/resumes",
+    href: "/dashboard/resumes",
     icon: FileText,
   },
 ]
