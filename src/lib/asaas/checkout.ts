@@ -5,7 +5,7 @@ import { getOrCreateCustomer } from '@/lib/asaas/customers'
 type CreateCheckoutLinkInput = {
   appUserId: string
   userName: string
-  userEmail: string
+  userEmail?: string | null
   plan: PlanSlug
   checkoutReference: string
   externalReference: string

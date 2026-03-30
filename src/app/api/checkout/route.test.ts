@@ -123,6 +123,22 @@ describe('checkout route billing sequencing', () => {
     expect(markCheckoutFailed).not.toHaveBeenCalled()
   })
 
+  it('continues checkout when Clerk profile lookup fails', async () => {
+    vi.mocked(currentUser).mockRejectedValueOnce(new Error('clerk profile unavailable'))
+
+    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
+      body: JSON.stringify({ plan: 'monthly' }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(createCheckoutLink).toHaveBeenCalledWith(expect.objectContaining({
+      userName: 'Usuario CurrIA',
+      userEmail: null,
+    }))
+  })
+
   it('marks the checkout failed when persisting the created state fails after Asaas succeeds', async () => {
     vi.mocked(markCheckoutCreated).mockRejectedValueOnce(new Error('failed to mark created'))
 

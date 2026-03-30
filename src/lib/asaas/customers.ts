@@ -4,7 +4,7 @@ import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 type GetOrCreateCustomerInput = {
   appUserId: string
   name: string
-  email: string
+  email?: string | null
   cpfCnpj?: string
 }
 
@@ -25,8 +25,8 @@ export async function getOrCreateCustomer({
 
   const customer = await asaas.post<{ id: string }>('/customers', {
     name,
-    email,
     externalReference: appUserId,
+    ...(email ? { email } : {}),
     ...(cpfCnpj ? { cpfCnpj } : {}),
   })
 

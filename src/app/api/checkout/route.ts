@@ -44,9 +44,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Invalid paid plan' }, { status: 400 })
     }
 
-    const user = await currentUser()
-    const userName = user?.fullName ?? user?.firstName ?? 'Usuário'
-    const userEmail = user?.emailAddresses[0]?.emailAddress ?? ''
+    let user = null
+    try {
+      user = await currentUser()
+    } catch (currentUserError) {
+      console.warn(
+        '[api/checkout] unable to load Clerk profile; continuing with fallback customer data',
+        currentUserError,
+      )
+    }
+
+    const userName = user?.fullName ?? user?.firstName ?? 'Usuario CurrIA'
+    const userEmail = user?.emailAddresses[0]?.emailAddress ?? null
     const origin = req.headers.get('origin') ?? 'http://localhost:3000'
     const successUrl = `${origin}/dashboard`
     const checkout = await createCheckoutRecordPending(appUser.id, plan.slug, plan.price)
