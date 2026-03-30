@@ -75,10 +75,10 @@ export default function WhatIsAtsPage() {
           <div className="grid gap-8 px-6 py-8 lg:grid-cols-[minmax(0,1.15fr)_380px] lg:px-8">
             <div>
               <Badge variant="outline" className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em]">
-                Guia rapido ATS
+                Guia completo ATS
               </Badge>
               <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight lg:text-5xl">
-                Entenda o filtro que decide se seu curriculo sera lido por alguem.
+                Entenda a fundo como vencer o ATS.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
                 ATS significa Applicant Tracking System. Na pratica, e o software que recebe curriculos, extrai o texto, compara com a vaga e prioriza quem parece mais aderente antes do olhar humano.

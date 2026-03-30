@@ -6,29 +6,29 @@ import { Button } from "@/components/ui/button"
 
 export default function HeroSection() {
   return (
-    <section className="py-20 md:py-28 bg-background relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+    <section className="relative overflow-hidden bg-background py-20 md:py-28">
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
 
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <div className="container relative z-10 mx-auto px-4">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <div className="text-center lg:text-left">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-balance leading-tight">
-              Seu currículo merece ser{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60">
+            <h1 className="text-balance text-4xl font-extrabold leading-tight tracking-tight md:text-5xl lg:text-6xl">
+              Seu curriculo merece ser{" "}
+              <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                 visto.
               </span>
             </h1>
-            <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-xl mx-auto lg:mx-0 text-pretty">
-              CurrIA usa IA para decodificar exatamente o que recrutadores e softwares de triagem procuram — e reescreve seu currículo para corresponder.
+            <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground text-pretty md:text-xl lg:mx-0">
+              CurrIA usa IA para decodificar exatamente o que recrutadores e softwares de triagem procuram e reescreve seu curriculo para corresponder.
             </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button asChild size="lg" className="text-base gap-2 font-semibold">
-                <Link href="/signup">
-                  Analisar meu currículo grátis
+            <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
+              <Button asChild size="lg" className="gap-2 text-base font-semibold">
+                <Link href="/what-is-ats">
+                  Analisar meu curriculo gratis
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg" className="text-base text-foreground font-semibold">
+              <Button asChild variant="outline" size="lg" className="text-base font-semibold text-foreground">
                 <a href="#pricing">Ver planos</a>
               </Button>
             </div>
