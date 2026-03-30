@@ -2,17 +2,19 @@
 
 ## Purpose
 
-This document records the human-evaluated results of the Brazilian Portuguese quality gate for the Anthropic-to-OpenAI migration.
+This document records the human-evaluated results of the Brazilian Portuguese quality gate for the OpenAI model-selection bakeoff.
 
 Use it together with:
 
 - [openai-portuguese-quality-gate.md](/c:/CurrIA/docs/openai-portuguese-quality-gate.md)
+- [openai-model-selection-matrix.md](/c:/CurrIA/docs/openai-model-selection-matrix.md)
 
-This report is the source of truth for the final provider decision:
+This report is the source of truth for the final model-routing decision:
 
-- `OPENAI FULL`
-- `HYBRID`
-- `REVERT TO CLAUDE`
+- `COMBO_A`
+- `COMBO_B`
+- `COMBO_C`
+- `HOLD`
 
 ## Test metadata
 
@@ -21,16 +23,17 @@ This report is the source of truth for the final provider decision:
 - Evaluator role/background:
 - Evaluator is native pt-BR speaker: Yes / No
 - Test date:
-- Compared providers:
-  - Provider A: Claude Haiku
-  - Provider B: GPT-5 Mini
+- Compared combinations:
+  - Combo A: `gpt-5-mini` / `gpt-5-mini` / `gpt-5-mini`
+  - Combo B: `gpt-5.4-mini` / `gpt-5-mini` / `gpt-5-mini`
+  - Combo C: `gpt-5` / `gpt-5` / `gpt-5`
 - Prompts/version tested:
 - Branch / commit:
 - Notes:
 
 ## Evaluation rubric
 
-Score each dimension from **1 to 5**:
+Score each dimension from 1 to 5:
 
 - Grammar and spelling
 - Vocabulary and naturalness
@@ -58,7 +61,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -66,9 +69,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -76,13 +80,25 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Sample 02
 
@@ -91,7 +107,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -99,9 +115,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -109,13 +126,25 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Sample 03
 
@@ -124,7 +153,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -132,9 +161,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -142,13 +172,25 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Sample 04
 
@@ -157,7 +199,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -165,9 +207,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -175,13 +218,25 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Sample 05
 
@@ -190,7 +245,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -198,9 +253,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -208,13 +264,25 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Sample 06
 
@@ -223,7 +291,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -231,9 +299,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -241,13 +310,25 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Sample 07
 
@@ -256,7 +337,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -264,9 +345,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -274,13 +356,25 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Sample 08
 
@@ -289,7 +383,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -297,9 +391,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -307,13 +402,25 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Sample 09
 
@@ -322,7 +429,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -330,9 +437,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -340,13 +448,25 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Sample 10
 
@@ -355,7 +475,7 @@ Score each dimension from **1 to 5**:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 
 - Grammar:
 - Vocabulary:
@@ -363,9 +483,10 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 
 - Grammar:
 - Vocabulary:
@@ -373,42 +494,65 @@ Score each dimension from **1 to 5**:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes / No
+- Is the winner production-ready for this sample? Yes / No
 
 ## Consolidated results
 
-### Claude Haiku
+### Combo A
 
 - Global average:
+- Average cost per sample:
 - Strongest dimensions:
 - Weakest dimensions:
 - Patterns observed:
 
-### GPT-5 Mini
+### Combo B
 
 - Global average:
+- Average cost per sample:
 - Strongest dimensions:
 - Weakest dimensions:
 - Patterns observed:
 
-### GPT by operation
+### Combo C
 
-- `rewrite_section` average:
-- `create_target_resume` average:
-- conversational output average:
+- Global average:
+- Average cost per sample:
+- Strongest dimensions:
+- Weakest dimensions:
+- Patterns observed:
+
+### By operation
+
+- `rewrite_section` average by combo:
+- `create_target_resume` average by combo:
+- conversational output average by combo:
 
 ## Final decision
 
 - Decision:
-  - `OPENAI FULL`
-  - `HYBRID`
-  - `REVERT TO CLAUDE`
+  - `COMBO_A`
+  - `COMBO_B`
+  - `COMBO_C`
+  - `HOLD`
 - Decision owner:
 - Decision date:
 
@@ -422,8 +566,9 @@ Score each dimension from **1 to 5**:
 
 ## Launch gate status
 
-- [ ] GPT average is `>= 4.0` and OpenAI full is approved
-- [ ] GPT average is `3.5-3.9` and hybrid rollout is approved
-- [ ] GPT average is `< 3.5` and Claude revert is approved
-- [ ] Final provider decision communicated to engineering
-- [ ] Final provider decision reflected in code and docs
+- [ ] `combo_a` is `>= 4.0` and approved
+- [ ] `combo_b` is the approved winner
+- [ ] `combo_c` is the approved winner
+- [ ] If all combos are `< 4.0`, rollout is held explicitly
+- [ ] Final model-routing decision communicated to engineering
+- [ ] Final model-routing decision reflected in code and docs

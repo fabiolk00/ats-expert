@@ -1,6 +1,6 @@
-# OpenAI Migration Monitoring
+# OpenAI Model Selection Monitoring
 
-This document defines the minimum monitoring needed for the Anthropic-to-OpenAI migration.
+This document defines the minimum monitoring needed for OpenAI model selection and rollout.
 
 It focuses on:
 
@@ -12,11 +12,18 @@ It focuses on:
 
 ## Core model routing to monitor
 
-Current candidate routing from [config.ts](/c:/CurrIA/src/lib/agent/config.ts):
+Current default routing from [config.ts](/c:/CurrIA/src/lib/agent/config.ts):
 
+- active combo: `combo_b`
 - `agent`: `gpt-5.4-mini`
 - `structured`: `gpt-5-mini`
 - `vision`: `gpt-5-mini`
+
+Supported combinations:
+
+- `combo_a`: all `gpt-5-mini`
+- `combo_b`: `gpt-5.4-mini` + `gpt-5-mini` + `gpt-5-mini`
+- `combo_c`: all `gpt-5`
 
 ## Metric 1 - API usage by model
 
@@ -26,7 +33,7 @@ Source:
 
 Purpose:
 - confirm the app is using the intended model per endpoint
-- detect accidental model drift
+- detect accidental combo drift
 
 Example query:
 
@@ -46,6 +53,7 @@ ORDER BY cost_cents DESC;
 
 Alert:
 - investigate if `agent`, `rewriter`, `ocr`, `gap_analysis`, or `target_resume` are using an unexpected model
+- investigate if the selected `OPENAI_MODEL_COMBO` does not match observed runtime usage
 
 ## Metric 2 - Daily cost baseline
 
@@ -102,7 +110,7 @@ Alert:
 ## Metric 4 - LLM invalid output rate
 
 Purpose:
-- detect prompt/provider regressions in structured tools
+- detect prompt or model regressions in structured tools
 
 Example query:
 
@@ -123,7 +131,7 @@ Alert:
 ## Metric 5 - Agent latency
 
 Purpose:
-- validate the GPT rollout does not materially regress UX
+- validate the selected combo does not materially regress UX
 
 Primary source:
 - `latencyMs` on `agent.request.completed`
@@ -155,7 +163,7 @@ Operationally track:
 - repeated manual editing after AI rewrite
 
 Trigger:
-- any recurring complaint pattern in the first 7 days should be reviewed against the migration decision
+- any recurring complaint pattern in the first 7 days should be reviewed against the selected combo
 
 ## Launch-day dashboard
 

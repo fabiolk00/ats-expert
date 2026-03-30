@@ -1,6 +1,6 @@
-# OpenAI Migration Rollback and Incident Playbook
+# OpenAI Model Rollback and Incident Playbook
 
-This document defines how to respond if the Anthropic-to-OpenAI rollout causes quality, cost, or stability problems.
+This document defines how to respond if the selected OpenAI model combination causes quality, cost, or stability problems.
 
 ## Primary rollback triggers
 
@@ -15,38 +15,36 @@ Rollback should be considered immediately if any of the following occurs:
 
 ## Decision tree
 
-### 1. If the Portuguese gate result was PASS and production still regresses
+### 1. If the selected combo regresses in production
 
 Actions:
 - verify actual production model usage from `api_usage`
-- confirm prompts and model routing match the approved candidate
+- confirm prompts and model routing match the approved combination
 - if misconfiguration is found, fix config first
-- if quality still regresses, rollback to the last known-good provider state
+- if quality still regresses, rollback to the last known-good combo
 
-### 2. If the Portuguese gate result was CONDITIONAL
-
-Actions:
-- do not stay in an all-in OpenAI state
-- move to the approved hybrid routing immediately
-- confirm:
-  - GPT handles ingestion, gap analysis, OCR, and any approved chat flows
-  - Claude handles `rewrite_section` and `create_target_resume`
-
-### 3. If the Portuguese gate result was FAIL
+### 2. If the selected combo is too expensive
 
 Actions:
-- do not ship full OpenAI
-- revert the runtime provider to Claude
-- update docs so they no longer present OpenAI as the chosen provider
+- confirm whether a cheaper approved combo exists
+- if yes, switch to the cheaper approved combo
+- if not, hold rollout until product accepts the higher cost
+
+### 3. If no tested combo remains acceptable
+
+Actions:
+- do not auto-promote a new combo
+- restore the last known-good combo
+- reopen prompt or provider evaluation only if needed
 
 ## Technical rollback checklist
 
 - [ ] Identify the last known-good commit
-- [ ] Confirm which provider strategy was approved:
-  - [ ] OpenAI full
-  - [ ] Hybrid
-  - [ ] Claude
-- [ ] Revert or reconfigure model routing as needed
+- [ ] Confirm which combo was approved:
+  - [ ] `combo_a`
+  - [ ] `combo_b`
+  - [ ] `combo_c`
+- [ ] Revert or reconfigure `OPENAI_MODEL_COMBO` as needed
 - [ ] Re-run:
   - [ ] `npm run typecheck`
   - [ ] `npm test`
@@ -70,11 +68,11 @@ Actions:
 ## Incident summary template
 
 ```md
-# AI Migration Incident
+# AI Model Incident
 
 - Date:
 - Owner:
-- Provider state at incident:
+- Model combo at incident:
 - Trigger:
 - User impact:
 - Metrics affected:
@@ -87,6 +85,6 @@ Actions:
 
 If the team is unsure during an incident:
 
-- prefer the safer provider state over the cheaper one
+- prefer the safer combo over the cheaper one
 - protect resume quality first
-- only return to OpenAI full after a fresh quality review and technical validation
+- only promote a different combo after a fresh quality review and technical validation

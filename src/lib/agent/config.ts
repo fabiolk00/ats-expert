@@ -9,11 +9,38 @@ export const AGENT_CONFIG = {
   maxMessagesPerSession: 15,
 } as const
 
-export const MODEL_CONFIG = {
-  agent: 'gpt-5.4-mini',
-  structured: 'gpt-5-mini',
-  vision: 'gpt-5-mini',
+export const MODEL_COMBINATIONS = {
+  combo_a: {
+    agent: 'gpt-5-mini',
+    structured: 'gpt-5-mini',
+    vision: 'gpt-5-mini',
+  },
+  combo_b: {
+    agent: 'gpt-5.4-mini',
+    structured: 'gpt-5-mini',
+    vision: 'gpt-5-mini',
+  },
+  combo_c: {
+    agent: 'gpt-5',
+    structured: 'gpt-5',
+    vision: 'gpt-5',
+  },
 } as const
+
+export type ModelComboName = keyof typeof MODEL_COMBINATIONS
+
+export function resolveModelCombo(value: string | undefined): ModelComboName {
+  const normalized = value?.trim().toLowerCase()
+
+  if (normalized && normalized in MODEL_COMBINATIONS) {
+    return normalized as ModelComboName
+  }
+
+  return 'combo_b'
+}
+
+export const ACTIVE_MODEL_COMBO = resolveModelCombo(process.env.OPENAI_MODEL_COMBO)
+export const MODEL_CONFIG = MODEL_COMBINATIONS[ACTIVE_MODEL_COMBO]
 
 export type AgentConfig = typeof AGENT_CONFIG
 export type ModelConfig = typeof MODEL_CONFIG

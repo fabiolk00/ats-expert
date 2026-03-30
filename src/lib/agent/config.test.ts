@@ -1,14 +1,43 @@
 import { describe, expect, it } from 'vitest'
 
-import { AGENT_CONFIG, MODEL_CONFIG } from './config'
+import {
+  ACTIVE_MODEL_COMBO,
+  AGENT_CONFIG,
+  MODEL_COMBINATIONS,
+  MODEL_CONFIG,
+  resolveModelCombo,
+} from './config'
 
 describe('AGENT_CONFIG', () => {
-  it('uses OpenAI model routing', () => {
-    expect(MODEL_CONFIG).toEqual({
-      agent: 'gpt-5.4-mini',
-      structured: 'gpt-5-mini',
-      vision: 'gpt-5-mini',
+  it('uses a supported OpenAI model routing at runtime', () => {
+    expect(['combo_a', 'combo_b', 'combo_c']).toContain(ACTIVE_MODEL_COMBO)
+    expect(MODEL_CONFIG).toEqual(MODEL_COMBINATIONS[ACTIVE_MODEL_COMBO])
+  })
+
+  it('defines the supported model combinations', () => {
+    expect(MODEL_COMBINATIONS).toEqual({
+      combo_a: {
+        agent: 'gpt-5-mini',
+        structured: 'gpt-5-mini',
+        vision: 'gpt-5-mini',
+      },
+      combo_b: {
+        agent: 'gpt-5.4-mini',
+        structured: 'gpt-5-mini',
+        vision: 'gpt-5-mini',
+      },
+      combo_c: {
+        agent: 'gpt-5',
+        structured: 'gpt-5',
+        vision: 'gpt-5',
+      },
     })
+  })
+
+  it('falls back to combo_b for invalid OPENAI_MODEL_COMBO values', () => {
+    expect(resolveModelCombo(undefined)).toBe('combo_b')
+    expect(resolveModelCombo('combo_b')).toBe('combo_b')
+    expect(resolveModelCombo('invalid')).toBe('combo_b')
   })
 
   it('has maxMessagesPerSession set to 15', () => {

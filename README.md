@@ -20,15 +20,20 @@ CurrIA is an AI-powered resume optimization SaaS. The product combines ATS analy
 - Clerk for authentication
 - Supabase + Postgres
 - Prisma
-- OpenAI for AI workflows in the current migration candidate
+- OpenAI for all AI workflows
 - Asaas for billing and checkout
 - Vitest + Testing Library
 
-## AI migration status
+## AI model status
 
-- the current codebase is prepared as an OpenAI migration candidate
-- the final production provider decision still depends on the human pt-BR quality gate
-- the official protocol is documented in [openai-portuguese-quality-gate.md](/c:/CurrIA/docs/openai-portuguese-quality-gate.md)
+- the runtime is fully on OpenAI
+- the current default routing is `combo_b`
+  - `agent`: `gpt-5.4-mini`
+  - `structured`: `gpt-5-mini`
+  - `vision`: `gpt-5-mini`
+- the active routing can be selected with `OPENAI_MODEL_COMBO`
+- the model bakeoff is documented in [openai-model-selection-matrix.md](/c:/CurrIA/docs/openai-model-selection-matrix.md)
+- the pt-BR quality gate is documented in [openai-portuguese-quality-gate.md](/c:/CurrIA/docs/openai-portuguese-quality-gate.md)
 - the rollout checklist is documented in [openai-migration-checklist.md](/c:/CurrIA/docs/openai-migration-checklist.md)
 
 ## Main flows
@@ -142,6 +147,7 @@ DIRECT_URL=
 
 # OpenAI
 OPENAI_API_KEY=
+OPENAI_MODEL_COMBO=combo_b
 
 # Asaas
 ASAAS_API_KEY=
@@ -270,6 +276,7 @@ npm run lint
 - [architecture-overview.md](/c:/CurrIA/docs/architecture-overview.md)
 - [state-model.md](/c:/CurrIA/docs/state-model.md)
 - [tool-development.md](/c:/CurrIA/docs/tool-development.md)
+- [openai-model-selection-matrix.md](/c:/CurrIA/docs/openai-model-selection-matrix.md)
 - [openai-portuguese-quality-gate.md](/c:/CurrIA/docs/openai-portuguese-quality-gate.md)
 - [openai-migration-checklist.md](/c:/CurrIA/docs/openai-migration-checklist.md)
 - [portuguese-quality-test-results.md](/c:/CurrIA/docs/portuguese-quality-test-results.md)

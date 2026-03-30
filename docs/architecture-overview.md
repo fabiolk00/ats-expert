@@ -2,11 +2,12 @@
 
 ## Runtime boundaries
 
-## Provider rollout status
+## OpenAI rollout status
 
-- O código atual está montado como candidato OpenAI.
-- A decisão final de produção do provider ainda depende do gate humano definido em `docs/openai-portuguese-quality-gate.md`.
-- Até esse gate ser executado, o repositório não deve ser tratado como decisão final de cutover de provider.
+- The runtime is fully on OpenAI.
+- The current default routing is `combo_b` from `src/lib/agent/config.ts`.
+- The long-term model choice depends on the pt-BR quality and cost bakeoff documented in [openai-model-selection-matrix.md](/c:/CurrIA/docs/openai-model-selection-matrix.md).
+- The approval gate is documented in [openai-portuguese-quality-gate.md](/c:/CurrIA/docs/openai-portuguese-quality-gate.md).
 
 ### Identity boundary
 - External identity: Clerk
@@ -103,6 +104,6 @@ Additional resume persistence rules:
 - `cv_versions` stores immutable snapshot history
 - `resume_targets` stores target-specific derived states
 - base artifact metadata lives on the session; target artifact metadata lives on the target row
-- Tool-originated state changes must use `ToolPatch`
-- Runtime credit enforcement must read from `credit_accounts`
-- Domain logic must not depend on Clerk IDs
+- tool-originated state changes must use `ToolPatch`
+- runtime credit enforcement must read from `credit_accounts`
+- domain logic must not depend on Clerk IDs

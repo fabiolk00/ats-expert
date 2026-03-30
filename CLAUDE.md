@@ -5,6 +5,20 @@ CurrIA is a resume optimization SaaS for Brazilian job seekers. Users authentica
 
 This file is the project source of truth for system architecture and engineering invariants. It should track the code that runs today, not aspirational legacy notes.
 
+## LLM Runtime Status
+
+- CurrIA currently runs fully on OpenAI.
+- Default model routing is controlled in `src/lib/agent/config.ts`.
+- The default combo is `combo_b`:
+  - `agent`: `gpt-5.4-mini`
+  - `structured`: `gpt-5-mini`
+  - `vision`: `gpt-5-mini`
+- The active combo can be overridden with `OPENAI_MODEL_COMBO`.
+- Model selection and pt-BR evaluation are documented in:
+  - `docs/openai-model-selection-matrix.md`
+  - `docs/openai-portuguese-quality-gate.md`
+  - `docs/portuguese-quality-test-results.md`
+
 ## Core Architecture
 
 ### Identity model

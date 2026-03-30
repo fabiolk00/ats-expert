@@ -1,64 +1,67 @@
-# Brazilian Portuguese Quality Gate - Anthropic to OpenAI Migration
+# Brazilian Portuguese Quality Gate - OpenAI Model Selection
 
 ## Goal
 
-This document defines the **mandatory pt-BR language quality gate** before making the final production decision for the Anthropic-to-OpenAI migration.
+This document defines the mandatory pt-BR language quality gate before locking the final OpenAI model routing for production.
 
-The current codebase may be treated as an **OpenAI candidate**, but **not** as the final provider decision until this gate has been executed and approved.
+CurrIA already runs on OpenAI in code. What remains is selecting the best OpenAI model combination for Brazilian Portuguese resume quality and cost.
+
+Use this document together with:
+
+- [openai-model-selection-matrix.md](/c:/CurrIA/docs/openai-model-selection-matrix.md)
+- [portuguese-quality-test-results.md](/c:/CurrIA/docs/portuguese-quality-test-results.md)
 
 ## Decision question
 
-**Does GPT-5 Mini produce Brazilian Portuguese output that is strong enough for a resume-optimization SaaS aimed at Brazilian job seekers?**
+Which OpenAI model combination produces Brazilian Portuguese resume output that is strong enough for production at the lowest acceptable cost?
 
-If yes, proceed with OpenAI full.
-If borderline, move to a hybrid setup.
-If not, revert to Claude.
+The tested combinations are:
+
+- `combo_a`: all `gpt-5-mini`
+- `combo_b`: `gpt-5.4-mini` for agent and `gpt-5-mini` for structured and vision
+- `combo_c`: all `gpt-5`
 
 ## Mandatory decision rule
 
-- **PASS**: GPT final average **>= 4.0/5.0**
-  - proceed with full OpenAI rollout
-- **CONDITIONAL**: GPT final average between **3.5 and 3.9**
-  - do not proceed with full cutover
-  - move to a hybrid approach
-- **FAIL**: GPT final average **< 3.5**
-  - abort the full migration
-  - revert the runtime provider to Claude
+- `combo_a` is acceptable only if its final average is `>= 4.0/5.0`
+- if `combo_a` is below `4.0`, evaluate whether `combo_b` clears the quality bar
+- if both `combo_a` and `combo_b` are below `4.0`, evaluate whether `combo_c` is the only production-safe option
+- if every tested combination is below `4.0`, hold rollout and escalate before changing production defaults
 
-If the result is close or debatable, **quality wins over cost**.
+If the result is close or debatable, quality wins over cost.
 
 ## Test scope
 
-The gate must cover the flows most sensitive to writing quality:
+The gate must cover the OpenAI flows most sensitive to writing quality:
 
 - `rewrite_section`
 - `create_target_resume`
 - conversational agent responses that guide resume improvement
 
-Analytical and structured flows such as ingestion, gap analysis, and OCR may be observed during the test run, but they are **not** the primary focus of this language gate. The focus is text the user could realistically send to a recruiter.
+Analytical and structured flows such as ingestion, gap analysis, and OCR may be observed during the test run, but they are not the primary focus of this language gate. The focus is text the user could realistically send to a recruiter.
 
 ## Evaluator requirements
 
 - native Brazilian Portuguese speaker
 - ideally someone with recruiting, HR, resume review, or career guidance experience
-- must evaluate **final output**, not provider preference
+- must evaluate final output, not model preference
 - must use the same rubric across all samples
 
 ## Test setup
 
 ### Required samples
 
-Run the gate with **10 samples** covering a diverse set of profiles:
+Run the gate with 10 samples covering a diverse set of profiles:
 
 1. Intern or junior in technology
 2. Mid-level technology professional
 3. Senior technology professional
-4. Sales / commercial
-5. Marketing / content
-6. Finance / administrative
-7. Operations / logistics
+4. Sales or commercial
+5. Marketing or content
+6. Finance or administrative
+7. Operations or logistics
 8. Healthcare
-9. Legal / compliance
+9. Legal or compliance
 10. Career-change or weak generic resume
 
 ### Recommended distribution
@@ -72,23 +75,24 @@ Run the gate with **10 samples** covering a diverse set of profiles:
 For each sample, prepare:
 
 - the original weak resume section or source text
-- the exact same instruction/prompt for both providers
+- the exact same instruction or prompt for all tested combinations
 - the target job description when applicable
-- the exercised operation (`rewrite_section`, `create_target_resume`, or chat)
+- the exercised operation
 
 ## Comparison protocol
 
 For each sample:
 
-1. run **Claude Haiku** with the original prompt
-2. run **GPT-5 Mini** with the same prompt and same input
-3. remove any visible provider label before human evaluation
-4. ask the evaluator to score both outputs using the rubric below
-5. record short qualitative comments
+1. run `combo_a` with the original prompt
+2. run `combo_b` with the same prompt and same input
+3. run `combo_c` with the same prompt and same input
+4. remove any visible model label before human evaluation
+5. ask the evaluator to score all outputs using the rubric below
+6. record short qualitative comments and cost per sample
 
 ### Protocol rules
 
-- same input for both providers
+- same input for every tested combination
 - same prompt
 - no manual editing before evaluation
 - compare final output, not latency
@@ -96,7 +100,7 @@ For each sample:
 
 ## Evaluation rubric
 
-Use a **1 to 5** scale for each dimension:
+Use a 1 to 5 scale for each dimension.
 
 ### 1. Grammar and spelling
 
@@ -140,28 +144,40 @@ Use this block for each sample:
 - Prompt used:
 - Input summary:
 
-### Claude Haiku
+### Combo A
 - Grammar:
 - Vocabulary:
 - Professional tone:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
 - Comments:
 
-### GPT-5 Mini
+### Combo B
 - Grammar:
 - Vocabulary:
 - Professional tone:
 - Terminology:
 - Readability/impact:
 - Average:
+- Cost:
+- Comments:
+
+### Combo C
+- Grammar:
+- Vocabulary:
+- Professional tone:
+- Terminology:
+- Readability/impact:
+- Average:
+- Cost:
 - Comments:
 
 ### Comparison
 - Winner:
 - Perceived difference:
-- Is GPT production-ready for this sample? Yes/No
+- Is the winner production-ready for this sample? Yes/No
 ```
 
 Record the final scored outputs in:
@@ -172,38 +188,41 @@ Record the final scored outputs in:
 
 After all 10 samples, consolidate:
 
-- Claude global average
-- GPT global average
-- GPT average by operation
-- GPT's strongest qualities
-- GPT's recurring weaknesses
-- final recommendation: `OPENAI FULL`, `HYBRID`, or `REVERT TO CLAUDE`
+- global average for each combination
+- average cost per sample for each combination
+- average by operation when relevant
+- strongest qualities by combination
+- recurring weaknesses by combination
+- final recommendation: `COMBO_A`, `COMBO_B`, `COMBO_C`, or `HOLD`
 
 ## Mandatory action by result
 
-### If PASS
+### If Combo A wins
 
-- keep full OpenAI rollout
+- set `OPENAI_MODEL_COMBO=combo_a`
+- update docs to show `gpt-5-mini` across agent, structured, and vision
+- deploy the cheaper routing
+
+### If Combo B wins
+
+- keep `OPENAI_MODEL_COMBO=combo_b`
 - keep the current routing:
   - `agent`: `gpt-5.4-mini`
   - `structured`: `gpt-5-mini`
   - `vision`: `gpt-5-mini`
-- make the final migration commit/push
+- document why the extra quality justified the extra cost
 
-### If CONDITIONAL
+### If Combo C wins
 
-- do not publish the all-in OpenAI state
-- move to an explicit hybrid architecture
-- recommended default:
-  - GPT for ingestion, gap analysis, OCR, and the main agent if conversational quality is acceptable
-  - Claude for `rewrite_section` and `create_target_resume`
-- only then make the final hybrid commit/push
+- set `OPENAI_MODEL_COMBO=combo_c`
+- update docs to show `gpt-5` across agent, structured, and vision
+- document why only the premium routing met quality expectations
 
-### If FAIL
+### If all combinations fail
 
-- do not publish the OpenAI full migration
-- revert the runtime provider to Claude
-- keep only the audit and evaluation materials that remain useful
+- do not change the current production default automatically
+- keep the best-known safe combination in place until a product decision is made
+- investigate prompt changes, targeted routing, or a renewed provider evaluation
 
 ## Recommended timeline
 
@@ -212,11 +231,11 @@ After all 10 samples, consolidate:
 - human evaluation: 2 to 3 h
 - final consolidation: 30 min
 
-**Estimated total:** 5 to 6 hours
+Estimated total: 5 to 6 hours
 
 ## Gate invariants
 
-- this gate is **mandatory**
-- this gate decides the final production provider
-- passing technical tests **does not** replace this evaluation
-- the final provider strategy should only be committed and pushed **after** this result
+- this gate is mandatory
+- this gate decides the final production model combination
+- passing technical tests does not replace this evaluation
+- the final model routing should only be committed and pushed after this result

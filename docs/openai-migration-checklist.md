@@ -1,15 +1,16 @@
-# OpenAI Migration Checklist
+# OpenAI Model Selection Checklist
 
-This checklist tracks the end-to-end rollout of the Anthropic-to-OpenAI migration.
+This checklist tracks the end-to-end rollout of OpenAI model selection, validation, and launch.
 
 Use it together with:
 
+- [openai-model-selection-matrix.md](/c:/CurrIA/docs/openai-model-selection-matrix.md)
 - [openai-portuguese-quality-gate.md](/c:/CurrIA/docs/openai-portuguese-quality-gate.md)
 - [portuguese-quality-test-results.md](/c:/CurrIA/docs/portuguese-quality-test-results.md)
 - [openai-migration-monitoring.md](/c:/CurrIA/docs/openai-migration-monitoring.md)
 - [openai-migration-rollback.md](/c:/CurrIA/docs/openai-migration-rollback.md)
 
-## Phase 1 - Portuguese Quality Validation (5-6 hours)
+## Phase 1 - OpenAI Cost and Quality Matrix (5-6 hours)
 
 Owner:
 Target date:
@@ -22,19 +23,21 @@ Status:
   - [ ] `rewrite_section`
   - [ ] `create_target_resume`
   - [ ] conversational agent output
-- [ ] Generate Claude Haiku outputs for all samples
-- [ ] Generate GPT-5 Mini outputs for all samples
-- [ ] Remove provider labels before human evaluation
+- [ ] Generate `combo_a` outputs for all samples
+- [ ] Generate `combo_b` outputs for all samples
+- [ ] Generate `combo_c` outputs for all samples
+- [ ] Remove model labels before human evaluation
 - [ ] Score all samples using the official rubric
 - [ ] Record results in [portuguese-quality-test-results.md](/c:/CurrIA/docs/portuguese-quality-test-results.md)
-- [ ] Compute GPT global average
-- [ ] Make final gate decision:
-  - [ ] `OPENAI FULL`
-  - [ ] `HYBRID`
-  - [ ] `REVERT TO CLAUDE`
+- [ ] Compute quality and average cost per sample for each combo
+- [ ] Make final model decision:
+  - [ ] `COMBO_A`
+  - [ ] `COMBO_B`
+  - [ ] `COMBO_C`
+  - [ ] `HOLD`
 
 Gate:
-- GPT average must be `>= 4.0` to proceed with full OpenAI rollout
+- a selected combo should be `>= 4.0` to proceed without explicit exception handling
 
 ## Phase 2 - Code Review and Validation (2-3 hours)
 
@@ -42,12 +45,13 @@ Owner:
 Target date:
 Status:
 
-- [ ] Search for remaining Anthropic runtime references
+- [ ] Confirm `OPENAI_MODEL_COMBO` is set intentionally for the test or launch
 - [ ] Confirm the OpenAI client is centralized in [client.ts](/c:/CurrIA/src/lib/openai/client.ts)
 - [ ] Confirm model routing in [config.ts](/c:/CurrIA/src/lib/agent/config.ts):
-  - [ ] `agent = gpt-5.4-mini`
-  - [ ] `structured = gpt-5-mini`
-  - [ ] `vision = gpt-5-mini`
+  - [ ] selected combo is correct
+  - [ ] `agent` model is correct
+  - [ ] `structured` model is correct
+  - [ ] `vision` model is correct
 - [ ] Confirm usage tracking in [usage-tracker.ts](/c:/CurrIA/src/lib/agent/usage-tracker.ts) uses:
   - [ ] `model`
   - [ ] `inputTokens`
@@ -73,15 +77,15 @@ Owner:
 Target date:
 Status:
 
-- [ ] Update [README.md](/c:/CurrIA/README.md) with the final provider decision
-- [ ] Update [CLAUDE.md](/c:/CurrIA/CLAUDE.md) with the final provider rationale
+- [ ] Update [README.md](/c:/CurrIA/README.md) with the final selected combo
+- [ ] Update [CLAUDE.md](/c:/CurrIA/CLAUDE.md) with the final model rationale
+- [ ] Update [openai-model-selection-matrix.md](/c:/CurrIA/docs/openai-model-selection-matrix.md) with the approved outcome if needed
 - [ ] Finalize [portuguese-quality-test-results.md](/c:/CurrIA/docs/portuguese-quality-test-results.md)
-- [ ] Confirm [architecture-overview.md](/c:/CurrIA/docs/architecture-overview.md) reflects the final provider state
-- [ ] Confirm [error-codes.md](/c:/CurrIA/docs/error-codes.md) does not reference the wrong provider
-- [ ] Confirm env docs reference the final provider key(s)
+- [ ] Confirm [architecture-overview.md](/c:/CurrIA/docs/architecture-overview.md) reflects the final model state
+- [ ] Confirm env docs reference `OPENAI_MODEL_COMBO`
 
 Gate:
-- docs must match the actual runtime strategy: OpenAI full, hybrid, or Claude revert
+- docs must match the actual runtime combo
 
 ## Phase 4 - Deployment Preparation (1-2 hours)
 
@@ -89,13 +93,13 @@ Owner:
 Target date:
 Status:
 
-- [ ] Deploy the migration candidate to staging
+- [ ] Deploy the approved combo to staging
 - [ ] Run smoke tests for:
   - [ ] `/api/agent`
   - [ ] resume rewrite flow
   - [ ] target resume flow
   - [ ] OCR flow
-- [ ] Set up the migration monitoring views from [openai-migration-monitoring.md](/c:/CurrIA/docs/openai-migration-monitoring.md)
+- [ ] Set up the monitoring views from [openai-migration-monitoring.md](/c:/CurrIA/docs/openai-migration-monitoring.md)
 - [ ] Record the pre-launch cost baseline
 - [ ] Record the pre-launch latency baseline
 - [ ] Confirm incident response ownership using [openai-migration-rollback.md](/c:/CurrIA/docs/openai-migration-rollback.md)
@@ -110,9 +114,9 @@ Owner:
 Target date:
 Status:
 
-- [ ] Final provider decision approved
-- [ ] Final provider state reflected in code and docs
-- [ ] Final commit created with the Portuguese test results reference
+- [ ] Final model decision approved
+- [ ] Final model state reflected in code and docs
+- [ ] Final commit created with the test-results reference
 - [ ] Push to `main`
 - [ ] Deploy to production
 - [ ] Monitor the first 30 minutes actively
@@ -138,7 +142,7 @@ Status:
 - [ ] Review 3-day average cost
 - [ ] Review 3-day average latency
 - [ ] Confirm zero critical issues in the first 24 hours
-- [ ] Sign off the migration when stable
+- [ ] Sign off the selected combo when stable
 
 Success thresholds:
 - error rate `< 1%`
@@ -148,7 +152,7 @@ Success thresholds:
 
 ## Final sign-off
 
-- Final provider:
+- Final combo:
 - Approved by:
 - Approval date:
 - Notes:
