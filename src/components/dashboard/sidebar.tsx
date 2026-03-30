@@ -1,15 +1,7 @@
 "use client"
 
 import { useClerk } from "@clerk/nextjs"
-import {
-  Coins,
-  FileText,
-  HelpCircle,
-  LogOut,
-  MessageSquare,
-  Settings,
-  X,
-} from "lucide-react"
+import { Coins, FileText, LogOut, MessageSquare, Settings, X } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -30,20 +22,15 @@ const navItems = [
     icon: MessageSquare,
   },
   {
-    label: "Meus Currículos",
+    label: "Meus Curriculos",
     href: "/resumes",
     icon: FileText,
-  },
-  {
-    label: "O que é ATS?",
-    href: "/what-is-ats",
-    icon: HelpCircle,
   },
 ]
 
 const bottomItems = [
   {
-    label: "Configurações",
+    label: "Configuracoes",
     href: "/settings",
     icon: Settings,
   },
@@ -92,17 +79,17 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
           </nav>
         </ScrollArea>
 
-        <div className="px-3 py-4 mt-auto border-t border-border">
-          <div className="mb-4 px-3 space-y-2">
+        <div className="mt-auto border-t border-border px-3 py-4">
+          <div className="mb-4 space-y-2 px-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-primary">
                 <Coins className="h-4 w-4 text-yellow-500" />
-                <span className="text-sm font-medium">Créditos</span>
+                <span className="text-sm font-medium">Creditos</span>
               </div>
               <span className="text-xs font-bold">120 / 200</span>
             </div>
             <Progress value={60} className="h-2" />
-            <p className="text-[10px] text-muted-foreground text-center">Reseta em 14 dias</p>
+            <p className="text-center text-[10px] text-muted-foreground">Reseta em 14 dias</p>
           </div>
 
           <nav className="space-y-1">
