@@ -44,3 +44,7 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+
+# Local design imports
+temp-figma-import/
+Modernize Design Files.zip

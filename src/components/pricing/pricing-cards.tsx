@@ -1,16 +1,18 @@
 "use client"
 
 import React, { useCallback, useEffect, useRef, useState } from "react"
+
 import { useAuth } from "@clerk/nextjs"
+import { Check, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
+
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Check, Loader2 } from "lucide-react"
 import { navigateToUrl } from "@/lib/navigation/external"
-import { cn } from "@/lib/utils"
 import { PLANS, formatPrice } from "@/lib/plans"
+import { cn } from "@/lib/utils"
 
 const plans = [
   {
@@ -28,7 +30,8 @@ const plans = [
 ]
 
 const CHECKOUT_ERROR_MESSAGE = "Nao foi possivel iniciar o checkout. Tente novamente."
-type CheckoutPlan = typeof plans[number]["slug"]
+
+type CheckoutPlan = (typeof plans)[number]["slug"]
 
 type CheckoutAttemptResult =
   | { kind: "success"; url: string }
@@ -69,15 +72,18 @@ export default function PricingCards() {
   const [loading, setLoading] = useState<string | null>(null)
   const autoCheckoutStartedRef = useRef(false)
 
-  const redirectToAuth = useCallback((plan: CheckoutPlan) => {
-    router.push(getSignupRedirectPath(plan))
-  }, [router])
+  const redirectToAuth = useCallback(
+    (plan: CheckoutPlan) => {
+      router.push(getSignupRedirectPath(plan))
+    },
+    [router],
+  )
 
   const requestCheckout = useCallback(async (plan: CheckoutPlan): Promise<CheckoutAttemptResult> => {
     try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
       })
 
@@ -110,95 +116,104 @@ export default function PricingCards() {
     }
   }, [])
 
-  const handleCheckout = useCallback(async (plan: CheckoutPlan) => {
-    if (!isLoaded) {
-      return
-    }
-
-    if (!isSignedIn) {
-      redirectToAuth(plan)
-      return
-    }
-
-    setLoading(plan)
-    try {
-      let result = await requestCheckout(plan)
-
-      if (result.kind !== "success" && (result.kind === "unauthorized" || result.retryable)) {
-        result = await requestCheckout(plan)
-      }
-
-      if (result.kind === "success") {
-        navigateToUrl(result.url)
+  const handleCheckout = useCallback(
+    async (plan: CheckoutPlan) => {
+      if (!isLoaded) {
         return
       }
 
-      if (result.kind === "unauthorized") {
-        router.push(getLoginRedirectPath(plan))
+      if (!isSignedIn) {
+        redirectToAuth(plan)
         return
       }
 
-      toast.error(result.message)
-    } finally {
-      setLoading(null)
-    }
-  }, [isLoaded, isSignedIn, redirectToAuth, requestCheckout, router])
+      setLoading(plan)
+      try {
+        let result = await requestCheckout(plan)
+
+        if (result.kind !== "success" && (result.kind === "unauthorized" || result.retryable)) {
+          result = await requestCheckout(plan)
+        }
+
+        if (result.kind === "success") {
+          navigateToUrl(result.url)
+          return
+        }
+
+        if (result.kind === "unauthorized") {
+          router.push(getLoginRedirectPath(plan))
+          return
+        }
+
+        toast.error(result.message)
+      } finally {
+        setLoading(null)
+      }
+    },
+    [isLoaded, isSignedIn, redirectToAuth, requestCheckout, router],
+  )
 
   useEffect(() => {
-    const checkoutPlan = searchParams.get('checkoutPlan')
+    const checkoutPlan = searchParams.get("checkoutPlan")
     if (!isLoaded || !isSignedIn || autoCheckoutStartedRef.current || !checkoutPlan) {
       return
     }
 
-    if (checkoutPlan !== 'unit' && checkoutPlan !== 'monthly' && checkoutPlan !== 'pro') {
+    if (checkoutPlan !== "unit" && checkoutPlan !== "monthly" && checkoutPlan !== "pro") {
       return
     }
 
     autoCheckoutStartedRef.current = true
-    router.replace('/pricing')
+    router.replace("/pricing")
     void handleCheckout(checkoutPlan)
   }, [handleCheckout, isLoaded, isSignedIn, router, searchParams])
 
   return (
-    <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+    <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3">
       {plans.map((plan) => {
         const config = PLANS[plan.slug]
-        const period = config.billing === 'monthly' ? '/mês' : ''
+        const period = config.billing === "monthly" ? "/mes" : ""
 
         return (
           <Card
             key={config.name}
             className={cn(
-              "relative flex flex-col",
-              plan.popular && "border-primary shadow-lg"
+              "relative flex h-full flex-col border-border/60 bg-card/80 shadow-sm transition-all",
+              plan.popular
+                ? "border-primary/70 shadow-xl shadow-primary/10"
+                : "hover:-translate-y-1 hover:shadow-lg",
             )}
           >
             {plan.popular && (
-              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-4">
                 Mais popular
               </Badge>
             )}
-            <CardHeader className="text-center pb-2">
+
+            <CardHeader className="pb-2 pt-8 text-center">
               <CardTitle className="text-xl">{config.name}</CardTitle>
               <CardDescription>{config.description}</CardDescription>
             </CardHeader>
-            <CardContent className="text-center flex-1">
+
+            <CardContent className="flex flex-1 flex-col justify-between text-center">
               <div className="mb-6">
                 <span className="text-4xl font-bold">{formatPrice(config.price)}</span>
                 <span className="text-muted-foreground">{period}</span>
               </div>
+
               <ul className="space-y-3 text-left">
                 {config.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm">{feature}</span>
+                  <li key={feature} className="flex items-center gap-3">
+                    <Check className="h-4 w-4 flex-shrink-0 text-primary" />
+                    <span className="text-sm font-medium">{feature}</span>
                   </li>
                 ))}
               </ul>
             </CardContent>
+
             <CardFooter>
               <Button
-                className="w-full"
+                className="w-full rounded-full"
                 variant={plan.popular ? "default" : "outline"}
                 onClick={() => handleCheckout(plan.slug)}
                 disabled={!isLoaded || loading !== null}
@@ -209,7 +224,7 @@ export default function PricingCards() {
                     Processando...
                   </>
                 ) : (
-                  'Começar agora'
+                  "Comecar agora"
                 )}
               </Button>
             </CardFooter>

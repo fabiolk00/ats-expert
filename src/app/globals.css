@@ -2,106 +2,111 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CurrIA - Dark-mode-first with Electric Blue accent (v2 design adapted for Tailwind 3) */
+/* CurrIA - Figma-aligned OKLCH token system adapted to Tailwind 3 */
 
 :root {
-  /* Light mode (secondary) - converted from v2's oklch to HSL */
-  --background: 250 10% 98%;
-  --foreground: 250 13% 15%;
-  --card: 0 0% 100%;
-  --card-foreground: 250 13% 15%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 250 13% 15%;
-  --primary: 250 84% 62%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 250 10% 95%;
-  --secondary-foreground: 250 25% 25%;
-  --muted: 250 10% 95%;
-  --muted-foreground: 250 10% 45%;
-  --accent: 250 10% 95%;
-  --accent-foreground: 250 25% 25%;
-  --destructive: 25 90% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 250 10% 90%;
-  --input: 250 10% 90%;
-  --ring: 250 84% 62%;
-  --radius: 0.75rem;
+  --background: 1 0 0;
+  --foreground: 0.145 0 0;
+  --card: 1 0 0;
+  --card-foreground: 0.145 0 0;
+  --popover: 1 0 0;
+  --popover-foreground: 0.145 0 0;
+  --primary: 0.145 0 0;
+  --primary-foreground: 1 0 0;
+  --secondary: 0.95 0.0058 264.53;
+  --secondary-foreground: 0.205 0 0;
+  --muted: 0.965 0.004 264.53;
+  --muted-foreground: 0.554 0.023 285.94;
+  --accent: 0.93 0.006 264.53;
+  --accent-foreground: 0.145 0 0;
+  --destructive: 0.577 0.245 27.325;
+  --destructive-foreground: 1 0 0;
+  --border: 0.922 0 0;
+  --input: 0.922 0 0;
+  --ring: 0.708 0 0;
+  --radius: 0.875rem;
 
-  /* Chart colors */
-  --chart-1: 250 84% 62%;
-  --chart-2: 180 60% 70%;
-  --chart-3: 145 75% 65%;
-  --chart-4: 80 65% 75%;
-  --chart-5: 30 80% 60%;
+  --chart-1: 0.646 0.222 41.116;
+  --chart-2: 0.6 0.118 184.704;
+  --chart-3: 0.398 0.07 227.392;
+  --chart-4: 0.828 0.189 84.429;
+  --chart-5: 0.769 0.188 70.08;
 
-  /* Sidebar colors */
-  --sidebar: 250 10% 97%;
-  --sidebar-foreground: 250 13% 15%;
-  --sidebar-primary: 250 84% 62%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 250 15% 93%;
-  --sidebar-accent-foreground: 250 25% 25%;
-  --sidebar-border: 250 10% 90%;
-  --sidebar-ring: 250 84% 62%;
+  --sidebar: 0.985 0 0;
+  --sidebar-foreground: 0.145 0 0;
+  --sidebar-primary: 0.145 0 0;
+  --sidebar-primary-foreground: 0.985 0 0;
+  --sidebar-accent: 0.97 0 0;
+  --sidebar-accent-foreground: 0.205 0 0;
+  --sidebar-border: 0.922 0 0;
+  --sidebar-ring: 0.708 0 0;
 
-  /* Custom CurrIA tokens */
-  --success: 145 75% 72%;
-  --success-foreground: 0 0% 100%;
-  --warning: 80 65% 80%;
-  --warning-foreground: 0 0% 20%;
+  --success: 0.723 0.192 149.58;
+  --success-foreground: 0.99 0 0;
+  --warning: 0.839 0.173 84.54;
+  --warning-foreground: 0.28 0.02 84.54;
 }
 
 .dark {
-  /* Dark mode (primary - default) */
-  --background: 260 15% 13%;
-  --foreground: 250 10% 95%;
-  --card: 260 20% 17%;
-  --card-foreground: 250 10% 95%;
-  --popover: 260 20% 17%;
-  --popover-foreground: 250 10% 95%;
-  --primary: 250 85% 65%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 260 20% 22%;
-  --secondary-foreground: 250 10% 90%;
-  --muted: 260 15% 20%;
-  --muted-foreground: 250 10% 65%;
-  --accent: 260 20% 22%;
-  --accent-foreground: 250 10% 90%;
-  --destructive: 25 90% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 260 20% 28%;
-  --input: 260 15% 22%;
-  --ring: 250 85% 65%;
+  --background: 0.145 0 0;
+  --foreground: 0.985 0 0;
+  --card: 0.18 0 0;
+  --card-foreground: 0.985 0 0;
+  --popover: 0.145 0 0;
+  --popover-foreground: 0.985 0 0;
+  --primary: 0.985 0 0;
+  --primary-foreground: 0.205 0 0;
+  --secondary: 0.269 0 0;
+  --secondary-foreground: 0.985 0 0;
+  --muted: 0.24 0 0;
+  --muted-foreground: 0.708 0 0;
+  --accent: 0.269 0 0;
+  --accent-foreground: 0.985 0 0;
+  --destructive: 0.396 0.141 25.723;
+  --destructive-foreground: 0.985 0 0;
+  --border: 0.269 0 0;
+  --input: 0.269 0 0;
+  --ring: 0.439 0 0;
 
-  /* Chart colors - dark mode */
-  --chart-1: 250 85% 65%;
-  --chart-2: 180 60% 70%;
-  --chart-3: 145 75% 72%;
-  --chart-4: 80 65% 80%;
-  --chart-5: 30 80% 60%;
+  --chart-1: 0.488 0.243 264.376;
+  --chart-2: 0.696 0.17 162.48;
+  --chart-3: 0.769 0.188 70.08;
+  --chart-4: 0.627 0.265 303.9;
+  --chart-5: 0.645 0.246 16.439;
 
-  /* Sidebar colors - dark mode */
-  --sidebar: 260 18% 15%;
-  --sidebar-foreground: 250 10% 95%;
-  --sidebar-primary: 250 85% 65%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 260 20% 22%;
-  --sidebar-accent-foreground: 250 10% 90%;
-  --sidebar-border: 260 20% 28%;
-  --sidebar-ring: 250 85% 65%;
+  --sidebar: 0.205 0 0;
+  --sidebar-foreground: 0.985 0 0;
+  --sidebar-primary: 0.488 0.243 264.376;
+  --sidebar-primary-foreground: 0.985 0 0;
+  --sidebar-accent: 0.269 0 0;
+  --sidebar-accent-foreground: 0.985 0 0;
+  --sidebar-border: 0.269 0 0;
+  --sidebar-ring: 0.439 0 0;
 
-  /* Custom CurrIA tokens - dark mode */
-  --success: 145 75% 72%;
-  --success-foreground: 0 0% 100%;
-  --warning: 80 65% 80%;
-  --warning-foreground: 0 0% 20%;
+  --success: 0.73 0.178 151.41;
+  --success-foreground: 0.18 0 0;
+  --warning: 0.82 0.17 92.73;
+  --warning-foreground: 0.18 0 0;
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at top left, oklch(var(--primary) / 0.035), transparent 32%),
+      radial-gradient(circle at top right, oklch(var(--chart-2) / 0.04), transparent 28%);
+    color-scheme: light;
+  }
+
+  .dark body {
+    color-scheme: dark;
   }
 }
