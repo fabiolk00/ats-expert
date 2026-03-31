@@ -235,9 +235,9 @@ describe('checkout route billing sequencing', () => {
       }),
     )
 
-    expect(response.status).toBe(503)
+    expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error: 'Nao foi possivel validar seu plano atual no momento. Tente novamente em instantes.',
+      error: 'Nao foi possivel validar seu plano atual no momento. Tente novamente.',
     })
     expect(createCheckoutRecordPending).not.toHaveBeenCalled()
   })

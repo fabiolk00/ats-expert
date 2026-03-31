@@ -47,9 +47,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getCheckoutErrorMessage(payload: unknown): string {
   if (isRecord(payload) && typeof payload.error === "string") {
     const message = payload.error.trim()
-    if (message && message !== "Internal server error" && message !== "Unauthorized") {
-      return message
+
+    // Allow specific error patterns we know about
+    if (message.includes("Voce ja possui")) return message
+    if (message.includes("Para contratar")) return message
+    if (message.includes("plano")) return message
+    if (message.includes("Invalid")) return message
+
+    // Reject generic/unhelpful messages
+    if (!message || message === "Internal server error" || message === "Unauthorized") {
+      return CHECKOUT_ERROR_MESSAGE
     }
+
+    return message
   }
 
   return CHECKOUT_ERROR_MESSAGE

@@ -53,9 +53,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         console.error('[api/checkout] failed to validate recurring subscription state', error)
         return NextResponse.json(
           {
-            error: 'Nao foi possivel validar seu plano atual no momento. Tente novamente em instantes.',
+            error: 'Nao foi possivel validar seu plano atual no momento. Tente novamente.',
           },
-          { status: 503 },
+          { status: 400 },
         )
       }
 
