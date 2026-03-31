@@ -6,23 +6,33 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
-// Called by Vercel Cron — deletes processed_events older than 30 days
+/**
+ * Cleanup old processed webhook events (>30 days).
+ * Called by Vercel Crons daily at 2 AM UTC.
+ *
+ * Uses cleanup_old_processed_events() RPC for:
+ * - Timezone-safe date arithmetic (PostgreSQL NOW() not Node.js Date)
+ * - Parameterizable retention window
+ * - Consistent with CurrIA's RPC-based mutation pattern
+ * - Better observability and error handling
+ *
+ * @see prisma/migrations/20260331_priority_2_operational_improvements.sql
+ */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-
-  const { error, count } = await supabase
-    .from('processed_events')
-    .delete({ count: 'exact' })
-    .lt('created_at', cutoff)
+  const { data, error } = await supabase.rpc(
+    'cleanup_old_processed_events',
+    { p_days_old: 30 }
+  )
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ deleted: count })
+  const deletedCount = data?.[0]?.deleted_count ?? 0
+  return NextResponse.json({ deleted: deletedCount })
 }
