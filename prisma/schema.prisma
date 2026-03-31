@@ -139,6 +139,7 @@ model ProcessedEvent {
   createdAt        DateTime @default(now()) @map("created_at")
 
   @@unique([eventId, eventType])
+  @@index([createdAt])
   @@map("processed_events")
 }
 
