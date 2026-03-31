@@ -36,8 +36,6 @@
   ],
   "exclude": [
     "node_modules",
-    "v0",
-    "temp-figma-import",
     "docs/design-system-migration/workspace"
   ]
 }

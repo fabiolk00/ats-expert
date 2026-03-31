@@ -28,20 +28,20 @@ Applied strategy:
 
 | CurrIA live component | Imported Figma reference | Decision |
 |---|---|---|
-| [header.tsx](/c:/CurrIA/src/components/landing/header.tsx) | `temp-figma-import/src/app/components/header.tsx` | Rebuilt visually, preserved real Next links and Clerk behavior |
-| [hero-section.tsx](/c:/CurrIA/src/components/landing/hero-section.tsx) | `temp-figma-import/src/app/components/hero-section.tsx` | Rebuilt visually, preserved existing CTA flow |
-| [pricing-section.tsx](/c:/CurrIA/src/components/landing/pricing-section.tsx) | `temp-figma-import/src/app/components/pricing-section.tsx` | Rebuilt visually, preserved CurrIA plans and pricing routes |
-| [footer.tsx](/c:/CurrIA/src/components/landing/footer.tsx) | `temp-figma-import/src/app/components/footer.tsx` | Rebuilt visually, preserved current link structure |
-| [dashboard-shell.tsx](/c:/CurrIA/src/components/dashboard/dashboard-shell.tsx) | `temp-figma-import/src/app/components/dashboard/DashboardShell.tsx` | Moved desktop layout to left-nav shell, preserved auth layout contract |
-| [navbar.tsx](/c:/CurrIA/src/components/dashboard/navbar.tsx) | imported dashboard/top bar styling | Rebuilt visually, preserved theme toggle and Clerk user menu |
-| [sidebar.tsx](/c:/CurrIA/src/components/dashboard/sidebar.tsx) | `temp-figma-import/src/app/components/dashboard/DashboardSidebar.tsx` | Rebuilt visually, preserved real routes and sign-out |
-| [chat-interface.tsx](/c:/CurrIA/src/components/dashboard/chat-interface.tsx) | `temp-figma-import/src/app/components/dashboard/ChatInterface.tsx` | Rebuilt visually on top of the live SSE, upload, and session-loading flow |
-| [chat-message.tsx](/c:/CurrIA/src/components/dashboard/chat-message.tsx) | imported dashboard chat treatment | Rebuilt visually, preserved markdown rendering and analysis payload structure |
-| [resume-workspace.tsx](/c:/CurrIA/src/components/dashboard/resume-workspace.tsx) | `temp-figma-import/src/app/components/dashboard/ResumeWorkspace.tsx` | Rebuilt live workspace hierarchy, preserved all workspace mutations and downloads |
+| [header.tsx](/c:/CurrIA/src/components/landing/header.tsx) | Figma design system | Rebuilt visually, preserved real Next links and Clerk behavior |
+| [hero-section.tsx](/c:/CurrIA/src/components/landing/hero-section.tsx) | Figma design system | Rebuilt visually, preserved existing CTA flow |
+| [pricing-section.tsx](/c:/CurrIA/src/components/landing/pricing-section.tsx) | Figma design system | Rebuilt visually, preserved CurrIA plans and pricing routes |
+| [footer.tsx](/c:/CurrIA/src/components/landing/footer.tsx) | Figma design system | Rebuilt visually, preserved current link structure |
+| [dashboard-shell.tsx](/c:/CurrIA/src/components/dashboard/dashboard-shell.tsx) | Figma design system | Moved desktop layout to left-nav shell, preserved auth layout contract |
+| [navbar.tsx](/c:/CurrIA/src/components/dashboard/navbar.tsx) | Figma design system | Rebuilt visually, preserved theme toggle and Clerk user menu |
+| [sidebar.tsx](/c:/CurrIA/src/components/dashboard/sidebar.tsx) | Figma design system | Rebuilt visually, preserved real routes and sign-out |
+| [chat-interface.tsx](/c:/CurrIA/src/components/dashboard/chat-interface.tsx) | Figma design system | Rebuilt visually on top of the live SSE, upload, and session-loading flow |
+| [chat-message.tsx](/c:/CurrIA/src/components/dashboard/chat-message.tsx) | Figma design system | Rebuilt visually, preserved markdown rendering and analysis payload structure |
+| [resume-workspace.tsx](/c:/CurrIA/src/components/dashboard/resume-workspace.tsx) | Figma design system | Rebuilt live workspace hierarchy, preserved all workspace mutations and downloads |
 | [manual-edit-dialog.tsx](/c:/CurrIA/src/components/dashboard/manual-edit-dialog.tsx) | imported modal treatment | Restyled overlay only, preserved edit payload logic |
 | [compare-drawer.tsx](/c:/CurrIA/src/components/dashboard/compare-drawer.tsx) | imported side-panel treatment | Restyled comparison panel, preserved snapshot diff logic |
 | [session-card.tsx](/c:/CurrIA/src/components/session-card.tsx) | imported dashboard card language | Rebuilt visually, preserved session routing and generation actions |
-| [login-form.tsx](/c:/CurrIA/src/components/auth/login-form.tsx) | `temp-figma-import/src/app/pages/LoginPage.tsx` | Preserved Clerk sign-in logic, updated wrapper styling only |
+| [login-form.tsx](/c:/CurrIA/src/components/auth/login-form.tsx) | Figma design system | Preserved Clerk sign-in logic, updated wrapper styling only |
 | [signup-form.tsx](/c:/CurrIA/src/components/auth/signup-form.tsx) | imported auth card treatment | Preserved Clerk sign-up and verification flow, updated presentation |
 
 ## Preservation Rules

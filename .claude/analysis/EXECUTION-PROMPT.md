@@ -352,9 +352,8 @@ cat .gitignore | grep -i "design\|figma\|modernize"
 
 # Step 2: If NOT present, add entries
 echo "" >> .gitignore
-echo "# Design system workspace" >> .gitignore
-echo "modernize-design-files/" >> .gitignore
-echo "temp-figma-import/" >> .gitignore
+echo "# Design system files" >> .gitignore
+echo "Modernize Design Files.zip" >> .gitignore
 
 # Step 3: Verify additions
 tail -5 .gitignore  # Should show new entries

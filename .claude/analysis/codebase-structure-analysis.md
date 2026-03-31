@@ -43,11 +43,17 @@ CurrIA demonstrates mature, well-organized architecture with clear separation of
 │   └── migrations/       # SQL migrations
 │
 ├── docs/                 # Technical documentation
+│   ├── design-system-migration/
+│   │   ├── migration.md  # Design migration progress tracker
+│   │   └── workspace/    # Archived Figma design system workspace (reference)
+│   └── [other docs...]
 ├── .claude/              # Claude Code configuration
 │   ├── rules/            # Architectural rules
 │   ├── skills/           # Custom skills
-│   └── agents/           # Agent definitions
-└── modernize-design-files/  # [UNTRACKED] Figma design imports
+│   ├── agents/           # Agent definitions
+│   └── analysis/         # Analysis & cleanup documentation
+├── scripts/              # Operational helper scripts
+└── prisma/ + src/        # Core application code
 ```
 
 ---
@@ -760,10 +766,10 @@ docs/
 # Verify .gitignore covers all temporary files
 cat .gitignore | grep -E "modernize|temp|design"
 
-# Should see or add:
-# modernize-design-files/     (if temporary)
-# temp-figma-import/
-# Modernize Design Files.zip  (already there)
+# Should see:
+# Modernize Design Files.zip  (temporary zip file)
+# Note: temp-figma-import/ was deleted (design artifact)
+# Note: modernize-design-files/ was archived to docs/design-system-migration/workspace/
 ```
 
 ---

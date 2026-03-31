@@ -239,9 +239,7 @@ cat .gitignore | grep -i "figma\|design\|modernize"
 
 # If not present (and you chose Option B above):
 echo "" >> .gitignore
-echo "# Design system workspace" >> .gitignore
-echo "modernize-design-files/" >> .gitignore
-echo "temp-figma-import/" >> .gitignore
+echo "# Design system files" >> .gitignore
 echo "Modernize Design Files.zip" >> .gitignore
 
 # Verify
