@@ -110,7 +110,7 @@ export default function SocialProof() {
                   </div>
 
                   <h4 className="text-lg font-bold mb-3 text-foreground leading-snug">
-                    "{testimonial.result}"
+                    &ldquo;{testimonial.result}&rdquo;
                   </h4>
                   <p className="text-muted-foreground text-sm leading-relaxed mb-8 flex-grow">
                     {testimonial.content}
