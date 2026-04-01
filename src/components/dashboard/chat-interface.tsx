@@ -214,6 +214,7 @@ export function ChatInterface({
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
+      let buffer = ""
 
       while (true) {
         const { done, value } = await reader.read()
@@ -221,57 +222,63 @@ export function ChatInterface({
           break
         }
 
-        const lines = decoder.decode(value).split("\n")
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) {
-            continue
-          }
+        buffer += decoder.decode(value, { stream: true })
+        const events = buffer.split("\n\n")
+        buffer = events.pop() ?? ""
 
-          try {
-            const chunk = JSON.parse(line.slice(6)) as AgentStreamChunk
-
-            if ("delta" in chunk) {
-              setMessages((previous) =>
-                previous.map((message) =>
-                  message.id === assistantMessageId
-                    ? { ...message, content: message.content + chunk.delta }
-                    : message,
-                ),
-              )
+        for (const event of events) {
+          const lines = event.split("\n")
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) {
               continue
             }
 
-            if ("done" in chunk && chunk.done) {
-              setPhase(chunk.phase)
-              if (chunk.atsScore?.total !== undefined) {
-                setAtsScore(chunk.atsScore.total)
+            try {
+              const chunk = JSON.parse(line.slice(6)) as AgentStreamChunk
+
+              if ("delta" in chunk) {
+                setMessages((previous) =>
+                  previous.map((message) =>
+                    message.id === assistantMessageId
+                      ? { ...message, content: message.content + chunk.delta }
+                      : message,
+                  ),
+                )
+                continue
               }
-              if (chunk.messageCount !== undefined) {
-                setMessageCount(chunk.messageCount)
+
+              if ("done" in chunk && chunk.done) {
+                setPhase(chunk.phase)
+                if (chunk.atsScore?.total !== undefined) {
+                  setAtsScore(chunk.atsScore.total)
+                }
+                if (chunk.messageCount !== undefined) {
+                  setMessageCount(chunk.messageCount)
+                }
+                if (chunk.sessionId) {
+                  setSessionId(chunk.sessionId)
+                  onSessionChange?.(chunk.sessionId)
+                }
+                onAgentTurnCompleted?.(chunk)
+                continue
               }
-              if (chunk.sessionId) {
-                setSessionId(chunk.sessionId)
-                onSessionChange?.(chunk.sessionId)
+
+              if ("error" in chunk) {
+                if (chunk.action === "new_session") {
+                  setSessionLimitReached(true)
+                }
+
+                setMessages((previous) =>
+                  previous.map((message) =>
+                    message.id === assistantMessageId
+                      ? { ...message, content: `Aviso: ${chunk.error}` }
+                      : message,
+                  ),
+                )
               }
-              onAgentTurnCompleted?.(chunk)
+            } catch {
               continue
             }
-
-            if ("error" in chunk) {
-              if (chunk.action === "new_session") {
-                setSessionLimitReached(true)
-              }
-
-              setMessages((previous) =>
-                previous.map((message) =>
-                  message.id === assistantMessageId
-                    ? { ...message, content: `Aviso: ${chunk.error}` }
-                    : message,
-                ),
-              )
-            }
-          } catch {
-            continue
           }
         }
       }

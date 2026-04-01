@@ -1,4 +1,14 @@
+---
+title: CurrIA Architecture and Engineering Guide
+audience: [developers, architects, operations]
+related: [docs/INDEX.md, docs/CONCEPTS.md, docs/architecture-overview.md]
+status: current
+updated: 2026-04-01
+---
+
 # CurrIA - Architecture And Engineering Guide
+
+See also: [Documentation Index](docs/INDEX.md) | [Getting Started](docs/GETTING_STARTED.md)
 
 ## Product Summary
 CurrIA is a resume optimization SaaS for Brazilian job seekers. Users authenticate with Clerk, chat with an AI assistant, improve resume content into a canonical structured state, and generate ATS-oriented DOCX/PDF outputs.
@@ -16,16 +26,16 @@ This file is the project source of truth for system architecture and engineering
 - All combo names are currently pinned to the same cheapest supported model so runtime cost stays minimized.
 - The active combo can be overridden with `OPENAI_MODEL_COMBO`.
 - Model selection and pt-BR evaluation are documented in:
-  - `docs/openai-model-selection-matrix.md`
-  - `docs/openai-portuguese-quality-gate.md`
-  - `docs/portuguese-quality-test-results.md`
+  - `docs/openai/MODEL_SELECTION_MATRIX.md`
+  - `docs/openai/PORTUGUESE_QUALITY_GATE.md`
+  - `docs/openai/PORTUGUESE_TEST_RESULTS.md`
 
 ## Credit Carryover Behavior
 
 - When users change plans, remaining credits are **preserved and added** to the new plan credits.
 - When monthly subscriptions **renew**, credits are **replaced** (not added) with the plan's credit allocation.
 - **Implementation**: The application code in `src/lib/asaas/credit-grants.ts` detects the event type and sets the `p_is_renewal` parameter sent to the RPC. The RPC then applies the appropriate logic.
-- See `docs/billing-implementation.md` for detailed logic and examples.
+- See `docs/billing/IMPLEMENTATION.md` for detailed logic and examples.
 
 ## Plan Change Restrictions
 
@@ -70,8 +80,8 @@ Primary code:
 - `src/app/api/webhook/asaas/route.ts`
 - `src/lib/asaas/webhook.ts`
 - `src/lib/asaas/billing-checkouts.ts`
-- `docs/billing-implementation.md`
-- `docs/billing-migration-guide.md`
+- `docs/billing/IMPLEMENTATION.md`
+- `docs/billing/MIGRATION_GUIDE.md`
 
 ### Session state model
 Sessions are stored as a top-level bundle with explicit versioning:

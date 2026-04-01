@@ -57,32 +57,32 @@ npm test -- src/lib/asaas
 ## Documentation Status: COMPLETE ✅
 
 ### Operational Documentation
-- ✅ **`docs/staging-validation-plan.md`** (615 lines)
+- ✅ **`docs/staging/VALIDATION_PLAN.md`** (615 lines)
   - 7 concrete validation scenarios
   - Before/after DB state for each step
   - Failure branches and expected errors
   - Pre-production sign-off checklist
 
-- ✅ **`docs/billing-ops-runbook.md`** (639 lines)
+- ✅ **`docs/billing/OPS_RUNBOOK.md`** (639 lines)
   - 6 common issue diagnosis procedures
   - Manual recovery workflows (refunds, reprocessing)
   - Pre-cutover subscription handling
   - Escalation procedures
 
-- ✅ **`docs/billing-monitoring.md`** (356 lines)
+- ✅ **`docs/billing/MONITORING.md`** (356 lines)
   - 5 essential metrics with thresholds
   - SQL queries for each metric
   - Alert severity and response procedures
   - Pre-cutover legacy parsing sunset guide
 
 ### Implementation Documentation
-- ✅ **`docs/billing-implementation.md`**
+- ✅ **`docs/billing/IMPLEMENTATION.md`**
   - Architecture overview
   - Control matrix (what enforces each rule)
   - Trust anchor separation explained
   - Pre-cutover migration strategy
 
-- ✅ **`docs/billing-migration-guide.md`**
+- ✅ **`docs/billing/MIGRATION_GUIDE.md`**
   - Apply migration steps
   - Schema verification queries
   - Pre-cutover audit procedures
@@ -93,7 +93,7 @@ npm test -- src/lib/asaas
   - Link to all billing documentation
 
 ### Staging Setup Documentation
-- ✅ **`docs/staging-setup-guide.md`** (NEW)
+- ✅ **`docs/staging/SETUP_GUIDE.md`** (NEW)
   - Step-by-step staging provisioning
   - Database setup (Supabase, self-hosted, Docker)
   - Code deployment to staging
@@ -115,7 +115,7 @@ npm test -- src/lib/asaas
   - Green/red indicator for each check
 
 ### Agent Prompts
-- ✅ **`docs/staging-validation-agent-prompt.md`**
+- ✅ **`docs/staging/VALIDATION_AGENT_PROMPT.md`**
   - Ready-to-execute agent instructions
   - Hardened against plan/schema drift
   - Handles partial-success scenarios
@@ -321,11 +321,12 @@ Weekly Metrics:
 
 ---
 
-**Next Action:** Follow `docs/staging-setup-guide.md` to provision staging environment.
+**Next Action:** Follow `docs/staging/SETUP_GUIDE.md` to provision staging environment.
 
 **Questions?** Refer to:
-- **Setup:** `docs/staging-setup-guide.md`
-- **Validation:** `docs/staging-validation-plan.md`
-- **Operations:** `docs/billing-ops-runbook.md`
-- **Monitoring:** `docs/billing-monitoring.md`
+- **Setup:** `docs/staging/SETUP_GUIDE.md`
+- **Validation:** `docs/staging/VALIDATION_PLAN.md`
+- **Operations:** `docs/billing/OPS_RUNBOOK.md`
+- **Monitoring:** `docs/billing/MONITORING.md`
+
 

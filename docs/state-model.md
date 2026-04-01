@@ -1,4 +1,14 @@
+---
+title: CurrIA Session State Model
+audience: [developers, architects]
+related: [INDEX.md, CONCEPTS.md, architecture-overview.md, tool-development.md]
+status: current
+updated: 2026-04-01
+---
+
 # Session State Model
+
+Back to [Documentation Index](./INDEX.md) | Start with [Concepts](./CONCEPTS.md)
 
 ## Top-level session bundle
 
@@ -202,3 +212,9 @@ The tool dispatcher owns tool-originated state mutation. There are still route-l
 - attachment metadata bootstrap before the tool loop
 
 Those are request-lifecycle writes, not tool patches.
+
+## Related Documentation
+
+- [Core Concepts](./CONCEPTS.md) - plain-English explanation of state boundaries.
+- [Architecture Overview](./architecture-overview.md) - request flows and runtime boundaries.
+- [Tool Development Guide](./tool-development.md) - how tools should read and update state.

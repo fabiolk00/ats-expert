@@ -6,7 +6,7 @@ Operational scripts live here so they stay separate from the application runtime
 
 ### `npm run phase1:model-selection`
 
-Runs the OpenAI model-selection bakeoff defined in [run-openai-model-selection-phase1.ts](/c:/CurrIA/scripts/run-openai-model-selection-phase1.ts).
+Runs the OpenAI model-selection bakeoff defined in [run-openai-model-selection-phase1.ts](./run-openai-model-selection-phase1.ts).
 
 - Purpose: generate blind-review packets comparing the configured model combinations
 - Requires: `.env` with `OPENAI_API_KEY`

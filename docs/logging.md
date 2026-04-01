@@ -1,4 +1,14 @@
+---
+title: CurrIA Logging and Error Queries
+audience: [developers, operations]
+related: [INDEX.md, error-codes.md, billing/MONITORING.md]
+status: current
+updated: 2026-04-01
+---
+
 # Logging and Error Queries
+
+Back to [Documentation Index](./INDEX.md) | Related guide: [Error Codes](./error-codes.md)
 
 ## Overview
 

@@ -15,7 +15,7 @@ This analysis directory contains comprehensive documentation for understanding, 
 | Your Role | Start Here | Time |
 |-----------|-----------|------|
 | **Doing Cleanup Now** | [EXECUTION-PROMPT.md](./EXECUTION-PROMPT.md) ⭐ | 2 hours |
-| **Tech Lead** | [CLEANUP-SUMMARY.md](./CLEANUP-SUMMARY.md) | 5 min |
+| **Tech Lead** | [CLEANUP-SUMMARY.md](../archive/CLEANUP-SUMMARY.md) | 5 min |
 | **Frontend Developer** | [engineering-prompts.md](./engineering-prompts.md) - Template 5 | 10 min |
 | **Backend Developer** | [engineering-prompts.md](./engineering-prompts.md) - Template 1,2,4 | 10 min |
 | **DevOps/Infra** | [codebase-structure-analysis.md](./codebase-structure-analysis.md) - Folder Structure | 15 min |
@@ -196,7 +196,7 @@ Team Readiness      ✅ A  (Safe for parallel work)
 3. Check CLAUDE.md for architectural invariants
 
 ### For Cleanup/Maintenance
-1. Start with [CLEANUP-SUMMARY.md](./CLEANUP-SUMMARY.md)
+1. Start with [CLEANUP-SUMMARY.md](../archive/CLEANUP-SUMMARY.md)
 2. Reference [cleanup-checklist.md](./cleanup-checklist.md) for detailed steps
 3. Review [codebase-structure-analysis.md](./codebase-structure-analysis.md) cleanup section
 
@@ -340,7 +340,7 @@ After implementing this analysis:
 - `README.md` - Project quick start
 
 **In this analysis:**
-- [CLEANUP-SUMMARY.md](./CLEANUP-SUMMARY.md) - Visual guide
+- [CLEANUP-SUMMARY.md](../archive/CLEANUP-SUMMARY.md) - Visual guide
 - [codebase-structure-analysis.md](./codebase-structure-analysis.md) - Deep dive
 - [engineering-prompts.md](./engineering-prompts.md) - Task templates
 - [current-work-status.md](./current-work-status.md) - Project status
@@ -351,7 +351,7 @@ After implementing this analysis:
 ## 🎬 Get Started
 
 **Right now (5 min):**
-→ Read [CLEANUP-SUMMARY.md](./CLEANUP-SUMMARY.md)
+→ Read [CLEANUP-SUMMARY.md](../archive/CLEANUP-SUMMARY.md)
 
 **Today (20 min):**
 → Run cleanup commands from checklist
@@ -408,3 +408,4 @@ All present? 🎉 You're ready to go!
 **Last Updated:** March 30, 2026
 **Status:** Complete & Ready for Team Use
 **Maintained by:** CurrIA Technical Leadership
+

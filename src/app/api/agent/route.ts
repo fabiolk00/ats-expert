@@ -58,7 +58,7 @@ async function callOpenAIWithRetry(
 
 const BodySchema = z.object({
   sessionId: z.string().optional(),
-  message: z.string().min(1).max(8000),
+  message: z.string().max(8000).default(''),
   file: z.string().optional(),
   fileMime: z.enum([
     'application/pdf',
@@ -66,7 +66,44 @@ const BodySchema = z.object({
     'image/png',
     'image/jpeg',
   ]).optional(),
+}).superRefine((value, ctx) => {
+  if (!value.message.trim() && !value.file) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Message or file is required.',
+      path: ['message'],
+    })
+  }
+
+  if (value.file && !value.fileMime) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'fileMime is required when file is provided.',
+      path: ['fileMime'],
+    })
+  }
+
+  if (value.fileMime && !value.file) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'file is required when fileMime is provided.',
+      path: ['file'],
+    })
+  }
 })
+
+function parseJsonObject(value: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null
+    }
+
+    return parsed as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
 
 function sanitizeUserInput(input: string): string {
   return input
@@ -279,35 +316,60 @@ export async function POST(req: NextRequest) {
     }), { status: 429 })
   }
 
+  if (file && fileMime) {
+    const parseResult = parseJsonObject(
+      await dispatchTool(
+        'parse_file',
+        {
+          file_base64: file,
+          mime_type: fileMime,
+        },
+        session,
+      ),
+    )
+
+    const parseError = typeof parseResult?.error === 'string' ? parseResult.error : undefined
+
+    if (parseError) {
+      logWarn('agent.file.parse_failed', {
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        fileMime,
+        success: false,
+        errorMessage: parseError,
+      })
+      message = [message, `[Nota do sistema: Nao foi possivel processar o arquivo anexado. ${parseError}]`]
+        .filter(Boolean)
+        .join('\n\n')
+    } else {
+      logInfo('agent.file.parsed', {
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        fileMime,
+        success: true,
+      })
+
+      if (!message.trim()) {
+        message = 'Analise o curriculo anexado e me diga os proximos passos.'
+      }
+
+      message = [
+        message,
+        '[Nota do sistema: O curriculo anexado ja foi processado e o texto extraido esta disponivel para analise.]',
+      ].join('\n\n')
+    }
+  }
+
   await appendMessage(session.id, 'user', message)
 
   const history = await getMessages(session.id)
   const messages = toOpenAIHistory(
     trimMessages(history.map((m) => ({ role: m.role, content: m.content }))),
   )
-
-  const lastMsg = messages[messages.length - 1]
-  if (file && fileMime && lastMsg?.role === 'user' && typeof lastMsg.content === 'string') {
-    lastMsg.content += `\n\n[File attached: ${fileMime}]`
-    session.agentState = {
-      ...session.agentState,
-      parseStatus: 'attached',
-      parseError: undefined,
-      attachedFile: {
-        mimeType: fileMime,
-        receivedAt: new Date().toISOString(),
-      },
-    }
-    await updateSession(session.id, { agentState: session.agentState })
-    logInfo('agent.file.attached', {
-      sessionId: session.id,
-      appUserId,
-      phase: session.phase,
-      stateVersion: session.stateVersion,
-      fileMime,
-      success: true,
-    })
-  }
 
   const encoder = new TextEncoder()
 

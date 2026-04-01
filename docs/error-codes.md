@@ -1,4 +1,14 @@
+---
+title: CurrIA Error Codes
+audience: [developers, operations]
+related: [INDEX.md, logging.md, developer-rules/ERROR_HANDLING.md]
+status: current
+updated: 2026-04-01
+---
+
 # Error Codes
+
+Back to [Documentation Index](./INDEX.md) | Related guide: [Logging](./logging.md)
 
 ## Overview
 

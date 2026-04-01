@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useClerk, useUser } from "@clerk/nextjs"
 import {
   Coins,
@@ -24,6 +25,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { PlanUpdateDialog } from "@/components/dashboard/plan-update-dialog"
+import { PlanSlug } from "@/lib/plans"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -34,6 +37,7 @@ interface DashboardSidebarProps {
   creditsRemaining?: number
   maxCredits?: number
   renewsIn?: string
+  activeRecurringPlan?: PlanSlug | null
 }
 
 const navItems = [
@@ -80,7 +84,9 @@ export function DashboardSidebar({
   creditsRemaining,
   maxCredits,
   renewsIn,
+  activeRecurringPlan,
 }: DashboardSidebarProps) {
+  const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false)
   const pathname = usePathname()
   const { signOut } = useClerk()
   const { user } = useUser()
@@ -91,6 +97,7 @@ export function DashboardSidebar({
     user?.fullName?.trim() || user?.firstName?.trim() || user?.username || "Conta CurrIA"
   const email = user?.primaryEmailAddress?.emailAddress || ""
   const initials = getInitials(displayName, email)
+  const currentCredits = creditsRemaining ?? 0
   const handleSignOut = (): void => {
     onClose?.()
     void signOut({ redirectUrl: "/" })
@@ -189,11 +196,14 @@ export function DashboardSidebar({
                 {email ? <p className="text-xs text-muted-foreground">{email}</p> : null}
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/pricing" onClick={onClose}>
+              <DropdownMenuItem
+                onClick={() => {
+                  onClose?.()
+                  setIsPlanDialogOpen(true)
+                }}
+              >
                   <Sparkles className="h-4 w-4" />
                   Ver planos
-                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/settings" onClick={onClose}>
@@ -216,6 +226,13 @@ export function DashboardSidebar({
           </DropdownMenu>
         </div>
       </div>
+
+      <PlanUpdateDialog
+        isOpen={isPlanDialogOpen}
+        onOpenChange={setIsPlanDialogOpen}
+        activeRecurringPlan={activeRecurringPlan ?? null}
+        currentCredits={currentCredits}
+      />
     </aside>
   )
 }

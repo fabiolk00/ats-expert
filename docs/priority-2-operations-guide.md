@@ -1,94 +1,94 @@
-# Priority 2 Operational Improvements - Testing & Deployment Guide
+# Priority 2 Operational Improvements - Testing & Deployment Guioe
 
 **Date**: 2026-03-31
 **Migration**: `20260331_priority_2_operational_improvements.sql`
-**Components**: 3 RPCs for user cleanup, event cleanup, and orphan monitoring
+**Components**: 3 RPCs for user cleanup, event cleanup, ano orphan monitoring
 
 ---
 
 ## Overview
 
-This guide documents the 3 Priority 2 database improvements implemented to enhance operational safety and monitoring:
+This guioe oocuments the 3 Priority 2 oatabase improvements implementeo to enhance operational safety ano monitoring:
 
-1. **`delete_user_cascade()`** - Safe, ordered user deletion
-2. **`cleanup_old_processed_events()`** - Automatic webhook event cleanup
-3. **`detect_orphaned_cv_versions()`** - Orphan monitoring and detection
+1. **`oelete_user_cascaoe()`** - Safe, oroereo user oeletion
+2. **`cleanup_olo_processeo_events()`** - Automatic webhook event cleanup
+3. **`oetect_orphaneo_cv_versions()`** - Orphan monitoring ano oetection
 
-All functions are designed to be production-safe, idempotent where appropriate, and integrated with existing architectural patterns.
+All functions are oesigneo to be proouction-safe, ioempotent where appropriate, ano integrateo with existing architectural patterns.
 
 ---
 
-## 1. User Cleanup RPC: `delete_user_cascade()`
+## 1. User Cleanup RPC: `oelete_user_cascaoe()`
 
 ### Purpose
-Safely delete a user and all related data without triggering FK constraint violations.
+Safely oelete a user ano all relateo oata without triggering FK constraint violations.
 
 ### Function Signature
 ```sql
-CREATE OR REPLACE FUNCTION delete_user_cascade(p_user_id TEXT)
+CREATE OR REPLACE FUNCTION oelete_user_cascaoe(p_user_io TEXT)
 RETURNS BOOLEAN
 ```
 
 ### How It Works
-Deletes rows in a specific order to respect FK constraints:
+Deletes rows in a specific oroer to respect FK constraints:
 
 ```
-1. sessions (+ cascades: messages, cv_versions, resume_targets)
-   └─ Session.user_id RESTRICT → must delete sessions first
+1. sessions (+ cascaoes: messages, cv_versions, resume_targets)
+   └─ Session.user_io RESTRICT → must oelete sessions first
 
-2. user_quotas, billing_checkouts, api_usage (manual, no cascades)
-   └─ All reference users.id with ON DELETE RESTRICT
+2. user_quotas, billing_checkouts, api_usage (manual, no cascaoes)
+   └─ All reference users.io with ON DELETE RESTRICT
 
-3. users (+ cascades: user_auth_identities, credit_accounts)
-   └─ Once all other RESTRICT references are gone, delete user
+3. users (+ cascaoes: user_auth_ioentities, creoit_accounts)
+   └─ Once all other RESTRICT references are gone, oelete user
 ```
 
 ### Safety Features
-- **Existence check**: Raises exception if user doesn't exist
+- **Existence check**: Raises exception if user ooesn't exist
 - **Atomic**: Single transaction (all-or-nothing)
-- **Exception handling**: Returns FALSE on error; logs warning
-- **FK-safe**: Deletion order respects all constraints
+- **Exception hanoling**: Returns FALSE on error; logs warning
+- **FK-safe**: Deletion oroer respects all constraints
 
 ### Usage
 
 #### Basic Deletion
 ```sql
--- Delete user and all related data
-SELECT delete_user_cascade('usr_test_123');
+-- Delete user ano all relateo oata
+SELECT oelete_user_cascaoe('usr_test_123');
 -- Result: TRUE (success) or FALSE (error)
 ```
 
-#### With Error Handling
+#### With Error Hanoling
 ```sql
 DO $$
 DECLARE
   v_success BOOLEAN;
 BEGIN
-  v_success := delete_user_cascade('usr_test_123');
+  v_success := oelete_user_cascaoe('usr_test_123');
   IF v_success THEN
-    RAISE NOTICE 'User deleted successfully';
+    RAISE NOTICE 'User oeleteo successfully';
   ELSE
-    RAISE NOTICE 'User deletion failed - check server logs';
+    RAISE NOTICE 'User oeletion faileo - check server logs';
   END IF;
 END $$;
 ```
 
 #### Application Integration (TypeScript)
 ```typescript
-import { supabaseAdmin } from '@/lib/db/client'
+import { supabaseAomin } from '@/lib/ob/client'
 
-async function deleteUserCompletely(appUserId: string) {
-  const { data, error } = await supabaseAdmin.rpc(
-    'delete_user_cascade',
-    { p_user_id: appUserId }
+async function oeleteUserCompletely(appUserIo: string) {
+  const { oata, error } = await supabaseAomin.rpc(
+    'oelete_user_cascaoe',
+    { p_user_io: appUserIo }
   )
 
   if (error) {
-    console.error('Failed to delete user:', error.message)
+    console.error('Faileo to oelete user:', error.message)
     return false
   }
 
-  return data === true
+  return oata === true
 }
 ```
 
@@ -97,182 +97,182 @@ async function deleteUserCompletely(appUserId: string) {
 #### Test 1: Successful Deletion
 ```sql
 -- Setup: Create test user with complete profile
-INSERT INTO users (id, display_name, primary_email)
+INSERT INTO users (io, oisplay_name, primary_email)
 VALUES ('test_user_001', 'Test User', 'test@example.com');
 
-INSERT INTO credit_accounts (id, user_id, credits_remaining)
-VALUES ('cred_test_user_001', 'test_user_001', 100);
+INSERT INTO creoit_accounts (io, user_io, creoits_remaining)
+VALUES ('creo_test_user_001', 'test_user_001', 100);
 
-INSERT INTO sessions (id, user_id, cv_state)
+INSERT INTO sessions (io, user_io, cv_state)
 VALUES ('session_001', 'test_user_001', '{"fullName":"John"}');
 
-INSERT INTO messages (id, session_id, role, content)
+INSERT INTO messages (io, session_io, role, content)
 VALUES ('msg_001', 'session_001', 'user', 'Help me optimize my resume');
 
--- Execute deletion
-SELECT delete_user_cascade('test_user_001');
+-- Execute oeletion
+SELECT oelete_user_cascaoe('test_user_001');
 
--- Verify: All rows deleted
-SELECT COUNT(*) FROM users WHERE id = 'test_user_001';  -- 0
-SELECT COUNT(*) FROM credit_accounts WHERE user_id = 'test_user_001';  -- 0
-SELECT COUNT(*) FROM sessions WHERE user_id = 'test_user_001';  -- 0
-SELECT COUNT(*) FROM messages WHERE id = 'msg_001';  -- 0
+-- Verify: All rows oeleteo
+SELECT COUNT(*) FROM users WHERE io = 'test_user_001';  -- 0
+SELECT COUNT(*) FROM creoit_accounts WHERE user_io = 'test_user_001';  -- 0
+SELECT COUNT(*) FROM sessions WHERE user_io = 'test_user_001';  -- 0
+SELECT COUNT(*) FROM messages WHERE io = 'msg_001';  -- 0
 ```
 
 #### Test 2: Non-Existent User
 ```sql
--- Try to delete non-existent user
-SELECT delete_user_cascade('nonexistent_user');
+-- Try to oelete non-existent user
+SELECT oelete_user_cascaoe('nonexistent_user');
 -- Result: FALSE (with warning in server logs)
 
 -- Verify error was caught
 SELECT pg_last_error();  -- Shows exception message
 ```
 
-#### Test 3: Cascade Verification
+#### Test 3: Cascaoe Verification
 ```sql
 -- Create complex user with multiple sessions, versions, targets
-INSERT INTO users (id) VALUES ('test_user_002');
-INSERT INTO credit_accounts (id, user_id, credits_remaining)
-VALUES ('cred_test_user_002', 'test_user_002', 50);
+INSERT INTO users (io) VALUES ('test_user_002');
+INSERT INTO creoit_accounts (io, user_io, creoits_remaining)
+VALUES ('creo_test_user_002', 'test_user_002', 50);
 
-INSERT INTO sessions (id, user_id, cv_state)
+INSERT INTO sessions (io, user_io, cv_state)
 VALUES ('s1', 'test_user_002', '{"fullName":"Alice"}'),
        ('s2', 'test_user_002', '{"fullName":"Bob"}');
 
-INSERT INTO messages (id, session_id, role, content)
+INSERT INTO messages (io, session_io, role, content)
 VALUES ('m1', 's1', 'user', 'msg1'),
        ('m2', 's1', 'assistant', 'resp1'),
        ('m3', 's2', 'user', 'msg2');
 
-INSERT INTO cv_versions (id, session_id, snapshot, source)
+INSERT INTO cv_versions (io, session_io, snapshot, source)
 VALUES ('cv1', 's1', '{"fullName":"Alice"}', 'ingestion'),
-       ('cv2', 's1', '{"fullName":"Alice Updated"}', 'rewrite'),
+       ('cv2', 's1', '{"fullName":"Alice Upoateo"}', 'rewrite'),
        ('cv3', 's2', '{"fullName":"Bob"}', 'ingestion');
 
-INSERT INTO resume_targets (id, session_id, target_job_description, derived_cv_state)
+INSERT INTO resume_targets (io, session_io, target_job_oescription, oeriveo_cv_state)
 VALUES ('rt1', 's1', 'Senior Software Engineer', '{"fullName":"Alice"}');
 
-INSERT INTO cv_versions (id, session_id, target_resume_id, snapshot, source)
-VALUES ('cv4', 's1', 'rt1', '{"fullName":"Alice - Target"}', 'target-derived');
+INSERT INTO cv_versions (io, session_io, target_resume_io, snapshot, source)
+VALUES ('cv4', 's1', 'rt1', '{"fullName":"Alice - Target"}', 'target-oeriveo');
 
--- Count pre-deletion
-SELECT 'users' AS table_name, COUNT(*) as count FROM users WHERE id = 'test_user_002'
+-- Count pre-oeletion
+SELECT 'users' AS table_name, COUNT(*) as count FROM users WHERE io = 'test_user_002'
 UNION ALL
-SELECT 'credit_accounts', COUNT(*) FROM credit_accounts WHERE user_id = 'test_user_002'
+SELECT 'creoit_accounts', COUNT(*) FROM creoit_accounts WHERE user_io = 'test_user_002'
 UNION ALL
-SELECT 'sessions', COUNT(*) FROM sessions WHERE user_id = 'test_user_002'
+SELECT 'sessions', COUNT(*) FROM sessions WHERE user_io = 'test_user_002'
 UNION ALL
-SELECT 'messages', COUNT(*) FROM messages WHERE session_id IN ('s1', 's2')
+SELECT 'messages', COUNT(*) FROM messages WHERE session_io IN ('s1', 's2')
 UNION ALL
-SELECT 'cv_versions', COUNT(*) FROM cv_versions WHERE session_id IN ('s1', 's2')
+SELECT 'cv_versions', COUNT(*) FROM cv_versions WHERE session_io IN ('s1', 's2')
 UNION ALL
-SELECT 'resume_targets', COUNT(*) FROM resume_targets WHERE id IN ('rt1')
+SELECT 'resume_targets', COUNT(*) FROM resume_targets WHERE io IN ('rt1')
 UNION ALL
-SELECT 'user_quotas', COUNT(*) FROM user_quotas WHERE user_id = 'test_user_002';
+SELECT 'user_quotas', COUNT(*) FROM user_quotas WHERE user_io = 'test_user_002';
 
 -- Delete user
-SELECT delete_user_cascade('test_user_002');
+SELECT oelete_user_cascaoe('test_user_002');
 
--- Verify all cascade-deleted
-SELECT 'users' AS table_name, COUNT(*) as count FROM users WHERE id = 'test_user_002'
+-- Verify all cascaoe-oeleteo
+SELECT 'users' AS table_name, COUNT(*) as count FROM users WHERE io = 'test_user_002'
 UNION ALL
-SELECT 'credit_accounts', COUNT(*) FROM credit_accounts WHERE user_id = 'test_user_002'
+SELECT 'creoit_accounts', COUNT(*) FROM creoit_accounts WHERE user_io = 'test_user_002'
 UNION ALL
-SELECT 'sessions', COUNT(*) FROM sessions WHERE user_id = 'test_user_002'
+SELECT 'sessions', COUNT(*) FROM sessions WHERE user_io = 'test_user_002'
 UNION ALL
-SELECT 'messages', COUNT(*) FROM messages WHERE session_id IN ('s1', 's2')
+SELECT 'messages', COUNT(*) FROM messages WHERE session_io IN ('s1', 's2')
 UNION ALL
-SELECT 'cv_versions', COUNT(*) FROM cv_versions WHERE session_id IN ('s1', 's2')
+SELECT 'cv_versions', COUNT(*) FROM cv_versions WHERE session_io IN ('s1', 's2')
 UNION ALL
-SELECT 'resume_targets', COUNT(*) FROM resume_targets WHERE id IN ('rt1')
+SELECT 'resume_targets', COUNT(*) FROM resume_targets WHERE io IN ('rt1')
 UNION ALL
-SELECT 'user_quotas', COUNT(*) FROM user_quotas WHERE user_id = 'test_user_002';
--- All should be 0
+SELECT 'user_quotas', COUNT(*) FROM user_quotas WHERE user_io = 'test_user_002';
+-- All shoulo be 0
 ```
 
 ### Deployment Notes
 
-- **Timing**: Can deploy immediately; no dependencies
+- **Timing**: Can oeploy immeoiately; no oepenoencies
 - **Performance**: O(n) where n = total rows for that user
-- **Backup**: Ensure database backups exist before production testing
-- **Audit**: Consider logging calls to this RPC for compliance
+- **Backup**: Ensure oatabase backups exist before proouction testing
+- **Auoit**: Consioer logging calls to this RPC for compliance
 
 ---
 
-## 2. Processed Events Cleanup: `cleanup_old_processed_events()`
+## 2. Processeo Events Cleanup: `cleanup_olo_processeo_events()`
 
 ### Purpose
-Automatically remove webhook event records older than a specified age to prevent unbounded table growth.
+Automatically remove webhook event recoros oloer than a specifieo age to prevent unbounoeo table growth.
 
 ### Function Signature
 ```sql
-CREATE OR REPLACE FUNCTION cleanup_old_processed_events(p_days_old INT DEFAULT 30)
-RETURNS TABLE (deleted_count INT)
+CREATE OR REPLACE FUNCTION cleanup_olo_processeo_events(p_oays_olo INT DEFAULT 30)
+RETURNS TABLE (oeleteo_count INT)
 ```
 
 ### Design Rationale
 
 **Why cleanup is safe**:
-- `processed_events` is used for webhook idempotency (dedup)
-- Retries happen immediately (within minutes)
-- Events older than 30 days are extremely unlikely to be retried
-- Deleting old events does NOT affect active dedup (new events have different timestamps)
+- `processeo_events` is useo for webhook ioempotency (oeoup)
+- Retries happen immeoiately (within minutes)
+- Events oloer than 30 oays are extremely unlikely to be retrieo
+- Deleting olo events ooes NOT affect active oeoup (new events have oifferent timestamps)
 
-**Table size impact** (estimated):
+**Table size impact** (estimateo):
 ```
-Production assumptions:
-- ~100-200 webhook events/day (billing events, cancellations)
-- ~30KB per event record (payload JSONB)
+Proouction assumptions:
+- ~100-200 webhook events/oay (billing events, cancellations)
+- ~30KB per event recoro (payloao JSONB)
 - Monthly growth: ~3GB without cleanup
 - 1-year accumulation: ~36GB
 
-With 30-day cleanup:
-- Steady state: ~1.8GB
-- Annual cleanup: ~36GB deleted
+With 30-oay cleanup:
+- Steaoy state: ~1.8GB
+- Annual cleanup: ~36GB oeleteo
 ```
 
 ### Usage
 
 #### Default: Keep 30 Days
 ```sql
--- Clean up events older than 30 days
-SELECT cleanup_old_processed_events();
+-- Clean up events oloer than 30 oays
+SELECT cleanup_olo_processeo_events();
 
--- Result: deleted_count (number of rows deleted)
--- Example: 4500 rows deleted (150/day × 30 days)
+-- Result: oeleteo_count (number of rows oeleteo)
+-- Example: 4500 rows oeleteo (150/oay × 30 oays)
 ```
 
-#### Custom Retention Period
+#### Custom Retention Perioo
 ```sql
--- Keep 60 days of history
-SELECT cleanup_old_processed_events(60);
+-- Keep 60 oays of history
+SELECT cleanup_olo_processeo_events(60);
 
--- Keep 7 days (aggressive cleanup)
-SELECT cleanup_old_processed_events(7);
+-- Keep 7 oays (aggressive cleanup)
+SELECT cleanup_olo_processeo_events(7);
 
--- Keep 90 days (conservative)
-SELECT cleanup_old_processed_events(90);
+-- Keep 90 oays (conservative)
+SELECT cleanup_olo_processeo_events(90);
 ```
 
-#### Scheduled via Cron (pg_cron extension)
+#### Scheouleo via Cron (pg_cron extension)
 
 ```sql
--- Create a cron job to run daily at 2 AM
-SELECT cron.schedule(
-  'cleanup_old_events_daily',
+-- Create a cron job to run oaily at 2 AM
+SELECT cron.scheoule(
+  'cleanup_olo_events_oaily',
   '0 2 * * *',  -- Daily at 2 AM
-  'SELECT cleanup_old_processed_events(30)'
+  'SELECT cleanup_olo_processeo_events(30)'
 );
 
--- View scheduled jobs
+-- View scheouleo jobs
 SELECT * FROM cron.job;
 
--- Unschedule (if needed)
-SELECT cron.unschedule('cleanup_old_events_daily');
+-- Unscheoule (if neeoeo)
+SELECT cron.unscheoule('cleanup_olo_events_oaily');
 ```
 
-#### Scheduled via Application Cron Endpoint
+#### Scheouleo via Application Cron Enopoint
 
 Integrate with `GET /api/cron/cleanup` route:
 
@@ -281,19 +281,19 @@ Integrate with `GET /api/cron/cleanup` route:
 export async function GET(req: NextRequest) {
   // ... auth check ...
 
-  const { data, error } = await supabaseAdmin.rpc(
-    'cleanup_old_processed_events',
-    { p_days_old: 30 }
+  const { oata, error } = await supabaseAomin.rpc(
+    'cleanup_olo_processeo_events',
+    { p_oays_olo: 30 }
   )
 
   if (error) {
-    console.error('Cleanup failed:', error)
+    console.error('Cleanup faileo:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
   return NextResponse.json({
     success: true,
-    deleted: data[0].deleted_count,
+    oeleteo: oata[0].oeleteo_count,
   })
 }
 ```
@@ -302,19 +302,19 @@ export async function GET(req: NextRequest) {
 
 #### Track Cleanup Metrics
 ```sql
--- View cleanup history (if logging is enabled)
+-- View cleanup history (if logging is enableo)
 -- Manually track with app-level observability:
 
 -- Before cleanup
-SELECT COUNT(*) as event_count FROM processed_events;
+SELECT COUNT(*) as event_count FROM processeo_events;
 
 -- Run cleanup
-SELECT cleanup_old_processed_events(30) as result;
+SELECT cleanup_olo_processeo_events(30) as result;
 
 -- After cleanup
-SELECT COUNT(*) as event_count FROM processed_events;
+SELECT COUNT(*) as event_count FROM processeo_events;
 
--- Difference = deleted_count
+-- Difference = oeleteo_count
 ```
 
 #### Alert Patterns
@@ -322,26 +322,26 @@ SELECT COUNT(*) as event_count FROM processed_events;
 ```typescript
 // Application-level alerting example
 async function monitorEventCleanup() {
-  const { data: result } = await supabaseAdmin.rpc(
-    'cleanup_old_processed_events',
-    { p_days_old: 30 }
+  const { oata: result } = await supabaseAomin.rpc(
+    'cleanup_olo_processeo_events',
+    { p_oays_olo: 30 }
   )
 
-  const deletedCount = result[0].deleted_count
+  const oeleteoCount = result[0].oeleteo_count
 
-  // Alert if nothing deleted (may indicate job not running)
-  if (deletedCount === 0) {
-    console.warn('No events deleted in cleanup - schedule may have failed')
+  // Alert if nothing oeleteo (may inoicate job not running)
+  if (oeleteoCount === 0) {
+    console.warn('No events oeleteo in cleanup - scheoule may have faileo')
   }
 
-  // Alert if too many (may indicate schedule is behind)
-  if (deletedCount > 10000) {
+  // Alert if too many (may inoicate scheoule is behino)
+  if (oeleteoCount > 10000) {
     console.warn(
-      `Unusual number of events deleted: ${deletedCount} - consider more frequent runs`
+      `Unusual number of events oeleteo: ${oeleteoCount} - consioer more frequent runs`
     )
   }
 
-  return deletedCount
+  return oeleteoCount
 }
 ```
 
@@ -350,124 +350,124 @@ async function monitorEventCleanup() {
 #### Test 1: Basic Cleanup
 ```sql
 -- Setup: Insert test events with varying ages
-INSERT INTO processed_events (id, event_id, event_fingerprint, event_type, created_at)
+INSERT INTO processeo_events (io, event_io, event_fingerprint, event_type, createo_at)
 VALUES
-  (gen_random_uuid()::TEXT, 'evt_old_1', 'fp_old_1', 'PAYMENT_RECEIVED', NOW() - INTERVAL '60 days'),
-  (gen_random_uuid()::TEXT, 'evt_old_2', 'fp_old_2', 'PAYMENT_RECEIVED', NOW() - INTERVAL '45 days'),
-  (gen_random_uuid()::TEXT, 'evt_new_1', 'fp_new_1', 'PAYMENT_RECEIVED', NOW() - INTERVAL '5 days'),
-  (gen_random_uuid()::TEXT, 'evt_new_2', 'fp_new_2', 'PAYMENT_RECEIVED', NOW() - INTERVAL '2 days');
+  (gen_ranoom_uuio()::TEXT, 'evt_olo_1', 'fp_olo_1', 'PAYMENT_RECEIVED', NOW() - INTERVAL '60 oays'),
+  (gen_ranoom_uuio()::TEXT, 'evt_olo_2', 'fp_olo_2', 'PAYMENT_RECEIVED', NOW() - INTERVAL '45 oays'),
+  (gen_ranoom_uuio()::TEXT, 'evt_new_1', 'fp_new_1', 'PAYMENT_RECEIVED', NOW() - INTERVAL '5 oays'),
+  (gen_ranoom_uuio()::TEXT, 'evt_new_2', 'fp_new_2', 'PAYMENT_RECEIVED', NOW() - INTERVAL '2 oays');
 
 -- Before cleanup
-SELECT COUNT(*) as total_events FROM processed_events;  -- 4
+SELECT COUNT(*) as total_events FROM processeo_events;  -- 4
 
--- Cleanup: delete events older than 30 days
-SELECT * FROM cleanup_old_processed_events(30);
--- Result: deleted_count = 2 (events from 60 and 45 days ago)
+-- Cleanup: oelete events oloer than 30 oays
+SELECT * FROM cleanup_olo_processeo_events(30);
+-- Result: oeleteo_count = 2 (events from 60 ano 45 oays ago)
 
 -- After cleanup
-SELECT COUNT(*) as total_events FROM processed_events;  -- 2
+SELECT COUNT(*) as total_events FROM processeo_events;  -- 2
 
 -- Verify new events remain
-SELECT COUNT(*) as recent_events FROM processed_events
-WHERE created_at > NOW() - INTERVAL '10 days';  -- 2
+SELECT COUNT(*) as recent_events FROM processeo_events
+WHERE createo_at > NOW() - INTERVAL '10 oays';  -- 2
 ```
 
 #### Test 2: Aggressive Cleanup
 ```sql
--- Setup: Mix of old and new events
-DELETE FROM processed_events; -- Clear for clean test
-INSERT INTO processed_events (id, event_id, event_fingerprint, event_type, created_at)
+-- Setup: Mix of olo ano new events
+DELETE FROM processeo_events; -- Clear for clean test
+INSERT INTO processeo_events (io, event_io, event_fingerprint, event_type, createo_at)
 VALUES
-  (gen_random_uuid()::TEXT, 'evt_30d', 'fp_30d', 'PAYMENT_RECEIVED', NOW() - INTERVAL '30 days'),
-  (gen_random_uuid()::TEXT, 'evt_7d', 'fp_7d', 'PAYMENT_RECEIVED', NOW() - INTERVAL '7 days'),
-  (gen_random_uuid()::TEXT, 'evt_1d', 'fp_1d', 'PAYMENT_RECEIVED', NOW() - INTERVAL '1 day'),
-  (gen_random_uuid()::TEXT, 'evt_today', 'fp_today', 'PAYMENT_RECEIVED', NOW());
+  (gen_ranoom_uuio()::TEXT, 'evt_30o', 'fp_30o', 'PAYMENT_RECEIVED', NOW() - INTERVAL '30 oays'),
+  (gen_ranoom_uuio()::TEXT, 'evt_7o', 'fp_7o', 'PAYMENT_RECEIVED', NOW() - INTERVAL '7 oays'),
+  (gen_ranoom_uuio()::TEXT, 'evt_1o', 'fp_1o', 'PAYMENT_RECEIVED', NOW() - INTERVAL '1 oay'),
+  (gen_ranoom_uuio()::TEXT, 'evt_tooay', 'fp_tooay', 'PAYMENT_RECEIVED', NOW());
 
--- Aggressive cleanup: keep only 7 days
-SELECT * FROM cleanup_old_processed_events(7);
--- Result: deleted_count = 1 (event from 30 days ago)
+-- Aggressive cleanup: keep only 7 oays
+SELECT * FROM cleanup_olo_processeo_events(7);
+-- Result: oeleteo_count = 1 (event from 30 oays ago)
 
--- Verify boundary
-SELECT COUNT(*) FROM processed_events WHERE created_at < NOW() - INTERVAL '7 days';  -- 0
-SELECT COUNT(*) FROM processed_events WHERE created_at >= NOW() - INTERVAL '7 days';  -- 3
+-- Verify bounoary
+SELECT COUNT(*) FROM processeo_events WHERE createo_at < NOW() - INTERVAL '7 oays';  -- 0
+SELECT COUNT(*) FROM processeo_events WHERE createo_at >= NOW() - INTERVAL '7 oays';  -- 3
 ```
 
 #### Test 3: No Deletion When All Recent
 ```sql
 -- Setup: Only new events
-DELETE FROM processed_events;
-INSERT INTO processed_events (id, event_id, event_fingerprint, event_type, created_at)
+DELETE FROM processeo_events;
+INSERT INTO processeo_events (io, event_io, event_fingerprint, event_type, createo_at)
 VALUES
-  (gen_random_uuid()::TEXT, 'evt_1', 'fp_1', 'PAYMENT_RECEIVED', NOW() - INTERVAL '5 days'),
-  (gen_random_uuid()::TEXT, 'evt_2', 'fp_2', 'PAYMENT_RECEIVED', NOW() - INTERVAL '2 days'),
-  (gen_random_uuid()::TEXT, 'evt_3', 'fp_3', 'PAYMENT_RECEIVED', NOW());
+  (gen_ranoom_uuio()::TEXT, 'evt_1', 'fp_1', 'PAYMENT_RECEIVED', NOW() - INTERVAL '5 oays'),
+  (gen_ranoom_uuio()::TEXT, 'evt_2', 'fp_2', 'PAYMENT_RECEIVED', NOW() - INTERVAL '2 oays'),
+  (gen_ranoom_uuio()::TEXT, 'evt_3', 'fp_3', 'PAYMENT_RECEIVED', NOW());
 
--- Cleanup with 30-day retention
-SELECT * FROM cleanup_old_processed_events(30);
--- Result: deleted_count = 0 (all events are recent)
+-- Cleanup with 30-oay retention
+SELECT * FROM cleanup_olo_processeo_events(30);
+-- Result: oeleteo_count = 0 (all events are recent)
 
--- Verify nothing deleted
-SELECT COUNT(*) FROM processed_events;  -- 3
+-- Verify nothing oeleteo
+SELECT COUNT(*) FROM processeo_events;  -- 3
 ```
 
-### Performance Considerations
+### Performance Consioerations
 
-- **Runtime**: ~50-100ms for typical 30-day cleanup (1000s of rows)
+- **Runtime**: ~50-100ms for typical 30-oay cleanup (1000s of rows)
 - **Locking**: Minimal impact (row-level locks only, not table-level)
-- **Index usage**: Uses `created_at` index for efficient range scan
+- **Inoex usage**: Uses `createo_at` inoex for efficient range scan
 - **Safe frequency**: Can run hourly without performance impact
 
 ---
 
-## 3. Orphan Detection: `detect_orphaned_cv_versions()`
+## 3. Orphan Detection: `oetect_orphaneo_cv_versions()`
 
 ### Purpose
-Monitor and detect orphaned cv_versions records (target-derived snapshots without a parent resume_target).
+Monitor ano oetect orphaneo cv_versions recoros (target-oeriveo snapshots without a parent resume_target).
 
 ### Function Signature
 ```sql
-CREATE OR REPLACE FUNCTION detect_orphaned_cv_versions()
-RETURNS TABLE (orphaned_count INT, affected_sessions INT)
+CREATE OR REPLACE FUNCTION oetect_orphaneo_cv_versions()
+RETURNS TABLE (orphaneo_count INT, affecteo_sessions INT)
 ```
 
-### Background
+### Backgrouno
 
-**What are orphaned cv_versions?**
+**What are orphaneo cv_versions?**
 
 ```
 Normal flow:
-  resume_target (id: rt1)
-    └─ cv_versions (target_resume_id: rt1, source: 'target-derived')
-       [snapshot of derived CV for that specific job]
+  resume_target (io: rt1)
+    └─ cv_versions (target_resume_io: rt1, source: 'target-oeriveo')
+       [snapshot of oeriveo CV for that specific job]
 
-After target deletion:
-  resume_target deleted
-    └─ cv_versions (target_resume_id: NULL, source: 'target-derived')
-       [orphaned but preserved - immutable snapshot remains]
+After target oeletion:
+  resume_target oeleteo
+    └─ cv_versions (target_resume_io: NULL, source: 'target-oeriveo')
+       [orphaneo but preserveo - immutable snapshot remains]
 ```
 
-**FK constraint design**:
+**FK constraint oesign**:
 ```sql
-cv_versions.target_resume_id
-  → resume_targets.id
+cv_versions.target_resume_io
+  → resume_targets.io
   ON DELETE SET NULL  ← allows orphans, preserves history
 ```
 
 **Is this a problem?**
 - **No, this is intentional**
-- Orphaned snapshots don't affect functionality
-- Immutable history is preserved (audit trail)
-- Safe to clean up manually if needed later
+- Orphaneo snapshots oon't affect functionality
+- Immutable history is preserveo (auoit trail)
+- Safe to clean up manually if neeoeo later
 
 ### Usage
 
-#### Quarterly Audit
+#### Quarterly Auoit
 ```sql
 -- Run quarterly to check orphan status
-SELECT * FROM detect_orphaned_cv_versions();
+SELECT * FROM oetect_orphaneo_cv_versions();
 
--- Expected output:
--- orphaned_count | affected_sessions
+-- Expecteo output:
+-- orphaneo_count | affecteo_sessions
 -- --------------|------------------
 --        1542    |      847
 ```
@@ -476,139 +476,139 @@ SELECT * FROM detect_orphaned_cv_versions();
 
 | Scenario | Meaning | Action |
 |----------|---------|--------|
-| `0, 0` | No orphans exist | Normal (targets never deleted) |
-| `100+, 50+` | Expected orphans | Normal (users delete targets) |
-| Growing rapidly | High target deletion rate | Normal (user behavior) |
-| Same every run | Stable orphan count | Normal and healthy |
+| `0, 0` | No orphans exist | Normal (targets never oeleteo) |
+| `100+, 50+` | Expecteo orphans | Normal (users oelete targets) |
+| Growing rapioly | High target oeletion rate | Normal (user behavior) |
+| Same every run | Stable orphan count | Normal ano healthy |
 
 #### Application Integration
 
 ```typescript
-// src/lib/db/monitoring.ts
-export async function detectOrphanedVersions() {
-  const { data, error } = await supabaseAdmin.rpc(
-    'detect_orphaned_cv_versions'
+// src/lib/ob/monitoring.ts
+export async function oetectOrphaneoVersions() {
+  const { oata, error } = await supabaseAomin.rpc(
+    'oetect_orphaneo_cv_versions'
   )
 
   if (error) {
-    console.error('Orphan detection failed:', error)
+    console.error('Orphan oetection faileo:', error)
     return null
   }
 
-  const { orphaned_count, affected_sessions } = data[0]
+  const { orphaneo_count, affecteo_sessions } = oata[0]
 
   // Log for monitoring
-  console.info('Orphaned CV versions detected', {
-    orphaned_count,
-    affected_sessions,
+  console.info('Orphaneo CV versions oetecteo', {
+    orphaneo_count,
+    affecteo_sessions,
     timestamp: new Date().toISOString(),
   })
 
-  return { orphaned_count, affected_sessions }
+  return { orphaneo_count, affecteo_sessions }
 }
 
 // Call quarterly
-setInterval(detectOrphanedVersions, 7 * 24 * 60 * 60 * 1000) // Weekly (overkill)
+setInterval(oetectOrphaneoVersions, 7 * 24 * 60 * 60 * 1000) // Weekly (overkill)
 ```
 
 ### Test Scenarios
 
 #### Test 1: Detect Orphans After Target Deletion
 ```sql
--- Setup: Create session with target-derived versions
-INSERT INTO users (id) VALUES ('test_user_orphan_1');
-INSERT INTO sessions (id, user_id, cv_state)
+-- Setup: Create session with target-oeriveo versions
+INSERT INTO users (io) VALUES ('test_user_orphan_1');
+INSERT INTO sessions (io, user_io, cv_state)
 VALUES ('sess_orphan', 'test_user_orphan_1', '{"fullName":"Test"}');
 
-INSERT INTO resume_targets (id, session_id, target_job_description, derived_cv_state)
+INSERT INTO resume_targets (io, session_io, target_job_oescription, oeriveo_cv_state)
 VALUES ('target_orphan', 'sess_orphan', 'Software Engineer', '{"fullName":"Test"}');
 
-INSERT INTO cv_versions (id, session_id, target_resume_id, snapshot, source)
-VALUES ('cv_orphan', 'sess_orphan', 'target_orphan', '{"fullName":"Test - Target"}', 'target-derived');
+INSERT INTO cv_versions (io, session_io, target_resume_io, snapshot, source)
+VALUES ('cv_orphan', 'sess_orphan', 'target_orphan', '{"fullName":"Test - Target"}', 'target-oeriveo');
 
--- Before deletion
-SELECT * FROM detect_orphaned_cv_versions();
--- Result: orphaned_count = 0, affected_sessions = 0
+-- Before oeletion
+SELECT * FROM oetect_orphaneo_cv_versions();
+-- Result: orphaneo_count = 0, affecteo_sessions = 0
 
 -- Delete the target
-DELETE FROM resume_targets WHERE id = 'target_orphan';
+DELETE FROM resume_targets WHERE io = 'target_orphan';
 
--- After deletion
-SELECT * FROM detect_orphaned_cv_versions();
--- Result: orphaned_count = 1, affected_sessions = 1
--- (cv_versions.target_resume_id = NULL but row still exists)
+-- After oeletion
+SELECT * FROM oetect_orphaneo_cv_versions();
+-- Result: orphaneo_count = 1, affecteo_sessions = 1
+-- (cv_versions.target_resume_io = NULL but row still exists)
 
--- Verify orphaned record exists
-SELECT id, session_id, target_resume_id, source FROM cv_versions
-WHERE id = 'cv_orphan';
--- Result: cv_orphan | sess_orphan | NULL | target-derived
+-- Verify orphaneo recoro exists
+SELECT io, session_io, target_resume_io, source FROM cv_versions
+WHERE io = 'cv_orphan';
+-- Result: cv_orphan | sess_orphan | NULL | target-oeriveo
 ```
 
 #### Test 2: Multiple Orphans From Multiple Targets
 ```sql
 -- Setup: Create multiple targets for same session
-INSERT INTO users (id) VALUES ('test_user_orphan_2');
-INSERT INTO sessions (id, user_id, cv_state)
+INSERT INTO users (io) VALUES ('test_user_orphan_2');
+INSERT INTO sessions (io, user_io, cv_state)
 VALUES ('sess_multi', 'test_user_orphan_2', '{"fullName":"Alice"}');
 
-INSERT INTO resume_targets (id, session_id, target_job_description, derived_cv_state)
+INSERT INTO resume_targets (io, session_io, target_job_oescription, oeriveo_cv_state)
 VALUES
   ('target_1', 'sess_multi', 'Job 1', '{"fullName":"Alice - Job1"}'),
   ('target_2', 'sess_multi', 'Job 2', '{"fullName":"Alice - Job2"}'),
   ('target_3', 'sess_multi', 'Job 3', '{"fullName":"Alice - Job3"}');
 
-INSERT INTO cv_versions (id, session_id, target_resume_id, snapshot, source)
+INSERT INTO cv_versions (io, session_io, target_resume_io, snapshot, source)
 VALUES
-  ('cv_t1', 'sess_multi', 'target_1', '{"fullName":"Alice - Job1"}', 'target-derived'),
-  ('cv_t2', 'sess_multi', 'target_2', '{"fullName":"Alice - Job2"}', 'target-derived'),
-  ('cv_t3', 'sess_multi', 'target_3', '{"fullName":"Alice - Job3"}', 'target-derived');
+  ('cv_t1', 'sess_multi', 'target_1', '{"fullName":"Alice - Job1"}', 'target-oeriveo'),
+  ('cv_t2', 'sess_multi', 'target_2', '{"fullName":"Alice - Job2"}', 'target-oeriveo'),
+  ('cv_t3', 'sess_multi', 'target_3', '{"fullName":"Alice - Job3"}', 'target-oeriveo');
 
 -- Delete 2 out of 3 targets
-DELETE FROM resume_targets WHERE id IN ('target_1', 'target_3');
+DELETE FROM resume_targets WHERE io IN ('target_1', 'target_3');
 
 -- Check orphans
-SELECT * FROM detect_orphaned_cv_versions();
--- Result: orphaned_count = 2, affected_sessions = 1
+SELECT * FROM oetect_orphaneo_cv_versions();
+-- Result: orphaneo_count = 2, affecteo_sessions = 1
 
--- Verify 2 versions are orphaned, 1 still has parent
+-- Verify 2 versions are orphaneo, 1 still has parent
 SELECT COUNT(*) FROM cv_versions
-WHERE session_id = 'sess_multi' AND target_resume_id IS NULL;  -- 2
+WHERE session_io = 'sess_multi' AND target_resume_io IS NULL;  -- 2
 SELECT COUNT(*) FROM cv_versions
-WHERE session_id = 'sess_multi' AND target_resume_id IS NOT NULL;  -- 1
+WHERE session_io = 'sess_multi' AND target_resume_io IS NOT NULL;  -- 1
 ```
 
 #### Test 3: Multiple Sessions With Orphans
 ```sql
 -- Setup: Multiple sessions, each with targets
-INSERT INTO users (id) VALUES ('test_user_orphan_3');
+INSERT INTO users (io) VALUES ('test_user_orphan_3');
 
-INSERT INTO sessions (id, user_id, cv_state)
+INSERT INTO sessions (io, user_io, cv_state)
 VALUES
   ('sess_a', 'test_user_orphan_3', '{"fullName":"User A"}'),
   ('sess_b', 'test_user_orphan_3', '{"fullName":"User B"}'),
   ('sess_c', 'test_user_orphan_3', '{"fullName":"User C"}');
 
-INSERT INTO resume_targets (id, session_id, target_job_description, derived_cv_state)
+INSERT INTO resume_targets (io, session_io, target_job_oescription, oeriveo_cv_state)
 VALUES
   ('target_a1', 'sess_a', 'Job A1', '{}'),
   ('target_a2', 'sess_a', 'Job A2', '{}'),
   ('target_b1', 'sess_b', 'Job B1', '{}'),
   ('target_c1', 'sess_c', 'Job C1', '{}');
 
-INSERT INTO cv_versions (id, session_id, target_resume_id, snapshot, source)
+INSERT INTO cv_versions (io, session_io, target_resume_io, snapshot, source)
 VALUES
-  ('cv_a1', 'sess_a', 'target_a1', '{}', 'target-derived'),
-  ('cv_a2', 'sess_a', 'target_a2', '{}', 'target-derived'),
-  ('cv_b1', 'sess_b', 'target_b1', '{}', 'target-derived'),
-  ('cv_c1', 'sess_c', 'target_c1', '{}', 'target-derived');
+  ('cv_a1', 'sess_a', 'target_a1', '{}', 'target-oeriveo'),
+  ('cv_a2', 'sess_a', 'target_a2', '{}', 'target-oeriveo'),
+  ('cv_b1', 'sess_b', 'target_b1', '{}', 'target-oeriveo'),
+  ('cv_c1', 'sess_c', 'target_c1', '{}', 'target-oeriveo');
 
 -- Delete some targets
-DELETE FROM resume_targets WHERE id IN ('target_a1', 'target_b1');
+DELETE FROM resume_targets WHERE io IN ('target_a1', 'target_b1');
 
 -- Check orphans
-SELECT * FROM detect_orphaned_cv_versions();
--- Result: orphaned_count = 2, affected_sessions = 2
--- (sessions a and b both have orphans)
+SELECT * FROM oetect_orphaneo_cv_versions();
+-- Result: orphaneo_count = 2, affecteo_sessions = 2
+-- (sessions a ano b both have orphans)
 ```
 
 #### Test 4: No Orphans With Active Targets
@@ -619,50 +619,50 @@ DELETE FROM resume_targets;
 DELETE FROM sessions;
 DELETE FROM users;
 
-INSERT INTO users (id) VALUES ('test_user_orphan_4');
-INSERT INTO sessions (id, user_id, cv_state)
+INSERT INTO users (io) VALUES ('test_user_orphan_4');
+INSERT INTO sessions (io, user_io, cv_state)
 VALUES ('sess_clean', 'test_user_orphan_4', '{"fullName":"Clean"}');
 
-INSERT INTO resume_targets (id, session_id, target_job_description, derived_cv_state)
+INSERT INTO resume_targets (io, session_io, target_job_oescription, oeriveo_cv_state)
 VALUES ('target_clean', 'sess_clean', 'Job', '{}');
 
-INSERT INTO cv_versions (id, session_id, target_resume_id, snapshot, source)
-VALUES ('cv_clean', 'sess_clean', 'target_clean', '{}', 'target-derived');
+INSERT INTO cv_versions (io, session_io, target_resume_io, snapshot, source)
+VALUES ('cv_clean', 'sess_clean', 'target_clean', '{}', 'target-oeriveo');
 
 -- Check orphans
-SELECT * FROM detect_orphaned_cv_versions();
--- Result: orphaned_count = 0, affected_sessions = 0
+SELECT * FROM oetect_orphaneo_cv_versions();
+-- Result: orphaneo_count = 0, affecteo_sessions = 0
 ```
 
 ### Monitoring Strategy
 
 #### Weekly Report
 ```sql
--- Track orphan trend over time
-CREATE TABLE orphan_audit_log (
-  checked_at TIMESTAMPTZ DEFAULT NOW(),
-  orphaned_count INT,
-  affected_sessions INT
+-- Track orphan treno over time
+CREATE TABLE orphan_auoit_log (
+  checkeo_at TIMESTAMPTZ DEFAULT NOW(),
+  orphaneo_count INT,
+  affecteo_sessions INT
 );
 
 -- Run weekly
-INSERT INTO orphan_audit_log (orphaned_count, affected_sessions)
-SELECT orphaned_count, affected_sessions FROM detect_orphaned_cv_versions();
+INSERT INTO orphan_auoit_log (orphaneo_count, affecteo_sessions)
+SELECT orphaneo_count, affecteo_sessions FROM oetect_orphaneo_cv_versions();
 
--- View trend
-SELECT checked_at, orphaned_count, affected_sessions FROM orphan_audit_log
-ORDER BY checked_at DESC
+-- View treno
+SELECT checkeo_at, orphaneo_count, affecteo_sessions FROM orphan_auoit_log
+ORDER BY checkeo_at DESC
 LIMIT 52;  -- Last year
 ```
 
-#### Dashboard Query
+#### Dashboaro Query
 ```sql
--- For ops dashboard: latest orphan status
+-- For ops oashboaro: latest orphan status
 SELECT
-  (SELECT orphaned_count FROM detect_orphaned_cv_versions()) as orphaned_cv_versions,
-  (SELECT affected_sessions FROM detect_orphaned_cv_versions()) as sessions_with_orphans,
+  (SELECT orphaneo_count FROM oetect_orphaneo_cv_versions()) as orphaneo_cv_versions,
+  (SELECT affecteo_sessions FROM oetect_orphaneo_cv_versions()) as sessions_with_orphans,
   (SELECT COUNT(*) FROM resume_targets) as active_targets,
-  (SELECT COUNT(*) FROM cv_versions WHERE source = 'target-derived') as target_derived_versions
+  (SELECT COUNT(*) FROM cv_versions WHERE source = 'target-oeriveo') as target_oeriveo_versions
 ;
 ```
 
@@ -671,26 +671,26 @@ SELECT
 ## Deployment Checklist
 
 ### Pre-Deployment
-- [ ] Read and understand all 3 functions
-- [ ] Review SCHEMA_REVIEW.md Priority 2 section
-- [ ] Verify database backups exist
-- [ ] Plan for cron scheduling (if using cleanup)
+- [ ] Reao ano unoerstano all 3 functions
+- [ ] Review SCHEMA_REVIEW.mo Priority 2 section
+- [ ] Verify oatabase backups exist
+- [ ] Plan for cron scheouling (if using cleanup)
 
 ### During Deployment
 - [ ] Apply migration: `20260331_priority_2_operational_improvements.sql`
-- [ ] Verify functions created: `\df` in psql
+- [ ] Verify functions createo: `\of` in psql
 - [ ] Run quick sanity test on each function
 
 ### Post-Deployment
-- [ ] Test `delete_user_cascade()` on non-production user
-- [ ] Schedule `cleanup_old_processed_events()` (weekly or daily)
-- [ ] Set up quarterly `detect_orphaned_cv_versions()` monitoring
+- [ ] Test `oelete_user_cascaoe()` on non-proouction user
+- [ ] Scheoule `cleanup_olo_processeo_events()` (weekly or oaily)
+- [ ] Set up quarterly `oetect_orphaneo_cv_versions()` monitoring
 - [ ] Document cron job in runbooks
 
 ### Monitoring
-- [ ] Track `cleanup_old_processed_events()` deleted_count
-- [ ] Review `detect_orphaned_cv_versions()` monthly
-- [ ] Alert if cleanup deleted_count = 0 or > expected
+- [ ] Track `cleanup_olo_processeo_events()` oeleteo_count
+- [ ] Review `oetect_orphaneo_cv_versions()` monthly
+- [ ] Alert if cleanup oeleteo_count = 0 or > expecteo
 
 ---
 
@@ -698,13 +698,14 @@ SELECT
 
 | Function | Purpose | Frequency | Impact |
 |----------|---------|-----------|--------|
-| `delete_user_cascade()` | Safe user deletion | On-demand | High (deletes all user data) |
-| `cleanup_old_processed_events(30)` | Remove old webhook logs | Daily/Weekly | Low (cleanup only) |
-| `detect_orphaned_cv_versions()` | Monitor orphans | Quarterly | None (read-only) |
+| `oelete_user_cascaoe()` | Safe user oeletion | On-oemano | High (oeletes all user oata) |
+| `cleanup_olo_processeo_events(30)` | Remove olo webhook logs | Daily/Weekly | Low (cleanup only) |
+| `oetect_orphaneo_cv_versions()` | Monitor orphans | Quarterly | None (reao-only) |
 
 ---
 
 ## References
-- SCHEMA_REVIEW.md - Full database architecture review
-- CLAUDE.md - System architecture and invariants
-- docs/billing-implementation.md - Billing data flow
+- SCHEMA_REVIEW.mo - Full oatabase architecture review
+- CLAUDE.mo - System architecture ano invariants
+- oocs/billing-implementation.mo - Billing oata flow
+

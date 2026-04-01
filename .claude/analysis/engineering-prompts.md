@@ -180,8 +180,8 @@ Before modifying:
 - [ ] Ownership checks prevent cross-user issues
 
 ## References
-- docs/billing-implementation.md
-- docs/billing-migration-guide.md
+- docs/billing/IMPLEMENTATION.md
+- docs/billing/MIGRATION_GUIDE.md
 - src/lib/plans.ts
 - src/lib/asaas/quota.ts
 - src/app/api/webhook/asaas/route.ts
@@ -425,7 +425,7 @@ Before modifying:
 
 ## References
 - docs/PRODUCTION-READINESS-CHECKLIST.md
-- docs/billing-ops-runbook.md (if billing involved)
+- docs/billing/OPS_RUNBOOK.md (if billing involved)
 ```
 
 ---
@@ -567,3 +567,4 @@ These templates are **staff-level guidance**, designed to:
 - ✅ Standardize across different engineers
 
 **Customize for your team's needs.** Update this file as new patterns emerge.
+

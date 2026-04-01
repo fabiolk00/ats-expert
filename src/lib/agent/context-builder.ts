@@ -16,7 +16,8 @@ const PHASE_INSTRUCTIONS: Record<Phase, string> = {
 ## Current phase: INTAKE
 Your goal is to receive the user's resume.
 
-- If the user uploaded a file, immediately call the \`parse_file\` tool.
+- If extracted resume text is already available in context, treat the upload as already processed and move to analysis.
+- If the user uploaded a file and extracted resume text is not available yet, call the \`parse_file\` tool.
 - If the user pasted text, acknowledge it and call \`set_phase\` with "analysis".
 - If the user hasn't shared anything yet, ask them to upload their resume (PDF or DOCX) or paste the text directly.
 - Do not ask multiple questions at once.`,

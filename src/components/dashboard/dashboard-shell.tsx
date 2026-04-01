@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Menu } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { PlanSlug } from "@/lib/plans"
 
 import { DashboardSidebar } from "./sidebar"
 
@@ -12,6 +13,7 @@ interface DashboardShellProps {
   creditsRemaining?: number
   maxCredits?: number
   renewsIn?: string | null
+  activeRecurringPlan?: PlanSlug | null
 }
 
 export default function DashboardShell({
@@ -19,6 +21,7 @@ export default function DashboardShell({
   creditsRemaining,
   maxCredits,
   renewsIn,
+  activeRecurringPlan,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -49,6 +52,7 @@ export default function DashboardShell({
         creditsRemaining={creditsRemaining}
         maxCredits={maxCredits}
         renewsIn={renewsIn ?? undefined}
+        activeRecurringPlan={activeRecurringPlan ?? null}
       />
 
       <main className="min-h-screen lg:ml-64">{children}</main>

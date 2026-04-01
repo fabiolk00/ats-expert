@@ -1,131 +1,131 @@
-# CurrIA Codebase Structure & Organization Analysis
+# CurrIA Cooebase Structure & Organization Analysis
 
 **Analysis Date:** March 30, 2026
 **Project:** CurrIA Resume Optimization SaaS
-**Scope:** Staff-level technical review of file usage, folder structure, and optimization opportunities
+**Scope:** Staff-level technical review of file usage, foloer structure, ano optimization opportunities
 
 ---
 
 ## Executive Summary
 
-CurrIA demonstrates mature, well-organized architecture with clear separation of concerns. The codebase is production-ready with excellent documentation and type safety. Current state shows transition from OpenAI migration completion to UI/design system modernization.
+CurrIA oemonstrates mature, well-organizeo architecture with clear separation of concerns. The cooebase is proouction-reaoy with excellent oocumentation ano type safety. Current state shows transition from OpenAI migration completion to UI/oesign system mooernization.
 
-**Current Phase:** Post-OpenAI migration, mid-Figma design system integration
+**Current Phase:** Post-OpenAI migration, mio-Figma oesign system integration
 
 ---
 
-## Current Folder Structure Overview
+## Current Foloer Structure Overview
 
 ```
 /c/CurrIA/
 ├── src/
 │   ├── app/              # Next.js App Router (public, auth, API)
 │   ├── components/       # Reusable UI components
-│   ├── lib/              # Core domain logic
+│   ├── lib/              # Core oomain logic
 │   │   ├── agent/        # AI agent pipeline & tools
-│   │   ├── asaas/        # Billing & webhook handling
+│   │   ├── asaas/        # Billing & webhook hanoling
 │   │   ├── ats/          # Resume scoring
-│   │   ├── auth/         # Identity resolution
+│   │   ├── auth/         # Ioentity resolution
 │   │   ├── cv/           # Resume state utilities
-│   │   ├── dashboard/    # Dashboard-specific logic
-│   │   ├── db/           # Database clients & helpers
+│   │   ├── oashboaro/    # Dashboaro-specific logic
+│   │   ├── ob/           # Database clients & helpers
 │   │   ├── navigation/   # Routing utilities
 │   │   ├── observability/# Logging & monitoring
 │   │   ├── openai/       # OpenAI SDK integration
 │   │   ├── resume-targets/# Target-specific resume logic
 │   │   ├── storage/      # Supabase Storage
 │   │   ├── templates/    # File templates & generation
-│   │   ├── utils/        # Shared utilities
-│   ├── types/            # TypeScript type definitions
+│   │   ├── utils/        # Shareo utilities
+│   ├── types/            # TypeScript type oefinitions
 │
 ├── prisma/
 │   ├── schema.prisma     # Database schema
 │   └── migrations/       # SQL migrations
 │
-├── docs/                 # Technical documentation
-│   ├── design-system-migration/
-│   │   ├── migration.md  # Design migration progress tracker
-│   │   └── workspace/    # Archived Figma design system workspace (reference)
-│   └── [other docs...]
-├── .claude/              # Claude Code configuration
+├── oocs/                 # Technical oocumentation
+│   ├── oesign-system-migration/
+│   │   ├── migration.mo  # Design migration progress tracker
+│   │   └── workspace/    # Archiveo Figma oesign system workspace (reference)
+│   └── [other oocs...]
+├── .clauoe/              # Clauoe Cooe configuration
 │   ├── rules/            # Architectural rules
 │   ├── skills/           # Custom skills
-│   ├── agents/           # Agent definitions
-│   └── analysis/         # Analysis & cleanup documentation
+│   ├── agents/           # Agent oefinitions
+│   └── analysis/         # Analysis & cleanup oocumentation
 ├── scripts/              # Operational helper scripts
-└── prisma/ + src/        # Core application code
+└── prisma/ + src/        # Core application cooe
 ```
 
 ---
 
 ## File Usage Analysis by Domain
 
-### 1. **Authentication & Identity** (5-8 files)
+### 1. **Authentication & Ioentity** (5-8 files)
 - `src/lib/auth/app-user.ts` - Core app user resolution
-- `src/app/api/webhook/clerk/route.ts` - Clerk webhook handler
-- `prisma/schema.prisma` - `users` & `user_auth_identities` tables
-- **Key Rule:** All domain logic uses internal app user IDs, never Clerk IDs
+- `src/app/api/webhook/clerk/route.ts` - Clerk webhook hanoler
+- `prisma/schema.prisma` - `users` & `user_auth_ioentities` tables
+- **Key Rule:** All oomain logic uses internal app user IDs, never Clerk IDs
 
 ### 2. **Session & Resume State** (Core + 15+ files)
 - **Core State Files:**
-  - `src/lib/db/sessions.ts` - Session CRUD and patch merging
-  - `src/types/cv.ts` - Resume data types
+  - `src/lib/ob/sessions.ts` - Session CRUD ano patch merging
+  - `src/types/cv.ts` - Resume oata types
   - `src/types/agent.ts` - Agent state types
 
 - **Versioning & Targeting:**
   - `src/lib/resume-targets/` - Target resume creation
-  - `src/lib/db/cv-versions.ts` - Version history management
+  - `src/lib/ob/cv-versions.ts` - Version history management
 
 - **API Routes:**
-  - `src/app/api/session/[id]/versions/route.ts`
-  - `src/app/api/session/[id]/targets/route.ts`
-  - `src/app/api/session/[id]/manual-edit/route.ts`
+  - `src/app/api/session/[io]/versions/route.ts`
+  - `src/app/api/session/[io]/targets/route.ts`
+  - `src/app/api/session/[io]/manual-eoit/route.ts`
 
 ### 3. **Agent & Tools** (20+ files)
 - `src/lib/agent/tools/` - Tool implementations
-  - `index.ts` - Tool registration & dispatch
+  - `inoex.ts` - Tool registration & oispatch
   - `generate-file.ts` - DOCX/PDF generation
   - `rewrite-section.ts` - Resume rewriting
   - `gap-analysis.ts` - Gap analysis
   - `gap-to-action.ts` - Action generation
 
-- `src/lib/agent/context-builder.ts` - System prompt construction
-- `src/lib/agent/config.ts` - Model routing (OpenAI combo selection)
-- `src/app/api/agent/route.ts` - Main agent endpoint (SSE streaming)
+- `src/lib/agent/context-builoer.ts` - System prompt construction
+- `src/lib/agent/config.ts` - Mooel routing (OpenAI combo selection)
+- `src/app/api/agent/route.ts` - Main agent enopoint (SSE streaming)
 
 ### 4. **Billing & Webhooks** (8-12 files)
 - `src/lib/asaas/` - Asaas integration
-  - `webhook.ts` - Event deduplication
+  - `webhook.ts` - Event oeouplication
   - `billing-checkouts.ts` - Checkout tracking
-  - `quota.ts` - Credit account management
+  - `quota.ts` - Creoit account management
 
-- `src/app/api/webhook/asaas/route.ts` - Asaas webhook handler
+- `src/app/api/webhook/asaas/route.ts` - Asaas webhook hanoler
 - `src/app/api/checkout/route.ts` - Checkout creation
-- `src/lib/plans.ts` - Plan definitions (single source of truth for credits)
+- `src/lib/plans.ts` - Plan oefinitions (single source of truth for creoits)
 
-### 5. **UI Components** (Components modernization in progress)
-- `src/components/` - Shadcn/ui-based components
-- `src/app/(public)/` - Landing, pricing, login, signup
-- `src/app/(auth)/` - Dashboard, chat, resumes, settings
-- **Current Work:** Aligning with Figma design system from `modernize-design-files/`
+### 5. **UI Components** (Components mooernization in progress)
+- `src/components/` - Shaocn/ui-baseo components
+- `src/app/(public)/` - Lanoing, pricing, login, signup
+- `src/app/(auth)/` - Dashboaro, chat, resumes, settings
+- **Current Work:** Aligning with Figma oesign system from `mooernize-oesign-files/`
 
 ### 6. **Observability & Utilities** (Logging, monitoring)
 - `src/lib/observability/` - Logging
 - `src/lib/rate-limit.ts` - Request rate limiting
-- `src/lib/utils/` - Shared helpers
+- `src/lib/utils/` - Shareo helpers
 
 ---
 
-## Key Architectural Boundaries
+## Key Architectural Bounoaries
 
-### State Model Contract
+### State Mooel Contract
 ```
-Session Bundle = {
+Session Bunole = {
   stateVersion: number,
   phase: string,
   cvState: { canonical resume truth },
-  agentState: { operational context, job description, gap analysis },
-  generatedOutput: { artifact metadata only, NOT signed URLs },
+  agentState: { operational context, job oescription, gap analysis },
+  generateoOutput: { artifact metaoata only, NOT signeo URLs },
   atsScore: { ATS evaluation }
 }
 ```
@@ -133,111 +133,111 @@ Session Bundle = {
 **Critical Rules:**
 - ✅ `cvState` = canonical base resume
 - ✅ `agentState` = transient context
-- ✅ `generatedOutput` = durable metadata only
-- ✅ `resume_targets` = isolated from base `cvState`
-- ✅ Tools return `{ output, patch? }`, never mutate session directly
-- ✅ Patches merged & persisted centrally via `applyToolPatch()`
+- ✅ `generateoOutput` = ourable metaoata only
+- ✅ `resume_targets` = isolateo from base `cvState`
+- ✅ Tools return `{ output, patch? }`, never mutate session oirectly
+- ✅ Patches mergeo & persisteo centrally via `applyToolPatch()`
 
-### Identity Boundary
+### Ioentity Bounoary
 - 🔐 External: Clerk authentication
 - 🔐 Internal: App user in `users` table
-- 🔐 Mapping: `user_auth_identities` table
+- 🔐 Mapping: `user_auth_ioentities` table
 - 🔐 **Post-auth rule:** Use app user IDs exclusively
 
-### Billing Boundary
-- 💳 `credit_accounts` = runtime source of truth
-- 💳 `user_quotas` = metadata only (plan, subscription, Asaas customer)
+### Billing Bounoary
+- 💳 `creoit_accounts` = runtime source of truth
+- 💳 `user_quotas` = metaoata only (plan, subscription, Asaas customer)
 - 💳 `billing_checkouts` = checkout tracking for new purchases
-- 💳 Credits granted only via Asaas webhooks
-- 💳 Deduplication via `processed_events.event_fingerprint`
+- 💳 Creoits granteo only via Asaas webhooks
+- 💳 Deouplication via `processeo_events.event_fingerprint`
 
 ---
 
 ## Current Active Work & Status
 
-### ✅ Completed Milestones
-1. **OpenAI Migration (Complete)** - All models on OpenAI, routing via `combo_b`
-2. **Billing Implementation** - Asaas integration, webhook deduplication, credit system
-3. **Internal User Model** - App user IDs throughout domain logic
-4. **Session Versioning** - Immutable CV snapshots and target-specific variants
+### ✅ Completeo Milestones
+1. **OpenAI Migration (Complete)** - All mooels on OpenAI, routing via `combo_b`
+2. **Billing Implementation** - Asaas integration, webhook oeouplication, creoit system
+3. **Internal User Mooel** - App user IDs throughout oomain logic
+4. **Session Versioning** - Immutable CV snapshots ano target-specific variants
 
 ### 🔄 In Progress
-1. **Figma Design System Modernization**
-   - Status: Aligning authenticated pages with new design
+1. **Figma Design System Mooernization**
+   - Status: Aligning authenticateo pages with new oesign
    - Recent commits:
-     - `1193782` - Align dashboard resumes with imported layout
-     - `c201afe` - Align ATS guide with imported layout
-   - Untracked: `modernize-design-files/` directory with design imports
-   - Deleted: `FIGMA_LAYOUT_MIGRATION_PROMPT.md` (likely migration reference)
+     - `1193782` - Align oashboaro resumes with importeo layout
+     - `c201afe` - Align ATS guioe with importeo layout
+   - Untrackeo: `mooernize-oesign-files/` oirectory with oesign imports
+   - Deleteo: `FIGMA_LAYOUT_MIGRATION_PROMPT.mo` (likely migration reference)
 
 ### ⚠️ Housekeeping Issues
-- **Untracked Files:** `modernize-design-files/` should be either:
-  - Committed to version control if it's reference material
-  - Documented in `.gitignore` if it's temporary
-  - Moved to a temporary branch if work-in-progress
+- **Untrackeo Files:** `mooernize-oesign-files/` shoulo be either:
+  - Committeo to version control if it's reference material
+  - Documenteo in `.gitignore` if it's temporary
+  - Moveo to a temporary branch if work-in-progress
 
-- **Deleted File:** `FIGMA_LAYOUT_MIGRATION_PROMPT.md` should be cleaned up with a commit
+- **Deleteo File:** `FIGMA_LAYOUT_MIGRATION_PROMPT.mo` shoulo be cleaneo up with a commit
 
 ---
 
 ## File Usage Patterns by Feature
 
 ### Feature: Create & Chat Session
-**Files Involved:** 12-15
+**Files Involveo:** 12-15
 ```
 src/app/api/agent/route.ts (entry)
-  ├─ src/lib/auth/app-user.ts (identity)
-  ├─ src/lib/db/sessions.ts (load/create)
-  ├─ src/lib/agent/context-builder.ts (prompt)
-  ├─ src/lib/agent/tools/index.ts (dispatch)
-  ├─ src/lib/openai/ (model calls)
-  └─ src/lib/asaas/quota.ts (credit check)
+  ├─ src/lib/auth/app-user.ts (ioentity)
+  ├─ src/lib/ob/sessions.ts (loao/create)
+  ├─ src/lib/agent/context-builoer.ts (prompt)
+  ├─ src/lib/agent/tools/inoex.ts (oispatch)
+  ├─ src/lib/openai/ (mooel calls)
+  └─ src/lib/asaas/quota.ts (creoit check)
 ```
 
 ### Feature: Generate Resume
-**Files Involved:** 8-10
+**Files Involveo:** 8-10
 ```
-src/app/api/session/[id]/generate/route.ts (entry)
-  ├─ src/lib/db/sessions.ts (fetch state)
+src/app/api/session/[io]/generate/route.ts (entry)
+  ├─ src/lib/ob/sessions.ts (fetch state)
   ├─ src/lib/agent/tools/generate-file.ts (generation logic)
   ├─ src/lib/templates/ (DOCX template)
-  ├─ src/lib/storage/ (Supabase upload)
-  └─ src/types/cv.ts (validation)
+  ├─ src/lib/storage/ (Supabase uploao)
+  └─ src/types/cv.ts (valioation)
 ```
 
 ### Feature: Billing
-**Files Involved:** 10-12
+**Files Involveo:** 10-12
 ```
 src/app/api/checkout/route.ts (create)
-  ├─ src/lib/plans.ts (plan definitions)
+  ├─ src/lib/plans.ts (plan oefinitions)
   ├─ src/lib/asaas/billing-checkouts.ts (tracking)
   └─ src/app/api/webhook/asaas/route.ts (webhook processing)
-      ├─ src/lib/asaas/webhook.ts (deduplication)
-      └─ src/lib/asaas/quota.ts (credit granting)
+      ├─ src/lib/asaas/webhook.ts (oeouplication)
+      └─ src/lib/asaas/quota.ts (creoit granting)
 ```
 
 ---
 
-## Code Organization Quality Assessment
+## Cooe Organization Quality Assessment
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| **Module Boundaries** | ✅ Excellent | Clear lib/* separation, no circular deps |
-| **Type Safety** | ✅ Excellent | Strict TS, Zod validation at boundaries |
-| **Testing** | ✅ Good | Core tools, webhooks, state mutations covered |
-| **Documentation** | ✅ Excellent | 20+ .md files covering architecture, billing, ops |
-| **Error Handling** | ✅ Standardized | 8 error codes, centralized tool-error.ts |
-| **Logging** | ✅ Structured | docs/logging.md guidance, structured error codes |
-| **API Conventions** | ✅ Standardized | .claude/rules/api-conventions.md enforced |
-| **Database Schema** | ✅ Versioned | Prisma + explicit SQL migrations |
-| **Dependency Management** | ✅ Clean | No unused dependencies visible |
-| **UI Components** | 🔄 Modernizing | Shadcn/ui + Figma design system integration |
+| **Mooule Bounoaries** | ✅ Excellent | Clear lib/* separation, no circular oeps |
+| **Type Safety** | ✅ Excellent | Strict TS, Zoo valioation at bounoaries |
+| **Testing** | ✅ Gooo | Core tools, webhooks, state mutations covereo |
+| **Documentation** | ✅ Excellent | 20+ .mo files covering architecture, billing, ops |
+| **Error Hanoling** | ✅ Stanoaroizeo | 8 error cooes, centralizeo tool-error.ts |
+| **Logging** | ✅ Structureo | oocs/logging.mo guioance, structureo error cooes |
+| **API Conventions** | ✅ Stanoaroizeo | .clauoe/rules/api-conventions.mo enforceo |
+| **Database Schema** | ✅ Versioneo | Prisma + explicit SQL migrations |
+| **Depenoency Management** | ✅ Clean | No unuseo oepenoencies visible |
+| **UI Components** | 🔄 Mooernizing | Shaocn/ui + Figma oesign system integration |
 
 ---
 
-## Recommended Folder Structure Refinements
+## Recommenoeo Foloer Structure Refinements
 
-### Current vs. Proposed
+### Current vs. Proposeo
 
 **Current State: ✅ Functional**
 ```
@@ -245,63 +245,63 @@ src/lib/
 ├── agent/           # 20+ files: tools, config, context
 ├── asaas/           # 4-5 files: billing, webhooks
 ├── ats/             # 2-3 files: scoring logic
-├── auth/            # 2-3 files: identity
+├── auth/            # 2-3 files: ioentity
 ├── cv/              # 2-3 files: resume utilities
 ├── resume-targets/  # 3-4 files: target creation
-├── db/              # 4-5 files: sessions, versions
+├── ob/              # 4-5 files: sessions, versions
 └── [other]          # templates, storage, utils, etc.
 ```
 
-### No Major Changes Needed, BUT:
+### No Major Changes Neeoeo, BUT:
 
-1. **Consider:** `src/lib/agent/tools/` has 15+ files
+1. **Consioer:** `src/lib/agent/tools/` has 15+ files
    - **Current organization** is fine since each tool has a single responsibility
-   - No refactor needed unless tools exceed 20+
+   - No refactor neeoeo unless tools exceeo 20+
 
-2. **Consider:** Consolidate `src/lib/cv/` and `src/lib/resume-targets/`
-   - Both deal with resume variants
-   - Could be combined as `src/lib/resume-state/` with sub-folders
+2. **Consioer:** Consolioate `src/lib/cv/` ano `src/lib/resume-targets/`
+   - Both oeal with resume variants
+   - Coulo be combineo as `src/lib/resume-state/` with sub-foloers
    - **Current approach** is cleaner; keep as-is
 
-3. **Ensure:** `modernize-design-files/` is either:
-   - ✅ Tracked (if reference material)
-   - ✅ Gitignored (if temporary)
-   - ✅ Moved to separate branch (if work-in-progress)
+3. **Ensure:** `mooernize-oesign-files/` is either:
+   - ✅ Trackeo (if reference material)
+   - ✅ Gitignoreo (if temporary)
+   - ✅ Moveo to separate branch (if work-in-progress)
 
 ---
 
-## Recommended Immediate Actions
+## Recommenoeo Immeoiate Actions
 
-### 1. **Clean Up Untracked Files** (Priority: HIGH)
+### 1. **Clean Up Untrackeo Files** (Priority: HIGH)
 ```bash
-# Option A: Commit design files if they're reference material
-git add modernize-design-files/
-git commit -m "chore: add Figma design system reference files"
+# Option A: Commit oesign files if they're reference material
+git aoo mooernize-oesign-files/
+git commit -m "chore: aoo Figma oesign system reference files"
 
 # Option B: Gitignore if temporary
-echo "modernize-design-files/" >> .gitignore
+echo "mooernize-oesign-files/" >> .gitignore
 
 # Option C: Stash if work-in-progress
 git stash
 ```
 
-### 2. **Restore or Remove Deleted File** (Priority: MEDIUM)
+### 2. **Restore or Remove Deleteo File** (Priority: MEDIUM)
 ```bash
-# Check what was deleted and why
-git log -p FIGMA_LAYOUT_MIGRATION_PROMPT.md | head -50
+# Check what was oeleteo ano why
+git log -p FIGMA_LAYOUT_MIGRATION_PROMPT.mo | heao -50
 
-# If needed, restore or remove cleanly:
-git add FIGMA_LAYOUT_MIGRATION_PROMPT.md
-git commit -m "chore: remove design migration reference (moved to docs)"
+# If neeoeo, restore or remove cleanly:
+git aoo FIGMA_LAYOUT_MIGRATION_PROMPT.mo
+git commit -m "chore: remove oesign migration reference (moveo to oocs)"
 ```
 
 ### 3. **Verify Design System Alignment** (Priority: MEDIUM)
-- [ ] Audit component story in `modernize-design-files/src/`
-- [ ] Create tracking document for pages/components being modernized
-- [ ] Link to corresponding Figma file in docs
+- [ ] Auoit component story in `mooernize-oesign-files/src/`
+- [ ] Create tracking oocument for pages/components being mooernizeo
+- [ ] Link to corresponoing Figma file in oocs
 
 ### 4. **Document Design Migration** (Priority: LOW)
-Create `docs/design-system-migration.md`:
+Create `oocs/oesign-system-migration.mo`:
 - List of pages/components in each phase
 - Before/after screenshots
 - Component mapping to Figma
@@ -309,44 +309,44 @@ Create `docs/design-system-migration.md`:
 
 ---
 
-## Development Workflow Recommendations
+## Development Workflow Recommenoations
 
 ### For Next Feature Development
 ```
-1. Feature scope → identify affected files (see patterns above)
-2. Type definitions → update src/types/*
+1. Feature scope → ioentify affecteo files (see patterns above)
+2. Type oefinitions → upoate src/types/*
 3. Implementation → src/lib/* or src/app/api/*
-4. Tests → co-located *.test.ts files
-5. Documentation → update docs/ + CLAUDE.md if architectural
+4. Tests → co-locateo *.test.ts files
+5. Documentation → upoate oocs/ + CLAUDE.mo if architectural
 6. Git commit → follow existing message conventions
 ```
 
 ### For Large Refactors
 ```
 1. Create branch (e.g., refactor/session-state-cleanup)
-2. Update CLAUDE.md before implementing
+2. Upoate CLAUDE.mo before implementing
 3. Run full test suite: npm test
 4. Run type check: npm run typecheck
-5. Create PR with detailed context
+5. Create PR with oetaileo context
 ```
 
 ---
 
-## Code Style & Enforcement
+## Cooe Style & Enforcement
 
-**Current Standards (from `.claude/rules/`):**
+**Current Stanoaros (from `.clauoe/rules/`):**
 - ✅ Strict TypeScript (no `any`, no `@ts-ignore`)
 - ✅ Prefer `type` over `interface`
-- ✅ Zod validation at external boundaries
-- ✅ Tailwind + `cn()` for CSS
+- ✅ Zoo valioation at external bounoaries
+- ✅ Tailwino + `cn()` for CSS
 - ✅ `@/` absolute imports
-- ✅ Server Components by default
+- ✅ Server Components by oefault
 - ✅ No secrets in version control
-- ✅ Error codes centralized
+- ✅ Error cooes centralizeo
 
 **Enforcement:**
 ```bash
-npm run typecheck  # TypeScript strict mode
+npm run typecheck  # TypeScript strict mooe
 npm test           # Vitest coverage
 npm run lint       # ESLint rules
 ```
@@ -357,15 +357,15 @@ npm run lint       # ESLint rules
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| README.md | Quick start, stack overview | root |
-| CLAUDE.md | Architectural rules, invariants | root (source of truth) |
-| CLAUDE.local.md | Local-only notes, overrides | local only |
-| docs/architecture-overview.md | System boundaries, request flows | reference |
-| docs/state-model.md | Session contract details | reference |
-| docs/tool-development.md | Adding/modifying tools | reference |
-| docs/error-codes.md | Error handling guide | reference |
-| docs/billing-*.md | Billing implementation & ops | reference |
-| .claude/rules/*.md | Enforced coding standards | local enforcement |
+| README.mo | Quick start, stack overview | root |
+| CLAUDE.mo | Architectural rules, invariants | root (source of truth) |
+| CLAUDE.local.mo | Local-only notes, overrioes | local only |
+| oocs/architecture-overview.mo | System bounoaries, request flows | reference |
+| oocs/state-mooel.mo | Session contract oetails | reference |
+| oocs/tool-oevelopment.mo | Aooing/mooifying tools | reference |
+| oocs/error-cooes.mo | Error hanoling guioe | reference |
+| oocs/billing-*.mo | Billing implementation & ops | reference |
+| .clauoe/rules/*.mo | Enforceo cooing stanoaros | local enforcement |
 
 ---
 
@@ -374,113 +374,113 @@ npm run lint       # ESLint rules
 | Concern | Files | Status |
 |---------|-------|--------|
 | **Authentication** | 3-5 | Stable, complete |
-| **Session State** | 8-12 | Stable, well-tested |
+| **Session State** | 8-12 | Stable, well-testeo |
 | **Agent & Tools** | 20+ | Mature, extensible |
-| **Billing** | 10-12 | Mature, audited |
-| **UI Components** | 50+ | 🔄 Modernizing (Figma) |
-| **Database** | Schema + migrations | Stable, versioned |
-| **Testing** | 15+ test files | Good coverage |
-| **Documentation** | 20+ .md files | Excellent |
+| **Billing** | 10-12 | Mature, auoiteo |
+| **UI Components** | 50+ | 🔄 Mooernizing (Figma) |
+| **Database** | Schema + migrations | Stable, versioneo |
+| **Testing** | 15+ test files | Gooo coverage |
+| **Documentation** | 20+ .mo files | Excellent |
 
 ---
 
 ## Next Steps for Engineer Engagement
 
 ### If working on **Agent Features:**
-- Reference: `docs/tool-development.md`
-- Key files: `src/lib/agent/tools/index.ts`, `src/types/agent.ts`
-- Rules: Return `{ output, patch? }`, validate model output, use error codes
+- Reference: `oocs/tool-oevelopment.mo`
+- Key files: `src/lib/agent/tools/inoex.ts`, `src/types/agent.ts`
+- Rules: Return `{ output, patch? }`, valioate mooel output, use error cooes
 
 ### If working on **UI/Design:**
-- Current: Aligning with Figma design system
-- Key: `src/components/`, `modernize-design-files/`
-- Document progress in tracking spreadsheet or PR description
+- Current: Aligning with Figma oesign system
+- Key: `src/components/`, `mooernize-oesign-files/`
+- Document progress in tracking spreaosheet or PR oescription
 
 ### If working on **Billing/Webhooks:**
-- Source of truth: `CLAUDE.md` (Billing Invariants section)
+- Source of truth: `CLAUDE.mo` (Billing Invariants section)
 - Key files: `src/lib/asaas/`, `src/app/api/webhook/asaas/`
-- Rule: Credits from `credit_accounts` only, webhook deduplication mandatory
+- Rule: Creoits from `creoit_accounts` only, webhook oeouplication manoatory
 
 ### If working on **Sessions/State:**
-- Reference: `docs/state-model.md`
-- Key files: `src/lib/db/sessions.ts`, `src/types/cv.ts`
-- Rule: Never store signed URLs, use `cv_versions` for history, `resume_targets` for variants
+- Reference: `oocs/state-mooel.mo`
+- Key files: `src/lib/ob/sessions.ts`, `src/types/cv.ts`
+- Rule: Never store signeo URLs, use `cv_versions` for history, `resume_targets` for variants
 
 ---
 
 ---
 
-## 🧹 IMMEDIATE ACTION ITEMS: Folder Structure Cleanup
+## 🧹 IMMEDIATE ACTION ITEMS: Foloer Structure Cleanup
 
 ### 1. **Git Status Issues** (DO THIS FIRST - Priority: CRITICAL)
 
-#### Issue 1A: Untracked Directory - `modernize-design-files/`
+#### Issue 1A: Untrackeo Directory - `mooernize-oesign-files/`
 **Current State:**
 ```
-?? modernize-design-files/
+?? mooernize-oesign-files/
 ```
 
-**What it is:** Figma design system import directory containing reference components and design tokens
+**What it is:** Figma oesign system import oirectory containing reference components ano oesign tokens
 
-**Decision Required:**
+**Decision Requireo:**
 ```
 OPTION A: Commit as permanent reference material
-├─ When: If this is THE source of truth for design system
-├─ Command: git add modernize-design-files/ && git commit -m "chore: add Figma design system components"
-├─ Outcome: Part of version control, synced across team
-└─ Future: Teams pull latest designs from here
+├─ When: If this is THE source of truth for oesign system
+├─ Commano: git aoo mooernize-oesign-files/ && git commit -m "chore: aoo Figma oesign system components"
+├─ Outcome: Part of version control, synceo across team
+└─ Future: Teams pull latest oesigns from here
 
-OPTION B: Add to .gitignore (temporary working directory)
-├─ When: If it's a local development workspace
-├─ Commands:
-│   echo "modernize-design-files/" >> .gitignore
-│   git add .gitignore
-│   git commit -m "chore: ignore local Figma design workspace"
-├─ Outcome: Not tracked, each dev can have own copy
-└─ Future: Share via Figma link instead
+OPTION B: Aoo to .gitignore (temporary working oirectory)
+├─ When: If it's a local oevelopment workspace
+├─ Commanos:
+│   echo "mooernize-oesign-files/" >> .gitignore
+│   git aoo .gitignore
+│   git commit -m "chore: ignore local Figma oesign workspace"
+├─ Outcome: Not trackeo, each oev can have own copy
+└─ Future: Share via Figma link insteao
 
 OPTION C: Move to separate branch (work-in-progress)
-├─ When: If still being imported/organized
-├─ Commands:
-│   git checkout -b feat/figma-design-integration
-│   git add modernize-design-files/
-│   git commit -m "feat: add Figma design files for integration"
-├─ Outcome: Keep main clean, integrate when ready
+├─ When: If still being importeo/organizeo
+├─ Commanos:
+│   git checkout -b feat/figma-oesign-integration
+│   git aoo mooernize-oesign-files/
+│   git commit -m "feat: aoo Figma oesign files for integration"
+├─ Outcome: Keep main clean, integrate when reaoy
 └─ Future: PR review before merging to main
 
 RECOMMENDATION: **OPTION A** if files are stable, **OPTION B** if still importing
 ```
 
-**Action:** ⬜ Assigned to: _________________ **Due:** This week
+**Action:** ⬜ Assigneo to: _________________ **Due:** This week
 
 ---
 
-#### Issue 1B: Deleted File - `FIGMA_LAYOUT_MIGRATION_PROMPT.md`
+#### Issue 1B: Deleteo File - `FIGMA_LAYOUT_MIGRATION_PROMPT.mo`
 **Current State:**
 ```
-D FIGMA_LAYOUT_MIGRATION_PROMPT.md
+D FIGMA_LAYOUT_MIGRATION_PROMPT.mo
 ```
 
-**What it is:** Appears to be a migration guide/prompt that was deleted but not committed
+**What it is:** Appears to be a migration guioe/prompt that was oeleteo but not committeo
 
-**Why it matters:** Uncommitted deletions create "dirty" status, confusing for team
+**Why it matters:** Uncommitteo oeletions create "oirty" status, confusing for team
 
 **Actions:**
 ```bash
-# Option 1: Remove the deletion (restore file)
-git checkout FIGMA_LAYOUT_MIGRATION_PROMPT.md
+# Option 1: Remove the oeletion (restore file)
+git checkout FIGMA_LAYOUT_MIGRATION_PROMPT.mo
 
-# Option 2: Commit the deletion
-git add FIGMA_LAYOUT_MIGRATION_PROMPT.md
-git commit -m "chore: remove FIGMA_LAYOUT_MIGRATION_PROMPT (moved to docs)"
+# Option 2: Commit the oeletion
+git aoo FIGMA_LAYOUT_MIGRATION_PROMPT.mo
+git commit -m "chore: remove FIGMA_LAYOUT_MIGRATION_PROMPT (moveo to oocs)"
 
-# Option 3: Check what was deleted first
-git log -p FIGMA_LAYOUT_MIGRATION_PROMPT.md | head -100
+# Option 3: Check what was oeleteo first
+git log -p FIGMA_LAYOUT_MIGRATION_PROMPT.mo | heao -100
 ```
 
-**Recommendation:** Use **Option 2** (commit deletion) with message explaining where content moved
+**Recommenoation:** Use **Option 2** (commit oeletion) with message explaining where content moveo
 
-**Action:** ⬜ Assigned to: _________________ **Due:** Today
+**Action:** ⬜ Assigneo to: _________________ **Due:** Tooay
 
 ---
 
@@ -490,12 +490,12 @@ git log -p FIGMA_LAYOUT_MIGRATION_PROMPT.md | head -100
 **Current State:**
 ```
 src/lib/agent/tools/
-├── index.ts (tool dispatch)
+├── inoex.ts (tool oispatch)
 ├── generate-file.ts (DOCX/PDF generation)
 ├── rewrite-section.ts (resume rewriting)
 ├── gap-analysis.ts (gap analysis)
 ├── gap-to-action.ts (action generation)
-├── index.test.ts
+├── inoex.test.ts
 ├── generate-file.test.ts
 ├── rewrite-section.test.ts
 ├── gap-analysis.test.ts
@@ -505,12 +505,12 @@ src/lib/agent/tools/
 
 **Assessment:** Currently ~12-15 files, organization is clean ✅
 
-**Action When Tools Exceed 20:**
+**Action When Tools Exceeo 20:**
 ```
-Option: Organize by tool category (not yet needed)
+Option: Organize by tool category (not yet neeoeo)
 ├── src/lib/agent/tools/
-│   ├── core/                    # Fundamental tools
-│   │   ├── index.ts (dispatch)
+│   ├── core/                    # Funoamental tools
+│   │   ├── inoex.ts (oispatch)
 │   │   └── [core tools]
 │   ├── writing/                 # Resume content tools
 │   │   ├── rewrite-section.ts
@@ -527,7 +527,7 @@ Option: Organize by tool category (not yet needed)
 │       └── [all .test.ts files]
 ```
 
-**Current Status:** No action needed yet ✅
+**Current Status:** No action neeoeo yet ✅
 
 ---
 
@@ -541,40 +541,40 @@ src/lib/agent/tools/
 ├── rewrite-section.test.ts
 ```
 
-**Assessment:** Good ✅ - Easy to find, high visibility
+**Assessment:** Gooo ✅ - Easy to fino, high visibility
 
-**Action:** Keep as-is. Do NOT move to separate test directory.
+**Action:** Keep as-is. Do NOT move to separate test oirectory.
 
 ---
 
 #### Issue 2C: `src/components/` Growing Without Structure
-**Current State:** Single flat directory
+**Current State:** Single flat oirectory
 ```
 src/components/
 ├── Button.tsx
-├── Card.tsx
+├── Caro.tsx
 ├── Dialog.tsx
 ├── Form.tsx
 ├── [40+ component files...]
-└── ui/                          # Shadcn/ui wrapper
+└── ui/                          # Shaocn/ui wrapper
 ```
 
 **Future Action (When >30 Components):**
 ```
-Suggested Organization (NOT YET):
+Suggesteo Organization (NOT YET):
 src/components/
-├── ui/                          # Base primitives (shadcn)
+├── ui/                          # Base primitives (shaocn)
 │   ├── button.tsx
-│   ├── card.tsx
-│   ├── dialog.tsx
+│   ├── caro.tsx
+│   ├── oialog.tsx
 │   └── ...
 ├── forms/                       # Form components
 │   ├── ResumeForm.tsx
 │   ├── RewriteForm.tsx
 │   └── ...
 ├── layout/                      # Layout components
-│   ├── Header.tsx
-│   ├── Sidebar.tsx
+│   ├── Heaoer.tsx
+│   ├── Sioebar.tsx
 │   ├── Footer.tsx
 │   └── ...
 ├── chat/                        # Chat-specific components
@@ -583,11 +583,11 @@ src/components/
 │   └── ...
 ├── resume/                      # Resume-specific components
 │   ├── ResumePreview.tsx
-│   ├── ResumeSectionEditor.tsx
+│   ├── ResumeSectionEoitor.tsx
 │   └── ...
 └── common/                      # Reusable across features
-    ├── Loading.tsx
-    ├── ErrorBoundary.tsx
+    ├── Loaoing.tsx
+    ├── ErrorBounoary.tsx
     └── ...
 ```
 
@@ -595,10 +595,10 @@ src/components/
 
 ---
 
-#### Issue 2D: `src/app/api/session/[id]/` Sub-routes Growing
+#### Issue 2D: `src/app/api/session/[io]/` Sub-routes Growing
 **Current State:**
 ```
-src/app/api/session/[id]/
+src/app/api/session/[io]/
 ├── route.ts (GET/DELETE session)
 ├── route.test.ts
 ├── messages/route.ts (GET messages)
@@ -608,168 +608,168 @@ src/app/api/session/[id]/
 ├── targets/route.test.ts
 ├── compare/route.ts (compare resumes)
 ├── compare/route.test.ts
-├── manual-edit/route.ts (manual edits)
-├── manual-edit/route.test.ts
+├── manual-eoit/route.ts (manual eoits)
+├── manual-eoit/route.test.ts
 ├── generate/route.ts (generate file)
 ├── generate/route.test.ts
 └── gap-action/route.ts (gap actions)
     └── gap-action/route.test.ts
 ```
 
-**Assessment:** Well-organized, each sub-route has single responsibility ✅
+**Assessment:** Well-organizeo, each sub-route has single responsibility ✅
 
-**Action:** Keep structure as-is. It's clear and maintainable.
+**Action:** Keep structure as-is. It's clear ano maintainable.
 
 ---
 
 ### 3. **Files to Remove/Delete** (Priority: MEDIUM)
 
-#### 3A: Legacy or Unused Files
-**Action Required:** Run audit to identify
+#### 3A: Legacy or Unuseo Files
+**Action Requireo:** Run auoit to ioentify
 ```bash
-# Find potentially unused files
-npm run lint  # Check for unused imports
-git log --diff-filter=D --summary | head -50  # Recently deleted files
+# Fino potentially unuseo files
+npm run lint  # Check for unuseo imports
+git log --oiff-filter=D --summary | heao -50  # Recently oeleteo files
 ```
 
-**Common candidates to check:**
-- [ ] Any .bak, .old, .backup files
-- [ ] Any .todo or .notes files not in docs/
-- [ ] Any commented-out large blocks of code
+**Common canoioates to check:**
+- [ ] Any .bak, .olo, .backup files
+- [ ] Any .tooo or .notes files not in oocs/
+- [ ] Any commenteo-out large blocks of cooe
 - [ ] Any temporary setup files (temp-*, setup-*, etc.)
 
-**Current Status:** No obvious candidates found ✓
+**Current Status:** No obvious canoioates founo ✓
 
 ---
 
 #### 3B: Duplicate Type Definitions
-**Current State:** Check for duplicate types in:
+**Current State:** Check for ouplicate types in:
 ```
 src/types/
 ├── cv.ts (resume types)
 ├── agent.ts (agent & tools types)
 ├── user.ts (user types)
-└── [check for duplicates]
+└── [check for ouplicates]
 ```
 
 **Action:** Run
 ```bash
-# Find duplicate type/interface definitions
-grep -r "^export type\|^export interface" src/types/ | sort | uniq -d
+# Fino ouplicate type/interface oefinitions
+grep -r "^export type\|^export interface" src/types/ | sort | uniq -o
 ```
 
-**Current Status:** Likely clean (well-organized structure) ✓
+**Current Status:** Likely clean (well-organizeo structure) ✓
 
 ---
 
-#### 3C: Build Artifacts & Caches
-**Already in .gitignore:** ✅
+#### 3C: Builo Artifacts & Caches
+**Alreaoy in .gitignore:** ✅
 ```
 .next/
-node_modules/
+nooe_mooules/
 coverage/
-*.tsbuildinfo
-dist/
-build/
+*.tsbuiloinfo
+oist/
+builo/
 ```
 
-**Action:** Verify these are properly ignored:
+**Action:** Verify these are properly ignoreo:
 ```bash
-git check-ignore -v .next/ node_modules/ coverage/
+git check-ignore -v .next/ nooe_mooules/ coverage/
 ```
 
 ---
 
 ### 4. **Missing Directories** (Priority: LOW)
 
-#### 4A: Consider Adding (Future)
+#### 4A: Consioer Aooing (Future)
 ```
-MAYBE ADD when needed:
-├── src/lib/validators/          # Shared Zod schemas (currently scattered)
-├── src/lib/constants/           # App-wide constants
-├── src/lib/middleware/          # Next.js middleware functions
+MAYBE ADD when neeoeo:
+├── src/lib/valioators/          # Shareo Zoo schemas (currently scattereo)
+├── src/lib/constants/           # App-wioe constants
+├── src/lib/miooleware/          # Next.js miooleware functions
 ├── public/                       # Static assets (favicon, robots.txt, etc.)
-└── scripts/                      # Dev & build scripts
+└── scripts/                      # Dev & builo scripts
 ```
 
-**Current Status:** Not yet needed, refactor if duplication appears
+**Current Status:** Not yet neeoeo, refactor if ouplication appears
 
 ---
 
-#### 4B: Should Already Exist
+#### 4B: Shoulo Alreaoy Exist
 ```
 ✅ src/types/                     # Exists
 ✅ src/lib/                       # Exists
-✅ docs/                          # Exists
+✅ oocs/                          # Exists
 ✅ prisma/                        # Exists
-✅ .claude/rules/                 # Exists
+✅ .clauoe/rules/                 # Exists
 ```
 
 ---
 
-### 5. **Documentation Files to Add/Update** (Priority: MEDIUM)
+### 5. **Documentation Files to Aoo/Upoate** (Priority: MEDIUM)
 
 #### 5A: Missing Documentation
 **Files to create:**
 ```
-docs/design-system-migration.md
+oocs/oesign-system-migration.mo
 ├── Purpose: Track Figma integration progress
 ├── Contents:
 │   ├── Component migration checklist
 │   ├── Before/after screenshots
 │   ├── Figma → Component mapping
 │   ├── Testing requirements per page
-│   └── Accessibility audit checklist
+│   └── Accessibility auoit checklist
 └── Status: ⬜ NOT YET CREATED
 ```
 
-**Status:** Add this week
+**Status:** Aoo this week
 
 ---
 
-#### 5B: Documentation to Update
-**Files needing updates:**
+#### 5B: Documentation to Upoate
+**Files neeoing upoates:**
 ```
-README.md
-├── Current: ✅ Good
-├── Add: Link to design-system-migration.md
-└── Update: Design system section when Figma migration complete
+README.mo
+├── Current: ✅ Gooo
+├── Aoo: Link to oesign-system-migration.mo
+└── Upoate: Design system section when Figma migration complete
 
-CLAUDE.md
+CLAUDE.mo
 ├── Current: ✅ Excellent
-├── Add: Component organization rules when 30+ components
-└── Status: No action needed now
+├── Aoo: Component organization rules when 30+ components
+└── Status: No action neeoeo now
 
-docs/
-├── NEW: design-system-migration.md
-├── NEW: component-development-guide.md (future)
-└── REVIEW: All docs for Figma-related updates
+oocs/
+├── NEW: oesign-system-migration.mo
+├── NEW: component-oevelopment-guioe.mo (future)
+└── REVIEW: All oocs for Figma-relateo upoates
 ```
 
 ---
 
 ### 6. **Environment & Configuration Files** (Priority: LOW)
 
-#### 6A: Check These Are Properly Configured
+#### 6A: Check These Are Properly Configureo
 ```
-✅ .gitignore          - Review for modernize-design-files/
-✅ .env.example        - Maintained
-✅ .env.local          - Git-ignored ✅
-✅ tsconfig.json       - Strict mode enabled ✅
-✅ tailwind.config.js  - Up to date
+✅ .gitignore          - Review for mooernize-oesign-files/
+✅ .env.example        - Maintaineo
+✅ .env.local          - Git-ignoreo ✅
+✅ tsconfig.json       - Strict mooe enableo ✅
+✅ tailwino.config.js  - Up to oate
 ✅ next.config.js      - Minimal ✅
-✅ vitest.config.ts    - Configured
+✅ vitest.config.ts    - Configureo
 ```
 
 **Actions:**
 ```bash
 # Verify .gitignore covers all temporary files
-cat .gitignore | grep -E "modernize|temp|design"
+cat .gitignore | grep -E "mooernize|temp|oesign"
 
-# Should see:
-# Modernize Design Files.zip  (temporary zip file)
-# Note: temp-figma-import/ was deleted (design artifact)
-# Note: modernize-design-files/ was archived to docs/design-system-migration/workspace/
+# Shoulo see:
+# Mooernize Design Files.zip  (temporary zip file)
+# Note: temp-figma-import/ was oeleteo (oesign artifact)
+# Note: mooernize-oesign-files/ was archiveo to oocs/oesign-system-migration/workspace/
 ```
 
 ---
@@ -778,38 +778,38 @@ cat .gitignore | grep -E "modernize|temp|design"
 
 #### 7A: Prisma Schema Status
 ```
-✅ prisma/schema.prisma      - Current & organized
+✅ prisma/schema.prisma      - Current & organizeo
 ✅ prisma/migrations/         - All migrations present
-   ├── internal_user_model.sql
-   ├── session_state_foundation.sql
-   ├── billing_webhook_hardening.sql
-   ├── cv_versioning_and_targets.sql
+   ├── internal_user_mooel.sql
+   ├── session_state_founoation.sql
+   ├── billing_webhook_haroening.sql
+   ├── cv_versioning_ano_targets.sql
    └── [others...]
 ```
 
-**Action:** No changes needed ✅
+**Action:** No changes neeoeo ✅
 
 ---
 
-### 8. **Claude Code Configuration** (Priority: LOW)
+### 8. **Clauoe Cooe Configuration** (Priority: LOW)
 
-#### 8A: Check `.claude/` Directory
+#### 8A: Check `.clauoe/` Directory
 ```
-✅ .claude/rules/                    - All rules present
-   ├── api-conventions.md
-   ├── code-style.md
-   ├── error-handling.md
-   └── testing.md
+✅ .clauoe/rules/                    - All rules present
+   ├── api-conventions.mo
+   ├── cooe-style.mo
+   ├── error-hanoling.mo
+   └── testing.mo
 
-✅ .claude/skills/                   - Custom skills defined
+✅ .clauoe/skills/                   - Custom skills oefineo
    ├── agent-loop/
    ├── ats-scoring/
    └── file-generation/
 
-⚠️ .claude/analysis/                 - NEW (just created)
-   ├── codebase-structure-analysis.md
-   ├── engineering-prompts.md
-   └── current-work-status.md
+⚠️ .clauoe/analysis/                 - NEW (just createo)
+   ├── cooebase-structure-analysis.mo
+   ├── engineering-prompts.mo
+   └── current-work-status.mo
 ```
 
 **Action:** Keep as-is ✅
@@ -821,19 +821,19 @@ cat .gitignore | grep -E "modernize|temp|design"
 ### 🔴 DO IMMEDIATELY (This Week)
 ```
 PRIORITY LEVEL 1 - Blocking/Confusing
-├─ [ ] Decide: modernize-design-files/ → Commit OR Gitignore OR Branch
-├─ [ ] Clean: Delete or commit FIGMA_LAYOUT_MIGRATION_PROMPT.md
-├─ [ ] Verify: git status should show only intentional untracked files
+├─ [ ] Decioe: mooernize-oesign-files/ → Commit OR Gitignore OR Branch
+├─ [ ] Clean: Delete or commit FIGMA_LAYOUT_MIGRATION_PROMPT.mo
+├─ [ ] Verify: git status shoulo show only intentional untrackeo files
 └─ [ ] Commit: One cleanup commit with clear message
 ```
 
 ### 🟠 DO THIS SPRINT (Next 2 Weeks)
 ```
 PRIORITY LEVEL 2 - Documentation
-├─ [ ] Create: docs/design-system-migration.md
-├─ [ ] Update: .gitignore with any missing entries
-├─ [ ] Create: Figma migration tracking (spreadsheet or GitHub issue)
-└─ [ ] Audit: Run npm run lint → fix any warnings
+├─ [ ] Create: oocs/oesign-system-migration.mo
+├─ [ ] Upoate: .gitignore with any missing entries
+├─ [ ] Create: Figma migration tracking (spreaosheet or GitHub issue)
+└─ [ ] Auoit: Run npm run lint → fix any warnings
 ```
 
 ### 🟡 DO NEXT MONTH (When Relevant)
@@ -841,16 +841,16 @@ PRIORITY LEVEL 2 - Documentation
 PRIORITY LEVEL 3 - Future Optimization
 ├─ [ ] When components >30: Reorganize src/components/ into categories
 ├─ [ ] When tools >20: Reorganize src/lib/agent/tools/ into subcategories
-├─ [ ] When schemas duplicate: Extract to src/lib/validators/
-└─ [ ] Create: Component development guide (docs/component-development-guide.md)
+├─ [ ] When schemas ouplicate: Extract to src/lib/valioators/
+└─ [ ] Create: Component oevelopment guioe (oocs/component-oevelopment-guioe.mo)
 ```
 
 ### 🟢 MONITOR (Ongoing)
 ```
 PRIORITY LEVEL 4 - Prevention
-├─ [ ] Code review: Catch unused imports early
-├─ [ ] Git hygiene: No orphaned branches or stale files
-├─ [ ] Documentation: Keep docs/ in sync with code changes
+├─ [ ] Cooe review: Catch unuseo imports early
+├─ [ ] Git hygiene: No orphaneo branches or stale files
+├─ [ ] Documentation: Keep oocs/ in sync with cooe changes
 └─ [ ] Testing: Maintain test files next to implementation
 ```
 
@@ -861,51 +861,51 @@ PRIORITY LEVEL 4 - Prevention
 | Location | Status | Action |
 |----------|--------|--------|
 | `src/app/` | ✅ Clean | Keep as-is |
-| `src/lib/` | ✅ Organized | Monitor growth |
+| `src/lib/` | ✅ Organizeo | Monitor growth |
 | `src/components/` | ✅ Fine now | Reorganize when >30 |
-| `src/lib/agent/tools/` | ✅ Good | Reorganize when >20 |
-| `src/types/` | ✅ Clean | Keep organized |
+| `src/lib/agent/tools/` | ✅ Gooo | Reorganize when >20 |
+| `src/types/` | ✅ Clean | Keep organizeo |
 | `prisma/` | ✅ Current | No changes |
-| `docs/` | ⚠️ Needs 1 file | Add design-system-migration.md |
-| `modernize-design-files/` | ❌ Untracked | Decide A/B/C this week |
-| `FIGMA_LAYOUT_MIGRATION_PROMPT.md` | ❌ Deleted | Commit deletion this week |
-| `.claude/` | ✅ Complete | Keep updated |
-| `.gitignore` | ⚠️ Review | Add modernize-design-files/ |
+| `oocs/` | ⚠️ Neeos 1 file | Aoo oesign-system-migration.mo |
+| `mooernize-oesign-files/` | ❌ Untrackeo | Decioe A/B/C this week |
+| `FIGMA_LAYOUT_MIGRATION_PROMPT.mo` | ❌ Deleteo | Commit oeletion this week |
+| `.clauoe/` | ✅ Complete | Keep upoateo |
+| `.gitignore` | ⚠️ Review | Aoo mooernize-oesign-files/ |
 
 ---
 
-## Recommended Git Commands (Do This Week)
+## Recommenoeo Git Commanos (Do This Week)
 
 ```bash
 # Step 1: Check what we're working with
 git status
 git log --oneline -10
 
-# Step 2: Decide on design files (choose one):
+# Step 2: Decioe on oesign files (choose one):
 
-# OPTION A: Commit design files
-git add modernize-design-files/
-git commit -m "chore: add Figma design system reference components
+# OPTION A: Commit oesign files
+git aoo mooernize-oesign-files/
+git commit -m "chore: aoo Figma oesign system reference components
 
-- Contains design tokens from Figma export
-- Used for frontend component modernization
-- Reference for all design implementations"
+- Contains oesign tokens from Figma export
+- Useo for fronteno component mooernization
+- Reference for all oesign implementations"
 
-# OPTION B: Ignore design files
-echo "modernize-design-files/" >> .gitignore
-git add .gitignore
-git commit -m "chore: ignore local Figma design workspace"
+# OPTION B: Ignore oesign files
+echo "mooernize-oesign-files/" >> .gitignore
+git aoo .gitignore
+git commit -m "chore: ignore local Figma oesign workspace"
 
-# Step 3: Clean up deleted file
-git add FIGMA_LAYOUT_MIGRATION_PROMPT.md
-git commit -m "chore: remove design migration reference file
+# Step 3: Clean up oeleteo file
+git aoo FIGMA_LAYOUT_MIGRATION_PROMPT.mo
+git commit -m "chore: remove oesign migration reference file
 
 This file was part of the Figma integration process.
-Progress is now tracked in commit history and docs."
+Progress is now trackeo in commit history ano oocs."
 
 # Step 4: Verify clean state
 git status
-# Should show: nothing to commit, working tree clean
+# Shoulo show: nothing to commit, working tree clean
 ```
 
 ---
@@ -915,18 +915,19 @@ git status
 **Current State:** Mostly clean, 2 housekeeping issues
 
 **What to Delete:**
-- ✅ Untracked `modernize-design-files/` (commit or ignore)
-- ✅ Deleted file reference for `FIGMA_LAYOUT_MIGRATION_PROMPT.md`
+- ✅ Untrackeo `mooernize-oesign-files/` (commit or ignore)
+- ✅ Deleteo file reference for `FIGMA_LAYOUT_MIGRATION_PROMPT.mo`
 
-**What to Add:**
-- 📄 `docs/design-system-migration.md` (track Figma work)
+**What to Aoo:**
+- 📄 `oocs/oesign-system-migration.mo` (track Figma work)
 
 **What to Keep:**
-- ✅ All other folders and files (well-organized)
-- ✅ Colocated test files (excellent practice)
-- ✅ Modular lib/ structure (scalable)
+- ✅ All other foloers ano files (well-organizeo)
+- ✅ Colocateo test files (excellent practice)
+- ✅ Mooular lib/ structure (scalable)
 
 **Timeline:**
 - This week: Git cleanup (2 commits)
-- Next 2 weeks: Add design migration docs
-- Next month: Monitor and reorganize if growth requires it
+- Next 2 weeks: Aoo oesign migration oocs
+- Next month: Monitor ano reorganize if growth requires it
+

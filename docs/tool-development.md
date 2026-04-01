@@ -1,4 +1,14 @@
+---
+title: CurrIA Tool Development Guide
+audience: [developers]
+related: [INDEX.md, CONCEPTS.md, state-model.md, developer-rules/README.md]
+status: current
+updated: 2026-04-01
+---
+
 # Tool Development Guide
+
+Back to [Documentation Index](./INDEX.md) | Developer rules: [docs/developer-rules/README.md](./developer-rules/README.md)
 
 ## Goal
 Add or modify tools without breaking session-state invariants.
@@ -150,3 +160,9 @@ Useful current tests:
 - replacing all of `agentState` when only one nested field changed
 - overwriting canonical base `cvState` when the feature actually needs a target-derived resume
 - storing mutable resume history inside `agentState` instead of `cv_versions`
+
+## Related Documentation
+
+- [Core Concepts](./CONCEPTS.md) - plain-English overview of session, billing, and tool boundaries.
+- [Session State Model](./state-model.md) - exact data model tools must respect.
+- [Developer Rules](./developer-rules/README.md) - coding, testing, API, and error-handling rules.
