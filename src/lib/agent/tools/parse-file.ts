@@ -9,6 +9,7 @@ export async function parseFile(
   input: ParseFileInput,
   userId?: string,
   sessionId?: string,
+  externalSignal?: AbortSignal,
 ): Promise<ParseFileOutput> {
   try {
     const buffer = Buffer.from(input.file_base64, 'base64')
@@ -22,7 +23,7 @@ export async function parseFile(
     }
 
     if (input.mime_type.startsWith('image/')) {
-      return await parseImageOCR(buffer, input.mime_type, userId, sessionId)
+      return await parseImageOCR(buffer, input.mime_type, userId, sessionId, externalSignal)
     }
 
     return toolFailure(TOOL_ERROR_CODES.VALIDATION_ERROR, `Unsupported mime type: ${input.mime_type}`)
@@ -62,30 +63,38 @@ async function parseImageOCR(
   mime: string,
   userId?: string,
   sessionId?: string,
+  externalSignal?: AbortSignal,
 ): Promise<ParseFileOutput> {
   const mediaType = mime as 'image/png' | 'image/jpeg'
-  const response = await callOpenAIWithRetry(() =>
-    openai.chat.completions.create({
-      model: MODEL_CONFIG.vision,
-      max_tokens: AGENT_CONFIG.ocrMaxTokens,
-      messages: [
+  const response = await callOpenAIWithRetry(
+    (signal) =>
+      openai.chat.completions.create(
         {
-          role: 'user',
-          content: [
+          model: MODEL_CONFIG.vision,
+          max_tokens: AGENT_CONFIG.ocrMaxTokens,
+          messages: [
             {
-              type: 'image_url',
-              image_url: {
-                url: `data:${mediaType};base64,${buffer.toString('base64')}`,
-              },
-            },
-            {
-              type: 'text',
-              text: 'Extract all text from this resume image. Output only the raw text, preserving the logical reading order. No commentary.',
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:${mediaType};base64,${buffer.toString('base64')}`,
+                  },
+                },
+                {
+                  type: 'text',
+                  text: 'Extract all text from this resume image. Output only the raw text, preserving the logical reading order. No commentary.',
+                },
+              ],
             },
           ],
         },
-      ],
-    }),
+        { signal },
+      ),
+    3,
+    AGENT_CONFIG.timeout,
+    externalSignal,
   )
 
   if (userId) {

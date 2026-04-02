@@ -9,20 +9,64 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Parses a Retry-After header value into milliseconds.
+ * Returns null if the header is missing, unparsable, or non-positive.
+ */
+function parseRetryAfterMs(error: unknown): number | null {
+  if (!(error instanceof APIError)) return null
+
+  const header = error.headers?.['retry-after']
+  if (!header) return null
+
+  const seconds = Number(header)
+  if (!Number.isFinite(seconds) || seconds <= 0) return null
+
+  return seconds * 1000
+}
+
+/**
  * Wraps an OpenAI API call with exponential backoff retry logic.
- * @param fn - Function that makes the OpenAI API call
+ * Supports per-attempt timeout via AbortController, Retry-After header,
+ * and an external abort signal (e.g. client disconnect).
+ * @param fn - Function that makes the OpenAI API call (receives an AbortSignal for timeout)
  * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @param timeoutMs - Per-attempt timeout in milliseconds (optional)
+ * @param externalSignal - External AbortSignal (e.g. from req.signal) to cancel on client disconnect
  * @returns Promise resolving to ChatCompletion
  */
 export async function callOpenAIWithRetry(
-  fn: () => Promise<OpenAI.Chat.Completions.ChatCompletion>,
+  fn: (signal?: AbortSignal) => Promise<OpenAI.Chat.Completions.ChatCompletion>,
   maxRetries = 3,
+  timeoutMs?: number,
+  externalSignal?: AbortSignal,
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
   let lastError: Error | null = null
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Check if already cancelled before starting an attempt
+    if (externalSignal?.aborted) {
+      throw new DOMException('Request aborted', 'AbortError')
+    }
+
+    let controller: AbortController | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let onExternalAbort: (() => void) | undefined
+
     try {
-      return await fn()
+      controller = new AbortController()
+
+      if (timeoutMs) {
+        timer = setTimeout(() => controller!.abort(), timeoutMs)
+      }
+
+      // Forward external signal (client disconnect) to the per-attempt controller
+      if (externalSignal) {
+        onExternalAbort = () => controller!.abort()
+        externalSignal.addEventListener('abort', onExternalAbort)
+      }
+
+      const result = await fn(controller.signal)
+      return result
     } catch (error) {
       lastError = error as Error
 
@@ -34,8 +78,18 @@ export async function callOpenAIWithRetry(
         throw error
       }
 
-      const delay = Math.pow(2, attempt - 1) * 1000
+      const exponentialDelay = Math.pow(2, attempt - 1) * 1000
+      const retryAfterMs = parseRetryAfterMs(error)
+      const delay = Math.min(
+        retryAfterMs != null ? Math.max(retryAfterMs, exponentialDelay) : exponentialDelay,
+        30_000,
+      )
       await sleep(delay)
+    } finally {
+      if (timer) clearTimeout(timer)
+      if (onExternalAbort && externalSignal) {
+        externalSignal.removeEventListener('abort', onExternalAbort)
+      }
     }
   }
 
@@ -48,14 +102,22 @@ export async function callOpenAIWithRetry(
  * @param openaiClient - OpenAI client instance
  * @param params - ChatCompletion creation parameters
  * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @param timeoutMs - Per-attempt timeout in milliseconds (optional)
  * @returns Promise resolving to ChatCompletion
  */
 export async function createChatCompletionWithRetry(
   openaiClient: OpenAI,
   params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
   maxRetries = 3,
+  timeoutMs?: number,
+  externalSignal?: AbortSignal,
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-  return callOpenAIWithRetry(() => openaiClient.chat.completions.create(params), maxRetries)
+  return callOpenAIWithRetry(
+    (signal) => openaiClient.chat.completions.create(params, { signal }),
+    maxRetries,
+    timeoutMs,
+    externalSignal,
+  )
 }
 
 export function getChatCompletionText(response: OpenAI.Chat.Completions.ChatCompletion): string {

@@ -77,9 +77,10 @@ export function ChatInterface({
   const [messageCount, setMessageCount] = useState(0)
   const [maxMessages] = useState(15)
   const [sessionLimitReached, setSessionLimitReached] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const isInputDisabled = disabled || isStreaming || sessionLimitReached
+  const isInputDisabled = disabled || isStreaming || sessionLimitReached || sessionExpired
 
   useEffect(() => {
     setSessionId(initialSessionId)
@@ -208,8 +209,24 @@ export function ChatInterface({
       })
 
       if (!response.ok || !response.body) {
-        const errorPayload = (await response.json().catch(() => null)) as { error?: string } | null
-        throw new Error(errorPayload?.error ?? "Não foi possível continuar a conversa.")
+        const errorPayload = (await response.json().catch(() => null)) as AgentStreamChunk | null
+
+        if (errorPayload && "error" in errorPayload) {
+          if (response.status === 404) {
+            setSessionExpired(true)
+          } else if (errorPayload.action === "new_session") {
+            setSessionLimitReached(true)
+          }
+          if (errorPayload.messageCount !== undefined) {
+            setMessageCount(errorPayload.messageCount)
+          }
+        }
+
+        const errorMessage =
+          errorPayload && "error" in errorPayload
+            ? errorPayload.error
+            : "Não foi possível continuar a conversa."
+        throw new Error(errorMessage)
       }
 
       const reader = response.body.getReader()
@@ -428,7 +445,11 @@ export function ChatInterface({
             </Button>
           </div>
 
-          {sessionLimitReached ? (
+          {sessionExpired ? (
+            <p className="text-center text-xs text-amber-600">
+              Sessão não encontrada. Inicie uma nova análise para continuar.
+            </p>
+          ) : sessionLimitReached ? (
             <p className="text-center text-xs text-amber-600">
               Esta sessão atingiu o limite de mensagens. Inicie uma nova análise para continuar.
             </p>

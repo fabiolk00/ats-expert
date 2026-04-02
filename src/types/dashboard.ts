@@ -29,6 +29,83 @@ export type SerializedResumeTarget = {
   updatedAt: string
 }
 
+export type JobApplicationStatus = 'entrevista' | 'aguardando' | 'sem_retorno' | 'negativa'
+
+export type JobApplicationBenefit = {
+  name: string
+  value?: string
+}
+
+export type JobApplication = {
+  id: string
+  userId: string
+  role: string
+  company: string
+  status: JobApplicationStatus
+  salary?: string
+  location?: string
+  benefits: JobApplicationBenefit[]
+  resumeVersionLabel: string
+  jobDescription?: string
+  notes?: string
+  appliedAt: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+export type SerializedJobApplication = Omit<
+  JobApplication,
+  'appliedAt' | 'createdAt' | 'updatedAt'
+> & {
+  appliedAt: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type JobApplicationFormInput = {
+  role: string
+  company: string
+  salary?: string
+  location?: string
+  benefits: JobApplicationBenefit[]
+  resumeVersionLabel: string
+  jobDescription?: string
+  notes?: string
+  appliedAt?: string
+}
+
+export type CreateJobApplicationInput = {
+  userId: string
+  role: string
+  company: string
+  status?: JobApplicationStatus
+  salary?: string
+  location?: string
+  benefits?: JobApplicationBenefit[]
+  resumeVersionLabel: string
+  jobDescription?: string
+  notes?: string
+  appliedAt?: Date | string
+}
+
+export type UpdateJobApplicationInput = Partial<{
+  role: string
+  company: string
+  status: JobApplicationStatus
+  salary: string
+  location: string
+  benefits: JobApplicationBenefit[]
+  resumeVersionLabel: string
+  jobDescription: string
+  notes: string
+  appliedAt: Date | string
+}>
+
+export type JobApplicationSummary = {
+  total: number
+  byStatus: Record<JobApplicationStatus, number>
+}
+
 export type SessionWorkspace = {
   session: {
     id: string

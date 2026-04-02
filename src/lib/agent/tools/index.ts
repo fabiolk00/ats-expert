@@ -33,6 +33,7 @@ import { analyzeGap } from './gap-analysis'
 import { parseFile } from './parse-file'
 import { ingestResumeText } from './resume-ingestion'
 import { rewriteSection } from './rewrite-section'
+import { TOOL_INPUT_SCHEMAS } from './schemas'
 
 type OpenAITool = OpenAI.Chat.Completions.ChatCompletionTool
 
@@ -216,13 +217,29 @@ export async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
   session: Session,
+  externalSignal?: AbortSignal,
 ): Promise<ToolExecutionResult> {
+  // Validate tool input against its Zod schema before dispatching
+  const schema = TOOL_INPUT_SCHEMAS[toolName]
+  if (schema) {
+    const parsed = schema.safeParse(toolInput)
+    if (!parsed.success) {
+      return {
+        output: toolFailure(
+          TOOL_ERROR_CODES.VALIDATION_ERROR,
+          `Invalid input for ${toolName}: ${parsed.error.issues.map(i => i.message).join(', ')}`,
+        ),
+      }
+    }
+  }
+
   switch (toolName) {
     case 'parse_file': {
       const result = await parseFile(
         toolInput as ParseFileInput,
         session.userId,
         session.id,
+        externalSignal,
       )
 
       if (!result.success) {
@@ -242,6 +259,7 @@ export async function executeTool(
         session.cvState,
         session.userId,
         session.id,
+        externalSignal,
       )
 
       const agentStatePatch = {
@@ -286,6 +304,7 @@ export async function executeTool(
         target_job_description,
         session.userId,
         session.id,
+        externalSignal,
       )
 
       return {
@@ -309,6 +328,7 @@ export async function executeTool(
         toolInput as RewriteSectionInput,
         session.userId,
         session.id,
+        externalSignal,
       )
 
     case 'apply_gap_action':
@@ -324,6 +344,7 @@ export async function executeTool(
         userId: session.userId,
         baseCvState: session.cvState,
         targetJobDescription: target_job_description,
+        externalSignal,
       })
 
       return result.success
@@ -401,6 +422,7 @@ export async function dispatchTool(
   toolName: string,
   toolInput: Record<string, unknown>,
   session: Session,
+  externalSignal?: AbortSignal,
 ): Promise<string> {
   const startedAt = Date.now()
   const previousCvState = structuredClone(session.cvState)
@@ -414,7 +436,7 @@ export async function dispatchTool(
       stateVersion: session.stateVersion,
     })
 
-    const execution = await executeTool(toolName, toolInput, session)
+    const execution = await executeTool(toolName, toolInput, session, externalSignal)
     const outputFailure = isToolFailure(execution.output) ? execution.output : undefined
     let persistedGeneratedOutput = false
 

@@ -6,62 +6,62 @@
 
 export const PLANS = {
   free: {
-    name: 'Grátis',
-    slug: 'free',
+    name: "Gratis",
+    slug: "free",
     price: 0,
     credits: 1,
-    billing: 'once' as const,
-    description: 'Experimente sem compromisso',
+    billing: "once" as const,
+    description: "Experimente sem compromisso",
     features: [
-      '1 análise de currículo grátis',
-      'Score ATS básico',
-      'Lista de palavras-chave',
-      'Sugestões de melhoria',
+      "1 analise de curriculo gratis",
+      "Score ATS basico",
+      "Lista de palavras-chave",
+      "Sugestoes de melhoria",
     ],
     highlighted: false,
   },
   unit: {
-    name: 'Unitário',
-    slug: 'unit',
-    price: 1990, // centavos
+    name: "Unitario",
+    slug: "unit",
+    price: 1990,
     credits: 3,
-    billing: 'once' as const,
-    description: 'Para análises pontuais',
+    billing: "once" as const,
+    description: "Para analises pontuais",
     features: [
-      '3 análises ATS completas',
-      '3 arquivos DOCX + PDF',
-      'Download imediato',
-      'Chat com IA',
+      "3 analises ATS completas",
+      "3 arquivos DOCX + PDF",
+      "Download imediato",
+      "Chat com IA",
     ],
     highlighted: false,
   },
   monthly: {
-    name: 'Mensal',
-    slug: 'monthly',
-    price: 3990, // centavos
+    name: "Mensal",
+    slug: "monthly",
+    price: 3990,
     credits: 20,
-    billing: 'monthly' as const,
-    description: 'Ideal para busca ativa de emprego',
+    billing: "monthly" as const,
+    description: "Ideal para busca ativa de emprego",
     features: [
-      '20 currículos por mês',
-      'Chat iterativo com IA',
-      'Histórico de currículos',
-      'Match com vagas',
+      "20 curriculos por mes",
+      "Chat iterativo com IA",
+      "Historico de curriculos",
+      "Match com vagas",
     ],
     highlighted: true,
   },
   pro: {
-    name: 'Pro',
-    slug: 'pro',
-    price: 6990, // centavos
+    name: "Pro",
+    slug: "pro",
+    price: 6990,
     credits: 50,
-    billing: 'monthly' as const,
-    description: 'Para profissionais e recrutadores',
+    billing: "monthly" as const,
+    description: "Para profissionais e recrutadores",
     features: [
-      '50 currículos por mês',
-      'Tudo do plano Mensal',
-      'Suporte prioritário',
-      'Acesso antecipado a recursos',
+      "50 curriculos por mes",
+      "Tudo do plano Mensal",
+      "Suporte prioritario",
+      "Acesso antecipado a recursos",
     ],
     highlighted: false,
   },
@@ -74,10 +74,9 @@ export type Plan = (typeof PLANS)[PlanSlug]
  * Helper to format price for display
  */
 export function formatPrice(cents: number, period?: string): string {
-  if (cents === 0) return 'R$ 0'
+  if (cents === 0) return "R$ 0"
   const reais = cents / 100
-  // Format with 2 decimals, then remove .00 if the amount is a whole number
-  const formatted = `R$ ${reais.toFixed(2).replace(/\.00$/, '')}`
+  const formatted = `R$ ${reais.toFixed(2).replace(/\.00$/, "")}`
   return period ? `${formatted}${period}` : formatted
 }
 

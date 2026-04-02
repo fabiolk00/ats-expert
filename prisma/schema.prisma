@@ -17,6 +17,15 @@ enum CVVersionSource {
   @@map("cv_version_source")
 }
 
+enum JobApplicationStatus {
+  entrevista
+  aguardando
+  sem_retorno
+  negativa
+
+  @@map("job_application_status")
+}
+
 model Session {
   id             String    @id @default(cuid())
   userId         String    @map("user_id")
@@ -72,6 +81,29 @@ model ResumeTarget {
 
   @@index([sessionId, createdAt])
   @@map("resume_targets")
+}
+
+model JobApplication {
+  id                 String               @id @default(cuid())
+  userId             String               @map("user_id")
+  role               String
+  company            String
+  status             JobApplicationStatus @default(aguardando)
+  salary             String?
+  location           String?
+  benefits           Json                 @default("[]")
+  resumeVersionLabel String               @map("resume_version_label")
+  jobDescription     String?              @map("job_description")
+  notes              String?
+  appliedAt          DateTime             @default(now()) @map("applied_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, appliedAt])
+  @@index([userId, status, appliedAt])
+  @@map("job_applications")
 }
 
 model Message {
@@ -176,6 +208,7 @@ model User {
   quota          UserQuota?
   apiUsage       ApiUsage[]
   billingCheckouts BillingCheckout[]
+  jobApplications JobApplication[]
 
   @@map("users")
 }

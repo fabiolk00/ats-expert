@@ -196,10 +196,11 @@ export async function rewriteSection(
   input: RewriteSectionInput,
   userId: string,
   sessionId: string,
+  externalSignal?: AbortSignal,
 ): Promise<RewriteSectionExecutionResult> {
   try {
-    const response = await callOpenAIWithRetry(() =>
-      openai.chat.completions.create({
+    const response = await callOpenAIWithRetry(
+      (signal) => openai.chat.completions.create({
         model: MODEL_CONFIG.structured,
         max_tokens: AGENT_CONFIG.rewriterMaxTokens,
         response_format: { type: 'json_object' },
@@ -223,7 +224,10 @@ Rules:
             content: JSON.stringify(input),
           },
         ],
-      }),
+      }, { signal }),
+      3,
+      AGENT_CONFIG.timeout,
+      externalSignal,
     )
 
     const usage = getChatCompletionUsage(response)

@@ -35,6 +35,7 @@ export async function createTargetResumeVariant(input: {
   userId: string
   baseCvState: CVState
   targetJobDescription: string
+  externalSignal?: AbortSignal
 }): Promise<CreateTargetResumeResult> {
   try {
     const gapAnalysisExecution = await analyzeGap(
@@ -42,6 +43,7 @@ export async function createTargetResumeVariant(input: {
       input.targetJobDescription,
       input.userId,
       input.sessionId,
+      input.externalSignal,
     )
 
     if (!gapAnalysisExecution.result) {
@@ -50,8 +52,8 @@ export async function createTargetResumeVariant(input: {
         : gapAnalysisExecution.output
     }
 
-    const response = await callOpenAIWithRetry(() =>
-      openai.chat.completions.create({
+    const response = await callOpenAIWithRetry(
+      (signal) => openai.chat.completions.create({
         model: MODEL_CONFIG.structured,
         max_tokens: AGENT_CONFIG.rewriterMaxTokens,
         response_format: { type: 'json_object' },
@@ -102,7 +104,10 @@ Rules:
             }),
           },
         ],
-      }),
+      }, { signal }),
+      3,
+      AGENT_CONFIG.timeout,
+      input.externalSignal,
     )
 
     const usage = getChatCompletionUsage(response)

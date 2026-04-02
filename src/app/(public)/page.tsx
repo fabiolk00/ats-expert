@@ -1,6 +1,7 @@
 import Header from "@/components/landing/header"
 import HeroSection from "@/components/landing/hero-section"
 import AtsExplainer from "@/components/landing/ats-explainer"
+import TrackerShowcase from "@/components/landing/tracker-showcase"
 import PricingSection from "@/components/landing/pricing-section"
 import FinalCta from "@/components/landing/final-cta"
 import Footer from "@/components/landing/footer"
@@ -14,6 +15,7 @@ export default function LandingPage() {
       <main className="flex-1">
         <HeroSection />
         <AtsExplainer />
+        <TrackerShowcase />
         <SocialProof />
         <PricingSection />
         <FaqSection />

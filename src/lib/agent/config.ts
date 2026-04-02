@@ -7,6 +7,8 @@ export const AGENT_CONFIG = {
   rateLimitPerMinute: 30,
   maxHistoryMessages: 12,
   maxMessagesPerSession: 15,
+  /** Max system prompt length in characters (~6000 tokens). Truncates user-provided sections when exceeded. */
+  maxSystemPromptChars: 24_000,
 } as const
 
 export const MODEL_COMBINATIONS = {

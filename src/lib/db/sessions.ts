@@ -56,10 +56,10 @@ function cloneCvState(value?: CVState): CVState {
 
   return {
     ...value,
-    experience: [...value.experience],
-    skills: [...value.skills],
-    education: [...value.education],
-    certifications: value.certifications ? [...value.certifications] : undefined,
+    experience: Array.isArray(value.experience) ? [...value.experience] : [],
+    skills: Array.isArray(value.skills) ? [...value.skills] : [],
+    education: Array.isArray(value.education) ? [...value.education] : [],
+    certifications: Array.isArray(value.certifications) ? [...value.certifications] : undefined,
   }
 }
 
@@ -234,6 +234,26 @@ export async function createSession(appUserId: string): Promise<Session> {
     createdAt:      new Date(data.created_at),
     updatedAt:      new Date(data.updated_at),
   }
+}
+
+/**
+ * Atomically consumes one credit and creates a new session in a single transaction.
+ * Returns the new session if successful, or null if no credits are available.
+ * Prevents credit loss when session creation would fail after a non-atomic credit decrement.
+ */
+export async function createSessionWithCredit(appUserId: string): Promise<Session | null> {
+  const supabase = getSupabaseAdminClient()
+
+  const { data, error } = await supabase.rpc('consume_credit_and_create_session', {
+    p_user_id: appUserId,
+  })
+
+  if (error) throw new Error(`Failed to create session with credit: ${error.message}`)
+
+  // RPC returns NULL when no credits available
+  if (!data) return null
+
+  return mapSessionRow(data as SessionRow)
 }
 
 export async function updateSession(

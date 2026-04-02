@@ -45,8 +45,8 @@ describe('isJobPostingUrl', () => {
     expect(isJobPostingUrl('https://www.linkedin.com/jobs/view/12345')).toBe(true)
   })
 
-  it('recognizes LinkedIn profile URLs (sometimes used for job posts)', () => {
-    expect(isJobPostingUrl('https://www.linkedin.com/in/company-jobs')).toBe(true)
+  it('rejects LinkedIn profile URLs (not job postings)', () => {
+    expect(isJobPostingUrl('https://www.linkedin.com/in/company-jobs')).toBe(false)
   })
 
   it('recognizes Gupy URLs', () => {

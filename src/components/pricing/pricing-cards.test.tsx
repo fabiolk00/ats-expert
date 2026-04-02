@@ -66,9 +66,29 @@ describe('PricingCards', () => {
 
     render(<PricingCards />)
 
+    expect(screen.getByRole('button', { name: /Come.*gratis/i })).toBeDisabled()
     for (const button of screen.getAllByRole('button', { name: /Come.*agora/i })) {
       expect(button).toBeDisabled()
     }
+  })
+
+  it('shows job management as blocked on free and included on paid plans', () => {
+    render(<PricingCards />)
+
+    expect(screen.getAllByText('Gerenciamento de vagas')).toHaveLength(4)
+    expect(screen.getAllByLabelText('Recurso incluido')).toHaveLength(3)
+    expect(screen.getAllByLabelText('Recurso indisponivel')).toHaveLength(1)
+  })
+
+  it('redirects signed-out users to signup when they choose the free plan', async () => {
+    const user = userEvent.setup()
+
+    render(<PricingCards />)
+
+    await user.click(screen.getByRole('button', { name: /Come.*gratis/i }))
+
+    expect(mockPush).toHaveBeenCalledWith('/signup')
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('redirects signed-out users to signup with the selected checkout plan', async () => {

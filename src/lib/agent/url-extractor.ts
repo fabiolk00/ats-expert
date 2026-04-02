@@ -9,29 +9,56 @@ export function extractUrl(text: string): string | null {
 }
 
 /**
- * Checks if a URL looks like a job posting from known platforms.
+ * Known job platforms expressed as { host, pathPrefix? } pairs.
+ * The host is matched against the URL's hostname (exact or subdomain).
+ * The optional pathPrefix requires the URL path to start with the given prefix.
+ */
+const JOB_PLATFORMS: Array<{ host: string; pathPrefix?: string }> = [
+  { host: 'linkedin.com', pathPrefix: '/jobs' },
+  { host: 'gupy.io' },
+  { host: 'catho.com.br' },
+  { host: 'indeed.com' },
+  { host: 'glassdoor.com' },
+  { host: 'vagas.com.br' },
+  { host: 'infojobs.com.br' },
+  { host: 'trampos.co' },
+  { host: 'programathor.com.br' },
+  { host: 'getonbrd.com' },
+  { host: 'workana.com' },
+  { host: 'remotar.com.br' },
+  { host: 'lever.co' },
+  { host: 'greenhouse.io' },
+  { host: 'jobs.lever.co' },
+  { host: 'boards.greenhouse.io' },
+  { host: 'apply.workable.com' },
+]
+
+/**
+ * Checks if a URL belongs to a known job posting platform.
+ * Uses strict hostname + pathname prefix matching to prevent
+ * URL bypass via path injection (e.g. `https://evil.com/linkedin.com/jobs/fake`).
  */
 export function isJobPostingUrl(url: string): boolean {
-  const jobPlatforms = [
-    'linkedin.com/jobs',
-    'linkedin.com/in',
-    'gupy.io',
-    'catho.com.br',
-    'indeed.com',
-    'glassdoor.com',
-    'vagas.com.br',
-    'infojobs.com.br',
-    'trampos.co',
-    'programathor.com.br',
-    'getonbrd.com',
-    'workana.com',
-    'remotar.com.br',
-    'lever.co',
-    'greenhouse.io',
-    'jobs.lever.co',
-    'boards.greenhouse.io',
-    'apply.workable.com',
-  ]
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
 
-  return jobPlatforms.some((platform) => url.toLowerCase().includes(platform))
+  const hostname = parsed.hostname.toLowerCase()
+  const pathname = parsed.pathname.toLowerCase()
+
+  return JOB_PLATFORMS.some((platform) => {
+    const hostMatch =
+      hostname === platform.host || hostname.endsWith('.' + platform.host)
+
+    if (!hostMatch) return false
+
+    if (platform.pathPrefix) {
+      return pathname.startsWith(platform.pathPrefix)
+    }
+
+    return true
+  })
 }

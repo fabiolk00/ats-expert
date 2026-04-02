@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useClerk, useUser } from "@clerk/nextjs"
 import {
+  BriefcaseBusiness,
   Coins,
   FileText,
   HelpCircle,
@@ -45,6 +46,11 @@ const navItems = [
     label: "Chat",
     href: "/dashboard",
     icon: MessageSquare,
+  },
+  {
+    label: "Minhas Vagas",
+    href: "/resumes",
+    icon: BriefcaseBusiness,
   },
   {
     label: "Meus Curriculos",

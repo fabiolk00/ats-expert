@@ -1,60 +1,25 @@
 import { NextRequest } from 'next/server'
-import type OpenAI from 'openai'
 import { APIError } from 'openai'
 import { z } from 'zod'
 
-import { buildSystemPrompt, trimMessages } from '@/lib/agent/context-builder'
-import { TOOL_DEFINITIONS, dispatchTool } from '@/lib/agent/tools'
+import { runAgentLoop } from '@/lib/agent/agent-loop'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
   getSession,
-  createSession,
-  getMessages,
-  appendMessage,
+  createSessionWithCredit,
   checkUserQuota,
   incrementMessageCount,
-  updateSession,
 } from '@/lib/db/sessions'
-import { consumeCredit } from '@/lib/asaas/quota'
+import { dispatchTool } from '@/lib/agent/tools'
 import { agentLimiter } from '@/lib/rate-limit'
-import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
-import { trackApiUsage } from '@/lib/agent/usage-tracker'
+import { AGENT_CONFIG } from '@/lib/agent/config'
 import { extractUrl } from '@/lib/agent/url-extractor'
 import { scrapeJobPosting } from '@/lib/agent/scraper'
-import { openai } from '@/lib/openai/client'
-import { getChatCompletionUsage, createChatCompletionWithRetry } from '@/lib/openai/chat'
-import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
+import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
 
-/**
- * Calls OpenAI with retry logic and request tracing/logging.
- * Uses the unified retry implementation from openai/chat.ts with additional logging.
- */
-async function callOpenAIWithRetry(
-  params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
-  maxRetries = 3,
-  traceContext?: {
-    sessionId?: string
-    appUserId?: string
-    phase?: string
-    stateVersion?: number
-  },
-): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-  try {
-    return await createChatCompletionWithRetry(openai, params, maxRetries)
-  } catch (error) {
-    // Log failures after all retries exhausted
-    if (traceContext) {
-      logWarn('agent.model.failed', {
-        sessionId: traceContext.sessionId,
-        appUserId: traceContext.appUserId,
-        phase: traceContext.phase,
-        stateVersion: traceContext.stateVersion,
-        ...serializeError(error),
-      })
-    }
-    throw error
-  }
-}
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
 
 const BodySchema = z.object({
   sessionId: z.string().optional(),
@@ -92,64 +57,158 @@ const BodySchema = z.object({
   }
 })
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function sanitizeUserInput(input: string): string {
+  return input
+    .replace(/<\/?user_resume_data>/gi, '')
+    .replace(/<\/?user_resume_text>/gi, '')
+    .replace(/<\/?target_job_description>/gi, '')
+    .replace(/<\/?system>/gi, '')
+    .replace(/<\/?instructions>/gi, '')
+    .replace(/<\/?assistant>/gi, '')
+    .replace(/<\/?tool_call>/gi, '')
+    .replace(/<\/?function>/gi, '')
+    .trim()
+}
+
 function parseJsonObject(value: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(value) as unknown
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return null
     }
-
     return parsed as Record<string, unknown>
   } catch {
     return null
   }
 }
 
-function sanitizeUserInput(input: string): string {
-  return input
-    .replace(/<\/?user_resume_data>/gi, '')
-    .replace(/<\/?system>/gi, '')
-    .replace(/<\/?instructions>/gi, '')
-    .replace(/<\/?assistant>/gi, '')
-    .trim()
-}
+/**
+ * Prepares the user message by scraping job URLs and sanitizing content.
+ */
+async function prepareUserMessage(
+  rawMessage: string,
+  appUserId: string,
+  requestId: string,
+): Promise<string> {
+  let message = sanitizeUserInput(rawMessage)
 
-function toOpenAIHistory(
-  history: Array<{ role: 'user' | 'assistant'; content: string }>,
-): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
-  return history.map((message) => ({
-    role: message.role,
-    content: message.content,
-  }))
-}
+  const detectedUrl = extractUrl(message)
+  if (!detectedUrl) return message
 
-function buildToolMessage(
-  toolCallId: string,
-  content: string,
-): OpenAI.Chat.Completions.ChatCompletionToolMessageParam {
-  return {
-    role: 'tool',
-    tool_call_id: toolCallId,
-    content,
+  const scrapeResult = await scrapeJobPosting(detectedUrl)
+  const detectedUrlHost = (() => {
+    try {
+      return new URL(detectedUrl).hostname
+    } catch {
+      return 'invalid-url'
+    }
+  })()
+
+  if (scrapeResult.success && scrapeResult.text) {
+    const sanitizedScrapedText = sanitizeUserInput(scrapeResult.text)
+    message = message.replace(
+      detectedUrl,
+      `[Link da vaga: ${detectedUrl}]\n\n[Conteudo extraido automaticamente]:\n${sanitizedScrapedText}`,
+    )
+    logInfo('agent.scrape.completed', {
+      requestId,
+      appUserId,
+      detectedUrlHost,
+      scrapeSucceeded: true,
+      scrapedTextLength: scrapeResult.text.length,
+      success: true,
+    })
+  } else {
+    logWarn('agent.scrape.completed', {
+      requestId,
+      appUserId,
+      detectedUrlHost,
+      scrapeSucceeded: false,
+      success: false,
+    })
+    message = `${message}\n\n[Nota do sistema: Tentei acessar o link ${detectedUrl} mas nao consegui extrair o conteudo. Motivo: ${scrapeResult.error}]`
   }
+
+  return message
 }
 
-function buildAssistantToolCallMessage(
-  message: OpenAI.Chat.Completions.ChatCompletionMessage,
-): OpenAI.Chat.Completions.ChatCompletionAssistantMessageParam {
-  return {
-    role: 'assistant',
-    content: message.content ?? '',
-    tool_calls: message.tool_calls,
+/**
+ * Handles file attachment by dispatching parse_file and returning
+ * an augmented user message.
+ */
+async function handleFileAttachment(
+  message: string,
+  file: string,
+  fileMime: string,
+  session: { id: string; phase: string; stateVersion: number },
+  appUserId: string,
+  requestId: string,
+  externalSignal?: AbortSignal,
+): Promise<string> {
+  const parseResult = parseJsonObject(
+    await dispatchTool(
+      'parse_file',
+      { file_base64: file, mime_type: fileMime },
+      session as Parameters<typeof dispatchTool>[2],
+      externalSignal,
+    ),
+  )
+
+  const parseError = typeof parseResult?.error === 'string' ? parseResult.error : undefined
+
+  if (parseError) {
+    logWarn('agent.file.parse_failed', {
+      requestId,
+      sessionId: session.id,
+      appUserId,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+      fileMime,
+      success: false,
+      errorMessage: parseError,
+    })
+    return [message, `[Nota do sistema: Nao foi possivel processar o arquivo anexado. ${parseError}]`]
+      .filter(Boolean)
+      .join('\n\n')
   }
+
+  logInfo('agent.file.parsed', {
+    requestId,
+    sessionId: session.id,
+    appUserId,
+    phase: session.phase,
+    stateVersion: session.stateVersion,
+    fileMime,
+    success: true,
+  })
+
+  const base = message.trim()
+    ? message
+    : 'Analise o curriculo anexado e me diga os proximos passos.'
+
+  return [
+    base,
+    '[Nota do sistema: O curriculo anexado ja foi processado e o texto extraido esta disponivel para analise.]',
+  ].join('\n\n')
 }
+
+// ---------------------------------------------------------------------------
+// Route handler — thin HTTP/SSE adapter
+// ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
   const requestStartedAt = Date.now()
+  const requestId = crypto.randomUUID()
 
+  // ── Auth ────────────────────────────────────────────────────────────
   const appUser = await getCurrentAppUser()
   if (!appUser) {
     logWarn('agent.request.unauthorized', {
+      requestId,
       success: false,
       latencyMs: Date.now() - requestStartedAt,
     })
@@ -157,9 +216,11 @@ export async function POST(req: NextRequest) {
   }
   const appUserId = appUser.id
 
+  // ── Rate limit ──────────────────────────────────────────────────────
   const { success } = await agentLimiter.limit(appUserId)
   if (!success) {
     logWarn('agent.request.rate_limited', {
+      requestId,
       appUserId,
       success: false,
       latencyMs: Date.now() - requestStartedAt,
@@ -167,9 +228,24 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'Too many requests. Please wait a moment.' }), { status: 429 })
   }
 
-  const raw = BodySchema.safeParse(await req.json())
+  // ── Body validation ─────────────────────────────────────────────────
+  let rawBody: unknown
+  try {
+    rawBody = await req.json()
+  } catch {
+    logWarn('agent.request.invalid_json', {
+      requestId,
+      appUserId,
+      success: false,
+      latencyMs: Date.now() - requestStartedAt,
+    })
+    return new Response(JSON.stringify({ error: 'Invalid JSON body.' }), { status: 400 })
+  }
+
+  const raw = BodySchema.safeParse(rawBody)
   if (!raw.success) {
     logWarn('agent.request.invalid_body', {
+      requestId,
       appUserId,
       success: false,
       latencyMs: Date.now() - requestStartedAt,
@@ -177,9 +253,12 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: raw.error.flatten() }), { status: 400 })
   }
   const { sessionId, file, fileMime } = raw.data
-  let message = sanitizeUserInput(raw.data.message)
+
+  // ── Prepare message (scrape URLs, sanitize) ─────────────────────────
+  let message = await prepareUserMessage(raw.data.message, appUserId, requestId)
 
   logInfo('agent.request.received', {
+    requestId,
     appUserId,
     requestedSessionId: sessionId,
     messageLength: message.length,
@@ -188,48 +267,30 @@ export async function POST(req: NextRequest) {
     success: true,
   })
 
-  const detectedUrl = extractUrl(message)
-  if (detectedUrl) {
-    const scrapeResult = await scrapeJobPosting(detectedUrl)
-    const detectedUrlHost = (() => {
-      try {
-        return new URL(detectedUrl).hostname
-      } catch {
-        return 'invalid-url'
-      }
-    })()
-
-    if (scrapeResult.success && scrapeResult.text) {
-      message = message.replace(
-        detectedUrl,
-        `[Link da vaga: ${detectedUrl}]\n\n[Conteudo extraido automaticamente]:\n${scrapeResult.text}`,
-      )
-      logInfo('agent.scrape.completed', {
-        appUserId,
-        detectedUrlHost,
-        scrapeSucceeded: true,
-        scrapedTextLength: scrapeResult.text.length,
-        success: true,
-      })
-    } else {
-      logWarn('agent.scrape.completed', {
-        appUserId,
-        detectedUrlHost,
-        scrapeSucceeded: false,
-        success: false,
-      })
-      message = `${message}\n\n[Nota do sistema: Tentei acessar o link ${detectedUrl} mas nao consegui extrair o conteudo. Motivo: ${scrapeResult.error}]`
-    }
-  }
-
+  // ── Session resolution ──────────────────────────────────────────────
   let session = sessionId
     ? await getSession(sessionId, appUserId)
     : null
 
   let isNewSession = false
 
+  if (sessionId && !session) {
+    logWarn('agent.session.not_found', {
+      requestId,
+      appUserId,
+      requestedSessionId: sessionId,
+      success: false,
+      latencyMs: Date.now() - requestStartedAt,
+    })
+    return new Response(JSON.stringify({
+      error: 'Sessao nao encontrada. Inicie uma nova analise.',
+      action: 'new_session',
+    }), { status: 404 })
+  }
+
   if (session) {
     logInfo('agent.session.loaded', {
+      requestId,
       sessionId: session.id,
       appUserId,
       phase: session.phase,
@@ -241,6 +302,7 @@ export async function POST(req: NextRequest) {
 
     if (session.messageCount >= AGENT_CONFIG.maxMessagesPerSession) {
       logWarn('agent.session.message_cap_reached', {
+        requestId,
         sessionId: session.id,
         appUserId,
         phase: session.phase,
@@ -260,6 +322,7 @@ export async function POST(req: NextRequest) {
     const hasCredits = await checkUserQuota(appUserId)
     if (!hasCredits) {
       logWarn('agent.session.create_blocked_no_credit', {
+        requestId,
         appUserId,
         success: false,
         latencyMs: Date.now() - requestStartedAt,
@@ -270,9 +333,11 @@ export async function POST(req: NextRequest) {
       }), { status: 402 })
     }
 
-    const creditConsumed = await consumeCredit(appUserId)
-    if (!creditConsumed) {
+    // Atomic: consume credit + create session in a single DB transaction.
+    const newSession = await createSessionWithCredit(appUserId)
+    if (!newSession) {
       logError('agent.credit.consume_failed', {
+        requestId,
         appUserId,
         creditConsumed: 0,
         success: false,
@@ -283,9 +348,10 @@ export async function POST(req: NextRequest) {
       }), { status: 500 })
     }
 
-    session = await createSession(appUserId)
+    session = newSession
     isNewSession = true
     logInfo('agent.session.created', {
+      requestId,
       sessionId: session.id,
       appUserId,
       phase: session.phase,
@@ -297,9 +363,11 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // ── Message cap ─────────────────────────────────────────────────────
   const messageCountIncremented = await incrementMessageCount(session.id)
   if (!messageCountIncremented) {
     logWarn('agent.session.message_cap_reached', {
+      requestId,
       sessionId: session.id,
       appUserId,
       phase: session.phase,
@@ -316,61 +384,12 @@ export async function POST(req: NextRequest) {
     }), { status: 429 })
   }
 
+  // ── File attachment ─────────────────────────────────────────────────
   if (file && fileMime) {
-    const parseResult = parseJsonObject(
-      await dispatchTool(
-        'parse_file',
-        {
-          file_base64: file,
-          mime_type: fileMime,
-        },
-        session,
-      ),
-    )
-
-    const parseError = typeof parseResult?.error === 'string' ? parseResult.error : undefined
-
-    if (parseError) {
-      logWarn('agent.file.parse_failed', {
-        sessionId: session.id,
-        appUserId,
-        phase: session.phase,
-        stateVersion: session.stateVersion,
-        fileMime,
-        success: false,
-        errorMessage: parseError,
-      })
-      message = [message, `[Nota do sistema: Nao foi possivel processar o arquivo anexado. ${parseError}]`]
-        .filter(Boolean)
-        .join('\n\n')
-    } else {
-      logInfo('agent.file.parsed', {
-        sessionId: session.id,
-        appUserId,
-        phase: session.phase,
-        stateVersion: session.stateVersion,
-        fileMime,
-        success: true,
-      })
-
-      if (!message.trim()) {
-        message = 'Analise o curriculo anexado e me diga os proximos passos.'
-      }
-
-      message = [
-        message,
-        '[Nota do sistema: O curriculo anexado ja foi processado e o texto extraido esta disponivel para analise.]',
-      ].join('\n\n')
-    }
+    message = await handleFileAttachment(message, file, fileMime, session, appUserId, requestId, req.signal)
   }
 
-  await appendMessage(session.id, 'user', message)
-
-  const history = await getMessages(session.id)
-  const messages = toOpenAIHistory(
-    trimMessages(history.map((m) => ({ role: m.role, content: m.content }))),
-  )
-
+  // ── SSE stream ──────────────────────────────────────────────────────
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -379,141 +398,60 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
       }
 
-      try {
-        let continueLoop = true
-        let toolIterations = 0
+      const loop = runAgentLoop({
+        session: session!,
+        userMessage: message,
+        appUserId,
+        requestId,
+        isNewSession,
+        requestStartedAt,
+        signal: req.signal,
+      })
 
-        while (continueLoop) {
-          toolIterations++
+      for await (const event of loop) {
+        switch (event.type) {
+          case 'delta':
+            send({ delta: event.text })
+            break
 
-          if (toolIterations > AGENT_CONFIG.maxToolIterations) {
-            logError('agent.tool_loop.exceeded', {
-              sessionId: session!.id,
-              appUserId,
-              phase: session!.phase,
-              stateVersion: session!.stateVersion,
-              toolIterations,
-              maxToolIterations: AGENT_CONFIG.maxToolIterations,
-              success: false,
+          case 'done':
+            send({
+              done: true,
+              requestId: event.requestId,
+              sessionId: event.sessionId,
+              phase: event.phase,
+              atsScore: event.atsScore,
+              messageCount: event.messageCount,
+              maxMessages: event.maxMessages,
+              isNewSession: event.isNewSession,
             })
             break
-          }
 
-          const response = await callOpenAIWithRetry({
-            model: MODEL_CONFIG.agent,
-            max_tokens: AGENT_CONFIG.maxTokens,
-            messages: [
-              { role: 'system', content: buildSystemPrompt(session!) },
-              ...messages,
-            ],
-            tools: TOOL_DEFINITIONS,
-          }, 3, {
-            sessionId: session!.id,
-            appUserId,
-            phase: session!.phase,
-            stateVersion: session!.stateVersion,
-          })
+          case 'error': {
+            let errorMessage = 'Algo deu errado. Por favor, tente novamente.'
 
-          const usage = getChatCompletionUsage(response)
-          trackApiUsage({
-            userId: appUserId,
-            sessionId: session!.id,
-            model: MODEL_CONFIG.agent,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            endpoint: 'agent',
-          }).catch(() => {})
-
-          const responseMessage = response.choices[0]?.message
-          const finishReason = response.choices[0]?.finish_reason
-          const assistantText = responseMessage?.content ?? ''
-
-          if (assistantText) {
-            for (const word of assistantText.split(' ')) {
-              send({ delta: word + ' ' })
+            if (event.error instanceof APIError && event.error.status) {
+              const statusMessages: Record<number, string> = {
+                400: 'Erro na requisicao. Por favor, tente novamente.',
+                401: 'Erro de configuracao da IA. Entre em contato com o suporte.',
+                403: 'Acesso negado ao servico de IA. Entre em contato com o suporte.',
+                429: 'O servico de IA esta sobrecarregado. Tente novamente em alguns segundos.',
+                500: 'O servico de IA esta temporariamente indisponivel. Tente novamente.',
+                502: 'O servico de IA esta temporariamente indisponivel. Tente novamente.',
+                503: 'O servico de IA esta em manutencao. Tente novamente em alguns minutos.',
+              }
+              errorMessage = statusMessages[event.error.status] ?? errorMessage
+            } else if (event.error.name === 'AbortError') {
+              errorMessage = 'A requisicao demorou muito. Por favor, tente novamente.'
             }
-            await appendMessage(session!.id, 'assistant', assistantText)
-          }
 
-          const toolCalls = responseMessage?.tool_calls ?? []
-          continueLoop = finishReason === 'tool_calls' && toolCalls.length > 0
-
-          if (!continueLoop) {
+            send({ error: errorMessage, requestId })
             break
           }
-
-          messages.push(buildAssistantToolCallMessage(responseMessage!))
-
-          for (const toolCall of toolCalls) {
-            if (toolCall.type !== 'function') {
-              continue
-            }
-
-            const toolInput = JSON.parse(toolCall.function.arguments)
-            const toolResult = await dispatchTool(
-              toolCall.function.name,
-              toolInput as Record<string, unknown>,
-              session!,
-            )
-
-            messages.push(buildToolMessage(toolCall.id, toolResult))
-          }
         }
-
-        send({
-          done: true,
-          sessionId: session!.id,
-          phase: session!.phase,
-          atsScore: session!.atsScore,
-          messageCount: session!.messageCount + 1,
-          maxMessages: AGENT_CONFIG.maxMessagesPerSession,
-          isNewSession,
-        })
-        logInfo('agent.request.completed', {
-          sessionId: session!.id,
-          appUserId,
-          phase: session!.phase,
-          stateVersion: session!.stateVersion,
-          isNewSession,
-          messageCount: session!.messageCount + 1,
-          toolIterations,
-          parseConfidenceScore: session!.agentState.parseConfidenceScore,
-          success: true,
-          latencyMs: Date.now() - requestStartedAt,
-        })
-      } catch (err) {
-        logError('agent.request.failed', {
-          sessionId: session?.id,
-          appUserId,
-          phase: session?.phase,
-          stateVersion: session?.stateVersion,
-          parseConfidenceScore: session?.agentState.parseConfidenceScore,
-          success: false,
-          latencyMs: Date.now() - requestStartedAt,
-          ...serializeError(err),
-        })
-
-        let errorMessage = 'Algo deu errado. Por favor, tente novamente.'
-
-        if (err instanceof APIError && err.status) {
-          const statusMessages: Record<number, string> = {
-            400: 'Erro na requisicao. Por favor, tente novamente.',
-            401: 'Erro de configuracao da IA. Entre em contato com o suporte.',
-            403: 'Acesso negado ao servico de IA. Entre em contato com o suporte.',
-            429: 'O servico de IA esta sobrecarregado. Tente novamente em alguns segundos.',
-            500: 'O servico de IA esta temporariamente indisponivel. Tente novamente.',
-            502: 'O servico de IA esta temporariamente indisponivel. Tente novamente.',
-            503: 'O servico de IA esta em manutencao. Tente novamente em alguns minutos.',
-          }
-          errorMessage = statusMessages[err.status] ?? errorMessage
-        } else if (err instanceof Error && err.name === 'AbortError') {
-          errorMessage = 'A requisicao demorou muito. Por favor, tente novamente.'
-        }
-
-        send({ error: errorMessage })
-      } finally {
-        controller.close()
       }
+
+      controller.close()
     },
   })
 

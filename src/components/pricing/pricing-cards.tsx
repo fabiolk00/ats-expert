@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 
 import { useAuth } from "@clerk/nextjs"
-import { Check, Loader2 } from "lucide-react"
+import { Check, Loader2, X } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 
@@ -16,6 +16,10 @@ import { PLANS, formatPrice } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
 const plans = [
+  {
+    slug: "free" as const,
+    popular: false,
+  },
   {
     slug: "unit" as const,
     popular: false,
@@ -30,7 +34,8 @@ const plans = [
   },
 ] as const
 
-type CheckoutPlan = (typeof plans)[number]["slug"]
+type DisplayPlan = (typeof plans)[number]["slug"]
+type CheckoutPlan = Exclude<DisplayPlan, "free">
 
 type CheckoutAttemptResult =
   | { kind: "success"; url: string }
@@ -144,6 +149,27 @@ export default function PricingCards() {
     [isLoaded, isSignedIn, redirectToAuth, requestCheckout, router],
   )
 
+  const handlePlanAction = useCallback(
+    async (plan: DisplayPlan) => {
+      if (plan === "free") {
+        if (!isLoaded) {
+          return
+        }
+
+        if (!isSignedIn) {
+          router.push("/signup")
+          return
+        }
+
+        router.push("/dashboard")
+        return
+      }
+
+      await handleCheckout(plan)
+    },
+    [handleCheckout, isLoaded, isSignedIn, router],
+  )
+
   useEffect(() => {
     const checkoutPlan = searchParams.get("checkoutPlan")
     if (!isLoaded || !isSignedIn || autoCheckoutStartedRef.current || !checkoutPlan) {
@@ -160,10 +186,11 @@ export default function PricingCards() {
   }, [handleCheckout, isLoaded, isSignedIn, router, searchParams])
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3">
+    <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-2 xl:grid-cols-4">
       {plans.map((plan) => {
         const config = PLANS[plan.slug]
         const period = config.billing === "monthly" ? "/mes" : ""
+        const hasJobManagement = plan.slug !== "free"
 
         return (
           <Card
@@ -199,6 +226,16 @@ export default function PricingCards() {
                     <span className="text-sm font-medium">{feature}</span>
                   </li>
                 ))}
+                <li key="job-management" className="flex items-start gap-3">
+                  {hasJobManagement ? (
+                    <Check aria-label="Recurso incluido" className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                  ) : (
+                    <X aria-label="Recurso indisponivel" className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                  )}
+                  <span className={cn("text-sm font-medium", hasJobManagement ? undefined : "text-muted-foreground")}>
+                    Gerenciamento de vagas
+                  </span>
+                </li>
               </ul>
             </CardContent>
 
@@ -206,7 +243,7 @@ export default function PricingCards() {
               <Button
                 className="h-12 w-full rounded-full font-semibold"
                 variant={plan.popular ? "default" : "outline"}
-                onClick={() => handleCheckout(plan.slug)}
+                onClick={() => void handlePlanAction(plan.slug)}
                 disabled={!isLoaded || loading !== null}
               >
                 {loading === plan.slug ? (
@@ -215,7 +252,7 @@ export default function PricingCards() {
                     Processando...
                   </>
                 ) : (
-                  "Comecar agora"
+                  plan.slug === "free" ? "Comecar gratis" : "Comecar agora"
                 )}
               </Button>
             </CardFooter>
