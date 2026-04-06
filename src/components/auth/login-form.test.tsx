@@ -6,17 +6,22 @@ import React from "react"
 
 import LoginForm from "./login-form"
 
-const { mockSignIn, mockNavigateToUrl, mockSearchParamsGet } = vi.hoisted(() => ({
+const { mockSignIn, mockNavigateToUrl, mockIsSignedIn, mockSearchParamsGet } = vi.hoisted(() => ({
   mockSignIn: vi.fn(),
   mockNavigateToUrl: vi.fn(),
+  mockIsSignedIn: vi.fn(),
   mockSearchParamsGet: vi.fn(),
 }))
 
 vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({
+    isSignedIn: mockIsSignedIn(),
+  }),
   useSignIn: () => ({
     isLoaded: true,
     signIn: {
       create: mockSignIn,
+      authenticateWithRedirect: vi.fn(),
     },
   }),
 }))
@@ -38,6 +43,7 @@ vi.mock("@/components/logo", () => ({
 describe("LoginForm", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockIsSignedIn.mockReturnValue(false)
     mockSearchParamsGet.mockReturnValue(null)
   })
 
@@ -155,6 +161,39 @@ describe("LoginForm", () => {
 
     await waitFor(() => {
       expect(submitButton).toBeDisabled()
+    })
+  })
+
+  it("redirects authenticated visitors away from login", async () => {
+    mockIsSignedIn.mockReturnValue(true)
+    mockSearchParamsGet.mockImplementation((key: string) =>
+      key === "redirect_to" ? "/pricing?checkoutPlan=monthly" : null,
+    )
+
+    render(<LoginForm />)
+
+    await waitFor(() => {
+      expect(mockNavigateToUrl).toHaveBeenCalledWith("/pricing?checkoutPlan=monthly")
+    })
+  })
+
+  it("resumes the requested path when Clerk reports an existing session during sign in", async () => {
+    mockSearchParamsGet.mockImplementation((key: string) =>
+      key === "redirect_to" ? "/pricing?checkoutPlan=monthly" : null,
+    )
+    mockSignIn.mockRejectedValue({
+      errors: [{ code: "session_exists", message: "Session already exists" }],
+    })
+    const user = userEvent.setup()
+
+    render(<LoginForm />)
+
+    await user.type(screen.getByLabelText("E-mail"), "test@example.com")
+    await user.type(screen.getByLabelText("Senha"), "password123")
+    await user.click(screen.getByRole("button", { name: /^entrar$/i }))
+
+    await waitFor(() => {
+      expect(mockNavigateToUrl).toHaveBeenCalledWith("/pricing?checkoutPlan=monthly")
     })
   })
 })

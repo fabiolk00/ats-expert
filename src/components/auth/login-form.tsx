@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import Link from "next/link"
-import { useSignIn } from "@clerk/nextjs"
+import { useAuth, useSignIn } from "@clerk/nextjs"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
@@ -15,11 +15,12 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { getClerkErrorMessage, isSessionAlreadyExistsError } from "@/lib/auth/clerk-errors"
 import { getSafeRedirectPath } from "@/lib/auth/redirects"
 import { navigateToUrl } from "@/lib/navigation/external"
 
 const schema = z.object({
-  email: z.string().email("E-mail inv\u00E1lido"),
+  email: z.string().email("E-mail inválido"),
   password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
 })
 
@@ -27,6 +28,7 @@ type FormData = z.infer<typeof schema>
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
+  const { isSignedIn } = useAuth()
   const { signIn, isLoaded } = useSignIn()
   const searchParams = useSearchParams()
   const redirectTo = getSafeRedirectPath(searchParams.get("redirect_to"))
@@ -39,8 +41,21 @@ export default function LoginForm() {
     resolver: zodResolver(schema),
   })
 
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      return
+    }
+
+    navigateToUrl(redirectTo)
+  }, [isLoaded, isSignedIn, redirectTo])
+
   const handleGoogleSignIn = async () => {
     if (!isLoaded) return
+
+    if (isSignedIn) {
+      navigateToUrl(redirectTo)
+      return
+    }
 
     try {
       await signIn.authenticateWithRedirect({
@@ -62,9 +77,12 @@ export default function LoginForm() {
         navigateToUrl(redirectTo)
       }
     } catch (error: unknown) {
-      const message =
-        (error as { errors?: { message: string }[] })?.errors?.[0]?.message ??
-        "Erro ao entrar. Tente novamente."
+      if (isSessionAlreadyExistsError(error)) {
+        navigateToUrl(redirectTo)
+        return
+      }
+
+      const message = getClerkErrorMessage(error, "Erro ao entrar. Tente novamente.")
       setError("root", { message })
     }
   }
@@ -139,7 +157,7 @@ export default function LoginForm() {
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? "password-error" : undefined}
                 {...register("password")}
-                className={errors.password ? "h-11 pr-10 border-destructive focus-visible:ring-destructive" : "h-11 pr-10"}
+                className={errors.password ? "h-11 border-destructive pr-10 focus-visible:ring-destructive" : "h-11 pr-10"}
               />
               <button
                 type="button"

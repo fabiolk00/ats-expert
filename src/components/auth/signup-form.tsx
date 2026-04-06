@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import Link from "next/link"
-import { useSignUp } from "@clerk/nextjs"
+import { useAuth, useSignUp } from "@clerk/nextjs"
 import { AlertCircle, Eye, EyeOff, Loader2, Mail } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
@@ -16,6 +16,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { getClerkErrorMessage, isSessionAlreadyExistsError } from "@/lib/auth/clerk-errors"
 import { getSafeRedirectPath } from "@/lib/auth/redirects"
 import { buildDefaultCheckoutOnboardingPath } from "@/lib/billing/checkout-navigation"
 import { navigateToUrl } from "@/lib/navigation/external"
@@ -51,12 +52,15 @@ function StepIndicator({ step }: { step: "signup" | "verify" }) {
 export default function SignupForm() {
   const [step, setStep] = useState<"signup" | "verify">("signup")
   const [showPassword, setShowPassword] = useState(false)
+  const { isSignedIn } = useAuth()
   const { signUp, isLoaded, setActive } = useSignUp()
   const searchParams = useSearchParams()
+  const requestedRedirectTo = searchParams.get("redirect_to")
   const redirectTo = getSafeRedirectPath(
-    searchParams.get("redirect_to"),
+    requestedRedirectTo,
     buildDefaultCheckoutOnboardingPath(),
   )
+  const authenticatedRedirectTo = getSafeRedirectPath(requestedRedirectTo, "/dashboard")
 
   const signUpForm = useForm<SignUpData>({
     resolver: zodResolver(signUpSchema),
@@ -66,8 +70,21 @@ export default function SignupForm() {
     resolver: zodResolver(verifySchema),
   })
 
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      return
+    }
+
+    navigateToUrl(authenticatedRedirectTo)
+  }, [authenticatedRedirectTo, isLoaded, isSignedIn])
+
   const handleGoogleSignUp = async () => {
     if (!isLoaded) return
+
+    if (isSignedIn) {
+      navigateToUrl(authenticatedRedirectTo)
+      return
+    }
 
     try {
       await signUp.authenticateWithRedirect({
@@ -94,9 +111,12 @@ export default function SignupForm() {
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" })
       setStep("verify")
     } catch (error: unknown) {
-      const message =
-        (error as { errors?: { message: string }[] })?.errors?.[0]?.message ??
-        "Erro ao criar conta. Tente novamente."
+      if (isSessionAlreadyExistsError(error)) {
+        navigateToUrl(authenticatedRedirectTo)
+        return
+      }
+
+      const message = getClerkErrorMessage(error, "Erro ao criar conta. Tente novamente.")
       signUpForm.setError("root", { message })
     }
   }
@@ -114,9 +134,7 @@ export default function SignupForm() {
         navigateToUrl(redirectTo)
       }
     } catch (error: unknown) {
-      const message =
-        (error as { errors?: { message: string }[] })?.errors?.[0]?.message ??
-        "Código inválido. Tente novamente."
+      const message = getClerkErrorMessage(error, "Código inválido. Tente novamente.")
       verifyForm.setError("root", { message })
     }
   }
@@ -164,7 +182,7 @@ export default function SignupForm() {
                 aria-describedby={errors.code ? "code-error" : undefined}
                 className={
                   errors.code
-                    ? "h-16 text-center font-mono text-3xl tracking-[0.5em] border-destructive focus-visible:ring-destructive"
+                    ? "h-16 border-destructive text-center font-mono text-3xl tracking-[0.5em] focus-visible:ring-destructive"
                     : "h-16 text-center font-mono text-3xl tracking-[0.5em]"
                 }
                 {...verifyForm.register("code")}
@@ -306,7 +324,7 @@ export default function SignupForm() {
                 autoComplete="new-password"
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? "password-error" : undefined}
-                className={errors.password ? "h-11 pr-10 border-destructive focus-visible:ring-destructive" : "h-11 pr-10"}
+                className={errors.password ? "h-11 border-destructive pr-10 focus-visible:ring-destructive" : "h-11 pr-10"}
                 {...signUpForm.register("password")}
               />
               <button

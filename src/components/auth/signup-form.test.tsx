@@ -13,6 +13,7 @@ const {
   mockAttemptEmailAddressVerification,
   mockSetActive,
   mockNavigateToUrl,
+  mockIsSignedIn,
   mockSearchParamsGet,
 } = vi.hoisted(() => ({
   mockCreate: vi.fn(),
@@ -20,10 +21,14 @@ const {
   mockAttemptEmailAddressVerification: vi.fn(),
   mockSetActive: vi.fn(),
   mockNavigateToUrl: vi.fn(),
+  mockIsSignedIn: vi.fn(),
   mockSearchParamsGet: vi.fn(),
 }))
 
 vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({
+    isSignedIn: mockIsSignedIn(),
+  }),
   useSignUp: () => ({
     isLoaded: true,
     signUp: {
@@ -53,6 +58,7 @@ vi.mock('@/components/logo', () => ({
 describe('SignupForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockIsSignedIn.mockReturnValue(false)
     mockSearchParamsGet.mockReturnValue(null)
     mockCreate.mockResolvedValue(undefined)
     mockPrepareEmailAddressVerification.mockResolvedValue(undefined)
@@ -98,7 +104,7 @@ describe('SignupForm', () => {
     await user.type(screen.getByLabelText('Nome completo'), 'Test User')
     await user.type(screen.getByLabelText('E-mail'), 'test@example.com')
     await user.type(screen.getByLabelText('Senha'), 'password123')
-    await user.click(screen.getByRole('button', { name: 'Criar conta grátis' }))
+    await user.click(screen.getByRole('button', { name: /Criar conta gr[aá]tis/i }))
 
     await waitFor(() => {
       expect(mockCreate).toHaveBeenCalled()
@@ -111,6 +117,40 @@ describe('SignupForm', () => {
     await waitFor(() => {
       expect(mockSetActive).toHaveBeenCalledWith({ session: 'sess_123' })
       expect(mockNavigateToUrl).toHaveBeenCalledWith(buildDefaultCheckoutOnboardingPath())
+    })
+  })
+
+  it('redirects authenticated visitors away from signup using the requested path', async () => {
+    mockIsSignedIn.mockReturnValue(true)
+    mockSearchParamsGet.mockImplementation((key: string) => (
+      key === 'redirect_to' ? '/pricing?checkoutPlan=pro' : null
+    ))
+
+    render(<SignupForm />)
+
+    await waitFor(() => {
+      expect(mockNavigateToUrl).toHaveBeenCalledWith('/pricing?checkoutPlan=pro')
+    })
+  })
+
+  it('resumes the requested path when Clerk reports an existing session during signup', async () => {
+    mockSearchParamsGet.mockImplementation((key: string) => (
+      key === 'redirect_to' ? '/pricing?checkoutPlan=monthly' : null
+    ))
+    mockCreate.mockRejectedValue({
+      errors: [{ code: 'session_exists', message: 'Session already exists' }],
+    })
+    const user = userEvent.setup()
+
+    render(<SignupForm />)
+
+    await user.type(screen.getByLabelText('Nome completo'), 'Test User')
+    await user.type(screen.getByLabelText('E-mail'), 'test@example.com')
+    await user.type(screen.getByLabelText('Senha'), 'password123')
+    await user.click(screen.getByRole('button', { name: /Criar conta gr[aá]tis/i }))
+
+    await waitFor(() => {
+      expect(mockNavigateToUrl).toHaveBeenCalledWith('/pricing?checkoutPlan=monthly')
     })
   })
 })
