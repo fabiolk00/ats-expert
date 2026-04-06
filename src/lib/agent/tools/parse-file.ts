@@ -71,7 +71,7 @@ async function parseImageOCR(
       openai.chat.completions.create(
         {
           model: MODEL_CONFIG.vision,
-          max_tokens: AGENT_CONFIG.ocrMaxTokens,
+          max_completion_tokens: AGENT_CONFIG.ocrMaxTokens,
           messages: [
             {
               role: 'user',

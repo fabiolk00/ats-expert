@@ -36,7 +36,9 @@ BEGIN
     generated_output,
     credits_used,
     credit_consumed,
-    message_count
+    message_count,
+    created_at,
+    updated_at
   ) VALUES (
     gen_random_uuid()::text,
     p_user_id,
@@ -47,7 +49,9 @@ BEGIN
     '{"status":"idle"}'::jsonb,
     0,
     TRUE,
-    0
+    0,
+    NOW(),
+    NOW()
   )
   RETURNING * INTO v_session_row;
 

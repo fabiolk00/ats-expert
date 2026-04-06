@@ -36,7 +36,7 @@ export async function analyzeGap(
     const response = await callOpenAIWithRetry(
       (signal) => openai.chat.completions.create({
         model: MODEL_CONFIG.structured,
-        max_tokens: AGENT_CONFIG.rewriterMaxTokens,
+        max_completion_tokens: AGENT_CONFIG.rewriterMaxTokens,
         response_format: { type: 'json_object' },
         messages: [
           {

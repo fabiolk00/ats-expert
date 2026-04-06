@@ -183,7 +183,7 @@ export async function* runAgentLoop(
       const response = await callOpenAIWithRetry(
         {
           model: MODEL_CONFIG.agent,
-          max_tokens: AGENT_CONFIG.maxTokens,
+          max_completion_tokens: AGENT_CONFIG.maxTokens,
           messages: [
             { role: 'system', content: cachedSystemPrompt },
             ...messages,
