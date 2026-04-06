@@ -14,6 +14,7 @@ export type { Phase }
 export type AgentState = {
   sourceResumeText?: string
   targetJobDescription?: string
+  targetFitAssessment?: TargetFitAssessment
   parseConfidenceScore?: number
   parseStatus: 'empty' | 'attached' | 'parsed' | 'failed'
   parseError?: string
@@ -112,6 +113,13 @@ export type ToolPatch = Partial<{
   generatedOutput: Partial<GeneratedOutput>
   atsScore: ATSScoreResult
 }>
+
+export type TargetFitAssessment = {
+  level: 'strong' | 'partial' | 'weak'
+  summary: string
+  reasons: string[]
+  assessedAt: string
+}
 
 export type { ToolErrorCode, ToolFailure }
 

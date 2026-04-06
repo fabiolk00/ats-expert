@@ -34,6 +34,7 @@ import { parseFile } from './parse-file'
 import { ingestResumeText } from './resume-ingestion'
 import { rewriteSection } from './rewrite-section'
 import { TOOL_INPUT_SCHEMAS } from './schemas'
+import { deriveTargetFitAssessment } from '@/lib/agent/target-fit'
 
 type OpenAITool = OpenAI.Chat.Completions.ChatCompletionTool
 
@@ -291,7 +292,11 @@ export async function executeTool(
         patch: {
           atsScore: result,
           agentState: job_description
-            ? { targetJobDescription: job_description }
+            ? {
+                targetJobDescription: job_description,
+                ...(session.agentState.gapAnalysis ? { gapAnalysis: undefined } : {}),
+                ...(session.agentState.targetFitAssessment ? { targetFitAssessment: undefined } : {}),
+              }
             : undefined,
         },
       }
@@ -306,6 +311,7 @@ export async function executeTool(
         session.id,
         externalSignal,
       )
+      const analyzedAt = new Date().toISOString()
 
       return {
         output: result.output,
@@ -313,9 +319,13 @@ export async function executeTool(
           ? {
               agentState: {
                 targetJobDescription: target_job_description,
+                targetFitAssessment: deriveTargetFitAssessment(
+                  result.result,
+                  analyzedAt,
+                ),
                 gapAnalysis: {
                   result: result.result,
-                  analyzedAt: new Date().toISOString(),
+                  analyzedAt,
                 },
               },
             }
@@ -359,6 +369,9 @@ export async function executeTool(
             patch: {
               agentState: {
                 targetJobDescription: target_job_description,
+                targetFitAssessment: result.gapAnalysis
+                  ? deriveTargetFitAssessment(result.gapAnalysis)
+                  : undefined,
               },
             },
           }

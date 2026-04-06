@@ -903,6 +903,12 @@ describe('agent tool dispatch', () => {
     expect(execution.patch).toEqual({
       agentState: {
         targetJobDescription: 'AWS backend role',
+        targetFitAssessment: {
+          level: 'partial',
+          summary: expect.stringContaining('partially aligned'),
+          reasons: expect.arrayContaining(['Missing or underrepresented skill: AWS']),
+          assessedAt: expect.any(String),
+        },
         gapAnalysis: {
           result: {
             matchScore: 72,
@@ -989,6 +995,12 @@ describe('agent tool dispatch', () => {
       {
         agentState: {
           targetJobDescription: 'AWS backend role',
+          targetFitAssessment: {
+            level: 'partial',
+            summary: expect.stringContaining('partially aligned'),
+            reasons: expect.arrayContaining(['Missing or underrepresented skill: AWS']),
+            assessedAt: expect.any(String),
+          },
         },
       },
       undefined,

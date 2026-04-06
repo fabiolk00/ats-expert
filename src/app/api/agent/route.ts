@@ -9,13 +9,17 @@ import {
   createSessionWithCredit,
   checkUserQuota,
   incrementMessageCount,
+  updateSession,
 } from '@/lib/db/sessions'
 import { dispatchTool } from '@/lib/agent/tools'
+import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
+import { deriveTargetFitAssessment } from '@/lib/agent/target-fit'
 import { agentLimiter } from '@/lib/rate-limit'
 import { AGENT_CONFIG } from '@/lib/agent/config'
 import { extractUrl } from '@/lib/agent/url-extractor'
 import { scrapeJobPosting } from '@/lib/agent/scraper'
 import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
+import type { Session } from '@/types/agent'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -72,6 +76,174 @@ function sanitizeUserInput(input: string): string {
     .replace(/<\/?tool_call>/gi, '')
     .replace(/<\/?function>/gi, '')
     .trim()
+}
+
+function normalizeForJobDescriptionDetection(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+type TargetJobDetection = {
+  targetJobDescription: string
+  confidence: 'medium' | 'high'
+}
+
+function detectTargetJobDescription(message: string): TargetJobDetection | undefined {
+  const trimmed = message.trim()
+  if (trimmed.length < 140) {
+    return undefined
+  }
+
+  if (trimmed.includes('[Link da vaga:') || trimmed.includes('[Conteúdo extraído automaticamente]')) {
+    return {
+      targetJobDescription: trimmed,
+      confidence: 'high',
+    }
+  }
+
+  const normalized = normalizeForJobDescriptionDetection(trimmed)
+  const sectionSignals = [
+    'responsabilidades',
+    'responsibility',
+    'responsibilities',
+    'requisitos',
+    'requirements',
+    'qualificacoes',
+    'qualifications',
+    'diferenciais',
+    'nice to have',
+    'o que procuramos',
+    'we are looking for',
+    'sobre a vaga',
+    'about the role',
+    'atribuicoes',
+    'atividades',
+    'job description',
+  ]
+  const sectionHits = sectionSignals.filter((signal) => normalized.includes(signal)).length
+  const roleHit = /\b(analista|engenheiro|developer|desenvolvedor|cientista|gerente|coordenador|consultor|product|designer|arquiteto|devops|sre|qa|bi|dados|data)\b/.test(normalized)
+  const hiringIntentHit = /\b(vaga|cargo|posicao|position|role|opportunity|buscamos|contratando)\b/.test(normalized)
+  const lines = trimmed.split(/\n+/).map((line) => line.trim()).filter(Boolean)
+  const hasStructuredLayout = lines.length >= 5 || /(^|\n)\s*[-*•]/.test(trimmed) || trimmed.includes(':')
+  let score = 0
+
+  score += Math.min(sectionHits, 4) * 2
+  if (roleHit) score += 2
+  if (hiringIntentHit) score += 2
+  if (hasStructuredLayout) score += 2
+  if (trimmed.length >= 260) score += 1
+
+  if (sectionHits >= 2 && hasStructuredLayout) {
+    return {
+      targetJobDescription: trimmed,
+      confidence: sectionHits >= 3 ? 'high' : 'medium',
+    }
+  }
+
+  if (sectionHits >= 3) {
+    return {
+      targetJobDescription: trimmed,
+      confidence: 'high',
+    }
+  }
+
+  if (hiringIntentHit && roleHit && trimmed.length >= 220 && hasStructuredLayout) {
+    return {
+      targetJobDescription: trimmed,
+      confidence: score >= 7 ? 'high' : 'medium',
+    }
+  }
+
+  if (score >= 8) {
+    return {
+      targetJobDescription: trimmed,
+      confidence: 'medium',
+    }
+  }
+
+  return undefined
+}
+
+function hasResumeContextForAutoGap(session: Pick<Session, 'cvState' | 'agentState'>): boolean {
+  return Boolean(
+    session.agentState.sourceResumeText?.trim()
+    || session.cvState.summary.trim()
+    || session.cvState.skills.length > 0
+    || session.cvState.experience.length > 0
+    || session.cvState.education.length > 0
+    || (session.cvState.certifications?.length ?? 0) > 0
+  )
+}
+
+async function persistDetectedTargetJobDescription(
+  session: Pick<Session, 'id' | 'phase' | 'stateVersion' | 'agentState' | 'updatedAt' | 'cvState' | 'userId'>,
+  message: string,
+  appUserId: string,
+  requestId: string,
+): Promise<void> {
+  const detection = detectTargetJobDescription(message)
+  if (!detection) {
+    return
+  }
+
+  if (session.agentState.targetJobDescription?.trim() === detection.targetJobDescription) {
+    return
+  }
+
+  const nextAgentState: Session['agentState'] = {
+    ...session.agentState,
+    targetJobDescription: detection.targetJobDescription,
+    gapAnalysis: undefined,
+    targetFitAssessment: undefined,
+  }
+
+  if (detection.confidence === 'high' && hasResumeContextForAutoGap(session)) {
+    const analyzedAt = new Date().toISOString()
+    const gapAnalysisResult = await analyzeGap(
+      session.cvState,
+      detection.targetJobDescription,
+      session.userId,
+      session.id,
+    )
+
+    if ('success' in gapAnalysisResult.output && gapAnalysisResult.output.success && gapAnalysisResult.result) {
+      nextAgentState.gapAnalysis = {
+        result: gapAnalysisResult.result,
+        analyzedAt,
+      }
+      nextAgentState.targetFitAssessment = deriveTargetFitAssessment(gapAnalysisResult.result, analyzedAt)
+    } else {
+      logWarn('agent.target_job_detection.auto_gap_failed', {
+        requestId,
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        success: false,
+      })
+    }
+  }
+
+  session.agentState = nextAgentState
+  session.updatedAt = new Date()
+
+  try {
+    await updateSession(session.id, {
+      agentState: nextAgentState,
+    })
+  } catch (error) {
+    logWarn('agent.target_job_detection.persist_failed', {
+      requestId,
+      sessionId: session.id,
+      appUserId,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    })
+  }
 }
 
 function parseJsonObject(value: string): Record<string, unknown> | null {
@@ -369,6 +541,8 @@ export async function POST(req: NextRequest) {
   // For new sessions these run INSIDE the stream, after the early
   // sessionCreated event, so the frontend gets the sessionId as fast as
   // possible and a refresh can never lose it.
+  await persistDetectedTargetJobDescription(session!, message, appUserId, requestId)
+
   if (!isNewSession) {
     try {
       if (file && fileMime) {

@@ -3,9 +3,10 @@ import { NextRequest } from 'next/server'
 
 import { POST } from './route'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
-import { getSession, createSessionWithCredit, checkUserQuota, incrementMessageCount } from '@/lib/db/sessions'
+import { getSession, createSessionWithCredit, checkUserQuota, incrementMessageCount, updateSession } from '@/lib/db/sessions'
 import { agentLimiter } from '@/lib/rate-limit'
 import { dispatchTool } from '@/lib/agent/tools'
+import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 
 const { createCompletion } = vi.hoisted(() => ({
   createCompletion: vi.fn(),
@@ -70,6 +71,10 @@ vi.mock('@/lib/agent/scraper', () => ({
   scrapeJobPosting: vi.fn(),
 }))
 
+vi.mock('@/lib/agent/tools/gap-analysis', () => ({
+  analyzeGap: vi.fn(),
+}))
+
 describe('agent route billing guard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -103,6 +108,7 @@ describe('agent route billing guard', () => {
     })
     vi.mocked(getSession).mockResolvedValue(null)
     vi.mocked(checkUserQuota).mockResolvedValue(false)
+    vi.mocked(analyzeGap).mockReset()
   })
 
   it('returns 402 when trying to create a new session with zero credits', async () => {
@@ -250,6 +256,200 @@ describe('agent route billing guard', () => {
       error: 'Algo deu errado. Por favor, tente novamente.',
     })
     expect(incrementMessageCount).not.toHaveBeenCalled()
+  })
+
+  it('persists a pasted job description into agentState before the agent loop starts', async () => {
+    vi.mocked(getSession).mockResolvedValue(null)
+    vi.mocked(checkUserQuota).mockResolvedValue(true)
+    vi.mocked(createSessionWithCredit).mockResolvedValue({
+      id: 'sess_job_target',
+      userId: 'usr_123',
+      stateVersion: 1,
+      phase: 'intake',
+      cvState: {
+        fullName: '',
+        email: '',
+        phone: '',
+        summary: '',
+        experience: [],
+        skills: [],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'empty',
+        rewriteHistory: {},
+      },
+      generatedOutput: { status: 'idle' },
+      creditsUsed: 1,
+      messageCount: 0,
+      creditConsumed: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(incrementMessageCount).mockResolvedValue(true)
+
+    const jobDescription = `Analista de BI Senior
+
+Responsabilidades:
+Levantar requisitos com as areas de negocio.
+Construir e manter dashboards em Power BI.
+Automatizar processos de coleta e transformacao de dados.
+
+Requisitos:
+Experiencia com Power BI, DAX e SQL.
+Vivencia com ETL e integracao de dados.
+
+Diferenciais:
+Python, APIs e Microsoft Fabric.`
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: jobDescription }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(updateSession).toHaveBeenCalledWith('sess_job_target', {
+      agentState: expect.objectContaining({
+        targetJobDescription: expect.stringContaining('Power BI'),
+      }),
+    })
+  })
+
+  it('does not persist targetJobDescription for a short non-job message', async () => {
+    vi.mocked(getSession).mockResolvedValue(null)
+    vi.mocked(checkUserQuota).mockResolvedValue(true)
+    vi.mocked(createSessionWithCredit).mockResolvedValue({
+      id: 'sess_no_target',
+      userId: 'usr_123',
+      stateVersion: 1,
+      phase: 'intake',
+      cvState: {
+        fullName: '',
+        email: '',
+        phone: '',
+        summary: '',
+        experience: [],
+        skills: [],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'empty',
+        rewriteHistory: {},
+      },
+      generatedOutput: { status: 'idle' },
+      creditsUsed: 1,
+      messageCount: 0,
+      creditConsumed: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(incrementMessageCount).mockResolvedValue(true)
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'ola' }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(updateSession).not.toHaveBeenCalled()
+  })
+
+  it('auto-generates gapAnalysis when a high-confidence job description arrives and resume context already exists', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_gap_ready',
+      userId: 'usr_123',
+      stateVersion: 1,
+      phase: 'dialog',
+      cvState: {
+        fullName: 'Fabio Silva',
+        email: 'fabio@example.com',
+        phone: '11999999999',
+        summary: 'Analista de dados com foco em BI e automacao.',
+        experience: [],
+        skills: ['SQL', 'Power BI'],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'parsed',
+        sourceResumeText: 'Experiencia em Power BI, SQL e integracao de dados.',
+        rewriteHistory: {},
+      },
+      generatedOutput: { status: 'idle' },
+      creditsUsed: 1,
+      messageCount: 2,
+      creditConsumed: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(incrementMessageCount).mockResolvedValue(true)
+    vi.mocked(analyzeGap).mockResolvedValue({
+      output: {
+        success: true,
+        result: {
+          matchScore: 82,
+          missingSkills: ['Microsoft Fabric'],
+          weakAreas: ['summary'],
+          improvementSuggestions: ['Destacar entregas com dashboards executivos'],
+        },
+      },
+      result: {
+        matchScore: 82,
+        missingSkills: ['Microsoft Fabric'],
+        weakAreas: ['summary'],
+        improvementSuggestions: ['Destacar entregas com dashboards executivos'],
+      },
+    })
+
+    const jobDescription = `Analista de BI Senior
+
+Responsabilidades:
+Levantar requisitos com as areas de negocio.
+Construir dashboards em Power BI com foco em usabilidade.
+Automatizar processos de coleta e transformacao de dados.
+
+Requisitos:
+Experiencia com Power BI, DAX, SQL e integracao de dados.
+Boa comunicacao com areas nao tecnicas.
+
+Diferenciais:
+Python, APIs, Microsoft Fabric e storytelling de dados.`
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'sess_gap_ready',
+        message: jobDescription,
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(analyzeGap).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.stringContaining('BI'),
+        skills: expect.arrayContaining(['SQL', 'Power BI']),
+      }),
+      expect.stringContaining('Microsoft Fabric'),
+      'usr_123',
+      'sess_gap_ready',
+    )
+    expect(updateSession).toHaveBeenCalledWith('sess_gap_ready', {
+      agentState: expect.objectContaining({
+        targetJobDescription: expect.stringContaining('Power BI'),
+        targetFitAssessment: expect.objectContaining({
+          level: 'strong',
+          reasons: expect.arrayContaining(['Missing or underrepresented skill: Microsoft Fabric']),
+        }),
+        gapAnalysis: expect.objectContaining({
+          result: expect.objectContaining({
+            matchScore: 82,
+            missingSkills: expect.arrayContaining(['Microsoft Fabric']),
+          }),
+        }),
+      }),
+    })
   })
 
   it('streams SSE done event for a valid new session', async () => {

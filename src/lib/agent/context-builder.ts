@@ -10,6 +10,13 @@ If responding in Portuguese, always use Brazilian Portuguese (pt-BR) with correc
 Before sending Portuguese text, do a quick self-check to remove missing accents, awkward literal translations, and European Portuguese variants.
 Never invent information - only improve what the user provides.
 
+## Career fit honesty
+- Be honest about alignment between the user's profile and the target job.
+- If the target role is a poor fit for the user's current background, say so clearly and respectfully. Explain why in practical terms (domain, seniority, tooling, scope, certifications, or experience gaps).
+- If the profile is adjacent but not fully aligned, say that the fit is partial. Point out the transferable strengths, the stack or domain differences, and where the user should focus first.
+- Do not oversell. Do not imply that resume rewriting alone can compensate for a major experience mismatch.
+- When there is a mismatch, still be helpful: suggest a more realistic positioning, a smaller pivot, or the sections or keywords worth emphasizing.
+
 ## Job posting URLs
 O usuário pode enviar links de vagas de emprego (LinkedIn, Gupy, Catho, etc.). Se o conteúdo do link for extraído com sucesso, ele aparecerá marcado como [Conteúdo extraído automaticamente] ou [Link da vaga: ...]. Use esse conteúdo como a descrição da vaga para sua análise.
 
@@ -32,17 +39,25 @@ Your goal is to analyze the resume and present an ATS score.
 
 - Call \`score_ats\` with the extracted resume text.
 - Present the score in a friendly way: overall score, top 2-3 issues, 1 positive.
-- Ask if they have a specific job description to target (paste URL or text).
+- If the current user turn already contains a job description, hiring requirements, responsibilities, or a pasted job post, treat that as the target job immediately.
 - If a target job description is available, call \`analyze_gap\` before recommending targeted improvements.
+- Only ask for a job description if neither the current turn nor recent conversation history already contains one.
 - Once analysis is presented, call \`set_phase\` with "dialog".`,
 
   dialog: `
 ## Current phase: DIALOG
 Your goal is to improve the resume through conversation.
 
+- If the current user turn includes a pasted vacancy, responsibilities, requirements, tech stack, or job context, treat it as a valid target job description and do not ask for the vacancy again.
+- If the user already answered a question in the current or recent turns, do not ask the same question again in different words.
+- If a target job description is available, call \`analyze_gap\` before asking more follow-up questions.
+- If a stored target fit assessment is available, use it as the starting point for your explanation instead of re-asking basic alignment questions.
+- Start by judging fit honestly: say whether the target role looks strong-fit, partial-fit, or weak-fit for the current profile, and explain the main reasons briefly.
+- If the fit is weak, say that clearly but respectfully before proposing any rewrite strategy.
+- If the fit is partial, explain that the background makes sense but the stack, domain, or seniority differs, and focus the rewrite on the most transferable angle instead of pretending it is a perfect match.
 - Ask targeted questions about weak sections (max 2 questions per turn).
 - After each user answer, call \`rewrite_section\` for the relevant section.
-- If a target job description is available, use \`analyze_gap\` to keep recommendations aligned with the target.
+- Use \`analyze_gap\` results to keep recommendations aligned with the target.
 - Show the rewritten content to the user and ask for feedback.
 - When the user is satisfied or says the resume looks good, call \`set_phase\` with "confirm".
 - Track which sections have been improved in the canonical cv_state.`,
@@ -113,6 +128,17 @@ ${JSON.stringify(session.agentState.gapAnalysis.result, null, 2)}
 Analyzed at: ${session.agentState.gapAnalysis.analyzedAt}`
 }
 
+function buildTargetFitContext(session: Session): string {
+  if (!session.agentState.targetFitAssessment) {
+    return 'No stored target fit assessment available yet.'
+  }
+
+  return `Stored target fit assessment:
+\`\`\`json
+${JSON.stringify(session.agentState.targetFitAssessment, null, 2)}
+\`\`\``
+}
+
 /**
  * Truncates a string to maxLen characters, appending [truncated] if cut.
  */
@@ -144,6 +170,7 @@ export function buildSystemPrompt(session: Session): string {
   let resumeTextCtx = buildResumeTextContext(session)
   let targetJobCtx = buildTargetJobContext(session)
   let gapCtx = buildGapAnalysisContext(session)
+  let targetFitCtx = buildTargetFitContext(session)
 
   // Measure static overhead (everything that is NOT truncatable)
   const staticOverhead =
@@ -155,11 +182,11 @@ export function buildSystemPrompt(session: Session): string {
 
   const maxForDynamic = AGENT_CONFIG.maxSystemPromptChars - staticOverhead
   // cvStateJson is also user-provided content and must be included in the truncation budget
-  const dynamicTotal = cvStateJson.length + resumeTextCtx.length + targetJobCtx.length + gapCtx.length
+  const dynamicTotal = cvStateJson.length + resumeTextCtx.length + targetJobCtx.length + gapCtx.length + targetFitCtx.length
 
   if (dynamicTotal > maxForDynamic && maxForDynamic > 0) {
     const truncatedSections: string[] = []
-    const budgetPerSection = Math.floor(maxForDynamic / 4)
+    const budgetPerSection = Math.floor(maxForDynamic / 5)
 
     if (cvStateJson.length > budgetPerSection) {
       cvStateJson = truncate(cvStateJson, budgetPerSection)
@@ -177,12 +204,16 @@ export function buildSystemPrompt(session: Session): string {
       gapCtx = truncate(gapCtx, budgetPerSection)
       truncatedSections.push('gapAnalysis')
     }
+    if (targetFitCtx.length > budgetPerSection) {
+      targetFitCtx = truncate(targetFitCtx, budgetPerSection)
+      truncatedSections.push('targetFitAssessment')
+    }
 
     if (truncatedSections.length > 0) {
       logWarn('agent.context.truncated', {
         sessionId: session.id,
         originalLength: staticOverhead + dynamicTotal,
-        truncatedLength: staticOverhead + cvStateJson.length + resumeTextCtx.length + targetJobCtx.length + gapCtx.length,
+        truncatedLength: staticOverhead + cvStateJson.length + resumeTextCtx.length + targetJobCtx.length + gapCtx.length + targetFitCtx.length,
         truncatedSections: truncatedSections.join(','),
         maxSystemPromptChars: AGENT_CONFIG.maxSystemPromptChars,
       })
@@ -209,6 +240,9 @@ ${scoreCtx}
 
 ## Gap analysis context
 ${gapCtx}
+
+## Target fit context
+${targetFitCtx}
 
 ${STATIC_SUFFIX}`
 }

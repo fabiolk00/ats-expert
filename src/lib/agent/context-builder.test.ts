@@ -24,6 +24,12 @@ function buildSession(): Session {
       parseStatus: 'parsed',
       sourceResumeText: 'Raw extracted resume text',
       targetJobDescription: 'Backend engineer with TypeScript and PostgreSQL',
+      targetFitAssessment: {
+        level: 'partial',
+        summary: 'The current profile appears partially aligned with the target role, with relevant overlap but meaningful gaps still present.',
+        reasons: ['Missing or underrepresented skill: PostgreSQL'],
+        assessedAt: '2026-03-25T12:00:00.000Z',
+      },
       rewriteHistory: {},
     },
     generatedOutput: {
@@ -57,6 +63,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('Raw extracted resume text')
     expect(prompt).toContain('Backend engineer with TypeScript and PostgreSQL')
     expect(prompt).toContain('Current ATS score: 80/100')
+    expect(prompt).toContain('Stored target fit assessment')
   })
 
   it('does not reference removed legacy cvState fields', () => {
@@ -64,6 +71,27 @@ describe('buildSystemPrompt', () => {
 
     expect(prompt).not.toContain('rawText')
     expect(prompt).not.toContain('targetJobDescription')
+  })
+
+  it('instructs the agent to treat a pasted vacancy as an immediate target job', () => {
+    const session = buildSession()
+    session.phase = 'dialog'
+
+    const prompt = buildSystemPrompt(session)
+
+    expect(prompt).toContain('If the current user turn includes a pasted vacancy')
+    expect(prompt).toContain('do not ask for the vacancy again')
+    expect(prompt).toContain('do not ask the same question again in different words')
+    expect(prompt).toContain('call `analyze_gap` before asking more follow-up questions')
+  })
+
+  it('instructs the agent to be honest about weak or partial fit', () => {
+    const prompt = buildSystemPrompt(buildSession())
+
+    expect(prompt).toContain('Be honest about alignment between the user\'s profile and the target job')
+    expect(prompt).toContain('If the target role is a poor fit for the user\'s current background')
+    expect(prompt).toContain('If the profile is adjacent but not fully aligned, say that the fit is partial')
+    expect(prompt).toContain('Do not oversell')
   })
 
   describe('Security: Prompt injection prevention', () => {
