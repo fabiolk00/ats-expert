@@ -147,7 +147,7 @@ export function PlanUpdateDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto sm:rounded-[2rem]">
+      <DialogContent className="max-h-[92vh] w-[min(96vw,96rem)] max-w-none overflow-y-auto sm:rounded-[2rem]">
         <DialogHeader className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em]">

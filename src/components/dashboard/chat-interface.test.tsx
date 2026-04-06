@@ -101,7 +101,7 @@ describe("ChatInterface", () => {
     })
   })
 
-  it("shows a thinking animation while the agent request is pending", async () => {
+  it("shows the thinking state inside the assistant bubble while the agent request is pending", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
       if (typeof url === "string" && url.includes("/api/agent")) {
         return new Promise<Response>(() => {})
@@ -116,9 +116,10 @@ describe("ChatInterface", () => {
     await userEvent.type(textarea, "Ainda estou pensando")
     await userEvent.keyboard("{Enter}")
 
-    expect(
-      screen.getByRole("status", { name: /processando resposta do agente/i }),
-    ).toBeInTheDocument()
+    await waitFor(() => {
+      const messages = screen.getAllByTestId("message-assistant")
+      expect(messages[messages.length - 1]).toHaveTextContent("Pensando...")
+    })
   })
 
   it("locks the session when API returns 429 with action: new_session", async () => {

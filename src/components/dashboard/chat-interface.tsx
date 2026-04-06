@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useUser } from "@clerk/nextjs"
-import { FileText, Loader2, Send, Upload, X } from "lucide-react"
+import { FileText, Send, Upload, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -35,6 +35,7 @@ type ChatCopy = {
   description: string
   placeholder: string
   helperText: string
+  thinkingText: string
   sessionCounterLabel: string
   sessionExpiredText: string
   sessionLimitText: string
@@ -49,6 +50,7 @@ function getChatCopy(firstName?: string): ChatCopy {
     description: "Cole a descri\u00E7\u00E3o da vaga e envie seu curr\u00EDculo para iniciar a an\u00E1lise ATS.",
     placeholder: "Cole a descri\u00E7\u00E3o da vaga aqui...",
     helperText: "Arraste um arquivo PDF ou DOCX, ou clique no bot\u00E3o de upload.",
+    thinkingText: "Pensando...",
     sessionCounterLabel: "nesta an\u00E1lise",
     sessionExpiredText: "Sess\u00E3o n\u00E3o encontrada. Inicie uma nova an\u00E1lise para continuar.",
     sessionLimitText: "Esta sess\u00E3o atingiu o limite de mensagens. Inicie uma nova an\u00E1lise para continuar.",
@@ -226,7 +228,7 @@ export function ChatInterface({
       {
         id: assistantMessageId,
         role: "assistant",
-        content: "",
+        content: copy.thinkingText,
         timestamp: new Date().toLocaleTimeString("pt-BR", {
           hour: "2-digit",
           minute: "2-digit",
@@ -297,7 +299,10 @@ export function ChatInterface({
                 setMessages((previous) =>
                   previous.map((message) =>
                     message.id === assistantMessageId
-                      ? { ...message, content: message.content + chunk.delta }
+                      ? {
+                          ...message,
+                          content: message.content === copy.thinkingText ? chunk.delta : message.content + chunk.delta,
+                        }
                       : message,
                   ),
                 )
@@ -422,26 +427,6 @@ export function ChatInterface({
           {messages.map((message) => (
             <ChatMessage key={message.id} {...message} />
           ))}
-          {isStreaming ? (
-            <div className="flex justify-start">
-              <div
-                aria-live="polite"
-                aria-label="Processando resposta do agente"
-                role="status"
-                className="max-w-[85%] rounded-2xl rounded-tl-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-sm"
-              >
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="font-medium text-foreground/80">Pensando</span>
-                  <span className="flex items-center gap-1" aria-hidden="true">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : null}
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
