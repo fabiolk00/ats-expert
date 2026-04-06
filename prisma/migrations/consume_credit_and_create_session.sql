@@ -26,6 +26,7 @@ BEGIN
 
   -- Step 2: create session (within the same transaction)
   INSERT INTO sessions (
+    id,
     user_id,
     state_version,
     phase,
@@ -36,6 +37,7 @@ BEGIN
     credit_consumed,
     message_count
   ) VALUES (
+    gen_random_uuid()::text,
     p_user_id,
     1,
     'intake',

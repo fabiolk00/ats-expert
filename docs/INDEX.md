@@ -17,6 +17,7 @@ This index is the main directory for the active documentation set.
 
 - [README.md](../README.md) - repository overview, setup, and quick start
 - [GETTING_STARTED.md](./GETTING_STARTED.md) - audience-based entry points
+- [ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md) - environment variables and secrets management
 - [CONCEPTS.md](./CONCEPTS.md) - mental models before implementation details
 - [FEATURES.md](./FEATURES.md) - product capabilities
 - [GLOSSARY.md](./GLOSSARY.md) - key terms used across docs

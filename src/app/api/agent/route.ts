@@ -17,12 +17,6 @@ import { extractUrl } from '@/lib/agent/url-extractor'
 import { scrapeJobPosting } from '@/lib/agent/scraper'
 import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
 
-// DEBUG: Log immediately after imports to catch initialization errors
-console.log('[api/agent] Route file loaded at', new Date().toISOString())
-console.log('[api/agent] OPENAI_BASE_URL env:', process.env.OPENAI_BASE_URL)
-console.log('[api/agent] OPENAI_API_KEY exists:', Boolean(process.env.OPENAI_API_KEY))
-console.log('[api/agent] AGENT_CONFIG:', AGENT_CONFIG)
-
 // ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------
@@ -207,14 +201,11 @@ async function handleFileAttachment(
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
-  console.log('[api/agent:POST] Handler called at', new Date().toISOString())
   const requestStartedAt = Date.now()
   const requestId = crypto.randomUUID()
 
   // ── Auth ────────────────────────────────────────────────────────────
-  console.log('[api/agent:POST] Getting app user...')
   const appUser = await getCurrentAppUser()
-  console.log('[api/agent:POST] App user retrieved:', Boolean(appUser))
   if (!appUser) {
     logWarn('agent.request.unauthorized', {
       requestId,
@@ -224,12 +215,9 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
   }
   const appUserId = appUser.id
-  console.log('[api/agent:POST] AppUserId:', appUserId)
 
   // ── Rate limit ──────────────────────────────────────────────────────
-  console.log('[api/agent:POST] Checking rate limit...')
   const { success } = await agentLimiter.limit(appUserId)
-  console.log('[api/agent:POST] Rate limit check passed:', success)
   if (!success) {
     logWarn('agent.request.rate_limited', {
       requestId,
@@ -265,12 +253,9 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: raw.error.flatten() }), { status: 400 })
   }
   const { sessionId, file, fileMime } = raw.data
-  console.log('[api/agent:POST] Body validated, sessionId:', sessionId)
 
   // ── Prepare message (scrape URLs, sanitize) ─────────────────────────
-  console.log('[api/agent:POST] Preparing user message...')
   let message = await prepareUserMessage(raw.data.message, appUserId, requestId)
-  console.log('[api/agent:POST] Message prepared, length:', message.length)
 
   logInfo('agent.request.received', {
     requestId,
@@ -401,23 +386,18 @@ export async function POST(req: NextRequest) {
 
   // ── File attachment ─────────────────────────────────────────────────
   if (file && fileMime) {
-    console.log('[api/agent:POST] Handling file attachment...')
     message = await handleFileAttachment(message, file, fileMime, session, appUserId, requestId, req.signal)
-    console.log('[api/agent:POST] File attachment handled')
   }
 
   // ── SSE stream ──────────────────────────────────────────────────────
-  console.log('[api/agent:POST] Creating SSE stream...')
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
     async start(controller) {
-      console.log('[api/agent:POST] SSE stream started')
       const send = (chunk: unknown) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
       }
 
-      console.log('[api/agent:POST] About to call runAgentLoop')
       const loop = runAgentLoop({
         session: session!,
         userMessage: message,
