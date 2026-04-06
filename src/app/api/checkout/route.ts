@@ -16,6 +16,7 @@ import {
 import { formatExternalReference } from '@/lib/asaas/external-reference'
 import { getActiveRecurringSubscription } from '@/lib/asaas/quota'
 import { getPlan } from '@/lib/plans'
+import { logError } from '@/lib/observability/structured-log'
 
 export const runtime = 'nodejs'
 
@@ -108,18 +109,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ url })
   } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown checkout error'
+
     if (checkoutReference) {
       try {
-        await markCheckoutFailed(
-          checkoutReference,
-          err instanceof Error ? err.message : 'Unknown checkout error',
-        )
+        await markCheckoutFailed(checkoutReference, errorMessage)
       } catch (markCheckoutFailedError) {
-        console.error('[api/checkout] failed to mark checkout failed', markCheckoutFailedError)
+        logError('checkout.mark_failed_error', {
+          checkoutReference,
+          originalError: errorMessage,
+          markFailedError: markCheckoutFailedError instanceof Error ? markCheckoutFailedError.message : String(markCheckoutFailedError),
+          success: false,
+        })
       }
     }
 
-    console.error('[api/checkout]', err)
+    logError('checkout.creation_failed', {
+      checkoutReference: checkoutReference ?? 'none',
+      errorMessage,
+      success: false,
+    })
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -29,7 +29,7 @@ describe('Asaas checkout link creation', () => {
       userEmail: 'test@example.com',
       plan: 'unit',
       checkoutReference: 'chk_unit',
-      externalReference: 'curria:v1:c:chk_unit',
+      externalReference: 'curria:v1:u:usr_123:c:chk_unit',
       successUrl: 'https://curria.test/pricing',
     })).resolves.toBe('https://sandbox.asaas.com/payment-link/unit')
 
@@ -39,7 +39,7 @@ describe('Asaas checkout link creation', () => {
       billingType: 'UNDEFINED',
       chargeType: 'DETACHED',
       value: 19.90,
-      externalReference: 'curria:v1:c:chk_unit',
+      externalReference: 'curria:v1:u:usr_123:c:chk_unit',
       callback: {
         successUrl: 'https://curria.test/pricing',
         autoRedirect: false,

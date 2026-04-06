@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { formatExternalReference, parseExternalReference } from './external-reference'
 
 describe('Asaas externalReference formatting', () => {
-  it('formats and parses the v1 externalReference format', () => {
+  it('formats and parses the v1 externalReference format with user id', () => {
     const value = formatExternalReference('usr_123', 'chk_456')
 
-    expect(value).toBe('curria:v1:c:chk_456')
+    expect(value).toBe('curria:v1:u:usr_123:c:chk_456')
     expect(parseExternalReference(value)).toEqual({
       version: 'v1',
+      appUserId: 'usr_123',
       checkoutReference: 'chk_456',
     })
   })

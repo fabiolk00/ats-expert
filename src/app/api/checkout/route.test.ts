@@ -86,7 +86,7 @@ describe('checkout route billing sequencing', () => {
     )
     expect(vi.mocked(createCheckoutLink)).toHaveBeenCalledWith(expect.objectContaining({
       checkoutReference: 'chk_123',
-      externalReference: 'curria:v1:c:chk_123',
+      externalReference: 'curria:v1:u:usr_123:c:chk_123',
     }))
     expect(markCheckoutCreated).toHaveBeenCalledWith('chk_123', 'https://asaas.test/pay')
     expect(await response.json()).toEqual({ url: 'https://asaas.test/pay' })
