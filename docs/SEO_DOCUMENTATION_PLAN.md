@@ -990,13 +990,13 @@ Metadata for billing state: plan, Asaas customer ID, subscription ID, renewal da
 Payment processor. Handles subscriptions, payment webhooks, customer management.
 
 **Checkout**
-One-time payment transaction. Stored in billing_checkouts table with external reference format curria:v1:u:<appUserId>:c:<checkoutRef>.
+Paid transaction record stored in billing_checkouts. Modern references use `curria:v1:c:<checkoutRef>`, with temporary compatibility for the older `curria:v1:u:<appUserId>:c:<checkoutRef>` shape.
 
 **Subscription**
 Monthly recurring billing. Managed through Asaas. Renewal updates user_quotas.renews_at.
 
 **Credit Grant**
-Adding credits to an account. Triggered by PAYMENT_RECEIVED (checkout) or SUBSCRIPTION_CREATED/RENEWED (subscriptions).
+Adding credits to an account. Triggered by settled payments and persisted internally as `PAYMENT_SETTLED`, `SUBSCRIPTION_STARTED`, or `SUBSCRIPTION_RENEWED`.
 
 **Webhook Deduplication**
 Using event fingerprint (hash of event data) to prevent processing the same event twice. Stored in processed_events table.

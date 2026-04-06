@@ -279,11 +279,11 @@ LIMIT 20;
 
 **Diagnosis Steps:**
 ```bash
-# 1. Check if Asaas webhook was received
-SELECT event_id, event_type, status, created_at 
-FROM processed_events 
-WHERE event_type = 'SUBSCRIPTION_CREATED' 
-  AND external_reference LIKE '%user_xyz%'
+# 1. Check if a billing webhook was received
+SELECT event_id, event_type, created_at
+FROM processed_events
+WHERE event_type IN ('PAYMENT_SETTLED', 'SUBSCRIPTION_STARTED')
+  AND event_payload::text LIKE '%user_xyz%'
 ORDER BY created_at DESC 
 LIMIT 5;
 

@@ -6,7 +6,7 @@ related:
   - CONCEPTS.md
   - FEATURES.md
 status: current
-updated: 2026-04-01
+updated: 2026-04-06
 ---
 
 # CurrIA Documentation Index
@@ -37,7 +37,6 @@ This index is the main directory for the active documentation set.
 - [billing/MIGRATION_GUIDE.md](./billing/MIGRATION_GUIDE.md)
 - [billing/MONITORING.md](./billing/MONITORING.md)
 - [billing/OPS_RUNBOOK.md](./billing/OPS_RUNBOOK.md)
-- [billing/VALIDATION_RESULTS.md](./billing/VALIDATION_RESULTS.md)
 
 ## OpenAI and Language Quality
 

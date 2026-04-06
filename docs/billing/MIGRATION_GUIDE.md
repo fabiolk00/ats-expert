@@ -11,12 +11,14 @@ Preferred command:
 ```bash
 npx prisma db execute --file prisma/migrations/billing_webhook_hardening.sql --schema prisma/schema.prisma
 npx prisma db execute --file prisma/migrations/20260406_align_asaas_webhook_contract.sql --schema prisma/schema.prisma
+npx prisma db execute --file prisma/migrations/20260406_fix_billing_checkout_timestamp_defaults.sql --schema prisma/schema.prisma
 ```
 
 If your deployment flow requires manual SQL execution, run the contents of:
 
 - `prisma/migrations/billing_webhook_hardening.sql`
 - `prisma/migrations/20260406_align_asaas_webhook_contract.sql`
+- `prisma/migrations/20260406_fix_billing_checkout_timestamp_defaults.sql`
 
 against the target database before deploying code that depends on `billing_checkouts` and the updated RPC signatures.
 

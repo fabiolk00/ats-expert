@@ -73,12 +73,15 @@ function assertPaidPlan(plan: PlanSlug, amountMinor: number): void {
 
 async function updateCheckout(
   checkoutReference: string,
-  patch: Partial<Pick<BillingCheckoutRow, 'status' | 'asaas_link' | 'asaas_payment_id' | 'asaas_subscription_id'>>,
+  patch: Partial<Pick<BillingCheckoutRow, 'status' | 'asaas_link' | 'asaas_payment_id' | 'asaas_subscription_id' | 'updated_at'>>,
 ): Promise<void> {
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase
     .from('billing_checkouts')
-    .update(patch)
+    .update({
+      ...patch,
+      updated_at: new Date().toISOString(),
+    })
     .eq('checkout_reference', checkoutReference)
 
   if (error) {
@@ -99,6 +102,7 @@ export async function createCheckoutRecordPending(
 
   const checkoutReference = generateCheckoutReference()
   const supabase = getSupabaseAdminClient()
+  const now = new Date().toISOString()
   const payload = {
     id: randomUUID(),
     user_id: userId,
@@ -107,6 +111,8 @@ export async function createCheckoutRecordPending(
     amount_minor: amountMinor,
     currency: 'BRL',
     status: 'pending',
+    created_at: now,
+    updated_at: now,
   }
 
   const { data, error } = await supabase
@@ -201,7 +207,10 @@ export async function markCheckoutCanceledBySubscriptionId(
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase
     .from('billing_checkouts')
-    .update({ status: 'canceled' })
+    .update({
+      status: 'canceled',
+      updated_at: new Date().toISOString(),
+    })
     .eq('asaas_subscription_id', asaasSubscriptionId)
 
   if (error) {

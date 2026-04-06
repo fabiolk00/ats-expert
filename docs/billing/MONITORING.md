@@ -1,356 +1,161 @@
-# Billing Monitoring - Minimal Setup
+# Billing Monitoring
 
-This document defines exactly what to monitor for the Asaas billing system, with concrete thresholds and queries.
+This document defines the minimum monitoring setup for the Asaas billing flow after the settlement-based webhook hardening.
 
----
+## What changed
 
-## Philosophy
+- Credits now come from payment settlement, not from `SUBSCRIPTION_CREATED`.
+- `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` collapse into the internal event type `PAYMENT_SETTLED`.
+- Subscription snapshots that are not actionable return `200 ignored` instead of pausing the Asaas queue.
+- Metadata-only subscription events use the internal event type `SUBSCRIPTION_CANCELED` or `SUBSCRIPTION_UPDATED`.
 
-Monitor the **failure modes** identified in testing:
+## Core alerts
 
-1. **Failed checkouts** (Asaas API failures)
-2. **Stale pending checkouts** (webhook never arrived)
-3. **Legacy-path webhook frequency** (pre-cutover subscriptions)
-4. **RPC rejections** (overflow, negative balance)
-5. **Pre-cutover metadata gaps** (missing asaas_subscription_id)
+### 1. Failed checkouts
 
-Do **NOT** monitor:
-- Latency (not a risk factor)
-- Conversion rates (not a ops concern)
-- Success count (noise without context)
-
----
-
-## Setup: Run These Queries on a Schedule
-
-### Query 1: Failed Checkouts (Alert Immediately)
-
-**Frequency:** Every 15 minutes
-**Location:** Monitoring/alerting system (DataDog, Grafana, etc.)
+Run every 15 minutes:
 
 ```sql
-SELECT COUNT(*) as failed_count
+SELECT COUNT(*) AS failed_count
 FROM billing_checkouts
 WHERE status = 'failed'
   AND created_at > NOW() - INTERVAL '15 minutes';
 ```
 
-**Threshold:**
-- `failed_count > 0` → Alert immediately
+Alert if `failed_count > 0`.
 
-**Severity:** Critical (user can't proceed with purchase)
+### 2. Stale pending checkouts
 
-**On Alert:**
-1. Check Asaas status page
-2. Review app logs for error details
-3. See ops runbook: "Failed checkout - Asaas call threw an error"
-
----
-
-### Query 2: Stale Pending Checkouts (Alert If Any)
-
-**Frequency:** Every 30 minutes
-**Location:** Same monitoring system
+Run every 30 minutes:
 
 ```sql
-SELECT COUNT(*) as stale_pending_count,
-       MIN(created_at) as oldest_checkout
+SELECT COUNT(*) AS stale_pending_count,
+       MIN(created_at) AS oldest_checkout
 FROM billing_checkouts
 WHERE status = 'pending'
   AND created_at < NOW() - INTERVAL '30 minutes';
 ```
 
-**Threshold:**
-- `stale_pending_count > 0` → Alert to ops
+Alert if `stale_pending_count > 0`.
 
-**Severity:** Medium (user didn't get Asaas link or abandoned)
+### 3. Stale created recurring checkouts
 
-**On Alert:**
-1. Identify the user and checkout_reference
-2. Check if user was sent correct link or if link expired
-3. Create new checkout for user
-4. See ops runbook: "Pending checkout for 2+ hours, no payment webhook"
+This catches recurring flows where checkout creation succeeded but neither activation nor cancellation was reconciled.
 
----
+```sql
+SELECT COUNT(*) AS stale_created_recurring_count
+FROM billing_checkouts
+WHERE status = 'created'
+  AND plan IN ('monthly', 'pro')
+  AND created_at < NOW() - INTERVAL '1 hour';
+```
 
-### Query 3: Legacy-Path Webhook Frequency (Daily Report)
+Investigate if `stale_created_recurring_count > 0`.
 
-**Frequency:** Once daily (e.g., 8 AM UTC)
-**Location:** Monitoring dashboard
+### 4. RPC / trust-anchor rejections
+
+Search structured logs for:
+
+- `asaas.webhook.failed`
+- `billing.pre_cutover_missing_metadata`
+- `billing.checkout.cancel_mark_failed`
+- `asaas.webhook.duplicate_reconcile_failed`
+
+Treat any recent occurrence as operator-review required.
+
+### 5. Legacy webhook path frequency
+
+Track how often legacy `usr_...` references still appear.
 
 ```sql
 SELECT
-  DATE(created_at) as date,
-  COUNT(*) as total_events,
-  SUM(CASE WHEN event_type IN ('SUBSCRIPTION_RENEWED', 'SUBSCRIPTION_CANCELED') THEN 1 ELSE 0 END) as recurring_events,
-  SUM(CASE WHEN event_payload->>'externalReference' ~ '^usr_' THEN 1 ELSE 0 END) as legacy_path_events,
-  ROUND(100.0 * SUM(CASE WHEN event_payload->>'externalReference' ~ '^usr_' THEN 1 ELSE 0 END) / COUNT(*), 1) as legacy_percentage
+  DATE(created_at) AS date,
+  COUNT(*) AS total_events,
+  SUM(
+    CASE
+      WHEN COALESCE(
+        event_payload->'payment'->>'externalReference',
+        event_payload->'subscription'->>'externalReference'
+      ) ~ '^usr_[A-Za-z0-9]+$'
+      THEN 1
+      ELSE 0
+    END
+  ) AS legacy_path_events
 FROM processed_events
-WHERE created_at > NOW() - INTERVAL '1 day'
-ORDER BY date DESC
-LIMIT 1;
+WHERE created_at > NOW() - INTERVAL '7 days'
+GROUP BY DATE(created_at)
+ORDER BY date DESC;
 ```
 
-**Threshold:**
-- `legacy_percentage > 5%` → Investigate (might indicate new issue)
-- `legacy_percentage > 0%` and trending UP → Investigate (might indicate regression)
-- `legacy_percentage = 0%` and trending DOWN → Expected (pre-cutover subscriptions expiring)
+This should trend toward zero.
 
-**Severity:** Low (informational, not an immediate problem)
+## Useful sanity queries
 
-**On Trend:**
-- If UP: Check if old subscriptions are being replayed or new issues are using legacy format
-- If DOWN: Good! Pre-cutover subscriptions are retiring naturally
-- When reaches 0% consistently: Can disable legacy parsing in external-reference.ts
-
----
-
-### Query 4: RPC Rejections (Alert If Any)
-
-**Frequency:** Every 2 hours
-**Location:** Monitoring system (search application logs)
+### Recent internal billing event types
 
 ```sql
--- Check logs for RPC exception messages
--- Relevant error strings:
--- - "Credit balance overflow"
--- - "negative existing balance"
--- - "Checkout record not found"
--- - "Plan mismatch"
-
--- In monitoring system, look for logs containing:
--- [api/webhook/asaas] ERROR: <RPC error message>
-
--- Or in database, check processed_events for errors:
-SELECT COUNT(*) as rpc_error_count
+SELECT event_type, COUNT(*) AS count
 FROM processed_events
-WHERE created_at > NOW() - INTERVAL '2 hours'
-  AND event_payload::text ILIKE '%error%';
+WHERE created_at > NOW() - INTERVAL '24 hours'
+GROUP BY event_type
+ORDER BY event_type;
 ```
 
-**Threshold:**
-- Any RPC rejection in the last 2 hours → Review logs and ops runbook
+Expected current event types:
 
-**Severity:** High (indicates data integrity issues or edge cases)
+- `PAYMENT_SETTLED`
+- `SUBSCRIPTION_STARTED`
+- `SUBSCRIPTION_RENEWED`
+- `SUBSCRIPTION_UPDATED`
+- `SUBSCRIPTION_CANCELED`
 
-**On Alert:**
-1. Check app logs for exact error message
-2. Identify user and event type
-3. Run diagnostic queries from ops runbook
-4. If overflow: Check credit_accounts balance for user
-5. If plan mismatch: Check billing_checkouts vs webhook payload
-6. If checkout not found: Check if old checkout was deleted accidentally
-
----
-
-### Query 5: Pre-Cutover Metadata Gaps (Alert If Any)
-
-**Frequency:** Every 4 hours
-**Location:** Application logs
+### Reconciled one-time payments
 
 ```sql
--- Look for structured log event:
--- billing.pre_cutover_missing_metadata
---   asaasSubscriptionId: <sub_id>
---   hasPlan: false|true
---   hasSubscriptionId: false|true
-
--- In monitoring system, search for:
--- event_name="billing.pre_cutover_missing_metadata"
-
--- Or in database:
-SELECT COUNT(*) as metadata_gap_count,
-       ARRAY_AGG(DISTINCT event_payload->>'asaasSubscriptionId') as affected_subscriptions
-FROM processed_events
-WHERE created_at > NOW() - INTERVAL '4 hours'
-  AND event_type = 'SUBSCRIPTION_RENEWED'
-  AND event_payload::text ILIKE '%pre_cutover_missing_metadata%';
+SELECT checkout_reference, status, asaas_payment_id, updated_at
+FROM billing_checkouts
+WHERE plan = 'unit'
+ORDER BY updated_at DESC
+LIMIT 20;
 ```
 
-**Threshold:**
-- `metadata_gap_count > 0` → Alert (data integrity issue)
+Expected:
 
-**Severity:** Critical (renewal failed, user didn't get credits)
+- newly paid one-time checkouts move to `paid`
 
-**On Alert:**
-1. Identify affected subscription_id
-2. Check user_quotas for missing asaas_subscription_id or invalid plan
-3. See ops runbook: "Renewal didn't grant credits - pre-cutover subscription"
-4. Manually update user_quotas and grant credits
-
----
-
-## Implementation: Two Approaches
-
-### Approach A: SQL Queries + Spreadsheet (Minimal)
-
-**If using:**
-- Scheduled SQL runner (cron job)
-- Email alerting
-- Spreadsheet for tracking
-
-**Steps:**
-1. Create a script that runs the queries above on a schedule
-2. Send results to Slack/email
-3. Set thresholds and manual alerts
-4. Keep a spreadsheet of anomalies and actions taken
-
-**Example cron job:**
-```bash
-# Run every 15 min
-*/15 * * * * /path/to/billing_monitor.sh
-
-# billing_monitor.sh:
-#!/bin/bash
-RESULT=$(psql -c "SELECT COUNT(*) FROM billing_checkouts WHERE status='failed' AND created_at > NOW() - INTERVAL '15 minutes'")
-if [ "$RESULT" -gt 0 ]; then
-  curl -X POST https://hooks.slack.com/... -d "{\"text\": \"⚠️ Billing Alert: $RESULT failed checkouts in past 15 min\"}"
-fi
-```
-
-### Approach B: Monitoring Tool (Recommended)
-
-**If using:** DataDog, Grafana, New Relic, etc.
-
-**Steps:**
-1. Create custom metrics from the queries above
-2. Set alert thresholds
-3. Create dashboard with all 5 metrics
-4. Link alerts to runbook URLs (e.g., Slack messages include link to ops-runbook.md)
-
-**Example Grafana setup:**
-```
-Panel 1: Failed Checkouts (Last 1 Hour)
-  Query: SELECT COUNT(*) FROM billing_checkouts WHERE status='failed' AND created_at > NOW() - INTERVAL '1 hour'
-  Threshold: Alert if > 0
-
-Panel 2: Stale Pending Checkouts (Last 24 Hours)
-  Query: SELECT COUNT(*) FROM billing_checkouts WHERE status='pending' AND created_at < NOW() - INTERVAL '30 minutes'
-  Threshold: Alert if > 0
-
-Panel 3: Legacy Webhook Frequency (Last 24 Hours)
-  Query: SELECT 100.0 * SUM(...) / COUNT(*) as legacy_pct FROM processed_events WHERE event_type IN (...)
-  Threshold: Alert if > 5%
-
-Panel 4: RPC Rejections (Last 2 Hours)
-  Query: Count of log events containing "Credit balance overflow" or "Plan mismatch"
-  Threshold: Alert if > 0
-
-Panel 5: Pre-Cutover Metadata Gaps (Last 4 Hours)
-  Query: Count of log events: billing.pre_cutover_missing_metadata
-  Threshold: Alert if > 0
-```
-
----
-
-## Alert Destinations & Escalation
-
-**All Alerts → On-Call Slack Channel**
-
-Slack message format (template):
-```
-🚨 Billing Alert: <Alert Name>
-
-Issue: <Threshold> triggered
-Time: <timestamp>
-Context: <query result>
-
-Action: See #billing-ops-runbook for diagnosis steps
-Escalate if unresolved in 15 min to @eng-oncall
-```
-
-**Critical Alerts (Failed Checkouts, Metadata Gaps):**
-- Notify ops immediately
-- Escalate to engineering if not resolved in 15 minutes
-- Page on-call engineer if business hours + ongoing issues
-
-**Medium Alerts (Stale Pending):**
-- Notify ops during business hours
-- Async investigation acceptable (non-blocking)
-
-**Low Alerts (Legacy Frequency):**
-- Daily summary only
-- No escalation unless trending unexpectedly
-
----
-
-## Dashboard Template
-
-### Billing System Health
-
-**Layout:**
-```
-+----------------------------------+----------------------------------+
-| Failed Checkouts (15 min)        | Stale Pending (30 min)           |
-| Current: 0                       | Current: 0                       |
-| Threshold: > 0 ⚠️ Alert         | Threshold: > 0 ⚠️ Alert         |
-+----------------------------------+----------------------------------+
-| RPC Rejections (2 hours)         | Pre-Cutover Gaps (4 hours)       |
-| Current: 0                       | Current: 0                       |
-| Threshold: > 0 ⚠️ Alert         | Threshold: > 0 ⚠️ Alert         |
-+----------------------------------+----------------------------------+
-| Legacy Webhook % (24 hours)      | Credit Balance Summary           |
-| Current: 0.3%                    | Total Credits: 125,450           |
-| Threshold: > 5% 🟡 Investigate   | Active Users: 248                |
-|                                  | Avg Credits/User: 506            |
-+----------------------------------+----------------------------------+
-```
-
----
-
-## Post-Production Checklist
-
-- [ ] All 5 queries integrated into monitoring system
-- [ ] Alert thresholds configured
-- [ ] Slack/email notifications tested
-- [ ] Dashboard created and visible to on-call team
-- [ ] Runbook linked from alerts
-- [ ] On-call team trained on each alert type
-- [ ] Escalation path documented (slack channel / pagerduty / etc)
-- [ ] Query response time acceptable (< 1 second)
-
----
-
-## Query Optimization Notes
-
-**If queries run slow:**
+### Reconciled recurring activations
 
 ```sql
--- All queries filter by created_at; ensure index exists:
-CREATE INDEX billing_checkouts_created_at ON billing_checkouts(created_at);
-CREATE INDEX processed_events_created_at ON processed_events(created_at);
-CREATE INDEX processed_events_event_type ON processed_events(event_type);
-
--- For legacy-path frequency check, ensure text search is indexed:
-CREATE INDEX processed_events_payload_text ON processed_events USING GIN(event_payload);
+SELECT checkout_reference, status, asaas_subscription_id, updated_at
+FROM billing_checkouts
+WHERE plan IN ('monthly', 'pro')
+ORDER BY updated_at DESC
+LIMIT 20;
 ```
 
----
+Expected:
 
-## Adjusting Thresholds Over Time
+- active recurring checkouts move to `subscription_active`
+- invalid snapshots may move to `canceled`
 
-**After 2+ weeks in production:**
-- Review alert volume: are you getting paged too often?
-- Check signal-to-noise ratio: how many alerts are actionable vs noise?
-- Adjust thresholds if needed:
-  - **Too many alerts?** Increase threshold or increase check frequency (e.g., 30min instead of 15min)
-  - **Too few alerts?** Decrease threshold or add new metrics
-  - **Wrong timing?** Move checks to different schedule (e.g., skip peak traffic hours)
+### Duplicate protection overview
 
----
+```sql
+SELECT event_type, COUNT(*) AS count
+FROM processed_events
+GROUP BY event_type
+ORDER BY count DESC;
+```
 
-## Sunset: Pre-Cutover Legacy Parsing
+If you see both `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` here, the new SQL contract was not applied correctly. The DB should store `PAYMENT_SETTLED` instead.
 
-Once `legacy_percentage = 0%` for 14+ consecutive days:
+## Escalation guide
 
-1. Remove legacy parsing from `external-reference.ts`
-   ```ts
-   // DELETE: legacy format handling
-   // KEEP: v1 format only
-   ```
+- `failed_checkouts > 0`: check provider/API logs and checkout route errors immediately.
+- stale `created` recurring checkouts: inspect whether the first settled payment arrived, or whether the snapshot was ignored and should have canceled the checkout.
+- trust-anchor rejection: compare `billing_checkouts`, `user_quotas`, and the webhook payload.
+- legacy-path frequency rising: investigate whether new traffic is still being emitted with legacy `externalReference`.
 
-2. Update production code and redeploy
+## Sunset note
 
-3. Update this monitoring document to remove "Legacy Webhook Frequency" query
-
-4. Update ops runbook to remove pre-cutover handling sections
+When legacy references remain at zero for a sustained period, the temporary legacy parser path in `src/lib/asaas/external-reference.ts` can be removed in a future cleanup.
