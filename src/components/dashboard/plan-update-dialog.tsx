@@ -147,7 +147,7 @@ export function PlanUpdateDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] w-[min(96vw,96rem)] max-w-none overflow-y-auto sm:rounded-[2rem]">
+      <DialogContent className="max-h-[92vh] w-[min(98vw,112rem)] max-w-none overflow-y-auto sm:rounded-[2rem]">
         <DialogHeader className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em]">
@@ -171,7 +171,7 @@ export function PlanUpdateDialog({
             const purchaseState = getPlanPurchaseState(activeRecurringPlan, plan.slug)
             const isCurrent = purchaseState.isCurrentActiveRecurringPlan
             const estimatedCredits = currentCredits + config.credits
-            const period = config.billing === "monthly" ? "/mes" : ""
+            const period = config.billing === "monthly" ? "/mês" : ""
 
             return (
               <Card
