@@ -2,7 +2,7 @@
 
 import React, { useCallback, useState } from "react"
 
-import { Check, Loader2 } from "lucide-react"
+import { Check, Loader2, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -39,7 +39,7 @@ const plans: Array<{ slug: PlanSlug; popular: boolean }> = [
 
 type CheckoutAttemptResult =
   | { kind: "success"; url: string }
-  | { kind: "error"; message: string }
+  | { kind: "error"; message: string; retryable: boolean }
 
 function getPlanPurchaseState(activeRecurringPlan: PlanSlug | null, candidatePlan: PlanSlug): {
   isCurrentActiveRecurringPlan: boolean
@@ -96,14 +96,24 @@ export function PlanUpdateDialog({
         return { kind: "success", url: payload.url }
       }
 
+      if (res.status === 401) {
+        return {
+          kind: "error",
+          message: ACTIVE_MONTHLY_PLAN_ERROR_MESSAGE,
+          retryable: false,
+        }
+      }
+
       return {
         kind: "error",
         message: getCheckoutErrorMessage(payload),
+        retryable: res.status >= 500,
       }
     } catch {
       return {
         kind: "error",
         message: CHECKOUT_ERROR_MESSAGE,
+        retryable: true,
       }
     }
   }, [])
@@ -124,7 +134,11 @@ export function PlanUpdateDialog({
 
       setLoading(plan)
       try {
-        const result = await requestCheckout(plan)
+        let result = await requestCheckout(plan)
+
+        if (result.kind !== "success" && result.retryable) {
+          result = await requestCheckout(plan)
+        }
 
         if (result.kind === "success") {
           navigateToUrl(result.url)
@@ -141,11 +155,21 @@ export function PlanUpdateDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Alterar Plano</DialogTitle>
-          <DialogDescription>
-            Escolha um novo plano para sua conta. Seu saldo de creditos sera preservado.
+      <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto sm:rounded-[2rem]">
+        <DialogHeader className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em]">
+              Atualizacao de plano
+            </Badge>
+            <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+              Creditos preservados
+            </div>
+          </div>
+          <DialogTitle className="text-3xl font-black tracking-tight">Escolha seu novo plano</DialogTitle>
+          <DialogDescription className="max-w-2xl text-base leading-7">
+            O modal segue a mesma estrutura visual dos cards da pagina de precos. Seu saldo atual continua na conta
+            enquanto o checkout e iniciado.
           </DialogDescription>
         </DialogHeader>
 
@@ -161,14 +185,15 @@ export function PlanUpdateDialog({
               <Card
                 key={config.name}
                 className={cn(
-                  "relative flex h-full flex-col rounded-[1.5rem] border border-border/60 bg-card/85 transition-all",
-                  isCurrent
-                    ? "border-primary/70 ring-2 ring-primary/20"
-                    : "hover:-translate-y-1 hover:border-border",
+                  "relative flex h-full flex-col rounded-[2rem] border border-border/60 bg-card/85 py-0 shadow-[0_28px_90px_-65px_oklch(var(--foreground)/0.8)] transition-all",
+                  plan.popular
+                    ? "border-primary/70 lg:scale-[1.03]"
+                    : "hover:-translate-y-1 hover:border-border hover:shadow-xl",
+                  isCurrent ? "ring-2 ring-primary/20" : undefined,
                 )}
               >
                 {plan.popular ? (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.15em]">
+                  <Badge className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-[11px] uppercase tracking-[0.2em]">
                     Mais popular
                   </Badge>
                 ) : null}
@@ -176,61 +201,56 @@ export function PlanUpdateDialog({
                 {isCurrent ? (
                   <Badge
                     variant="secondary"
-                    className="absolute -top-3 right-3 rounded-full text-[10px] uppercase tracking-[0.15em]"
+                    className="absolute right-3 top-3 rounded-full text-[10px] uppercase tracking-[0.15em]"
                   >
                     Plano atual
                   </Badge>
                 ) : null}
 
-                <CardHeader className="pb-4 pt-8 text-center">
-                  <CardTitle className="text-2xl font-bold">{config.name}</CardTitle>
-                  <CardDescription className="text-xs leading-relaxed">{config.description}</CardDescription>
+                <CardHeader className="pb-2 pt-8 text-center">
+                  <CardTitle className="text-2xl">{config.name}</CardTitle>
+                  <CardDescription>{config.description}</CardDescription>
+                  <div className="mt-6 flex items-baseline justify-center gap-1">
+                    <span className="text-5xl font-black tracking-tight">{formatPrice(config.price)}</span>
+                    <span className="text-muted-foreground">{period}</span>
+                  </div>
                 </CardHeader>
 
-                <CardContent className="flex flex-1 flex-col px-6 pb-4">
-                  <div className="mb-8 text-center">
-                    <span className="text-5xl font-black tracking-tight">
-                      {formatPrice(config.price)}
-                    </span>
-                    <span className="ml-1 text-xs font-medium text-muted-foreground">{period}</span>
-                  </div>
+                <CardContent className="flex flex-1 flex-col justify-between space-y-8 px-6 pb-4">
+                  <ul className="space-y-4 text-left">
+                    <li className="flex items-start gap-3">
+                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                      <span className="text-sm font-medium">Creditos do plano: {config.credits}</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                      <span className="text-sm font-medium">
+                        {isCurrent ? `Creditos atuais: ${currentCredits}` : `Apos a compra: ${estimatedCredits}`}
+                      </span>
+                    </li>
+                    {config.features.slice(0, 3).map((feature) => (
+                      <li key={feature} className="flex items-start gap-3">
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                        <span className="text-sm font-medium">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
 
-                  <div className="mb-8 space-y-3">
-                    <div className="flex items-center justify-between rounded-md bg-muted/50 px-4 py-3">
-                      <span className="text-xs font-semibold">Creditos do plano:</span>
-                      <span className="font-bold text-base">{config.credits}</span>
-                    </div>
-                    {isCurrent ? (
-                      <div className="flex items-center justify-between rounded-md bg-muted/50 px-4 py-3">
-                        <span className="text-xs font-semibold">Creditos atuais:</span>
-                        <span className="font-bold text-base">{currentCredits}</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between rounded-md border border-primary/30 bg-primary/8 px-4 py-3">
-                        <span className="text-xs font-semibold">Apos a compra:</span>
-                        <span className="font-bold text-base text-primary">{estimatedCredits}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mb-6">
-                    <p className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Incluso no plano</p>
-                    <ul className="space-y-2.5">
-                      {config.features.slice(0, 3).map((feature) => (
-                        <li key={feature} className="flex items-start gap-3">
-                          <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                          <span className="text-sm font-medium leading-snug">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  <div className="rounded-[1.5rem] border border-border/60 bg-background/75 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      O que acontece no checkout
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      Selecionar este plano abre o checkout da Asaas e preserva os creditos restantes da conta.
+                    </p>
                   </div>
                 </CardContent>
 
-                <CardFooter className="border-t border-border/40 px-6 py-4">
+                <CardFooter className="pb-8">
                   <Button
-                    className="h-11 w-full rounded-lg text-sm font-semibold transition-all"
+                    className="h-12 w-full rounded-full font-semibold"
                     variant={isCurrent ? "secondary" : plan.popular ? "default" : "outline"}
-                    onClick={() => handleCheckout(plan.slug)}
+                    onClick={() => void handleCheckout(plan.slug)}
                     disabled={loading !== null || isCurrent || purchaseState.cannotPurchasePlan}
                     title={purchaseState.cannotPurchasePlan ? ACTIVE_MONTHLY_PLAN_ERROR_MESSAGE : undefined}
                   >
