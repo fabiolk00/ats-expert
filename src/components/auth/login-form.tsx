@@ -134,7 +134,7 @@ export default function LoginForm() {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Minimo 8 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 autoComplete="current-password"
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? "password-error" : undefined}
@@ -175,7 +175,7 @@ export default function LoginForm() {
           </Button>
 
           <p className="text-center text-sm text-muted-foreground">
-            Nao tem conta?{" "}
+            Não tem conta?{" "}
             <Link
               href={`/signup?redirect_to=${encodeURIComponent(redirectTo)}`}
               className="font-semibold text-primary hover:underline"

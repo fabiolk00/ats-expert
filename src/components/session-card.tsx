@@ -30,7 +30,7 @@ export default function SessionCard({ session }: SessionCardProps) {
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             <FileStack className="h-4 w-4 text-primary" />
-            Sessao {session.id.slice(0, 8)}
+            Sessão {session.id.slice(0, 8)}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <PhaseBadge phase={session.phase} />

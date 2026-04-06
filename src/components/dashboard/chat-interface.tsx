@@ -14,7 +14,7 @@ import { ChatMessage } from "./chat-message"
 
 type AgentDoneChunk = Extract<AgentStreamChunk, { done: true }>
 
-const CREDIT_EXHAUSTED_ERROR_PATTERN = /creditos acabaram/i
+const CREDIT_EXHAUSTED_ERROR_PATTERN = /cr[eé]ditos acabaram/i
 
 interface Message {
   id: string
@@ -27,6 +27,32 @@ interface Message {
     matchedKeywords: string[]
     missingKeywords: string[]
     suggestions: string[]
+  }
+}
+
+type ChatCopy = {
+  heading: string
+  description: string
+  placeholder: string
+  helperText: string
+  sessionCounterLabel: string
+  sessionExpiredText: string
+  sessionLimitText: string
+  allowFileUpload: boolean
+}
+
+function getChatCopy(firstName?: string): ChatCopy {
+  const greeting = firstName ? `Ol\u00E1, ${firstName}!` : "Ol\u00E1!"
+
+  return {
+    heading: greeting,
+    description: "Cole a descri\u00E7\u00E3o da vaga e envie seu curr\u00EDculo para iniciar a an\u00E1lise ATS.",
+    placeholder: "Cole a descri\u00E7\u00E3o da vaga aqui...",
+    helperText: "Arraste um arquivo PDF ou DOCX, ou clique no bot\u00E3o de upload.",
+    sessionCounterLabel: "nesta an\u00E1lise",
+    sessionExpiredText: "Sess\u00E3o n\u00E3o encontrada. Inicie uma nova an\u00E1lise para continuar.",
+    sessionLimitText: "Esta sess\u00E3o atingiu o limite de mensagens. Inicie uma nova an\u00E1lise para continuar.",
+    allowFileUpload: true,
   }
 }
 
@@ -72,13 +98,13 @@ export function ChatInterface({
   onCreditsExhausted,
 }: ChatInterfaceProps) {
   const { user } = useUser()
-  const greetingName = useMemo(
-    () => user?.firstName?.trim() || userName.trim() || "Você",
+  const copy = useMemo(
+    () => getChatCopy(user?.firstName?.trim() || userName.trim() || undefined),
     [user?.firstName, userName],
   )
   const [sessionId, setSessionId] = useState<string | undefined>(initialSessionId)
   const [messages, setMessages] = useState<Message[]>([
-    createWelcomeMessage(user?.firstName ?? undefined),
+    createWelcomeMessage(user?.firstName?.trim() || userName.trim() || undefined),
   ])
   const [input, setInput] = useState("")
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -103,7 +129,7 @@ export function ChatInterface({
   }, [isStreaming, onStreamingChange])
 
   useEffect(() => {
-    const welcomeMessage = createWelcomeMessage(user?.firstName ?? undefined)
+    const welcomeMessage = createWelcomeMessage(user?.firstName?.trim() || userName.trim() || undefined)
 
     if (!sessionId) {
       setMessages([welcomeMessage])
@@ -150,7 +176,7 @@ export function ChatInterface({
     return () => {
       cancelled = true
     }
-  }, [sessionId, user?.firstName])
+  }, [sessionId, user?.firstName, userName])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -331,7 +357,7 @@ export function ChatInterface({
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
     event.preventDefault()
-    if (!disabled) {
+    if (!disabled && copy.allowFileUpload) {
       setIsDragging(true)
     }
   }
@@ -345,7 +371,7 @@ export function ChatInterface({
     event.preventDefault()
     setIsDragging(false)
 
-    if (disabled) {
+    if (disabled || !copy.allowFileUpload) {
       return
     }
 
@@ -356,6 +382,10 @@ export function ChatInterface({
   }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    if (!copy.allowFileUpload) {
+      return
+    }
+
     const file = event.target.files?.[0]
     if (file) {
       setUploadedFile(file)
@@ -368,11 +398,11 @@ export function ChatInterface({
         <div className="border-b border-border bg-muted/30 px-4 py-2">
           <div className="mx-auto flex max-w-3xl items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              Mensagem {messageCount} de {maxMessages} nesta análise
+              Mensagem {messageCount} de {maxMessages} {copy.sessionCounterLabel}
             </span>
             <div className="flex items-center gap-2 text-xs">
-              {phase !== "intake" && <span className="text-muted-foreground">Fase: {phase}</span>}
-              {atsScore !== undefined && <span className="text-muted-foreground">ATS: {atsScore}</span>}
+              {phase !== "intake" ? <span className="text-muted-foreground">Fase: {phase}</span> : null}
+              {atsScore !== undefined ? <span className="text-muted-foreground">ATS: {atsScore}</span> : null}
             </div>
           </div>
         </div>
@@ -380,9 +410,9 @@ export function ChatInterface({
 
       {messages.length === 1 && (
         <div className="px-4 py-12 text-center">
-          <h1 className="mb-3 text-2xl font-bold md:text-3xl">Olá, {greetingName}!</h1>
+          <h1 className="mb-3 text-2xl font-bold md:text-3xl">{copy.heading}</h1>
           <p className="mx-auto max-w-md text-muted-foreground">
-            Cole a descrição da vaga e envie seu currículo para iniciar a análise ATS.
+            {copy.description}
           </p>
         </div>
       )}
@@ -426,7 +456,7 @@ export function ChatInterface({
         onDrop={handleDrop}
       >
         <div className="mx-auto max-w-3xl space-y-3">
-          {uploadedFile && (
+          {copy.allowFileUpload && uploadedFile && (
             <div className="flex w-fit items-center gap-2 rounded-lg bg-muted px-3 py-2">
               <FileText className="h-4 w-4 text-primary" />
               <span className="text-sm text-foreground">{uploadedFile.name}</span>
@@ -443,26 +473,30 @@ export function ChatInterface({
           )}
 
           <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              disabled={isInputDisabled}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="h-4 w-4" />
-            </Button>
+            {copy.allowFileUpload ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  disabled={isInputDisabled}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
+              </>
+            ) : null}
             <Textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="Cole a descrição da vaga aqui..."
+              placeholder={copy.placeholder}
               className="max-h-[200px] min-h-[44px] resize-none"
               rows={1}
               disabled={isInputDisabled}
@@ -485,15 +519,15 @@ export function ChatInterface({
 
           {sessionExpired ? (
             <p className="text-center text-xs text-amber-600">
-              Sessão não encontrada. Inicie uma nova análise para continuar.
+              {copy.sessionExpiredText}
             </p>
           ) : sessionLimitReached ? (
             <p className="text-center text-xs text-amber-600">
-              Esta sessão atingiu o limite de mensagens. Inicie uma nova análise para continuar.
+              {copy.sessionLimitText}
             </p>
           ) : (
             <p className="text-center text-xs text-muted-foreground">
-              Arraste um arquivo PDF ou DOCX, ou clique no botão de upload.
+              {copy.helperText}
             </p>
           )}
         </div>

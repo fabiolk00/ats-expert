@@ -21,14 +21,14 @@ import { navigateToUrl } from "@/lib/navigation/external"
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-  email: z.string().email("E-mail invalido"),
+  email: z.string().email("E-mail inválido"),
   password: z.string().min(8, "Senha deve ter pelo menos 8 caracteres"),
 })
 
 type SignUpData = z.infer<typeof signUpSchema>
 
 const verifySchema = z.object({
-  code: z.string().length(6, "O codigo deve ter 6 digitos"),
+  code: z.string().length(6, "O código deve ter 6 dígitos"),
 })
 
 type VerifyData = z.infer<typeof verifySchema>
@@ -41,7 +41,7 @@ function StepIndicator({ step }: { step: "signup" | "verify" }) {
       </span>
       <span className="text-muted-foreground/30">›</span>
       <span className={step === "verify" ? "font-semibold text-primary" : "font-medium"}>
-        Verificacao
+        Verificação
       </span>
     </div>
   )
@@ -112,7 +112,7 @@ export default function SignupForm() {
     } catch (error: unknown) {
       const message =
         (error as { errors?: { message: string }[] })?.errors?.[0]?.message ??
-        "Codigo invalido. Tente novamente."
+        "Código inválido. Tente novamente."
       verifyForm.setError("root", { message })
     }
   }
@@ -136,7 +136,7 @@ export default function SignupForm() {
             <div className="space-y-2">
               <h1 className="text-2xl font-bold tracking-tight">Verifique seu e-mail</h1>
               <p className="px-4 text-sm text-muted-foreground">
-                Enviamos um codigo de 6 digitos. Verifique sua caixa de entrada.
+                Enviamos um código de 6 dígitos. Verifique sua caixa de entrada.
               </p>
             </div>
           </div>
@@ -146,7 +146,7 @@ export default function SignupForm() {
           <CardContent className="space-y-6 pt-4">
             <div className="space-y-3">
               <Label htmlFor="code" className="sr-only">
-                Codigo de verificacao
+                Código de verificação
               </Label>
               <Input
                 id="code"
@@ -217,8 +217,8 @@ export default function SignupForm() {
         <StepIndicator step="signup" />
         <div className="space-y-2 pt-2">
           <h1 className="text-2xl font-bold tracking-tight">Criar sua conta</h1>
-          <p className="text-sm font-semibold text-primary">1 analise gratuita incluida</p>
-          <p className="text-xs font-medium text-muted-foreground">Sem cartao de credito</p>
+          <p className="text-sm font-semibold text-primary">1 análise gratuita incluída</p>
+          <p className="text-xs font-medium text-muted-foreground">Sem cartão de crédito</p>
         </div>
       </CardHeader>
 
@@ -298,7 +298,7 @@ export default function SignupForm() {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Minimo 8 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 autoComplete="new-password"
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? "password-error" : undefined}
@@ -337,11 +337,11 @@ export default function SignupForm() {
                 Criando conta...
               </>
             ) : (
-              "Criar conta gratis"
+              "Criar conta grátis"
             )}
           </Button>
           <p className="text-center text-sm text-muted-foreground">
-            Ja tem conta?{" "}
+            Já tem conta?{" "}
             <Link
               href={`/login?redirect_to=${encodeURIComponent(redirectTo)}`}
               className="font-semibold text-primary hover:underline"

@@ -112,7 +112,7 @@ async function prepareUserMessage(
     const sanitizedScrapedText = sanitizeUserInput(scrapeResult.text)
     message = message.replace(
       detectedUrl,
-      `[Link da vaga: ${detectedUrl}]\n\n[Conteudo extraido automaticamente]:\n${sanitizedScrapedText}`,
+      `[Link da vaga: ${detectedUrl}]\n\n[Conteúdo extraído automaticamente]:\n${sanitizedScrapedText}`,
     )
     logInfo('agent.scrape.completed', {
       requestId,
@@ -130,7 +130,7 @@ async function prepareUserMessage(
       scrapeSucceeded: false,
       success: false,
     })
-    message = `${message}\n\n[Nota do sistema: Tentei acessar o link ${detectedUrl} mas nao consegui extrair o conteudo. Motivo: ${scrapeResult.error}]`
+    message = `${message}\n\n[Nota do sistema: Tentei acessar o link ${detectedUrl} mas não consegui extrair o conteúdo. Motivo: ${scrapeResult.error}]`
   }
 
   return message
@@ -171,7 +171,7 @@ async function handleFileAttachment(
       success: false,
       errorMessage: parseError,
     })
-    return [message, `[Nota do sistema: Nao foi possivel processar o arquivo anexado. ${parseError}]`]
+    return [message, `[Nota do sistema: Não foi possível processar o arquivo anexado. ${parseError}]`]
       .filter(Boolean)
       .join('\n\n')
   }
@@ -188,11 +188,11 @@ async function handleFileAttachment(
 
   const base = message.trim()
     ? message
-    : 'Analise o curriculo anexado e me diga os proximos passos.'
+    : 'Analise o currículo anexado e me diga os próximos passos.'
 
   return [
     base,
-    '[Nota do sistema: O curriculo anexado ja foi processado e o texto extraido esta disponivel para analise.]',
+    '[Nota do sistema: O currículo anexado já foi processado e o texto extraído está disponível para análise.]',
   ].join('\n\n')
 }
 
@@ -283,7 +283,7 @@ export async function POST(req: NextRequest) {
       latencyMs: Date.now() - requestStartedAt,
     })
     return new Response(JSON.stringify({
-      error: 'Sessao nao encontrada. Inicie uma nova analise.',
+      error: 'Sessão não encontrada. Inicie uma nova análise.',
       action: 'new_session',
     }), { status: 404 })
   }
@@ -312,7 +312,7 @@ export async function POST(req: NextRequest) {
         success: false,
       })
       return new Response(JSON.stringify({
-        error: 'Esta sessao atingiu o limite de 15 mensagens. Inicie uma nova analise para continuar.',
+        error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
         action: 'new_session',
         messageCount: session.messageCount,
         maxMessages: AGENT_CONFIG.maxMessagesPerSession,
@@ -328,7 +328,7 @@ export async function POST(req: NextRequest) {
         latencyMs: Date.now() - requestStartedAt,
       })
       return new Response(JSON.stringify({
-        error: 'Seus creditos acabaram. Faca upgrade do seu plano para continuar.',
+        error: 'Seus créditos acabaram. Faça upgrade do seu plano para continuar.',
         upgradeUrl: '/pricing',
       }), { status: 402 })
     }
@@ -344,7 +344,7 @@ export async function POST(req: NextRequest) {
         latencyMs: Date.now() - requestStartedAt,
       })
       return new Response(JSON.stringify({
-        error: 'Erro ao processar credito. Tente novamente.',
+        error: 'Erro ao processar crédito. Tente novamente.',
       }), { status: 500 })
     }
 
@@ -377,7 +377,7 @@ export async function POST(req: NextRequest) {
       success: false,
     })
     return new Response(JSON.stringify({
-      error: 'Esta sessao atingiu o limite de 15 mensagens. Inicie uma nova analise para continuar.',
+      error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
       action: 'new_session',
       messageCount: AGENT_CONFIG.maxMessagesPerSession,
       maxMessages: AGENT_CONFIG.maxMessagesPerSession,
@@ -432,17 +432,17 @@ export async function POST(req: NextRequest) {
 
             if (event.error instanceof APIError && event.error.status) {
               const statusMessages: Record<number, string> = {
-                400: 'Erro na requisicao. Por favor, tente novamente.',
-                401: 'Erro de configuracao da IA. Entre em contato com o suporte.',
-                403: 'Acesso negado ao servico de IA. Entre em contato com o suporte.',
-                429: 'O servico de IA esta sobrecarregado. Tente novamente em alguns segundos.',
-                500: 'O servico de IA esta temporariamente indisponivel. Tente novamente.',
-                502: 'O servico de IA esta temporariamente indisponivel. Tente novamente.',
-                503: 'O servico de IA esta em manutencao. Tente novamente em alguns minutos.',
+                400: 'Erro na requisição. Por favor, tente novamente.',
+                401: 'Erro de configuração da IA. Entre em contato com o suporte.',
+                403: 'Acesso negado ao serviço de IA. Entre em contato com o suporte.',
+                429: 'O serviço de IA está sobrecarregado. Tente novamente em alguns segundos.',
+                500: 'O serviço de IA está temporariamente indisponível. Tente novamente.',
+                502: 'O serviço de IA está temporariamente indisponível. Tente novamente.',
+                503: 'O serviço de IA está em manutenção. Tente novamente em alguns minutos.',
               }
               errorMessage = statusMessages[event.error.status] ?? errorMessage
             } else if (event.error.name === 'AbortError') {
-              errorMessage = 'A requisicao demorou muito. Por favor, tente novamente.'
+              errorMessage = 'A requisição demorou muito. Por favor, tente novamente.'
             }
 
             send({ error: errorMessage, requestId })

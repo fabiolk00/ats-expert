@@ -9,7 +9,7 @@ import { PLANS, formatPrice } from "@/lib/plans"
 const plans = [
   {
     slug: "free" as const,
-    cta: "Comecar gratis",
+    cta: "Começar grátis",
     href: "/signup",
   },
   {
@@ -35,7 +35,7 @@ export default function PricingSection() {
       <div className="container mx-auto px-4">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-balance md:text-4xl">
-            Precos simples e transparentes
+            Preços simples e transparentes
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
             Escolha o plano ideal para suas necessidades. Cancele quando quiser.
@@ -75,7 +75,7 @@ export default function PricingSection() {
                       {formatPrice(config.price)}
                     </span>
                     {config.billing === "monthly" ? (
-                      <span className="font-medium text-muted-foreground">/mes</span>
+                      <span className="font-medium text-muted-foreground">/mês</span>
                     ) : null}
                   </div>
                 </CardHeader>
@@ -129,7 +129,7 @@ export default function PricingSection() {
               <Gift className="h-3.5 w-3.5" />
             </div>
             <span>
-              1 analise <strong className="text-foreground">totalmente gratuita</strong>
+              1 análise <strong className="text-foreground">totalmente gratuita</strong>
             </span>
           </div>
         </div>

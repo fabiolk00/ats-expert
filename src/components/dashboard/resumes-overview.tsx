@@ -30,17 +30,17 @@ export function ResumesOverview({ sessions, createSessionAction }: ResumesOvervi
             Biblioteca CurrIA
           </Badge>
           <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">
-            Todos os seus curriculos em um so lugar
+            Todos os seus currículos em um só lugar
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-            Retome qualquer sessao, revise scores anteriores e volte para o workspace sem perder o contexto da sua busca.
+            Retome qualquer sessão, revise scores anteriores e volte para o workspace sem perder o contexto da sua busca.
           </p>
 
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
             <form action={createSessionAction}>
               <Button type="submit" size="lg" className="font-semibold">
                 <Plus className="mr-2 h-4 w-4" />
-                Novo curriculo
+                Novo currículo
               </Button>
             </form>
             <Button asChild variant="outline" size="lg" className="font-semibold">
@@ -57,7 +57,7 @@ export function ResumesOverview({ sessions, createSessionAction }: ResumesOvervi
             <SessionList sessions={sessions} />
           ) : (
             <div className="rounded-2xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
-              Voce ainda nao tem nenhum curriculo analisado.
+              Você ainda não tem nenhum currículo analisado.
             </div>
           )}
         </div>

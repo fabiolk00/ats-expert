@@ -53,7 +53,7 @@ describe("PlanUpdateDialog", () => {
     )
 
     expect(screen.getByRole("dialog")).toBeInTheDocument()
-    expect(screen.getByText("Atualizacao de plano")).toBeInTheDocument()
+    expect(screen.getByText("Atualização de plano")).toBeInTheDocument()
     expect(screen.getByText("Mais popular")).toBeInTheDocument()
     expect(screen.getAllByRole("button", { name: "Selecionar" })).toHaveLength(3)
   })

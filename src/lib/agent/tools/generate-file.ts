@@ -114,7 +114,7 @@ type GenerationValidationResult =
 
 function capValidationErrorMessage(message: string): string {
   return message.length > MAX_VALIDATION_ERROR_MESSAGE_LENGTH
-    ? `${message.slice(0, MAX_VALIDATION_ERROR_MESSAGE_LENGTH - 1)}…`
+    ? `${message.slice(0, MAX_VALIDATION_ERROR_MESSAGE_LENGTH - 3)}...`
     : message
 }
 
@@ -427,7 +427,7 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
 
   if (cv.experience.length > 0) {
     page = checkPageOverflow(currentY)
-    currentY = drawSectionHeading(page, 'Experiencia Profissional', currentY)
+    currentY = drawSectionHeading(page, 'Experiência Profissional', currentY)
 
     for (const experience of cv.experience) {
       page = checkPageOverflow(currentY)
@@ -467,7 +467,7 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
 
   if (cv.education.length > 0) {
     page = checkPageOverflow(currentY)
-    currentY = drawSectionHeading(page, 'Formacao Academica', currentY)
+    currentY = drawSectionHeading(page, 'Formação Acadêmica', currentY)
 
     for (const education of cv.education) {
       page = checkPageOverflow(currentY)
@@ -479,7 +479,7 @@ export async function generatePDF(cv: CVState): Promise<Buffer> {
 
   if (cv.certifications && cv.certifications.length > 0) {
     page = checkPageOverflow(currentY)
-    currentY = drawSectionHeading(page, 'Certificacoes', currentY)
+    currentY = drawSectionHeading(page, 'Certificações', currentY)
 
     for (const certification of cv.certifications) {
       page = checkPageOverflow(currentY)

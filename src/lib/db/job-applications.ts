@@ -12,7 +12,7 @@ import type {
 
 export const JOB_APPLICATION_STATUSES = ['entrevista', 'aguardando', 'sem_retorno', 'negativa'] as const
 export const JOB_APPLICATIONS_FEATURE_UNAVAILABLE_MESSAGE =
-  'O gerenciamento de vagas ainda nao esta disponivel neste ambiente.'
+  'O gerenciamento de vagas ainda não está disponível neste ambiente.'
 
 const JobApplicationStatusSchema = z.enum(JOB_APPLICATION_STATUSES)
 

@@ -44,6 +44,7 @@ This index is the main directory for the active documentation set.
 - [openai/MODEL_SELECTION_MATRIX.md](./openai/MODEL_SELECTION_MATRIX.md)
 - [openai/PORTUGUESE_QUALITY_GATE.md](./openai/PORTUGUESE_QUALITY_GATE.md)
 - [openai/PORTUGUESE_TEST_RESULTS.md](./openai/PORTUGUESE_TEST_RESULTS.md)
+- [openai/PT_BR_WEBSITE_PROOFREADER_AGENT_PROMPT.md](./openai/PT_BR_WEBSITE_PROOFREADER_AGENT_PROMPT.md)
 - [openai/MIGRATION_CHECKLIST.md](./openai/MIGRATION_CHECKLIST.md)
 - [openai/MIGRATION_MONITORING.md](./openai/MIGRATION_MONITORING.md)
 - [openai/MIGRATION_ROLLBACK.md](./openai/MIGRATION_ROLLBACK.md)

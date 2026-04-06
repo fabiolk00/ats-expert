@@ -68,13 +68,13 @@ function formatSectionTitle(section: ManualEditSection | null): string {
     case "skills":
       return "Skills"
     case "experience":
-      return "Experiencia"
+      return "Experiência"
     case "education":
-      return "Educacao"
+      return "Educação"
     case "certifications":
-      return "Certificacoes"
+      return "Certificações"
     default:
-      return "Secao"
+      return "Seção"
   }
 }
 
@@ -102,15 +102,15 @@ export function ManualEditDialog({
 
   const description = useMemo(() => {
     if (section === "skills") {
-      return "Edite uma skill por linha. A alteracao vai atualizar apenas a base canonica."
+      return "Edite uma skill por linha. A alteração vai atualizar apenas a base canônica."
     }
     if (section === "contact") {
-      return "Atualize apenas os campos de contato que devem permanecer na base canonica."
+      return "Atualize apenas os campos de contato que devem permanecer na base canônica."
     }
     if (section === "summary") {
-      return "Edite o resumo da base canonica. Variantes por vaga continuam isoladas."
+      return "Edite o resumo da base canônica. Variantes por vaga continuam isoladas."
     }
-    return "Edite o JSON estruturado desta secao. Somente uma secao e alterada por vez."
+    return "Edite o JSON estruturado desta seção. Somente uma seção é alterada por vez."
   }, [section])
 
   useEffect(() => {
@@ -186,7 +186,7 @@ export function ManualEditDialog({
       const parsed = JSON.parse(jsonDraft) as unknown
 
       if (!Array.isArray(parsed)) {
-        setError("O conteudo estruturado deve ser um array JSON.")
+        setError("O conteúdo estruturado deve ser um array JSON.")
         return
       }
 
@@ -211,7 +211,7 @@ export function ManualEditDialog({
         value: parsed as CertificationEntry[],
       })
     } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : "Nao foi possivel salvar."
+      const message = submitError instanceof Error ? submitError.message : "Não foi possível salvar."
       setError(message)
     }
   }
@@ -273,7 +273,7 @@ export function ManualEditDialog({
               />
               <Input
                 value={contactDraft.location}
-                placeholder="Localizacao"
+                placeholder="Localização"
                 className="sm:col-span-2"
                 disabled={busy}
                 onChange={(event) =>
@@ -314,7 +314,7 @@ export function ManualEditDialog({
               disabled={busy}
               rows={16}
               className="font-mono text-xs"
-              placeholder="Cole um array JSON valido."
+              placeholder="Cole um array JSON válido."
               onChange={(event) => setJsonDraft(event.target.value)}
             />
           )}

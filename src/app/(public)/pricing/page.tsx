@@ -6,7 +6,7 @@ import PricingCards from "@/components/pricing/pricing-cards"
 
 export const metadata: Metadata = {
   title: "Planos - CurrIA",
-  description: "Escolha o plano ideal para otimizar seu curriculo com IA",
+  description: "Escolha o plano ideal para otimizar seu currículo com IA",
 }
 
 export default function PricingPage() {
@@ -30,7 +30,7 @@ export default function PricingPage() {
           <PricingCards />
 
           <p className="mt-12 text-center text-sm font-medium text-muted-foreground">
-            Analise gratuita disponivel para todos, sem cadastro.
+            Análise gratuita disponível para todos, sem cadastro.
           </p>
         </div>
       </main>

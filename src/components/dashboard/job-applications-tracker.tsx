@@ -61,7 +61,7 @@ import type {
 } from "@/types/dashboard"
 
 const LOCKED_TRACKER_MESSAGE =
-  "O gerenciamento de vagas faz parte dos planos pagos. Faca upgrade para registrar candidaturas, curriculos enviados e acompanhar cada status em um so lugar."
+  "O gerenciamento de vagas faz parte dos planos pagos. Faça upgrade para registrar candidaturas, currículos enviados e acompanhar cada status em um só lugar."
 const LOCKED_TRACKER_TITLE = "Gerenciamento de vagas bloqueado"
 const LOCKED_TRACKER_EYEBROW = "Recurso Premium"
 
@@ -393,7 +393,7 @@ export function JobApplicationsTracker({
     }
 
     setDeleteTarget(null)
-    setStatusMessage("Vaga excluida com sucesso.")
+    setStatusMessage("Vaga excluída com sucesso.")
     router.refresh()
     setPendingAction(null)
   }
@@ -422,7 +422,7 @@ export function JobApplicationsTracker({
           <div>
             <h1 className="mb-2 text-3xl font-bold">Minhas Vagas</h1>
             <p className="text-muted-foreground">
-              Registre manualmente cada vaga, acompanhe o status e saiba qual curriculo foi enviado.
+              Registre manualmente cada vaga, acompanhe o status e saiba qual currículo foi enviado.
             </p>
           </div>
           <Button className="shrink-0 shadow-sm" onClick={openCreateDialog} disabled={interactionsDisabled}>
@@ -443,7 +443,7 @@ export function JobApplicationsTracker({
 
         {loadErrorMessage ? (
           <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 shadow-sm dark:text-amber-200">
-            <p className="font-semibold">Nao foi possivel carregar suas candidaturas agora.</p>
+            <p className="font-semibold">Não foi possível carregar suas candidaturas agora.</p>
             <p className="mt-1 text-amber-900/80 dark:text-amber-200/80">{loadErrorMessage}</p>
           </div>
         ) : null}
@@ -574,7 +574,7 @@ export function JobApplicationsTracker({
                     <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 p-3">
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-emerald-500" />
-                        <span className="text-sm font-semibold">{application.salary || "Nao informado"}</span>
+                        <span className="text-sm font-semibold">{application.salary || "Não informado"}</span>
                       </div>
                       <span className="rounded-md bg-background px-2 py-0.5 text-xs text-muted-foreground">
                         Atualizado manualmente
@@ -584,7 +584,7 @@ export function JobApplicationsTracker({
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-sm font-semibold">
                         <HeartPulse className="h-4 w-4 text-rose-500" />
-                        Beneficios Oferecidos
+                        Benefícios oferecidos
                       </div>
                       <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
                         {application.benefits.length > 0 ? (
@@ -604,7 +604,7 @@ export function JobApplicationsTracker({
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-sm text-muted-foreground">Nenhum beneficio cadastrado.</p>
+                          <p className="text-sm text-muted-foreground">Nenhum benefício cadastrado.</p>
                         )}
                       </div>
                     </div>
@@ -612,7 +612,7 @@ export function JobApplicationsTracker({
                     {detailsPreview ? (
                       <div className="rounded-lg border border-border/40 bg-background/60 p-3">
                         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Descricao ou observacoes
+                          Descrição ou observações
                         </p>
                         <p className="text-sm leading-6 text-muted-foreground">{detailsPreview}</p>
                       </div>
@@ -622,7 +622,7 @@ export function JobApplicationsTracker({
                   <CardFooter className="flex flex-col gap-4 rounded-b-xl border-t bg-muted/5 pt-4">
                     <div className="w-full space-y-2">
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Curriculo Utilizado
+                        Currículo utilizado
                       </p>
                       <div className="flex items-center gap-2.5 rounded-md border border-primary/20 bg-primary/5 p-2.5">
                         <div className="shrink-0 rounded bg-background p-1.5 shadow-sm">
@@ -696,10 +696,10 @@ export function JobApplicationsTracker({
             <h3 className="mb-1 text-lg font-medium">Nenhuma vaga encontrada</h3>
             <p className="mb-6 max-w-sm text-muted-foreground">
               {loadErrorMessage
-                ? "O gerenciamento de vagas ainda nao esta disponivel neste ambiente. Tente novamente em instantes."
+                ? "O gerenciamento de vagas ainda não está disponível neste ambiente. Tente novamente em instantes."
                 : applications.length === 0
                 ? "Comece adicionando sua primeira vaga para acompanhar a busca."
-                : "Nao encontramos nenhuma candidatura com esse status ou termo de busca."}
+                : "Não encontramos nenhuma candidatura com esse status ou termo de busca."}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               {applications.length === 0 && !loadErrorMessage ? (
@@ -760,7 +760,7 @@ export function JobApplicationsTracker({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="job-salary">Salario</Label>
+                <Label htmlFor="job-salary">Salário</Label>
                 <Input
                   id="job-salary"
                   value={formState.salary}
@@ -773,7 +773,7 @@ export function JobApplicationsTracker({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="job-location">Localizacao</Label>
+                <Label htmlFor="job-location">Localização</Label>
                 <Input
                   id="job-location"
                   value={formState.location}
@@ -781,12 +781,12 @@ export function JobApplicationsTracker({
                   onChange={(event) =>
                     setFormState((current) => ({ ...current, location: event.target.value }))
                   }
-                  placeholder="Ex.: Remoto ou Hibrido (SP)"
+                  placeholder="Ex.: Remoto ou Híbrido (SP)"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="job-resume-version">Nome do curriculo enviado</Label>
+                <Label htmlFor="job-resume-version">Nome do currículo enviado</Label>
                 <Input
                   id="job-resume-version"
                   value={formState.resumeVersionLabel}
@@ -797,7 +797,7 @@ export function JobApplicationsTracker({
                       resumeVersionLabel: event.target.value,
                     }))
                   }
-                  placeholder="Ex.: Curriculo_Fintech_v3.pdf"
+                  placeholder="Ex.: Currículo_Fintech_v3.pdf"
                   required
                 />
               </div>
@@ -817,7 +817,7 @@ export function JobApplicationsTracker({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="job-benefits">Beneficios</Label>
+              <Label htmlFor="job-benefits">Benefícios</Label>
               <Textarea
                 id="job-benefits"
                 rows={4}
@@ -826,12 +826,12 @@ export function JobApplicationsTracker({
                 onChange={(event) =>
                   setFormState((current) => ({ ...current, benefitsText: event.target.value }))
                 }
-                placeholder={"Um beneficio por linha\nUse 'Nome | Valor' se quiser incluir valor"}
+                placeholder={"Um benefício por linha\nUse 'Nome | Valor' se quiser incluir valor"}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="job-description">Descricao da vaga</Label>
+              <Label htmlFor="job-description">Descrição da vaga</Label>
               <Textarea
                 id="job-description"
                 rows={6}
@@ -840,12 +840,12 @@ export function JobApplicationsTracker({
                 onChange={(event) =>
                   setFormState((current) => ({ ...current, jobDescription: event.target.value }))
                 }
-                placeholder="Cole aqui a descricao manual da vaga."
+                placeholder="Cole aqui a descrição manual da vaga."
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="job-notes">Observacoes</Label>
+              <Label htmlFor="job-notes">Observações</Label>
               <Textarea
                 id="job-notes"
                 rows={4}
@@ -863,7 +863,7 @@ export function JobApplicationsTracker({
                 Cancelar
               </Button>
               <Button type="submit" disabled={interactionsDisabled}>
-                {editingApplication ? "Salvar alteracoes" : "Criar vaga"}
+                {editingApplication ? "Salvar alterações" : "Criar vaga"}
               </Button>
             </DialogFooter>
           </form>
@@ -883,8 +883,8 @@ export function JobApplicationsTracker({
             <AlertDialogTitle>Excluir vaga?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
-                ? `A vaga ${deleteTarget.role} em ${deleteTarget.company} sera removida permanentemente do tracker.`
-                : "Esta acao nao pode ser desfeita."}
+                ? `A vaga ${deleteTarget.role} em ${deleteTarget.company} será removida permanentemente do tracker.`
+                : "Esta ação não pode ser desfeita."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -122,7 +122,7 @@ export function CompareDrawer({
         <DrawerHeader>
           <DrawerTitle>Comparar snapshots</DrawerTitle>
           <DrawerDescription>
-            Compare base, versoes historicas e variantes derivadas sem mutar o estado.
+            Compare base, versões históricas e variantes derivadas sem mutar o estado.
           </DrawerDescription>
         </DrawerHeader>
 
@@ -165,7 +165,7 @@ export function CompareDrawer({
             disabled={busy || leftValue === rightValue}
             onClick={() => void onCompare(parseSnapshotRef(leftValue), parseSnapshotRef(rightValue))}
           >
-            {busy ? "Comparando..." : "Executar comparacao"}
+            {busy ? "Comparando..." : "Executar comparação"}
           </Button>
         </div>
 
@@ -190,7 +190,7 @@ export function CompareDrawer({
 
                 {Object.keys(result.diff).length === 0 ? (
                   <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                    Nenhuma diferenca estrutural detectada entre os snapshots selecionados.
+                    Nenhuma diferença estrutural detectada entre os snapshots selecionados.
                   </div>
                 ) : (
                   Object.entries(result.diff).map(([section, value]) => (
@@ -207,7 +207,7 @@ export function CompareDrawer({
 
             {!result && (
               <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                Selecione dois snapshots e execute a comparacao para ver o diff estruturado.
+                Selecione dois snapshots e execute a comparação para ver o diff estruturado.
               </div>
             )}
           </div>

@@ -117,7 +117,7 @@ describe('agent route billing guard', () => {
 
     expect(response.status).toBe(402)
     expect(await response.json()).toEqual({
-      error: 'Seus creditos acabaram. Faca upgrade do seu plano para continuar.',
+      error: 'Seus créditos acabaram. Faça upgrade do seu plano para continuar.',
       upgradeUrl: '/pricing',
     })
   })
@@ -151,7 +151,7 @@ describe('agent route billing guard', () => {
 
     expect(response.status).toBe(404)
     const body = await response.json()
-    expect(body.error).toBe('Sessao nao encontrada. Inicie uma nova analise.')
+    expect(body.error).toBe('Sessão não encontrada. Inicie uma nova análise.')
     expect(body.action).toBe('new_session')
     expect(checkUserQuota).not.toHaveBeenCalled()
     expect(createSessionWithCredit).not.toHaveBeenCalled()

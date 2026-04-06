@@ -115,7 +115,7 @@ export function PlanUpdateDialog({
       const purchaseState = getPlanPurchaseState(activeRecurringPlan, plan)
 
       if (purchaseState.isCurrentActiveRecurringPlan) {
-        toast.info("Voce ja possui este plano mensal ativo")
+        toast.info("Você já possui este plano mensal ativo")
         return
       }
 
@@ -151,17 +151,17 @@ export function PlanUpdateDialog({
         <DialogHeader className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em]">
-              Atualizacao de plano
+              Atualização de plano
             </Badge>
             <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-              Creditos preservados
+              Créditos preservados
             </div>
           </div>
           <DialogTitle className="text-3xl font-black tracking-tight">Escolha seu novo plano</DialogTitle>
           <DialogDescription className="max-w-2xl text-base leading-7">
-            O modal segue a mesma estrutura visual dos cards da pagina de precos. Seu saldo atual continua na conta
-            enquanto o checkout e iniciado.
+            O modal segue a mesma estrutura visual dos cards da página de preços. Seu saldo atual continua na conta
+            enquanto o checkout é iniciado.
           </DialogDescription>
         </DialogHeader>
 
@@ -212,12 +212,12 @@ export function PlanUpdateDialog({
                   <ul className="space-y-4 text-left">
                     <li className="flex items-start gap-3">
                       <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span className="text-sm font-medium">Creditos do plano: {config.credits}</span>
+                      <span className="text-sm font-medium">Créditos do plano: {config.credits}</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                       <span className="text-sm font-medium">
-                        {isCurrent ? `Creditos atuais: ${currentCredits}` : `Apos a compra: ${estimatedCredits}`}
+                        {isCurrent ? `Créditos atuais: ${currentCredits}` : `Após a compra: ${estimatedCredits}`}
                       </span>
                     </li>
                     {config.features.slice(0, 3).map((feature) => (
@@ -233,7 +233,7 @@ export function PlanUpdateDialog({
                       O que acontece no checkout
                     </p>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Selecionar este plano abre o checkout da Asaas e preserva os creditos restantes da conta.
+                      Selecionar este plano abre o checkout da Asaas e preserva os créditos restantes da conta.
                     </p>
                   </div>
                 </CardContent>

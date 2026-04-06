@@ -66,7 +66,7 @@ describe('PricingCards', () => {
 
     render(<PricingCards />)
 
-    expect(screen.getByRole('button', { name: /Come.*gratis/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Come.*grátis/i })).toBeDisabled()
     for (const button of screen.getAllByRole('button', { name: /Come.*agora/i })) {
       expect(button).toBeDisabled()
     }
@@ -76,8 +76,8 @@ describe('PricingCards', () => {
     render(<PricingCards />)
 
     expect(screen.getAllByText('Gerenciamento de vagas')).toHaveLength(4)
-    expect(screen.getAllByLabelText('Recurso incluido')).toHaveLength(3)
-    expect(screen.getAllByLabelText('Recurso indisponivel')).toHaveLength(1)
+    expect(screen.getAllByLabelText('Recurso incluído')).toHaveLength(3)
+    expect(screen.getAllByLabelText('Recurso indisponível')).toHaveLength(1)
   })
 
   it('redirects signed-out users to signup when they choose the free plan', async () => {
@@ -85,7 +85,7 @@ describe('PricingCards', () => {
 
     render(<PricingCards />)
 
-    await user.click(screen.getByRole('button', { name: /Come.*gratis/i }))
+    await user.click(screen.getByRole('button', { name: /Come.*grátis/i }))
 
     expect(mockPush).toHaveBeenCalledWith('/signup')
     expect(fetch).not.toHaveBeenCalled()
@@ -230,7 +230,7 @@ describe('PricingCards', () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(2)
-      expect(mockToastError).toHaveBeenCalledWith('Nao foi possivel iniciar o checkout. Tente novamente.')
+      expect(mockToastError).toHaveBeenCalledWith('Não foi possível iniciar o checkout. Tente novamente.')
     })
 
     expect(mockNavigateToUrl).not.toHaveBeenCalled()
@@ -260,7 +260,7 @@ describe('PricingCards', () => {
     await user.click(screen.getAllByRole('button', { name: /Come.*agora/i })[0])
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith('Nao foi possivel iniciar o checkout. Tente novamente.')
+      expect(mockToastError).toHaveBeenCalledWith('Não foi possível iniciar o checkout. Tente novamente.')
     })
   })
 })

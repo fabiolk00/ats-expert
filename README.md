@@ -73,6 +73,7 @@ Then open `http://localhost:3000`.
 - [docs/openai/MODEL_SELECTION_MATRIX.md](docs/openai/MODEL_SELECTION_MATRIX.md)
 - [docs/openai/PORTUGUESE_QUALITY_GATE.md](docs/openai/PORTUGUESE_QUALITY_GATE.md)
 - [docs/openai/PORTUGUESE_TEST_RESULTS.md](docs/openai/PORTUGUESE_TEST_RESULTS.md)
+- [docs/openai/PT_BR_WEBSITE_PROOFREADER_AGENT_PROMPT.md](docs/openai/PT_BR_WEBSITE_PROOFREADER_AGENT_PROMPT.md)
 
 ### Staging and Release Validation
 

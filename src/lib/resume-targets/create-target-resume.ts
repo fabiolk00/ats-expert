@@ -93,7 +93,9 @@ Output valid JSON matching this exact CV state shape:
 Rules:
 - preserve factual accuracy from the base resume
 - optimize emphasis, ordering, and wording for the target job description
-- do not invent companies, dates, degrees, certifications, or metrics`,
+- do not invent companies, dates, degrees, certifications, or metrics
+- if the output is in Portuguese, use Brazilian Portuguese (pt-BR) with correct accentuation, spelling, grammar, and natural resume wording
+- never use European Portuguese variants unless explicitly requested`,
           },
           {
             role: 'user',

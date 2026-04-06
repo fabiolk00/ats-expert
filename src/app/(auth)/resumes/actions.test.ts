@@ -204,7 +204,7 @@ describe("resumes actions", () => {
 
     expect(result).toEqual({
       success: false,
-      error: "Nao foi possivel verificar seu acesso ao gerenciamento de vagas agora. Tente novamente em instantes.",
+      error: "Não foi possível verificar seu acesso ao gerenciamento de vagas agora. Tente novamente em instantes.",
     })
     expect(mockUpdateJobApplication).not.toHaveBeenCalled()
     expect(mockRevalidatePath).not.toHaveBeenCalled()

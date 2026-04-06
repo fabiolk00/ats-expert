@@ -11,7 +11,7 @@ import type { JobApplication, JobApplicationFormInput, SerializedJobApplication 
 const JOB_APPLICATIONS_PAID_PLAN_MESSAGE =
   'O gerenciamento de vagas faz parte dos planos pagos.'
 const JOB_APPLICATIONS_ACCESS_UNAVAILABLE_MESSAGE =
-  'Nao foi possivel verificar seu acesso ao gerenciamento de vagas agora. Tente novamente em instantes.'
+  'Não foi possível verificar seu acesso ao gerenciamento de vagas agora. Tente novamente em instantes.'
 
 const JobApplicationBenefitSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -136,7 +136,7 @@ export async function createJobApplicationAction(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Nao foi possivel criar a vaga.',
+      error: error instanceof Error ? error.message : 'Não foi possível criar a vaga.',
     }
   }
 }
@@ -158,7 +158,7 @@ export async function updateJobApplicationDetailsAction(input: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Nao foi possivel atualizar a vaga.',
+      error: error instanceof Error ? error.message : 'Não foi possível atualizar a vaga.',
     }
   }
 }
@@ -181,7 +181,7 @@ export async function updateJobApplicationStatusAction(input: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Nao foi possivel atualizar o status.',
+      error: error instanceof Error ? error.message : 'Não foi possível atualizar o status.',
     }
   }
 }
@@ -201,7 +201,7 @@ export async function deleteJobApplicationAction(input: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Nao foi possivel excluir a vaga.',
+      error: error instanceof Error ? error.message : 'Não foi possível excluir a vaga.',
     }
   }
 }

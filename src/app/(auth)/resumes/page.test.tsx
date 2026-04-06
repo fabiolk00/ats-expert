@@ -136,15 +136,15 @@ describe("ResumesPage", () => {
     expect(screen.getByTestId("job-applications-tracker")).toHaveAttribute("data-locked", "true")
     expect(screen.getByTestId("job-applications-tracker")).toHaveAttribute(
       "data-locked-eyebrow",
-      "Acesso indisponivel",
+      "Acesso indisponível",
     )
     expect(screen.getByTestId("job-applications-tracker")).toHaveAttribute(
       "data-locked-title",
-      "Nao foi possivel validar seu plano",
+      "Não foi possível validar seu plano",
     )
     expect(screen.getByTestId("job-applications-tracker")).toHaveAttribute(
       "data-locked-message",
-      "Nao foi possivel verificar seu acesso ao gerenciamento de vagas agora. Atualize a pagina ou tente novamente em instantes.",
+      "Não foi possível verificar seu acesso ao gerenciamento de vagas agora. Atualize a página ou tente novamente em instantes.",
     )
     expect(mockGetJobApplicationsForUser).not.toHaveBeenCalled()
   })

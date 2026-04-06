@@ -22,10 +22,10 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-const BILLING_ACCESS_UNAVAILABLE_TITLE = "Nao foi possivel validar seu plano"
-const BILLING_ACCESS_UNAVAILABLE_EYEBROW = "Acesso indisponivel"
+const BILLING_ACCESS_UNAVAILABLE_TITLE = "Não foi possível validar seu plano"
+const BILLING_ACCESS_UNAVAILABLE_EYEBROW = "Acesso indisponível"
 const BILLING_ACCESS_UNAVAILABLE_MESSAGE =
-  "Nao foi possivel verificar seu acesso ao gerenciamento de vagas agora. Atualize a pagina ou tente novamente em instantes."
+  "Não foi possível verificar seu acesso ao gerenciamento de vagas agora. Atualize a página ou tente novamente em instantes."
 
 function serializeJobApplication(application: JobApplication): SerializedJobApplication {
   return {
@@ -69,7 +69,7 @@ export default async function ResumesPage() {
           loadErrorMessage:
             error instanceof Error
               ? error.message
-              : "Nao foi possivel carregar suas vagas agora. Tente novamente em instantes.",
+              : "Não foi possível carregar suas vagas agora. Tente novamente em instantes.",
         }))
 
   return (

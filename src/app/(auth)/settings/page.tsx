@@ -15,8 +15,8 @@ import { PLANS } from "@/lib/plans"
 import { createSession } from "../dashboard/actions"
 
 export const metadata = {
-  title: "Configuracoes - CurrIA",
-  description: "Gerencie sua conta, creditos e acessos no CurrIA",
+  title: "Configurações - CurrIA",
+  description: "Gerencie sua conta, créditos e acessos no CurrIA",
 }
 
 function formatSessionDate(value: Date): string {
@@ -44,12 +44,12 @@ export default async function SettingsPage() {
   }
 
   const sessions = await db.getUserSessions(appUser.id, 4)
-  const firstName = clerkUser?.firstName?.trim() || clerkUser?.username || "Voce"
+  const firstName = clerkUser?.firstName?.trim() || clerkUser?.username || "Você"
   const email =
     clerkUser?.primaryEmailAddress?.emailAddress ||
     clerkUser?.emailAddresses[0]?.emailAddress ||
     appUser.authIdentity.email ||
-    "Email nao disponivel"
+    "E-mail não disponível"
 
   const formattedSessions = sessions.map((session) => ({
     id: session.id,
@@ -84,17 +84,17 @@ export default async function SettingsPage() {
                 Conta CurrIA
               </Badge>
               <h1 className="mt-4 text-3xl font-black tracking-tight lg:text-4xl">
-                Tudo o que voce precisa para continuar suas analises
+                Tudo o que você precisa para continuar suas análises
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-                Acompanhe seus creditos, veja a atividade recente da conta e acesse os proximos passos sem mexer em nenhuma configuracao critica do produto.
+                Acompanhe seus créditos, veja a atividade recente da conta e acesse os próximos passos sem mexer em nenhuma configuração crítica do produto.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <form action={createSession}>
                   <Button type="submit" className="rounded-full">
                     <Plus className="mr-2 h-4 w-4" />
-                    Nova analise
+                    Nova análise
                   </Button>
                 </form>
                 {billingInfo ? (
@@ -126,11 +126,11 @@ export default async function SettingsPage() {
 
               <div className="mt-6 space-y-3">
                 <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
-                  <span className="text-sm text-muted-foreground">Creditos disponiveis</span>
+                  <span className="text-sm text-muted-foreground">Créditos disponíveis</span>
                   <span className="text-lg font-black">{appUser.creditAccount.creditsRemaining}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
-                  <span className="text-sm text-muted-foreground">Sessoes criadas</span>
+                  <span className="text-sm text-muted-foreground">Sessões criadas</span>
                   <span className="text-lg font-black">{sessions.length}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
@@ -150,7 +150,7 @@ export default async function SettingsPage() {
                 Atividade recente
               </CardTitle>
               <CardDescription>
-                Retome rapidamente suas ultimas sessoes sem sair da area autenticada.
+                Retome rapidamente suas últimas sessões sem sair da área autenticada.
               </CardDescription>
             </CardHeader>
             <CardContent className="pb-8">
@@ -158,7 +158,7 @@ export default async function SettingsPage() {
                 <SessionList sessions={formattedSessions} />
               ) : (
                 <div className="rounded-[1.5rem] border border-dashed border-border/60 px-6 py-12 text-center text-sm text-muted-foreground">
-                  Sua biblioteca ainda esta vazia. Crie a primeira analise para ver atividade aqui.
+                  Sua biblioteca ainda está vazia. Crie a primeira análise para ver atividade aqui.
                 </div>
               )}
             </CardContent>
@@ -168,24 +168,24 @@ export default async function SettingsPage() {
             <Card className="rounded-[2rem] border-border/60 bg-card/90 py-0 shadow-[0_28px_90px_-70px_oklch(var(--foreground)/0.9)]">
               <CardHeader className="pt-8">
                 <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  Upgrade rapido
+                <Sparkles className="h-5 w-5 text-primary" />
+                  Upgrade rápido
                 </CardTitle>
                 <CardDescription>
-                  Os planos pagos liberam mais creditos mensais e historico de uso para processos paralelos.
+                  Os planos pagos liberam mais créditos mensais e histórico de uso para processos paralelos.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pb-8">
                 <div className="rounded-[1.5rem] border border-border/60 bg-background/75 p-4">
                   <p className="text-sm font-semibold">{PLANS.monthly.name}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    {PLANS.monthly.credits} creditos por mes para manter varias candidaturas ativas.
+                    {PLANS.monthly.credits} créditos por mês para manter várias candidaturas ativas.
                   </p>
                 </div>
                 <div className="rounded-[1.5rem] border border-border/60 bg-background/75 p-4">
                   <p className="text-sm font-semibold">{PLANS.pro.name}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    {PLANS.pro.credits} creditos por mes para uso intenso, revisoes frequentes e suporte prioritario.
+                    {PLANS.pro.credits} créditos por mês para uso intenso, revisões frequentes e suporte prioritário.
                   </p>
                 </div>
                 <Button asChild className="w-full rounded-full">
@@ -201,7 +201,7 @@ export default async function SettingsPage() {
                   Identificadores da conta
                 </CardTitle>
                 <CardDescription>
-                  Informacoes uteis para suporte e verificacao de acesso.
+                  Informações úteis para suporte e verificação de acesso.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 pb-8">
@@ -215,11 +215,11 @@ export default async function SettingsPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                     Clerk user
                   </p>
-                  <p className="mt-2 break-all text-sm font-medium">{clerkUser?.id ?? "Nao disponivel"}</p>
+                  <p className="mt-2 break-all text-sm font-medium">{clerkUser?.id ?? "Não disponível"}</p>
                 </div>
                 <div className="rounded-[1.25rem] border border-border/60 bg-background/75 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                    Conta de creditos
+                    Conta de créditos
                   </p>
                   <p className="mt-2 break-all text-sm font-medium">{appUser.creditAccount.id}</p>
                 </div>

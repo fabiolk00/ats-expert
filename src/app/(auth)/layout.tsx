@@ -7,7 +7,7 @@ import { getUserBillingInfo } from '@/lib/asaas/quota'
 
 export const metadata = {
   title: 'Dashboard - CurrIA',
-  description: 'Otimize seu curriculo com IA',
+  description: 'Otimize seu currículo com IA',
 }
 
 export const dynamic = 'force-dynamic'

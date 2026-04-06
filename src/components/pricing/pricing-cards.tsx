@@ -189,7 +189,7 @@ export default function PricingCards() {
     <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-2 xl:grid-cols-4">
       {plans.map((plan) => {
         const config = PLANS[plan.slug]
-        const period = config.billing === "monthly" ? "/mes" : ""
+        const period = config.billing === "monthly" ? "/mês" : ""
         const hasJobManagement = plan.slug !== "free"
 
         return (
@@ -228,9 +228,9 @@ export default function PricingCards() {
                 ))}
                 <li key="job-management" className="flex items-start gap-3">
                   {hasJobManagement ? (
-                    <Check aria-label="Recurso incluido" className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                    <Check aria-label="Recurso incluído" className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                   ) : (
-                    <X aria-label="Recurso indisponivel" className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    <X aria-label="Recurso indisponível" className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   )}
                   <span className={cn("text-sm font-medium", hasJobManagement ? undefined : "text-muted-foreground")}>
                     Gerenciamento de vagas
@@ -252,7 +252,7 @@ export default function PricingCards() {
                     Processando...
                   </>
                 ) : (
-                  plan.slug === "free" ? "Comecar gratis" : "Comecar agora"
+                  plan.slug === "free" ? "Começar grátis" : "Começar agora"
                 )}
               </Button>
             </CardFooter>

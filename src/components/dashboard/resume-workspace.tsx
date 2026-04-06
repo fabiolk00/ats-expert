@@ -56,7 +56,7 @@ function getErrorMessage(error: unknown): string {
     return error.message
   }
 
-  return "Nao foi possivel concluir a operacao."
+  return "Não foi possível concluir a operação."
 }
 
 function formatDateTime(value?: string): string {
@@ -202,8 +202,8 @@ export function ResumeWorkspace({
       setManualEditOpen(false)
       setStatusMessage(
         result.changed
-          ? "Edicao manual aplicada na base canonica."
-          : "Nenhuma alteracao detectada nesta secao.",
+          ? "Edição manual aplicada na base canônica."
+          : "Nenhuma alteração detectada nesta seção.",
       )
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
@@ -363,9 +363,9 @@ export function ResumeWorkspace({
         <div className="space-y-6">
           <Card className={panelClassName}>
             <CardHeader className="pt-8">
-              <CardTitle>Base canonica</CardTitle>
+              <CardTitle>Base canônica</CardTitle>
               <CardDescription>
-                Esta area reflete o estado canonico atual da sessao e sempre volta do backend.
+                Esta área reflete o estado canônico atual da sessão e sempre volta do backend.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pb-8">
@@ -377,7 +377,7 @@ export function ResumeWorkspace({
                       <ATSScoreBadge score={workspace.session.atsScore.total} />
                     ) : null}
                     <Badge variant="outline" className="rounded-full">
-                      Versao {workspace.session.stateVersion}
+                      Versão {workspace.session.stateVersion}
                     </Badge>
                     {isStreaming ? (
                       <Badge variant="outline" className="gap-1 rounded-full">
@@ -434,7 +434,7 @@ export function ResumeWorkspace({
                       </Button>
                     </div>
                     <p className="text-sm leading-6 text-muted-foreground">
-                      {workspace.session.cvState.summary || "Resumo ainda nao preenchido."}
+                      {workspace.session.cvState.summary || "Resumo ainda não preenchido."}
                     </p>
                   </div>
 
@@ -473,7 +473,7 @@ export function ResumeWorkspace({
                       onClick={() => openManualEdit("experience")}
                     >
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Experiencia
+                        Experiência
                       </p>
                       <p className="mt-2 text-2xl font-bold">{workspace.session.cvState.experience.length}</p>
                     </button>
@@ -484,7 +484,7 @@ export function ResumeWorkspace({
                       onClick={() => openManualEdit("education")}
                     >
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Educacao
+                        Educação
                       </p>
                       <p className="mt-2 text-2xl font-bold">{workspace.session.cvState.education.length}</p>
                     </button>
@@ -495,7 +495,7 @@ export function ResumeWorkspace({
                       onClick={() => openManualEdit("certifications")}
                     >
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Certificacoes
+                        Certificações
                       </p>
                       <p className="mt-2 text-2xl font-bold">
                         {workspace.session.cvState.certifications?.length ?? 0}
@@ -525,7 +525,7 @@ export function ResumeWorkspace({
                 </>
               ) : (
                 <div className="rounded-[1.5rem] border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
-                  Envie sua primeira mensagem no chat para criar a sessao e carregar o workspace.
+                  Envie sua primeira mensagem no chat para criar a sessão e carregar o workspace.
                 </div>
               )}
             </CardContent>
@@ -535,10 +535,10 @@ export function ResumeWorkspace({
             <CardHeader className="pt-8">
               <CardTitle className="flex items-center gap-2">
                 <History className="h-4 w-4" />
-                Timeline de versoes
+                Timeline de versões
               </CardTitle>
               <CardDescription>
-                Historico imutavel da base canonica e das derivacoes target.
+                Histórico imutável da base canônica e das derivações target.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pb-8">
@@ -580,7 +580,7 @@ export function ResumeWorkspace({
                 </div>
               ) : (
                 <div className="rounded-[1.5rem] border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
-                  As versoes aparecerao aqui depois da ingestao ou de atualizacoes canonicas.
+                  As versões aparecerão aqui depois da ingestão ou de atualizações canônicas.
                 </div>
               )}
             </CardContent>
@@ -590,7 +590,7 @@ export function ResumeWorkspace({
             <CardHeader className="pt-8">
               <CardTitle>Targets e acoes</CardTitle>
               <CardDescription>
-                Variantes derivadas ficam separadas da base. Toda acao recarrega o workspace.
+                Variantes derivadas ficam separadas da base. Toda ação recarrega o workspace.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pb-8">
@@ -656,7 +656,7 @@ export function ResumeWorkspace({
                   value={targetJobDescription}
                   disabled={isBusy || !sessionId}
                   rows={6}
-                  placeholder="Cole a descricao da vaga para criar uma variante derivada."
+                  placeholder="Cole a descrição da vaga para criar uma variante derivada."
                   onChange={(event) => setTargetJobDescription(event.target.value)}
                 />
                 <Button
@@ -734,7 +734,7 @@ export function ResumeWorkspace({
                   })
                 ) : (
                   <div className="rounded-[1.5rem] border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
-                    Nenhum target criado ainda para esta sessao.
+                    Nenhum target criado ainda para esta sessão.
                   </div>
                 )}
               </div>

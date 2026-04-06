@@ -61,10 +61,10 @@ const showcaseCards = [
     location: "Remoto",
     salary: "R$ 11.500,00",
     benefits: [
-      "VA/VR Flexivel - R$ 1.200/mes",
-      "Plano de Saude - SulAmerica (Sem Coparticipacao)",
+      "VA/VR Flexível - R$ 1.200/mês",
+      "Plano de Saúde - SulAmérica (Sem Coparticipação)",
     ],
-    resumeVersion: "Curriculo_Nubank_Frontend.pdf",
+    resumeVersion: "Currículo_Nubank_Frontend.pdf",
   },
   {
     statusLabel: "Aguardando",
@@ -72,13 +72,13 @@ const showcaseCards = [
     statusClass: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
     title: "Analista Financeiro Pleno",
     company: "Itau Unibanco",
-    location: "Hibrido",
+    location: "Híbrido",
     salary: "R$ 5.500,00",
     benefits: [
-      "PLR - 2.2 salarios/ano",
-      "Vale Alimentacao - R$ 1.050/mes",
+      "PLR - 2.2 salários/ano",
+      "Vale Alimentação - R$ 1.050/mês",
     ],
-    resumeVersion: "Curriculo_Analista_Financeiro.pdf",
+    resumeVersion: "Currículo_Analista_Financeiro.pdf",
   },
 ] as const
 
@@ -111,8 +111,8 @@ export default function TrackerShowcase() {
             transition={{ delay: 0.1 }}
             className="mx-auto max-w-2xl text-lg text-muted-foreground md:text-xl"
           >
-            Acompanhe o status de todas as vagas que voce se candidatou em um so lugar.
-            Organize salarios, beneficios e saiba exatamente qual versao de curriculo foi enviada.
+            Acompanhe o status de todas as vagas em que você se candidatou em um só lugar.
+            Organize salários, benefícios e saiba exatamente qual versão de currículo foi enviada.
           </motion.p>
         </div>
 
@@ -208,7 +208,7 @@ export default function TrackerShowcase() {
                       <div className="rounded-lg border border-border/40 bg-muted/20 p-4">
                         <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
                           <HeartPulse className="h-4 w-4 text-rose-500" />
-                          Beneficios
+                          Benefícios
                         </div>
                         <ul className="space-y-2 pl-4 text-sm text-muted-foreground">
                           {card.benefits.map((benefit) => (
@@ -222,7 +222,7 @@ export default function TrackerShowcase() {
 
                     <div className="relative z-10 flex flex-col gap-2 pt-4">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Curriculo Utilizado
+                        Currículo utilizado
                       </span>
                       <div className="flex items-center gap-3 rounded-lg border border-primary/10 bg-primary/5 p-2.5 text-sm">
                         <div className="rounded-md bg-background p-1.5 shadow-sm">

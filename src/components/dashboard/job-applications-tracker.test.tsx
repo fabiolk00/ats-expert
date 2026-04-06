@@ -194,13 +194,13 @@ describe("JobApplicationsTracker", () => {
     await user.click(screen.getByRole("button", { name: /adicionar primeira vaga/i }))
     await user.type(screen.getByLabelText("Cargo"), "Senior Frontend Engineer")
     await user.type(screen.getByLabelText("Empresa"), "Fintech Corp")
-    await user.type(screen.getByLabelText("Salario"), "R$ 15.000,00")
-    await user.type(screen.getByLabelText("Localizacao"), "Remote")
-    await user.type(screen.getByLabelText("Nome do curriculo enviado"), "curriculo_v3.pdf")
-    await user.clear(screen.getByLabelText("Beneficios"))
-    await user.type(screen.getByLabelText("Beneficios"), "VR | R$ 1.200{enter}Plano de Saude")
-    await user.type(screen.getByLabelText("Descricao da vaga"), "Build dashboard flows")
-    await user.type(screen.getByLabelText("Observacoes"), "Critical role")
+    await user.type(screen.getByLabelText("Salário"), "R$ 15.000,00")
+    await user.type(screen.getByLabelText("Localização"), "Remote")
+    await user.type(screen.getByLabelText("Nome do currículo enviado"), "curriculo_v3.pdf")
+    await user.clear(screen.getByLabelText("Benefícios"))
+    await user.type(screen.getByLabelText("Benefícios"), "VR | R$ 1.200{enter}Plano de Saúde")
+    await user.type(screen.getByLabelText("Descrição da vaga"), "Build dashboard flows")
+    await user.type(screen.getByLabelText("Observações"), "Critical role")
     await user.click(screen.getByRole("button", { name: /criar vaga/i }))
 
     await waitFor(() => {
@@ -212,7 +212,7 @@ describe("JobApplicationsTracker", () => {
         resumeVersionLabel: "curriculo_v3.pdf",
         benefits: [
           { name: "VR", value: "R$ 1.200" },
-          { name: "Plano de Saude", value: undefined },
+          { name: "Plano de Saúde", value: undefined },
         ],
         jobDescription: "Build dashboard flows",
         notes: "Critical role",
@@ -238,11 +238,11 @@ describe("JobApplicationsTracker", () => {
     await user.clear(companyInput)
     await user.type(companyInput, "New Fintech")
 
-    const notesInput = screen.getByLabelText("Observacoes")
+    const notesInput = screen.getByLabelText("Observações")
     await user.clear(notesInput)
     await user.type(notesInput, "Updated notes")
 
-    await user.click(screen.getByRole("button", { name: /salvar alteracoes/i }))
+    await user.click(screen.getByRole("button", { name: /salvar alterações/i }))
 
     await waitFor(() => {
       expect(updateApplicationDetailsAction).toHaveBeenCalledWith({
@@ -298,7 +298,7 @@ describe("JobApplicationsTracker", () => {
     })
 
     expect(mockRefresh).toHaveBeenCalledTimes(1)
-    expect(screen.getByText("Vaga excluida com sucesso.")).toBeInTheDocument()
+    expect(screen.getByText("Vaga excluída com sucesso.")).toBeInTheDocument()
   })
 
   it("filters and searches across a larger application set", async () => {
@@ -340,7 +340,7 @@ describe("JobApplicationsTracker", () => {
     await user.click(screen.getByRole("button", { name: /adicionar primeira vaga/i }))
     await user.type(screen.getByLabelText("Cargo"), "Senior Frontend Engineer")
     await user.type(screen.getByLabelText("Empresa"), "Fintech Corp")
-    await user.type(screen.getByLabelText("Nome do curriculo enviado"), "curriculo_v3.pdf")
+    await user.type(screen.getByLabelText("Nome do currículo enviado"), "curriculo_v3.pdf")
     await user.click(screen.getByRole("button", { name: /criar vaga/i }))
 
     await waitFor(() => {
@@ -380,10 +380,10 @@ describe("JobApplicationsTracker", () => {
       loadErrorMessage: "Could not find the table 'public.job_applications' in the schema cache",
     })
 
-    expect(screen.getByText(/nao foi possivel carregar suas candidaturas agora/i)).toBeInTheDocument()
+    expect(screen.getByText(/não foi possível carregar suas candidaturas agora/i)).toBeInTheDocument()
     expect(screen.getByText(/schema cache/i)).toBeInTheDocument()
     expect(
-      screen.getByText(/gerenciamento de vagas ainda nao esta disponivel neste ambiente/i),
+      screen.getByText(/gerenciamento de vagas ainda não está disponível neste ambiente/i),
     ).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /adicionar vaga/i })).toBeDisabled()
     expect(screen.getByPlaceholderText(/buscar por empresa ou cargo/i)).toBeDisabled()
@@ -394,16 +394,16 @@ describe("JobApplicationsTracker", () => {
     renderTracker({
       applications: [],
       locked: true,
-      lockedEyebrow: "Acesso indisponivel",
-      lockedTitle: "Nao foi possivel validar seu plano",
+      lockedEyebrow: "Acesso indisponível",
+      lockedTitle: "Não foi possível validar seu plano",
       lockedMessage:
-        "Nao foi possivel verificar seu acesso ao gerenciamento de vagas agora. Atualize a pagina ou tente novamente em instantes.",
+        "Não foi possível verificar seu acesso ao gerenciamento de vagas agora. Atualize a página ou tente novamente em instantes.",
     })
 
-    expect(screen.getByText(/acesso indisponivel/i)).toBeInTheDocument()
-    expect(screen.getByText(/nao foi possivel validar seu plano/i)).toBeInTheDocument()
+    expect(screen.getByText(/acesso indisponível/i)).toBeInTheDocument()
+    expect(screen.getByText(/não foi possível validar seu plano/i)).toBeInTheDocument()
     expect(
-      screen.getByText(/nao foi possivel verificar seu acesso ao gerenciamento de vagas agora/i),
+      screen.getByText(/não foi possível verificar seu acesso ao gerenciamento de vagas agora/i),
     ).toBeInTheDocument()
   })
 })

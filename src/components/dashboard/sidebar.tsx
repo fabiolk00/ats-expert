@@ -53,12 +53,12 @@ const navItems = [
     icon: BriefcaseBusiness,
   },
   {
-    label: "Meus Curriculos",
+    label: "Meus Currículos",
     href: "/dashboard/resumes",
     icon: FileText,
   },
   {
-    label: "O que e ATS?",
+    label: "O que é ATS?",
     href: "/what-is-ats",
     icon: HelpCircle,
   },
@@ -73,7 +73,7 @@ function isActivePath(pathname: string, href: string): boolean {
 }
 
 function getInitials(fullName?: string | null, email?: string | null): string {
-  const source = fullName?.trim() || email?.trim() || "Usuario"
+  const source = fullName?.trim() || email?.trim() || "Usuário"
   const initials = source
     .split(/[\s@._-]+/)
     .filter(Boolean)
@@ -160,7 +160,7 @@ export function DashboardSidebar({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-primary">
                   <Coins className="h-4 w-4 text-yellow-500" />
-                  <span className="text-sm font-medium">Creditos</span>
+                  <span className="text-sm font-medium">Créditos</span>
                 </div>
                 <span className="text-xs font-bold">
                   {creditsRemaining} / {maxCredits}
@@ -214,13 +214,13 @@ export function DashboardSidebar({
               <DropdownMenuItem asChild>
                 <Link href="/settings" onClick={onClose}>
                   <Settings className="h-4 w-4" />
-                  Configuracoes
+                  Configurações
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/what-is-ats" onClick={onClose}>
                   <HelpCircle className="h-4 w-4" />
-                  O que e ATS?
+                  O que é ATS?
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

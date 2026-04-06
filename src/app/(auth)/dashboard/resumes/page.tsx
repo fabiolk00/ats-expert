@@ -7,8 +7,8 @@ import { db } from "@/lib/db/sessions"
 import { createSession } from "../actions"
 
 export const metadata: Metadata = {
-  title: "Meus Curriculos - CurrIA",
-  description: "Historico de curriculos analisados",
+  title: "Meus Currículos - CurrIA",
+  description: "Histórico de currículos analisados",
 }
 
 export default async function DashboardResumesPage() {

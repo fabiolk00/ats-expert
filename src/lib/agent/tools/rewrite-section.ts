@@ -217,7 +217,9 @@ Output valid JSON matching this shape exactly:
 }
 Rules:
 - "rewritten_content" must stay human-readable plain text for conversational display
-- "section_data" must be fully structured and valid for the requested section`,
+- "section_data" must be fully structured and valid for the requested section
+- if the content is in Portuguese, use Brazilian Portuguese (pt-BR) with correct accentuation, spelling, grammar, and professional resume tone
+- never use European Portuguese variants unless the user explicitly provided them`,
           },
           {
             role: 'user',
