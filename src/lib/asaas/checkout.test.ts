@@ -20,8 +20,8 @@ describe('Asaas checkout link creation', () => {
     process.env.ASAAS_SANDBOX = 'true'
   })
 
-  it('creates one-time hosted checkouts via payment links', async () => {
-    mockPost.mockResolvedValueOnce({ url: 'https://sandbox.asaas.com/payment-link/unit' })
+  it('creates one-time hosted checkouts via Asaas Checkout sessions', async () => {
+    mockPost.mockResolvedValueOnce({ id: 'checkout_unit_123' })
 
     await expect(createCheckoutLink({
       appUserId: 'usr_123',
@@ -31,19 +31,32 @@ describe('Asaas checkout link creation', () => {
       checkoutReference: 'chk_unit',
       externalReference: 'curria:v1:u:usr_123:c:chk_unit',
       successUrl: 'https://curria.test/pricing',
-    })).resolves.toBe('https://sandbox.asaas.com/payment-link/unit')
+      cancelUrl: 'https://curria.test/pricing',
+      expiredUrl: 'https://curria.test/pricing',
+    })).resolves.toBe('https://sandbox.asaas.com/checkoutSession/show?id=checkout_unit_123')
 
-    expect(mockPost).toHaveBeenCalledWith('/paymentLinks', {
-      name: `CurrIA - ${PLANS.unit.name}`,
-      description: PLANS.unit.description,
-      billingType: 'UNDEFINED',
-      chargeType: 'DETACHED',
-      value: 19.90,
+    expect(mockPost).toHaveBeenCalledWith('/checkouts', {
+      billingTypes: ['PIX', 'CREDIT_CARD'],
+      chargeTypes: ['DETACHED'],
+      minutesToExpire: 60,
       externalReference: 'curria:v1:u:usr_123:c:chk_unit',
       callback: {
         successUrl: 'https://curria.test/pricing',
-        autoRedirect: false,
+        cancelUrl: 'https://curria.test/pricing',
+        expiredUrl: 'https://curria.test/pricing',
       },
+      customerData: {
+        name: 'Test User',
+        email: 'test@example.com',
+      },
+      items: [
+        {
+          name: `CurrIA - ${PLANS.unit.name}`,
+          description: PLANS.unit.description,
+          quantity: 1,
+          value: 19.90,
+        },
+      ],
     })
   })
 
@@ -71,6 +84,10 @@ describe('Asaas checkout link creation', () => {
         cancelUrl: 'https://curria.test/pricing',
         expiredUrl: 'https://curria.test/pricing',
       },
+      customerData: {
+        name: 'Test User',
+        email: 'test@example.com',
+      },
       items: [
         {
           name: `CurrIA - ${PLANS.monthly.name}`,
@@ -85,8 +102,9 @@ describe('Asaas checkout link creation', () => {
       },
       externalReference: 'curria:v1:u:usr_123:c:chk_monthly',
     })
-    expect(mockPost).not.toHaveBeenCalledWith('/paymentLinks', expect.objectContaining({
-      chargeType: 'RECURRENT',
+    expect(mockPost).not.toHaveBeenCalledWith('/checkouts', expect.objectContaining({
+      chargeTypes: ['RECURRENT'],
+      billingTypes: ['PIX', 'CREDIT_CARD'],
     }))
   })
 })
