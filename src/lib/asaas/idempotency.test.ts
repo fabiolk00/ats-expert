@@ -58,6 +58,32 @@ describe('Asaas webhook idempotency', () => {
     expect(computeEventFingerprint(payloadA)).toBe(computeEventFingerprint(payloadB))
   })
 
+  it('deduplicates PAYMENT_CONFIRMED and PAYMENT_RECEIVED for the same settled payment', () => {
+    const confirmed = {
+      event: 'PAYMENT_CONFIRMED' as const,
+      payment: {
+        id: 'pay_123',
+        externalReference: 'curria:v1:c:chk_123',
+        subscription: 'sub_123',
+        value: 39.9,
+        dueDate: '2026-04-29',
+      },
+    }
+
+    const received = {
+      event: 'PAYMENT_RECEIVED' as const,
+      payment: {
+        id: 'pay_123',
+        externalReference: 'curria:v1:c:chk_123',
+        subscription: 'sub_123',
+        value: 39.9,
+        dueDate: '2026-04-29',
+      },
+    }
+
+    expect(computeEventFingerprint(confirmed)).toBe(computeEventFingerprint(received))
+  })
+
   it('distinguishes different renewal payloads for the same subscription', () => {
     const firstRenewal = {
       event: 'SUBSCRIPTION_RENEWED' as const,
@@ -91,15 +117,14 @@ describe('Asaas webhook idempotency', () => {
     await expect(getProcessedEvent('fingerprint_456')).resolves.toBe(false)
   })
 
-  it('records processed events using the fingerprint and payload', async () => {
+  it('records processed events using the fingerprint and raw payload', async () => {
     const event = {
       event: 'PAYMENT_RECEIVED' as const,
-      amount: 1900,
       payment: {
         id: 'pay_123',
         externalReference: 'curria:v1:c:chk_123',
         subscription: null,
-        amount: 1900,
+        value: 19.9,
       },
     }
 

@@ -6,13 +6,16 @@ import {
   updateSubscriptionMetadataForEvent,
 } from './credit-grants'
 import {
-  handlePaymentReceived,
+  handlePaymentSettlement,
   handleSubscriptionCanceled,
   handleSubscriptionCreated,
   handleSubscriptionRenewed,
+  handleSubscriptionUpdated,
 } from './event-handlers'
 import {
+  getCheckoutBySubscriptionId,
   getCheckoutRecord,
+  markCheckoutCanceled,
   markCheckoutCanceledBySubscriptionId,
   markCheckoutPaid,
   markCheckoutSubscriptionActive,
@@ -26,6 +29,8 @@ vi.mock('./credit-grants', () => ({
 
 vi.mock('./billing-checkouts', () => ({
   getCheckoutRecord: vi.fn(),
+  getCheckoutBySubscriptionId: vi.fn(),
+  markCheckoutCanceled: vi.fn(),
   markCheckoutPaid: vi.fn(),
   markCheckoutSubscriptionActive: vi.fn(),
   markCheckoutCanceledBySubscriptionId: vi.fn(),
@@ -48,7 +53,7 @@ describe('Asaas billing event handlers', () => {
       userId: 'usr_123',
       checkoutReference: 'chk_123',
       plan: 'unit',
-      amountMinor: 1900,
+      amountMinor: 1990,
       currency: 'BRL',
       status: 'created',
       asaasLink: 'https://asaas.test/pay',
@@ -57,17 +62,30 @@ describe('Asaas billing event handlers', () => {
       createdAt: '2026-03-29T00:00:00.000Z',
       updatedAt: '2026-03-29T00:00:00.000Z',
     })
+    vi.mocked(getCheckoutBySubscriptionId).mockResolvedValue({
+      id: 'bc_renewal',
+      userId: 'usr_123',
+      checkoutReference: 'chk_monthly',
+      plan: 'monthly',
+      amountMinor: 3990,
+      currency: 'BRL',
+      status: 'subscription_active',
+      asaasLink: 'https://asaas.test/subscription',
+      asaasPaymentId: null,
+      asaasSubscriptionId: 'sub_123',
+      createdAt: '2026-03-29T00:00:00.000Z',
+      updatedAt: '2026-03-29T00:00:00.000Z',
+    })
   })
 
   it('resolves one-time payments from a v1 checkout reference', async () => {
-    await handlePaymentReceived({
+    await handlePaymentSettlement({
       event: 'PAYMENT_RECEIVED',
-      amount: 1900,
       payment: {
         id: 'pay_123',
         externalReference: 'curria:v1:c:chk_123',
         subscription: null,
-        amount: 1900,
+        value: 19.9,
       },
     }, 'fp_123')
 
@@ -76,17 +94,18 @@ describe('Asaas billing event handlers', () => {
       eventFingerprint: 'fp_123',
       eventPayload: {
         event: 'PAYMENT_RECEIVED',
-        amount: 1900,
         payment: {
           id: 'pay_123',
           externalReference: 'curria:v1:c:chk_123',
           subscription: null,
-          amount: 1900,
+          value: 19.9,
         },
       },
+      billingEventType: 'PAYMENT_SETTLED',
       plan: 'unit',
-      amountMinor: 1900,
+      amountMinor: 1990,
       checkoutReference: 'chk_123',
+      isRenewal: false,
       reason: 'payment_received',
     })
     expect(markCheckoutPaid).toHaveBeenCalledWith('chk_123', 'pay_123')
@@ -95,14 +114,13 @@ describe('Asaas billing event handlers', () => {
   it('surfaces partial-success failures when payment credits were granted but checkout marking fails', async () => {
     vi.mocked(markCheckoutPaid).mockRejectedValueOnce(new Error('failed to mark paid'))
 
-    await expect(handlePaymentReceived({
+    await expect(handlePaymentSettlement({
       event: 'PAYMENT_RECEIVED',
-      amount: 1900,
       payment: {
         id: 'pay_123',
         externalReference: 'curria:v1:c:chk_123',
         subscription: null,
-        amount: 1900,
+        value: 19.9,
       },
     }, 'fp_mark_paid_failure')).rejects.toThrow('failed to mark paid')
 
@@ -114,14 +132,13 @@ describe('Asaas billing event handlers', () => {
   })
 
   it('rejects legacy external references for one-time payments', async () => {
-    await expect(handlePaymentReceived({
+    await expect(handlePaymentSettlement({
       event: 'PAYMENT_RECEIVED',
-      amount: 1900,
       payment: {
         id: 'pay_123',
         externalReference: 'usr_123',
         subscription: null,
-        amount: 1900,
+        value: 19.9,
       },
     }, 'fp_legacy')).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
@@ -129,13 +146,13 @@ describe('Asaas billing event handlers', () => {
     })
   })
 
-  it('resolves subscription creation from a v1 checkout reference', async () => {
+  it('activates recurring subscriptions from settled payment events instead of SUBSCRIPTION_CREATED', async () => {
     vi.mocked(getCheckoutRecord).mockResolvedValueOnce({
       id: 'bc_234',
       userId: 'usr_123',
       checkoutReference: 'chk_234',
       plan: 'pro',
-      amountMinor: 9700,
+      amountMinor: 6990,
       currency: 'BRL',
       status: 'created',
       asaasLink: 'https://asaas.test/subscription',
@@ -145,147 +162,90 @@ describe('Asaas billing event handlers', () => {
       updatedAt: '2026-03-29T00:00:00.000Z',
     })
 
-    await handleSubscriptionCreated({
-      event: 'SUBSCRIPTION_CREATED',
-      amount: 9700,
-      subscription: {
-        id: 'sub_123',
+    await handlePaymentSettlement({
+      event: 'PAYMENT_CONFIRMED',
+      payment: {
+        id: 'pay_sub_initial',
         externalReference: 'curria:v1:c:chk_234',
-        nextDueDate: '2099-04-29',
+        subscription: 'sub_123',
+        value: 69.9,
+        dueDate: '2026-04-29',
       },
-    }, 'fp_234')
+    }, 'fp_sub_initial')
 
     expect(grantCreditsForEvent).toHaveBeenCalledWith({
       appUserId: 'usr_123',
-      eventFingerprint: 'fp_234',
+      eventFingerprint: 'fp_sub_initial',
       eventPayload: {
-        event: 'SUBSCRIPTION_CREATED',
-        amount: 9700,
-        subscription: {
-          id: 'sub_123',
+        event: 'PAYMENT_CONFIRMED',
+        payment: {
+          id: 'pay_sub_initial',
           externalReference: 'curria:v1:c:chk_234',
-          nextDueDate: '2099-04-29',
+          subscription: 'sub_123',
+          value: 69.9,
+          dueDate: '2026-04-29',
         },
       },
+      billingEventType: 'SUBSCRIPTION_STARTED',
       plan: 'pro',
-      amountMinor: 9700,
+      amountMinor: 6990,
       checkoutReference: 'chk_234',
       asaasSubscriptionId: 'sub_123',
-      renewsAt: '2099-04-29',
-      reason: 'subscription_created',
+      renewsAt: '2026-05-29T00:00:00.000Z',
+      isRenewal: false,
+      reason: 'subscription_started',
     })
     expect(markCheckoutSubscriptionActive).toHaveBeenCalledWith('chk_234', 'sub_123')
   })
 
-  it('uses the checkout amount when Asaas omits amount on subscription creation', async () => {
+  it('uses persisted subscription metadata for recurring renewal payments', async () => {
     vi.mocked(getCheckoutRecord).mockResolvedValueOnce({
-      id: 'bc_234',
+      id: 'bc_renewal',
       userId: 'usr_123',
-      checkoutReference: 'chk_234',
+      checkoutReference: 'chk_monthly',
       plan: 'monthly',
-      amountMinor: 3900,
+      amountMinor: 3990,
       currency: 'BRL',
-      status: 'created',
+      status: 'subscription_active',
       asaasLink: 'https://asaas.test/subscription',
       asaasPaymentId: null,
-      asaasSubscriptionId: null,
+      asaasSubscriptionId: 'sub_123',
       createdAt: '2026-03-29T00:00:00.000Z',
       updatedAt: '2026-03-29T00:00:00.000Z',
     })
 
-    await handleSubscriptionCreated({
-      event: 'SUBSCRIPTION_CREATED',
-      subscription: {
-        id: 'sub_123',
-        externalReference: 'curria:v1:c:chk_234',
-        nextDueDate: '2099-04-29',
+    await handlePaymentSettlement({
+      event: 'PAYMENT_RECEIVED',
+      payment: {
+        id: 'pay_renewal',
+        externalReference: 'curria:v1:c:chk_monthly',
+        subscription: 'sub_123',
+        value: 39.9,
+        dueDate: '2026-05-29',
       },
-    }, 'fp_missing_amount')
+    }, 'fp_renewal_payment')
 
+    expect(getPersistedSubscriptionMetadata).toHaveBeenCalledWith('sub_123')
+    expect(getCheckoutBySubscriptionId).toHaveBeenCalledWith('sub_123')
     expect(grantCreditsForEvent).toHaveBeenCalledWith(expect.objectContaining({
       appUserId: 'usr_123',
-      amountMinor: 3900,
-      checkoutReference: 'chk_234',
+      billingEventType: 'SUBSCRIPTION_RENEWED',
+      plan: 'monthly',
+      checkoutReference: 'chk_monthly',
       asaasSubscriptionId: 'sub_123',
-      reason: 'subscription_created',
-    }))
-    expect(markCheckoutSubscriptionActive).toHaveBeenCalledWith('chk_234', 'sub_123')
-  })
-
-  it('surfaces partial-success failures when subscription credits were granted but activation marking fails', async () => {
-    vi.mocked(getCheckoutRecord).mockResolvedValueOnce({
-      id: 'bc_234',
-      userId: 'usr_123',
-      checkoutReference: 'chk_234',
-      plan: 'pro',
-      amountMinor: 9700,
-      currency: 'BRL',
-      status: 'created',
-      asaasLink: 'https://asaas.test/subscription',
-      asaasPaymentId: null,
-      asaasSubscriptionId: null,
-      createdAt: '2026-03-29T00:00:00.000Z',
-      updatedAt: '2026-03-29T00:00:00.000Z',
-    })
-    vi.mocked(markCheckoutSubscriptionActive).mockRejectedValueOnce(
-      new Error('failed to mark subscription active'),
-    )
-
-    await expect(handleSubscriptionCreated({
-      event: 'SUBSCRIPTION_CREATED',
-      amount: 9700,
-      subscription: {
-        id: 'sub_123',
-        externalReference: 'curria:v1:c:chk_234',
-        nextDueDate: '2099-04-29',
-      },
-    }, 'fp_mark_subscription_failure')).rejects.toThrow('failed to mark subscription active')
-
-    expect(grantCreditsForEvent).toHaveBeenCalledWith(expect.objectContaining({
-      appUserId: 'usr_123',
-      checkoutReference: 'chk_234',
-      asaasSubscriptionId: 'sub_123',
-      reason: 'subscription_created',
+      renewsAt: '2026-06-29T00:00:00.000Z',
+      isRenewal: true,
+      reason: 'subscription_renewed',
     }))
   })
 
-  it('rejects past renewal dates during subscription creation', async () => {
+  it('ignores subscription creation snapshots that are inactive or deleted and cancels the pending checkout', async () => {
     vi.mocked(getCheckoutRecord).mockResolvedValueOnce({
       id: 'bc_234',
       userId: 'usr_123',
       checkoutReference: 'chk_234',
       plan: 'monthly',
-      amountMinor: 3900,
-      currency: 'BRL',
-      status: 'created',
-      asaasLink: 'https://asaas.test/subscription',
-      asaasPaymentId: null,
-      asaasSubscriptionId: null,
-      createdAt: '2026-03-29T00:00:00.000Z',
-      updatedAt: '2026-03-29T00:00:00.000Z',
-    })
-
-    await expect(handleSubscriptionCreated({
-      event: 'SUBSCRIPTION_CREATED',
-      amount: 3900,
-      subscription: {
-        id: 'sub_123',
-        externalReference: 'curria:v1:c:chk_234',
-        nextDueDate: '2000-01-01',
-      },
-    }, 'fp_past')).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      status: 400,
-    })
-  })
-
-  it('rejects subscription creation when Asaas reports the subscription as inactive or deleted', async () => {
-    vi.mocked(getCheckoutRecord).mockResolvedValueOnce({
-      id: 'bc_234',
-      userId: 'usr_123',
-      checkoutReference: 'chk_234',
-      plan: 'monthly',
-      amountMinor: 3900,
+      amountMinor: 3990,
       currency: 'BRL',
       status: 'created',
       asaasLink: 'https://asaas.test/subscription',
@@ -305,16 +265,44 @@ describe('Asaas billing event handlers', () => {
         deleted: true,
         value: 39,
       },
-    }, 'fp_inactive_deleted')).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      status: 400,
-    })
+    }, 'fp_inactive_deleted')).resolves.toBe('ignored')
 
+    expect(markCheckoutCanceled).toHaveBeenCalledWith('chk_234')
     expect(grantCreditsForEvent).not.toHaveBeenCalled()
     expect(markCheckoutSubscriptionActive).not.toHaveBeenCalled()
   })
 
-  it('uses persisted subscription metadata on subscription renewal', async () => {
+  it('updates persisted metadata from official subscription update events', async () => {
+    await handleSubscriptionUpdated({
+      event: 'SUBSCRIPTION_UPDATED',
+      subscription: {
+        id: 'sub_123',
+        status: 'ACTIVE',
+        nextDueDate: '22/11/2099',
+      },
+    }, 'fp_updated')
+
+    expect(updateSubscriptionMetadataForEvent).toHaveBeenCalledWith({
+      appUserId: 'usr_123',
+      eventFingerprint: 'fp_updated',
+      eventPayload: {
+        event: 'SUBSCRIPTION_UPDATED',
+        subscription: {
+          id: 'sub_123',
+          status: 'ACTIVE',
+          nextDueDate: '22/11/2099',
+        },
+      },
+      billingEventType: 'SUBSCRIPTION_UPDATED',
+      plan: 'monthly',
+      asaasSubscriptionId: 'sub_123',
+      renewsAt: '2099-11-22T00:00:00.000Z',
+      status: 'active',
+      reason: 'subscription_updated',
+    })
+  })
+
+  it('uses persisted subscription metadata on legacy subscription renewal events', async () => {
     await handleSubscriptionRenewed({
       event: 'SUBSCRIPTION_RENEWED',
       subscription: {
@@ -325,40 +313,14 @@ describe('Asaas billing event handlers', () => {
     }, 'fp_345')
 
     expect(getPersistedSubscriptionMetadata).toHaveBeenCalledWith('sub_123')
+    expect(getCheckoutBySubscriptionId).toHaveBeenCalledWith('sub_123')
     expect(grantCreditsForEvent).toHaveBeenCalledWith(expect.objectContaining({
       appUserId: 'usr_123',
+      billingEventType: 'SUBSCRIPTION_RENEWED',
       plan: 'monthly',
       asaasSubscriptionId: 'sub_123',
-      renewsAt: '2099-05-29',
-      reason: 'subscription_renewed',
-    }))
-    expect(getCheckoutRecord).not.toHaveBeenCalled()
-  })
-
-  it('handles pre-cutover recurring renewals via subscription id without checkout lookup', async () => {
-    vi.mocked(getPersistedSubscriptionMetadata).mockResolvedValueOnce({
-      appUserId: 'usr_legacy123',
-      plan: 'monthly',
-      asaasSubscriptionId: 'sub_legacy_123',
-      renewsAt: '2099-04-29T00:00:00.000Z',
-      status: 'active',
-    })
-
-    await handleSubscriptionRenewed({
-      event: 'SUBSCRIPTION_RENEWED',
-      subscription: {
-        id: 'sub_legacy_123',
-        externalReference: 'usr_legacy123',
-        nextDueDate: '2099-06-29',
-      },
-    }, 'fp_legacy_renewal')
-
-    expect(getPersistedSubscriptionMetadata).toHaveBeenCalledWith('sub_legacy_123')
-    expect(getCheckoutRecord).not.toHaveBeenCalled()
-    expect(grantCreditsForEvent).toHaveBeenCalledWith(expect.objectContaining({
-      appUserId: 'usr_legacy123',
-      plan: 'monthly',
-      asaasSubscriptionId: 'sub_legacy_123',
+      renewsAt: '2099-05-29T00:00:00.000Z',
+      isRenewal: true,
       reason: 'subscription_renewed',
     }))
   })
@@ -373,7 +335,7 @@ describe('Asaas billing event handlers', () => {
     })
 
     await handleSubscriptionCanceled({
-      event: 'SUBSCRIPTION_CANCELED',
+      event: 'SUBSCRIPTION_INACTIVATED',
       subscription: {
         id: 'sub_999',
         externalReference: 'usr_123',
@@ -384,28 +346,57 @@ describe('Asaas billing event handlers', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_456',
       eventPayload: {
-        event: 'SUBSCRIPTION_CANCELED',
+        event: 'SUBSCRIPTION_INACTIVATED',
         subscription: {
           id: 'sub_999',
           externalReference: 'usr_123',
         },
       },
+      billingEventType: 'SUBSCRIPTION_CANCELED',
       plan: 'monthly',
       asaasSubscriptionId: 'sub_999',
       renewsAt: null,
       status: 'canceled',
-      reason: 'subscription_canceled',
+      reason: 'subscription_inactivated',
     })
     expect(markCheckoutCanceledBySubscriptionId).toHaveBeenCalledWith('sub_999')
   })
 
-  it('rejects malformed events that are missing externalReference', async () => {
-    await expect(handlePaymentReceived({
+  it('ignores cancellation snapshots without persisted metadata but cancels the referenced checkout', async () => {
+    vi.mocked(getPersistedSubscriptionMetadata).mockResolvedValueOnce(null)
+    vi.mocked(getCheckoutRecord).mockResolvedValueOnce({
+      id: 'bc_999',
+      userId: 'usr_123',
+      checkoutReference: 'chk_999',
+      plan: 'monthly',
+      amountMinor: 3990,
+      currency: 'BRL',
+      status: 'created',
+      asaasLink: 'https://asaas.test/subscription',
+      asaasPaymentId: null,
+      asaasSubscriptionId: null,
+      createdAt: '2026-03-29T00:00:00.000Z',
+      updatedAt: '2026-03-29T00:00:00.000Z',
+    })
+
+    await expect(handleSubscriptionCanceled({
+      event: 'SUBSCRIPTION_DELETED',
+      subscription: {
+        id: 'sub_missing',
+        externalReference: 'curria:v1:c:chk_999',
+      },
+    }, 'fp_deleted')).resolves.toBe('ignored')
+
+    expect(markCheckoutCanceled).toHaveBeenCalledWith('chk_999')
+    expect(updateSubscriptionMetadataForEvent).not.toHaveBeenCalled()
+  })
+
+  it('rejects malformed payment events that are missing externalReference for one-time billing', async () => {
+    await expect(handlePaymentSettlement({
       event: 'PAYMENT_RECEIVED',
-      amount: 1900,
       payment: {
         id: 'pay_123',
-        amount: 1900,
+        value: 19.9,
       },
     }, 'fp_567')).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',

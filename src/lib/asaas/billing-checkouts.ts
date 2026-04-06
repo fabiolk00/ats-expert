@@ -238,3 +238,33 @@ export async function getCheckoutRecord(
 
   return data ? toBillingCheckout(data) : null
 }
+
+export async function getCheckoutBySubscriptionId(
+  asaasSubscriptionId: string,
+): Promise<BillingCheckout | null> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('billing_checkouts')
+    .select(`
+      id,
+      user_id,
+      checkout_reference,
+      plan,
+      amount_minor,
+      currency,
+      status,
+      asaas_link,
+      asaas_payment_id,
+      asaas_subscription_id,
+      created_at,
+      updated_at
+    `)
+    .eq('asaas_subscription_id', asaasSubscriptionId)
+    .maybeSingle<BillingCheckoutRow>()
+
+  if (error) {
+    throw new Error(`Failed to load billing checkout for subscription ${asaasSubscriptionId}: ${error.message}`)
+  }
+
+  return data ? toBillingCheckout(data) : null
+}

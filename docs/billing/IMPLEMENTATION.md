@@ -3,7 +3,7 @@ title: CurrIA Billing Implementation
 audience: [developers, operations]
 related: [../INDEX.md, README.md, MIGRATION_GUIDE.md, OPS_RUNBOOK.md]
 status: current
-updated: 2026-04-01
+updated: 2026-04-06
 ---
 
 # Billing Implementation
@@ -65,45 +65,51 @@ CurrIA billing is webhook-driven.
 
 ## Webhook Resolution
 
-### `PAYMENT_RECEIVED`
+### `PAYMENT_CONFIRMED` / `PAYMENT_RECEIVED`
 
-- Requires v1 `externalReference`.
-- Resolves plan and user from `billing_checkouts`.
-- Verifies webhook amount matches `billing_checkouts.amount_minor`.
-- Grants credits through the transactional RPC.
-- Marks checkout `paid`.
+- Both are treated as the same internal semantic event: `PAYMENT_SETTLED`.
+- One-time purchases resolve plan and user from `billing_checkouts`.
+- Initial recurring activation also resolves from `billing_checkouts`, but only when `payment.subscription` is present and the checkout is still `created`.
+- Renewal payments resolve from persisted `user_quotas.asaas_subscription_id`.
+- The fingerprint normalizes `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` so the same settled payment cannot grant credits twice.
 
 ### `SUBSCRIPTION_CREATED`
 
-- Requires v1 `externalReference`.
-- Resolves plan and user from `billing_checkouts`.
-- Verifies `nextDueDate` is in the future.
-- Grants credits through the transactional RPC.
-- Persists `asaas_subscription_id`.
-- Marks checkout `subscription_active`.
+- Accepted for compatibility with current Asaas payloads.
+- Never grants credits.
+- If the snapshot already arrives inactive or deleted, the referenced pending checkout is canceled and the webhook is acknowledged with `200 ignored`.
+- Active snapshots are treated as informational only because subscription creation is not the payment trust anchor.
+
+### `SUBSCRIPTION_UPDATED`
+
+- Accepted for compatibility with current Asaas payloads.
+- Updates persisted metadata only when `user_quotas.asaas_subscription_id` already exists.
+- Can move the billing status to `active`, `past_due`, or `canceled`.
+- If it describes a canceled subscription before activation, the referenced pending checkout is canceled and the webhook is acknowledged with `200 ignored`.
 
 ### `SUBSCRIPTION_RENEWED`
 
+- Kept as a legacy compatibility path.
 - Resolves from `user_quotas.asaas_subscription_id`.
-- Does not depend on checkout lookup.
-- Verifies `nextDueDate` is in the future.
-- Grants credits through the transactional RPC.
+- Grants renewal credits through the transactional RPC with `p_is_renewal = true`.
 
-### `SUBSCRIPTION_CANCELED` / `SUBSCRIPTION_DELETED`
+### `SUBSCRIPTION_INACTIVATED` / `SUBSCRIPTION_CANCELED` / `SUBSCRIPTION_DELETED`
 
-- Resolves from `user_quotas.asaas_subscription_id`.
-- Does not revoke credits.
-- Updates subscription metadata only.
+- Treated as the same internal semantic event: `SUBSCRIPTION_CANCELED`.
+- Resolve from `user_quotas.asaas_subscription_id` when metadata already exists.
+- Do not revoke credits.
+- Update subscription metadata only.
+- If metadata does not exist yet, the webhook is acknowledged and the pending checkout is canceled when a v1 checkout reference is present.
 
 ## Credit Carryover and Renewal Logic
 
-### Carryover on Plan Change (Initial and Subscriptions)
+### Carryover on Plan Change (Initial and Subscription Starts)
 
 When a user changes plans—whether from a one-time purchase or upgrading/downgrading their subscription—remaining credits are preserved and **added** to the new plan's credit allocation.
 
 **Implementation**:
 - The RPC function `apply_billing_credit_grant_event` accepts a `p_is_renewal` parameter.
-- For `PAYMENT_RECEIVED` and `SUBSCRIPTION_CREATED` events: `p_is_renewal = FALSE` (default).
+- For `PAYMENT_SETTLED` and `SUBSCRIPTION_STARTED` events: `p_is_renewal = FALSE` (default).
   - Balance calculation: `new_balance = current_balance + plan.credits`
   - This preserves unused credits from the previous plan.
 - Example:
@@ -126,10 +132,10 @@ When a monthly subscription renews, credits are **replaced**, not added. This pr
 
 ### Implementation Details
 
-The `p_is_renewal` parameter is set by the application code in `src/lib/asaas/credit-grants.ts`:
+The `p_is_renewal` parameter is set explicitly by the application code in `src/lib/asaas/credit-grants.ts`:
 
 ```typescript
-const isRenewal = request.eventPayload.event === 'SUBSCRIPTION_RENEWED'
+const isRenewal = request.isRenewal ?? false
 ```
 
 This value is then passed to the RPC, which applies the correct logic:
@@ -177,6 +183,7 @@ This gives both fast duplicate skips and race-safe final protection.
 - Amount-based plan inference is not used.
 - Initial paid events must have a matching `billing_checkouts` record.
 - Renewal and cancellation events must have a matching `user_quotas.asaas_subscription_id`.
+- Unsupported or informational Asaas events return `200 ignored` instead of `400`, preventing the Asaas queue from pausing on non-actionable snapshots.
 - RPCs reject:
   - missing trust anchors
   - plan mismatches

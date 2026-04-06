@@ -1,48 +1,51 @@
 import { describe, expect, it } from 'vitest'
 
-import { getWebhookAmount, parseAsaasWebhookEvent } from './webhook'
+import {
+  getWebhookAmount,
+  isHandledAsaasBillingEvent,
+  normalizeAsaasDateToIso,
+  parseAsaasWebhookEvent,
+} from './webhook'
 
 describe('Asaas webhook parsing', () => {
-  it('parses supported payment events', () => {
+  it('parses settled payment events that only provide payment.value', () => {
     const event = parseAsaasWebhookEvent({
       event: 'PAYMENT_RECEIVED',
-      amount: 1900,
       payment: {
         id: 'pay_123',
-        externalReference: 'usr_123',
+        externalReference: 'curria:v1:c:chk_123',
         subscription: null,
-        amount: 1900,
+        value: 19.9,
       },
     })
 
     expect(event).toEqual({
       event: 'PAYMENT_RECEIVED',
-      amount: 1900,
       payment: {
         id: 'pay_123',
-        externalReference: 'usr_123',
+        externalReference: 'curria:v1:c:chk_123',
         subscription: null,
-        amount: 1900,
+        value: 19.9,
       },
     })
-    expect(getWebhookAmount(event)).toBe(1900)
+    expect(getWebhookAmount(event)).toBe(1990)
   })
 
-  it('parses supported subscription events', () => {
+  it('parses current subscription events with nullable externalReference', () => {
     const event = parseAsaasWebhookEvent({
-      event: 'SUBSCRIPTION_RENEWED',
-      amount: 3900,
+      event: 'SUBSCRIPTION_UPDATED',
       subscription: {
         id: 'sub_123',
-        externalReference: 'usr_123',
+        externalReference: null,
         status: 'ACTIVE',
-        nextDueDate: '2026-04-29',
+        nextDueDate: '22/11/2099',
         value: 39,
       },
     })
 
     expect(event.subscription?.id).toBe('sub_123')
-    expect(event.subscription?.nextDueDate).toBe('2026-04-29')
+    expect(event.subscription?.externalReference).toBeNull()
+    expect(event.subscription?.nextDueDate).toBe('22/11/2099')
   })
 
   it('uses subscription value as an amount fallback when top-level amount is omitted', () => {
@@ -60,11 +63,28 @@ describe('Asaas webhook parsing', () => {
     expect(getWebhookAmount(event)).toBe(3900)
   })
 
-  it('rejects invalid webhook shapes', () => {
+  it('accepts unknown event names so the route can ignore them with 200', () => {
+    const event = parseAsaasWebhookEvent({
+      event: 'PAYMENT_CREATED',
+      payment: {
+        id: 'pay_123',
+      },
+    })
+
+    expect(event.event).toBe('PAYMENT_CREATED')
+    expect(isHandledAsaasBillingEvent(event.event)).toBe(false)
+  })
+
+  it('normalizes both ISO and BR date formats', () => {
+    expect(normalizeAsaasDateToIso('2026-04-29')).toBe('2026-04-29T00:00:00.000Z')
+    expect(normalizeAsaasDateToIso('22/11/2099')).toBe('2099-11-22T00:00:00.000Z')
+  })
+
+  it('still rejects handled billing events without the required nested resource', () => {
     expect(() => parseAsaasWebhookEvent({})).toThrow()
     expect(() => parseAsaasWebhookEvent({
-      event: 'PAYMENT_RECEIVED',
-    })).toThrow('PAYMENT_RECEIVED events require a payment object.')
+      event: 'PAYMENT_CONFIRMED',
+    })).toThrow('PAYMENT_CONFIRMED events require a payment object.')
     expect(() => parseAsaasWebhookEvent({
       event: 'SUBSCRIPTION_CREATED',
     })).toThrow('SUBSCRIPTION_CREATED events require a subscription object.')

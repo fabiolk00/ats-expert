@@ -10,11 +10,13 @@ Preferred command:
 
 ```bash
 npx prisma db execute --file prisma/migrations/billing_webhook_hardening.sql --schema prisma/schema.prisma
+npx prisma db execute --file prisma/migrations/20260406_align_asaas_webhook_contract.sql --schema prisma/schema.prisma
 ```
 
 If your deployment flow requires manual SQL execution, run the contents of:
 
 - `prisma/migrations/billing_webhook_hardening.sql`
+- `prisma/migrations/20260406_align_asaas_webhook_contract.sql`
 
 against the target database before deploying code that depends on `billing_checkouts` and the updated RPC signatures.
 
@@ -96,7 +98,7 @@ Watch for:
 1. create checkout
 2. confirm `billing_checkouts.status = 'pending'`
 3. confirm Asaas call succeeds and row becomes `created`
-4. simulate `PAYMENT_RECEIVED`
+4. simulate `PAYMENT_CONFIRMED` or `PAYMENT_RECEIVED`
 5. verify:
    - credits increased in `credit_accounts`
    - row becomes `paid`
@@ -106,16 +108,17 @@ Watch for:
 
 1. create checkout
 2. confirm row becomes `created`
-3. simulate `SUBSCRIPTION_CREATED`
-4. verify:
+3. simulate `SUBSCRIPTION_CREATED` with `status=INACTIVE` and verify it is acknowledged with `200 ignored`
+4. simulate the first settled payment event with `payment.subscription` present
+5. verify:
    - credits increased
    - `user_quotas.asaas_subscription_id` is populated
    - row becomes `subscription_active`
-5. simulate `SUBSCRIPTION_RENEWED`
-6. verify:
+6. simulate `PAYMENT_RECEIVED` for the next cycle or legacy `SUBSCRIPTION_RENEWED`
+7. verify:
    - renewal resolves from `user_quotas`
    - no checkout lookup is needed
-   - credits increase again
+   - credits are replaced once, not added twice
 
 ### Duplicate replay
 

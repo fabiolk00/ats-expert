@@ -3,13 +3,20 @@ import {
   TOOL_ERROR_CODES,
   type ToolErrorCode,
 } from '@/lib/agent/tool-errors'
-import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
-import { getPlan, type PlanSlug } from '@/lib/plans'
-import { logInfo, logWarn } from '@/lib/observability/structured-log'
 import type { AsaasWebhookEvent } from '@/lib/asaas/webhook'
+import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
+import { logInfo, logWarn } from '@/lib/observability/structured-log'
+import { getPlan, type PlanSlug } from '@/lib/plans'
 
 type BillingApplyResult = 'processed' | 'duplicate'
-type BillingStatus = 'active' | 'canceled' | 'past_due'
+export type BillingStatus = 'active' | 'canceled' | 'past_due'
+export type BillingCreditGrantEventType =
+  | 'PAYMENT_SETTLED'
+  | 'SUBSCRIPTION_STARTED'
+  | 'SUBSCRIPTION_RENEWED'
+export type BillingSubscriptionMetadataEventType =
+  | 'SUBSCRIPTION_UPDATED'
+  | 'SUBSCRIPTION_CANCELED'
 
 type PersistedPlanRow = {
   plan: string
@@ -40,24 +47,35 @@ export type CreditGrantRequest = {
   appUserId: string
   eventFingerprint: string
   eventPayload: AsaasWebhookEvent
+  billingEventType: BillingCreditGrantEventType
   plan: PlanSlug
   amountMinor?: number | null
   checkoutReference?: string | null
   asaasSubscriptionId?: string
   renewsAt?: string | null
-  reason: 'payment_received' | 'subscription_created' | 'subscription_renewed'
+  isRenewal?: boolean
+  reason:
+    | 'payment_confirmed'
+    | 'payment_received'
+    | 'subscription_started'
+    | 'subscription_renewed'
 }
 
 export type SubscriptionMetadataUpdateRequest = {
   appUserId: string
   eventFingerprint: string
   eventPayload: AsaasWebhookEvent
+  billingEventType: BillingSubscriptionMetadataEventType
   plan: PlanSlug
   checkoutReference?: string | null
   asaasSubscriptionId?: string
   renewsAt?: string | null
   status: BillingStatus
-  reason: 'subscription_deleted' | 'subscription_canceled'
+  reason:
+    | 'subscription_deleted'
+    | 'subscription_canceled'
+    | 'subscription_inactivated'
+    | 'subscription_updated'
 }
 
 function createBillingError(code: ToolErrorCode, message: string): BillingError {
@@ -154,9 +172,7 @@ export async function grantCreditsForEvent(request: CreditGrantRequest): Promise
   }
 
   const supabase = getSupabaseAdminClient()
-  // For subscription renewals, replace the balance (p_is_renewal = true)
-  // For initial purchases and plan changes, add to existing balance (p_is_renewal = false, carryover)
-  const isRenewal = request.eventPayload.event === 'SUBSCRIPTION_RENEWED'
+  const isRenewal = request.isRenewal ?? false
 
   const { data, error } = await supabase.rpc('apply_billing_credit_grant_event', {
     p_app_user_id: request.appUserId,
@@ -168,7 +184,7 @@ export async function grantCreditsForEvent(request: CreditGrantRequest): Promise
     p_renews_at: request.renewsAt ?? null,
     p_status: 'active',
     p_event_fingerprint: request.eventFingerprint,
-    p_event_type: request.eventPayload.event,
+    p_event_type: request.billingEventType,
     p_event_payload: request.eventPayload,
     p_is_renewal: isRenewal,
   })
@@ -184,6 +200,9 @@ export async function grantCreditsForEvent(request: CreditGrantRequest): Promise
       appUserId: request.appUserId,
       plan: request.plan,
       credits: plan.credits,
+      rawEventType: request.eventPayload.event,
+      billingEventType: request.billingEventType,
+      isRenewal,
       reason: request.reason,
       checkoutReference: request.checkoutReference,
       asaasSubscriptionId: request.asaasSubscriptionId,
@@ -214,7 +233,7 @@ export async function updateSubscriptionMetadataForEvent(
     p_renews_at: request.renewsAt ?? null,
     p_status: request.status,
     p_event_fingerprint: request.eventFingerprint,
-    p_event_type: request.eventPayload.event,
+    p_event_type: request.billingEventType,
     p_event_payload: request.eventPayload,
   })
 
@@ -228,6 +247,8 @@ export async function updateSubscriptionMetadataForEvent(
     logInfo('billing.subscription_metadata_updated', {
       appUserId: request.appUserId,
       plan: request.plan,
+      rawEventType: request.eventPayload.event,
+      billingEventType: request.billingEventType,
       reason: request.reason,
       status: request.status,
       checkoutReference: request.checkoutReference,

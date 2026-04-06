@@ -84,16 +84,16 @@ export default function PricingSection() {
                   <ul className="space-y-4">
                     {config.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-3">
-                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
                         <span className="text-sm font-medium">{feature}</span>
                       </li>
                     ))}
 
                     <li className="flex items-start gap-3">
                       {hasJobManagement ? (
-                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
                       ) : (
-                        <X className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                        <X className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
                       )}
                       <span className={`text-sm font-medium ${hasJobManagement ? "" : "text-muted-foreground"}`}>
                         Gerenciamento de vagas

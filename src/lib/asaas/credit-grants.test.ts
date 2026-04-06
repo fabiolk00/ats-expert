@@ -38,15 +38,14 @@ describe('billing credit grants', () => {
     maybeSingle.mockResolvedValue({ data: { plan: 'monthly' }, error: null })
   })
 
-  it('grants credits through the billing rpc using plan definitions and checkout trust anchors', async () => {
+  it('grants credits through the billing rpc using checkout trust anchors', async () => {
     const event = {
       event: 'PAYMENT_RECEIVED' as const,
-      amount: 1900,
       payment: {
         id: 'pay_123',
         externalReference: 'curria:v1:c:chk_123',
         subscription: null,
-        amount: 1900,
+        value: 19.9,
       },
     }
 
@@ -54,9 +53,11 @@ describe('billing credit grants', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_123',
       eventPayload: event,
+      billingEventType: 'PAYMENT_SETTLED',
       plan: 'unit',
       amountMinor: 1900,
       checkoutReference: 'chk_123',
+      isRenewal: false,
       reason: 'payment_received',
     })
 
@@ -70,7 +71,7 @@ describe('billing credit grants', () => {
       p_renews_at: null,
       p_status: 'active',
       p_event_fingerprint: 'fp_123',
-      p_event_type: 'PAYMENT_RECEIVED',
+      p_event_type: 'PAYMENT_SETTLED',
       p_event_payload: event,
       p_is_renewal: false,
     })
@@ -78,7 +79,7 @@ describe('billing credit grants', () => {
 
   it('updates subscription metadata without touching runtime credit storage directly', async () => {
     const event = {
-      event: 'SUBSCRIPTION_CANCELED' as const,
+      event: 'SUBSCRIPTION_INACTIVATED' as const,
       subscription: {
         id: 'sub_123',
         externalReference: 'usr_123',
@@ -89,11 +90,12 @@ describe('billing credit grants', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_456',
       eventPayload: event,
+      billingEventType: 'SUBSCRIPTION_CANCELED',
       plan: 'monthly',
       asaasSubscriptionId: 'sub_123',
       renewsAt: null,
       status: 'canceled',
-      reason: 'subscription_canceled',
+      reason: 'subscription_inactivated',
     })
 
     expect(rpc).toHaveBeenCalledWith('apply_billing_subscription_metadata_event', {
@@ -137,7 +139,6 @@ describe('billing credit grants', () => {
   it('rejects unknown plans before calling the rpc', async () => {
     const event = {
       event: 'PAYMENT_RECEIVED' as const,
-      amount: 1900,
       payment: {
         id: 'pay_123',
         externalReference: 'curria:v1:c:chk_123',
@@ -148,6 +149,7 @@ describe('billing credit grants', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_789',
       eventPayload: event,
+      billingEventType: 'PAYMENT_SETTLED',
       plan: 'invalid' as 'unit',
       reason: 'payment_received',
     })).rejects.toThrow('Plan not found: invalid')
@@ -157,12 +159,13 @@ describe('billing credit grants', () => {
 
   it('surfaces rpc overflow rejections for credit grants', async () => {
     const event = {
-      event: 'SUBSCRIPTION_RENEWED' as const,
-      amount: 3900,
-      subscription: {
-        id: 'sub_123',
-        externalReference: 'usr_123',
-        nextDueDate: '2026-05-29',
+      event: 'PAYMENT_RECEIVED' as const,
+      payment: {
+        id: 'pay_renewal',
+        externalReference: 'curria:v1:c:chk_monthly',
+        subscription: 'sub_123',
+        value: 39.9,
+        dueDate: '2026-05-29',
       },
     }
 
@@ -175,21 +178,24 @@ describe('billing credit grants', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_overflow',
       eventPayload: event,
+      billingEventType: 'SUBSCRIPTION_RENEWED',
       plan: 'monthly',
       asaasSubscriptionId: 'sub_123',
-      renewsAt: '2026-05-29',
+      renewsAt: '2026-06-29T00:00:00.000Z',
+      isRenewal: true,
       reason: 'subscription_renewed',
     })).rejects.toThrow('Failed to grant credits: Credit grant would exceed max balance.')
   })
 
   it('surfaces rpc negative-balance rejections for credit grants', async () => {
     const event = {
-      event: 'SUBSCRIPTION_RENEWED' as const,
-      amount: 3900,
-      subscription: {
-        id: 'sub_123',
-        externalReference: 'usr_123',
-        nextDueDate: '2026-05-29',
+      event: 'PAYMENT_RECEIVED' as const,
+      payment: {
+        id: 'pay_renewal',
+        externalReference: 'curria:v1:c:chk_monthly',
+        subscription: 'sub_123',
+        value: 39.9,
+        dueDate: '2026-05-29',
       },
     }
 
@@ -202,22 +208,23 @@ describe('billing credit grants', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_negative',
       eventPayload: event,
+      billingEventType: 'SUBSCRIPTION_RENEWED',
       plan: 'monthly',
       asaasSubscriptionId: 'sub_123',
-      renewsAt: '2026-05-29',
+      renewsAt: '2026-06-29T00:00:00.000Z',
+      isRenewal: true,
       reason: 'subscription_renewed',
     })).rejects.toThrow('Failed to grant credits: Negative existing balance detected for user usr_123')
   })
 
   it('surfaces rpc invalid checkout trust-anchor rejections for initial events', async () => {
     const event = {
-      event: 'PAYMENT_RECEIVED' as const,
-      amount: 1900,
+      event: 'PAYMENT_CONFIRMED' as const,
       payment: {
         id: 'pay_123',
         externalReference: 'curria:v1:c:chk_missing',
         subscription: null,
-        amount: 1900,
+        value: 19.9,
       },
     }
 
@@ -230,16 +237,18 @@ describe('billing credit grants', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_missing_checkout',
       eventPayload: event,
+      billingEventType: 'PAYMENT_SETTLED',
       plan: 'unit',
       amountMinor: 1900,
       checkoutReference: 'chk_missing',
-      reason: 'payment_received',
+      isRenewal: false,
+      reason: 'payment_confirmed',
     })).rejects.toThrow('Failed to grant credits: Checkout record not found: chk_missing')
   })
 
   it('surfaces rpc invalid subscription trust-anchor rejections for recurring events', async () => {
     const event = {
-      event: 'SUBSCRIPTION_CANCELED' as const,
+      event: 'SUBSCRIPTION_DELETED' as const,
       subscription: {
         id: 'sub_missing',
         externalReference: 'usr_123',
@@ -255,25 +264,25 @@ describe('billing credit grants', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_missing_subscription',
       eventPayload: event,
+      billingEventType: 'SUBSCRIPTION_CANCELED',
       plan: 'monthly',
       asaasSubscriptionId: 'sub_missing',
       renewsAt: null,
       status: 'canceled',
-      reason: 'subscription_canceled',
+      reason: 'subscription_deleted',
     })).rejects.toThrow(
       'Failed to update subscription metadata: User quota record not found for subscription sub_missing',
     )
   })
 
-  it('carries over remaining credits when upgrading plans (plan change)', async () => {
+  it('carries over remaining credits when upgrading plans', async () => {
     const event = {
       event: 'PAYMENT_RECEIVED' as const,
-      amount: 3990,
       payment: {
         id: 'pay_upgrade',
         externalReference: 'curria:v1:c:chk_upgrade',
         subscription: null,
-        amount: 3990,
+        value: 39.9,
       },
     }
 
@@ -281,13 +290,14 @@ describe('billing credit grants', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_upgrade',
       eventPayload: event,
+      billingEventType: 'PAYMENT_SETTLED',
       plan: 'monthly',
       amountMinor: 3990,
       checkoutReference: 'chk_upgrade',
+      isRenewal: false,
       reason: 'payment_received',
     })
 
-    // Should call RPC with p_is_renewal = false to enable carryover
     expect(rpc).toHaveBeenCalledWith('apply_billing_credit_grant_event', expect.objectContaining({
       p_is_renewal: false,
       p_plan: 'monthly',
@@ -295,14 +305,15 @@ describe('billing credit grants', () => {
     }))
   })
 
-  it('replaces credits on subscription renewal (no carryover)', async () => {
+  it('replaces credits on subscription renewal', async () => {
     const event = {
-      event: 'SUBSCRIPTION_RENEWED' as const,
-      amount: 3990,
-      subscription: {
-        id: 'sub_123',
-        externalReference: 'usr_123',
-        nextDueDate: '2026-05-29',
+      event: 'PAYMENT_RECEIVED' as const,
+      payment: {
+        id: 'pay_renewal',
+        externalReference: 'curria:v1:c:chk_monthly',
+        subscription: 'sub_123',
+        value: 39.9,
+        dueDate: '2026-05-29',
       },
     }
 
@@ -310,13 +321,14 @@ describe('billing credit grants', () => {
       appUserId: 'usr_123',
       eventFingerprint: 'fp_renewal',
       eventPayload: event,
+      billingEventType: 'SUBSCRIPTION_RENEWED',
       plan: 'monthly',
       asaasSubscriptionId: 'sub_123',
-      renewsAt: '2026-05-29',
+      renewsAt: '2026-06-29T00:00:00.000Z',
+      isRenewal: true,
       reason: 'subscription_renewed',
     })
 
-    // Should call RPC with p_is_renewal = true to replace balance
     expect(rpc).toHaveBeenCalledWith('apply_billing_credit_grant_event', expect.objectContaining({
       p_is_renewal: true,
       p_plan: 'monthly',

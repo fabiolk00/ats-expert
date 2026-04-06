@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { parseExternalReference } from '@/lib/asaas/external-reference'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
-import type { AsaasWebhookEvent } from '@/lib/asaas/webhook'
+import { getWebhookAmount, type AsaasWebhookEvent } from '@/lib/asaas/webhook'
 
 type ProcessedEventLookupRow = {
   id: string
@@ -51,7 +51,7 @@ function stableStringify(value: JsonValue): string {
   return `{${serializedEntries.join(',')}}`
 }
 
-function normalizeExternalReference(value: string | undefined): JsonValue {
+function normalizeExternalReference(value: string | null | undefined): JsonValue {
   if (!value) {
     return null
   }
@@ -69,21 +69,32 @@ function normalizeExternalReference(value: string | undefined): JsonValue {
   return {
     raw: null,
     version: parsed.version,
-    appUserId: parsed.version === 'legacy' ? parsed.appUserId : null,
+    appUserId: parsed.version === 'legacy' ? parsed.appUserId : parsed.appUserId ?? null,
     checkoutReference: parsed.checkoutReference ?? null,
   }
 }
 
+function normalizeEventType(eventType: AsaasWebhookEvent['event']): string {
+  if (eventType === 'PAYMENT_CONFIRMED' || eventType === 'PAYMENT_RECEIVED') {
+    return 'PAYMENT_SETTLED'
+  }
+
+  return eventType
+}
+
 export function computeEventFingerprint(event: AsaasWebhookEvent): string {
   const payload = {
-    event: event.event,
-    amount: event.amount ?? event.payment?.amount ?? null,
+    event: normalizeEventType(event.event),
+    amount: getWebhookAmount(event) ?? null,
     payment: event.payment
       ? {
           id: event.payment.id,
           externalReference: normalizeExternalReference(event.payment.externalReference),
           subscription: event.payment.subscription ?? null,
+          dueDate: event.payment.dueDate ?? null,
+          confirmedDate: event.payment.confirmedDate ?? null,
           amount: event.payment.amount ?? null,
+          value: event.payment.value ?? null,
         }
       : null,
     subscription: event.subscription
@@ -92,6 +103,8 @@ export function computeEventFingerprint(event: AsaasWebhookEvent): string {
           externalReference: normalizeExternalReference(event.subscription.externalReference),
           status: event.subscription.status ?? null,
           nextDueDate: event.subscription.nextDueDate ?? null,
+          deleted: event.subscription.deleted ?? null,
+          value: event.subscription.value ?? null,
         }
       : null,
   } satisfies JsonValue

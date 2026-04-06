@@ -8,37 +8,67 @@ import {
   toolFailure,
 } from '@/lib/agent/tool-errors'
 import {
-  handlePaymentReceived,
+  handlePaymentSettlement,
+  reconcileProcessedEventState,
   handleSubscriptionCanceled,
   handleSubscriptionCreated,
   handleSubscriptionRenewed,
+  handleSubscriptionUpdated,
 } from '@/lib/asaas/event-handlers'
 import { computeEventFingerprint, getProcessedEvent } from '@/lib/asaas/idempotency'
-import { parseAsaasWebhookEvent, type AsaasWebhookEvent } from '@/lib/asaas/webhook'
+import {
+  isHandledAsaasBillingEvent,
+  parseAsaasWebhookEvent,
+  type AsaasWebhookEvent,
+  type HandledAsaasBillingEventType,
+} from '@/lib/asaas/webhook'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 
 export const runtime = 'nodejs'
 
-type BillingApplyResult = 'processed' | 'duplicate'
+type BillingApplyResult = 'processed' | 'duplicate' | 'ignored'
+type HandledAsaasWebhookEvent = AsaasWebhookEvent & { event: HandledAsaasBillingEventType }
 
 function getExpectedWebhookToken(): string | undefined {
   return process.env.ASAAS_WEBHOOK_TOKEN ?? process.env.ASAAS_ACCESS_TOKEN
 }
 
 async function processAsaasEvent(
-  event: AsaasWebhookEvent,
+  event: HandledAsaasWebhookEvent,
   eventFingerprint: string,
 ): Promise<BillingApplyResult> {
   switch (event.event) {
+    case 'PAYMENT_CONFIRMED':
     case 'PAYMENT_RECEIVED':
-      return handlePaymentReceived(event, eventFingerprint)
+      return handlePaymentSettlement(event, eventFingerprint)
     case 'SUBSCRIPTION_CREATED':
       return handleSubscriptionCreated(event, eventFingerprint)
+    case 'SUBSCRIPTION_UPDATED':
+      return handleSubscriptionUpdated(event, eventFingerprint)
     case 'SUBSCRIPTION_RENEWED':
       return handleSubscriptionRenewed(event, eventFingerprint)
+    case 'SUBSCRIPTION_INACTIVATED':
     case 'SUBSCRIPTION_DELETED':
     case 'SUBSCRIPTION_CANCELED':
       return handleSubscriptionCanceled(event, eventFingerprint)
+  }
+}
+
+async function reconcileDuplicateEventState(
+  event: HandledAsaasWebhookEvent,
+  eventFingerprint: string,
+): Promise<void> {
+  try {
+    await reconcileProcessedEventState(event)
+  } catch (error) {
+    logWarn('asaas.webhook.duplicate_reconcile_failed', {
+      eventType: event.event,
+      eventFingerprint,
+      paymentId: event.payment?.id,
+      subscriptionId: event.subscription?.id,
+      success: false,
+      ...serializeError(error),
+    })
   }
 }
 
@@ -61,11 +91,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   let event: AsaasWebhookEvent
-  let eventFingerprint: string
 
   try {
     event = parseAsaasWebhookEvent(await req.json())
-    eventFingerprint = computeEventFingerprint(event)
   } catch (error) {
     const failure = toolFailure(
       TOOL_ERROR_CODES.VALIDATION_ERROR,
@@ -84,14 +112,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     })
   }
 
+  if (!isHandledAsaasBillingEvent(event.event)) {
+    logInfo('asaas.webhook.ignored', {
+      eventType: event.event,
+      success: true,
+      processedStatus: 'ignored',
+    })
+
+    return NextResponse.json({ success: true, ignored: true })
+  }
+
+  const handledEvent = event as HandledAsaasWebhookEvent
+  const eventFingerprint = computeEventFingerprint(handledEvent)
+
   try {
     const alreadyProcessed = await getProcessedEvent(eventFingerprint)
     if (alreadyProcessed) {
+      await reconcileDuplicateEventState(handledEvent, eventFingerprint)
+
       logInfo('asaas.webhook.duplicate_skipped', {
-        eventType: event.event,
+        eventType: handledEvent.event,
         eventFingerprint,
-        paymentId: event.payment?.id,
-        subscriptionId: event.subscription?.id,
+        paymentId: handledEvent.payment?.id,
+        subscriptionId: handledEvent.subscription?.id,
         success: true,
         processedStatus: 'skipped_duplicate',
       })
@@ -99,26 +142,41 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ success: true, cached: true })
     }
 
-    const result = await processAsaasEvent(event, eventFingerprint)
+    const result = await processAsaasEvent(handledEvent, eventFingerprint)
 
     if (result === 'duplicate') {
+      await reconcileDuplicateEventState(handledEvent, eventFingerprint)
+
       logInfo('asaas.webhook.duplicate_skipped', {
-        eventType: event.event,
+        eventType: handledEvent.event,
         eventFingerprint,
-        paymentId: event.payment?.id,
-        subscriptionId: event.subscription?.id,
+        paymentId: handledEvent.payment?.id,
+        subscriptionId: handledEvent.subscription?.id,
         success: true,
         processedStatus: 'skipped_duplicate',
       })
 
       return NextResponse.json({ success: true, cached: true })
+    }
+
+    if (result === 'ignored') {
+      logInfo('asaas.webhook.ignored', {
+        eventType: handledEvent.event,
+        eventFingerprint,
+        paymentId: handledEvent.payment?.id,
+        subscriptionId: handledEvent.subscription?.id,
+        success: true,
+        processedStatus: 'ignored',
+      })
+
+      return NextResponse.json({ success: true, ignored: true })
     }
 
     logInfo('asaas.webhook.processed', {
-      eventType: event.event,
+      eventType: handledEvent.event,
       eventFingerprint,
-      paymentId: event.payment?.id,
-      subscriptionId: event.subscription?.id,
+      paymentId: handledEvent.payment?.id,
+      subscriptionId: handledEvent.subscription?.id,
       success: true,
       processedStatus: 'processed',
     })
@@ -129,10 +187,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const errorMessage = getToolErrorMessage(error) ?? 'Failed to process webhook event.'
 
     logError('asaas.webhook.failed', {
-      eventType: event.event,
+      eventType: handledEvent.event,
       eventFingerprint,
-      paymentId: event.payment?.id,
-      subscriptionId: event.subscription?.id,
+      paymentId: handledEvent.payment?.id,
+      subscriptionId: handledEvent.subscription?.id,
       success: false,
       processedStatus: 'failed',
       errorCode,

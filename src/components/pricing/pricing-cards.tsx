@@ -222,15 +222,15 @@ export default function PricingCards() {
               <ul className="space-y-4 text-left">
                 {config.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-3">
-                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
                     <span className="text-sm font-medium">{feature}</span>
                   </li>
                 ))}
                 <li key="job-management" className="flex items-start gap-3">
                   {hasJobManagement ? (
-                    <Check aria-label="Recurso incluído" className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                    <Check aria-label="Recurso incluído" className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
                   ) : (
-                    <X aria-label="Recurso indisponível" className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    <X aria-label="Recurso indisponível" className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
                   )}
                   <span className={cn("text-sm font-medium", hasJobManagement ? undefined : "text-muted-foreground")}>
                     Gerenciamento de vagas

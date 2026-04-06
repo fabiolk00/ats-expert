@@ -175,18 +175,18 @@ export function PlanUpdateDialog({
 
                       <ul className="space-y-4 text-left">
                         <li className="flex items-start gap-3">
-                          <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                          <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
                           <span className="text-sm font-medium">Créditos do plano: {config.credits}</span>
                         </li>
                         <li className="flex items-start gap-3">
-                          <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                          <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
                           <span className="text-sm font-medium">
                             {isCurrent ? `Créditos atuais: ${currentCredits}` : `Após a compra: ${estimatedCredits}`}
                           </span>
                         </li>
                         {config.features.map((feature) => (
                           <li key={feature} className="flex items-start gap-3">
-                            <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                            <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
                             <span className="text-sm font-medium">{feature}</span>
                           </li>
                         ))}
