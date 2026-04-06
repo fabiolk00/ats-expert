@@ -3,7 +3,7 @@ title: CurrIA API Conventions
 audience: [developers]
 related: [README.md, CODE_STYLE.md, ERROR_HANDLING.md]
 status: current
-updated: 2026-04-01
+updated: 2026-04-06
 ---
 
 # API Conventions
@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
 - Consumes one credit on new session creation only
 - Enforces the 15-message cap
 - Streams SSE responses
+- Returns `X-Session-Id` for new sessions
+- Emits `sessionCreated` as the earliest SSE event for new sessions
+- May persist target-job context before the model loop starts when the current message clearly looks like a vacancy
+- May precompute `gapAnalysis` and `targetFitAssessment` before the assistant replies when enough resume context already exists
 - Executes the tool loop and persists tool patches centrally
 
 ## `/api/session`

@@ -6,12 +6,24 @@ related:
   - state-model.md
   - tool-development.md
 status: current
-updated: 2026-04-01
+updated: 2026-04-06
 ---
 
 # CurrIA Features
 
 CurrIA helps Brazilian job seekers improve resumes for ATS systems and recruiter review.
+
+## Conversational Agent
+
+What it does: guides the user through resume analysis, targeting, rewriting, and generation while keeping a durable session state behind the chat.
+
+Key behaviors:
+- persists the session ID early so refreshes do not silently create a second paid session
+- detects pasted job descriptions before the model loop when the message clearly looks like a vacancy
+- can precompute targeting context for the assistant when the session already has enough resume information
+- keeps the conversation grounded in the user's real background instead of blindly optimizing for any target role
+
+Technical reference: `POST /api/agent` in `src/app/api/agent/route.ts`
 
 ## AI Resume Rewriting
 
@@ -43,8 +55,23 @@ Use cases:
 - tailor a resume per application
 - keep multiple optimized variants in parallel
 - compare targeted and non-targeted versions
+- preserve the latest active target job description inside the session context
+- carry structured gap analysis and fit judgment through the conversation
 
 Technical reference: `src/lib/resume-targets/create-target-resume.ts`
+
+## Fit Assessment and Honest Guidance
+
+What it does: estimates whether the target role looks like a strong, partial, or weak fit for the user's current profile and uses that judgment to shape the conversation.
+
+Use cases:
+- tell the user when the target role is realistic today
+- point out when the role is adjacent but the stack or domain is different
+- explain when the role is currently a weak fit and avoid overselling resume changes as a full fix
+
+Technical reference:
+- prompt guidance in `src/lib/agent/context-builder.ts`
+- stored fit derivation in `src/lib/agent/target-fit.ts`
 
 ## Version History
 

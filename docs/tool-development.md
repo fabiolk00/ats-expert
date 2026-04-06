@@ -3,7 +3,7 @@ title: CurrIA Tool Development Guide
 audience: [developers]
 related: [INDEX.md, CONCEPTS.md, state-model.md, developer-rules/README.md]
 status: current
-updated: 2026-04-01
+updated: 2026-04-06
 ---
 
 # Tool Development Guide
@@ -104,6 +104,13 @@ function dispatchTool(toolName: string, input: unknown, session: Session) {
 - it is derived or transient
 - it helps the model reason but is not canonical resume truth
 
+Examples of good `agentState` data:
+- parsed resume text
+- latest target job description
+- structured gap analysis
+- stored target-fit assessment
+- rewrite metadata per section
+
 ### Put data in `generatedOutput` when
 - it describes generated artifacts
 - it must survive file generation for later retrieval or inspection
@@ -126,6 +133,7 @@ Examples:
 - `rewrite_section` validates section-specific payloads before updating `cvState`
 - `generate_file` persists only storage metadata, never signed URLs
 - `analyze_gap` validates structured comparison output before storing it in `agentState`
+- fit assessment can be derived from validated gap analysis, but it still belongs in `agentState`, not `cvState`
 - `create_target_resume` validates a full target-derived `CVState` before persisting it
 
 ## Patch design rules
@@ -160,6 +168,8 @@ Useful current tests:
 - replacing all of `agentState` when only one nested field changed
 - overwriting canonical base `cvState` when the feature actually needs a target-derived resume
 - storing mutable resume history inside `agentState` instead of `cv_versions`
+- storing target-fit or targeting context in `cvState`
+- letting stale target-fit or gap-analysis data survive after the target job changes
 
 ## Related Documentation
 

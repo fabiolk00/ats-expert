@@ -3,7 +3,7 @@ title: CurrIA Session State Model
 audience: [developers, architects]
 related: [INDEX.md, CONCEPTS.md, architecture-overview.md, tool-development.md]
 status: current
-updated: 2026-04-01
+updated: 2026-04-06
 ---
 
 # Session State Model
@@ -63,6 +63,7 @@ Purpose: operational context for the agent runtime.
 Current responsibilities:
 - parsed resume text
 - target job description
+- target fit assessment
 - parse status and parse errors
 - attachment metadata
 - rewrite history
@@ -181,7 +182,19 @@ Persisted effect:
 ### `analyze_gap`
 Persisted effect:
 - `agentState.targetJobDescription`
+- `agentState.targetFitAssessment`
 - `agentState.gapAnalysis`
+
+### Route-level target detection
+Persisted effect:
+- high-confidence pasted vacancies can update `agentState.targetJobDescription` before the model loop starts
+- if enough resume context already exists, the route can also persist:
+  - `agentState.gapAnalysis`
+  - `agentState.targetFitAssessment`
+
+Rules:
+- these writes are operational context only and do not mutate canonical `cvState`
+- if the detected target changes, stale fit/gap context must be cleared before recalculation
 
 ### `create_target_resume`
 Persisted effect:
@@ -209,7 +222,8 @@ Persisted effect:
 The tool dispatcher owns tool-originated state mutation. There are still route-level writes outside the dispatcher for:
 - session creation
 - message count and message persistence
-- attachment metadata bootstrap before the tool loop
+- attachment preprocessing before the tool loop
+- early target-job detection and optional pre-loop targeting context bootstrap
 
 Those are request-lifecycle writes, not tool patches.
 

@@ -10,7 +10,7 @@ related:
   - ./state-model.md
   - ./tool-development.md
 status: current
-updated: 2026-04-01
+updated: 2026-04-06
 ---
 
 # Architecture Overview
@@ -60,12 +60,16 @@ After the auth boundary, use app user IDs in domain code.
 3. Validate input with Zod.
 4. Load or create session.
 5. Consume one credit on new session creation.
-6. Increment message count.
-7. Persist the user message.
-8. Build prompt context from the session bundle.
-9. Run the OpenAI tool loop.
-10. Apply tool patches centrally.
-11. Stream SSE deltas and final session metadata.
+6. Persist the session ID early for new sessions through `X-Session-Id` and the initial `sessionCreated` SSE event.
+7. Detect whether the current user message looks like a pasted job description.
+8. Persist target-job context before the model loop when confidence is high enough.
+9. Optionally precompute gap analysis and fit assessment when resume context already exists.
+10. Increment message count.
+11. Persist the user message.
+12. Build prompt context from the session bundle.
+13. Run the OpenAI tool loop.
+14. Apply tool patches centrally.
+15. Stream SSE deltas and final session metadata.
 
 ### `/api/webhook/asaas`
 
@@ -95,6 +99,13 @@ Top-level session bundle:
 
 See [Session State Model](./state-model.md) for the detailed contract.
 
+Notable `agentState` fields in the current approach:
+- `sourceResumeText`
+- `targetJobDescription`
+- `targetFitAssessment`
+- `gapAnalysis`
+- `rewriteHistory`
+
 ## Agent Tool Architecture
 
 Tool execution contract:
@@ -121,10 +132,12 @@ Additional resume persistence rules:
 ## Current Route and Feature Realities
 
 - OpenAI tool loop currently uses non-streaming calls and re-streams word chunks over SSE.
+- `/api/agent` now returns `X-Session-Id` for new sessions and emits `sessionCreated` as the first SSE event.
 - `generate_file` returns signed URLs directly.
 - `/api/file/[sessionId]` returns fresh signed URLs from persisted artifact metadata.
 - `/api/file/[sessionId]?targetId=<resumeTargetId>` returns fresh signed URLs for an owned target-derived artifact.
-- Route-level attachment bootstrap still writes `agentState.attachedFile` before the tool loop starts.
+- Route-level attachment preprocessing can enrich the current user message before the tool loop starts.
+- Route-level target bootstrap can write `targetJobDescription`, `gapAnalysis`, and `targetFitAssessment` before the tool loop starts.
 - `/api/session/[id]/versions` returns immutable history for the owning app user.
 - `/api/session/[id]/targets` lists or creates target-specific variants for the owning app user.
 

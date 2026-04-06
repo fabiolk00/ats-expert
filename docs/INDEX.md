@@ -20,11 +20,13 @@ This index is the main directory for the active documentation set.
 - [ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md) - environment variables and secrets management
 - [CONCEPTS.md](./CONCEPTS.md) - mental models before implementation details
 - [FEATURES.md](./FEATURES.md) - product capabilities
+- [agent-approach.md](./agent-approach.md) - how the live assistant reasons, detects targets, and judges fit
 - [GLOSSARY.md](./GLOSSARY.md) - key terms used across docs
 
 ## Architecture and Runtime
 
 - [architecture-overview.md](./architecture-overview.md)
+- [agent-approach.md](./agent-approach.md)
 - [state-model.md](./state-model.md)
 - [tool-development.md](./tool-development.md)
 - [error-codes.md](./error-codes.md)

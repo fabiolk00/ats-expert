@@ -6,7 +6,7 @@ related:
   - state-model.md
   - FEATURES.md
 status: current
-updated: 2026-04-01
+updated: 2026-04-06
 ---
 
 # CurrIA Core Concepts
@@ -18,7 +18,7 @@ This document explains the product and system in plain language before you dive 
 A session is the durable record of one resume-optimization conversation.
 
 - `cvState`: the canonical resume state used for generation
-- `agentState`: operational context such as parsed resume text, gap analysis, and targeting inputs
+- `agentState`: operational context such as parsed resume text, target job description, fit assessment, gap analysis, and rewrite metadata
 - `generatedOutput`: durable metadata about generated files
 - `atsScore`: the latest score snapshot
 - `phase`: where the user is in the optimization journey
@@ -36,6 +36,13 @@ The assistant improves resumes by calling explicit tools instead of mutating sta
 5. The assistant continues the conversation with the updated state.
 
 Why it matters: this makes tool behavior testable, keeps state mutations controlled, and reduces race-condition bugs.
+
+Important runtime nuance:
+- the route can now detect a pasted job description before the model loop starts
+- high-confidence job descriptions can be persisted immediately into `agentState.targetJobDescription`
+- when enough resume context already exists, the route can also precompute `gapAnalysis` and a stored fit judgment before the assistant replies
+
+Why it matters: the assistant no longer depends entirely on the LLM noticing that the user already pasted a vacancy.
 
 ## Billing and Credits
 
@@ -55,9 +62,20 @@ CurrIA maintains one canonical base resume and supports job-specific derivatives
 
 - Canonical changes create immutable entries in `cv_versions`.
 - Job-specific variants live in `resume_targets`.
+- The active session may also store the latest target job description, structured gap analysis, and a fit assessment (`strong`, `partial`, `weak`) for the current conversation.
 - Generated artifacts are metadata, not resume truth.
 
 Why it matters: users can tailor resumes to different roles without corrupting the base resume.
+
+## Agent Approach
+
+CurrIA does not treat every target job as equally realistic.
+
+- If the profile and target role are closely aligned, the assistant should say so and focus on sharper targeting.
+- If the profile is adjacent but the stack, domain, or seniority differs, the assistant should say the fit is partial and focus on transferable strengths.
+- If the target role is a weak fit for the current profile, the assistant should say that clearly and respectfully instead of pretending that rewriting alone will solve the gap.
+
+Why it matters: the product is meant to be helpful and credible, not flattering at the expense of accuracy.
 
 ## Identity Model
 

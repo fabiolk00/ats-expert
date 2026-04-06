@@ -5,7 +5,7 @@ related:
   - CONCEPTS.md
   - INDEX.md
 status: current
-updated: 2026-04-01
+updated: 2026-04-06
 ---
 
 # CurrIA Glossary
@@ -20,7 +20,7 @@ The canonical structured resume. This is the source of truth used to generate fi
 
 ## agentState
 
-Operational context for the assistant, such as parsed text, targeting context, and structured gap analysis.
+Operational context for the assistant, such as parsed text, targeting context, structured gap analysis, and the latest stored target-fit assessment.
 
 ## generatedOutput
 
@@ -41,6 +41,14 @@ Applicant Tracking System. Software used by recruiters to filter and rank resume
 ## Resume Target
 
 A job-specific derived resume variant stored separately from the base canonical resume.
+
+## Target Fit Assessment
+
+A stored judgment of how aligned the current profile appears with the active target role. Current levels are `strong`, `partial`, and `weak`.
+
+## Gap Analysis
+
+A structured comparison between the canonical resume and a target job description, including match score, missing skills, weak areas, and improvement suggestions.
 
 ## CV Version
 
