@@ -16,7 +16,9 @@ import { Label } from '@/components/ui/label'
 import {
   BRAZIL_STATE_CODES,
   isValidBrazilStateCode,
+  isValidBrazilPhoneNumberInput,
   isValidPostalCodeInput,
+  normalizePhoneNumber,
   normalizePostalCode,
   normalizeProvince,
 } from '@/lib/billing/address'
@@ -32,7 +34,7 @@ const paidPlans: PaidPlanSlug[] = ['unit', 'monthly', 'pro']
 const checkoutOnboardingSchema = z.object({
   plan: z.enum(['unit', 'monthly', 'pro']),
   cpfCnpj: z.string().min(11, 'CPF/CNPJ inválido').max(14, 'CPF/CNPJ inválido'),
-  phoneNumber: z.string().min(10, 'Telefone inválido').max(11, 'Telefone inválido'),
+  phoneNumber: z.string().refine(isValidBrazilPhoneNumberInput, 'Telefone inválido'),
   postalCode: z.string().refine(isValidPostalCodeInput, 'CEP inválido'),
   address: z.string().trim().min(3, 'Endereço obrigatório'),
   addressNumber: z.string().trim().min(1, 'Número obrigatório'),
@@ -87,7 +89,7 @@ export function CheckoutOnboardingForm({
     const normalizedValues: CheckoutOnboardingFormValues = {
       ...values,
       cpfCnpj: onlyDigits(values.cpfCnpj),
-      phoneNumber: onlyDigits(values.phoneNumber),
+      phoneNumber: normalizePhoneNumber(values.phoneNumber),
       postalCode: normalizePostalCode(values.postalCode),
       address: values.address.trim(),
       addressNumber: values.addressNumber.trim(),
@@ -200,7 +202,7 @@ export function CheckoutOnboardingForm({
                       id="cpfCnpj"
                       placeholder="Somente números"
                       inputMode="numeric"
-                      maxLength={14}
+                      maxLength={18}
                       aria-invalid={!!errors.cpfCnpj}
                       {...cpfCnpjField}
                       onChange={(event) => {
@@ -216,9 +218,9 @@ export function CheckoutOnboardingForm({
                     <Label htmlFor="phoneNumber">Telefone / WhatsApp</Label>
                     <Input
                       id="phoneNumber"
-                      placeholder="Somente números com DDD"
+                      placeholder="DDD + número, com ou sem +55"
                       inputMode="tel"
-                      maxLength={11}
+                      maxLength={20}
                       aria-invalid={!!errors.phoneNumber}
                       {...phoneField}
                       onChange={(event) => {
@@ -243,9 +245,9 @@ export function CheckoutOnboardingForm({
                     <Label htmlFor="postalCode">CEP</Label>
                     <Input
                       id="postalCode"
-                      placeholder="Somente números"
+                      placeholder="CEP com ou sem hífen"
                       inputMode="numeric"
-                      maxLength={8}
+                      maxLength={9}
                       aria-invalid={!!errors.postalCode}
                       {...postalCodeField}
                       onChange={(event) => {

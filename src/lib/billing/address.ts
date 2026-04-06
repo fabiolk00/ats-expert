@@ -34,19 +34,28 @@ function onlyDigits(value: string): string {
   return value.replace(/\D/g, '')
 }
 
-export function normalizePostalCode(value: string): string {
+export function normalizePhoneNumber(value: string): string {
   const digits = onlyDigits(value)
 
-  if (digits.length === 7) {
-    return digits.padStart(8, '0')
+  if (digits.startsWith('55') && digits.length >= 12) {
+    return digits.slice(2)
   }
 
   return digits
 }
 
+export function isValidBrazilPhoneNumberInput(value: string): boolean {
+  const digits = normalizePhoneNumber(value)
+  return digits.length === 10 || digits.length === 11
+}
+
+export function normalizePostalCode(value: string): string {
+  return onlyDigits(value)
+}
+
 export function isValidPostalCodeInput(value: string): boolean {
   const digits = onlyDigits(value)
-  return digits.length === 7 || digits.length === 8
+  return digits.length === 8
 }
 
 export function normalizeProvince(value: string): string {

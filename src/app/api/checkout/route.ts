@@ -5,11 +5,13 @@ import { z } from 'zod'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
   isValidBrazilStateCode,
+  isValidBrazilPhoneNumberInput,
   isValidPostalCodeInput,
+  normalizePhoneNumber,
   normalizePostalCode,
   normalizeProvince,
 } from '@/lib/billing/address'
-import { getBillingInfo, saveBillingInfo } from '@/lib/billing/customer-info'
+import { saveBillingInfo } from '@/lib/billing/customer-info'
 import {
   createCheckoutRecordPending,
   markCheckoutCreated,
@@ -31,12 +33,15 @@ export const runtime = 'nodejs'
 const BodySchema = z.object({
   plan: z.enum(['unit', 'monthly', 'pro']),
   cpfCnpj: z.string().min(1, 'CPF/CNPJ is required'),
-  phoneNumber: z.string().min(1, 'Phone number is required'),
+  phoneNumber: z.string()
+    .trim()
+    .refine(isValidBrazilPhoneNumberInput, 'Phone number must have 10 or 11 digits')
+    .transform(normalizePhoneNumber),
   address: z.string().min(1, 'Address is required'),
   addressNumber: z.string().min(1, 'Address number is required'),
   postalCode: z.string()
     .trim()
-    .refine(isValidPostalCodeInput, 'Postal code must have 7 or 8 digits')
+    .refine(isValidPostalCodeInput, 'Postal code must have 8 digits')
     .transform(normalizePostalCode),
   province: z.string()
     .trim()
@@ -223,7 +228,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const checkout = await createCheckoutRecordPending(appUser.id, plan.slug, plan.price)
     checkoutReference = checkout.checkoutReference
 
-    const billingInfo = await getBillingInfo(appUser.id)
     const externalReference = formatExternalReference(appUser.id, checkout.checkoutReference)
     const url = await createCheckoutLink({
       appUserId: appUser.id,
@@ -235,7 +239,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       successUrl,
       cancelUrl: pricingUrl,
       expiredUrl: pricingUrl,
-      billingInfo: billingInfo ?? undefined,
+      billingInfo: {
+        cpfCnpj: body.data.cpfCnpj,
+        phoneNumber: body.data.phoneNumber,
+        address: body.data.address,
+        addressNumber: body.data.addressNumber,
+        postalCode: body.data.postalCode,
+        province: body.data.province,
+      },
     })
 
     await markCheckoutCreated(checkout.checkoutReference, url)

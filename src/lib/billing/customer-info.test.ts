@@ -28,10 +28,10 @@ describe('customer billing info helpers', () => {
   it('persists an explicit id and updated_at timestamp for upserts', async () => {
     await saveBillingInfo('usr_123', {
       cpfCnpj: '12345678901',
-      phoneNumber: '11999999999',
+      phoneNumber: '+55 (11) 99999-9999',
       address: 'Rua X',
       addressNumber: '123',
-      postalCode: '8061022',
+      postalCode: '08061022',
       province: 'pr',
     })
 
@@ -39,6 +39,7 @@ describe('customer billing info helpers', () => {
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
       id: expect.any(String),
       user_id: 'usr_123',
+      phone_number: '11999999999',
       postal_code: '08061022',
       province: 'PR',
       updated_at: expect.any(String),

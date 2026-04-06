@@ -5,19 +5,24 @@ import { z } from 'zod'
 
 import {
   isValidBrazilStateCode,
+  isValidBrazilPhoneNumberInput,
   isValidPostalCodeInput,
+  normalizePhoneNumber,
   normalizePostalCode,
   normalizeProvince,
 } from '@/lib/billing/address'
 
 export const BillingInfoSchema = z.object({
   cpfCnpj: z.string().min(1, 'CPF/CNPJ is required'),
-  phoneNumber: z.string().min(1, 'Phone number is required'),
+  phoneNumber: z.string()
+    .trim()
+    .refine(isValidBrazilPhoneNumberInput, 'Phone number must have 10 or 11 digits')
+    .transform(normalizePhoneNumber),
   address: z.string().min(1, 'Address is required'),
   addressNumber: z.string().min(1, 'Address number is required'),
   postalCode: z.string()
     .trim()
-    .refine(isValidPostalCodeInput, 'Postal code must have 7 or 8 digits')
+    .refine(isValidPostalCodeInput, 'Postal code must have 8 digits')
     .transform(normalizePostalCode),
   province: z.string()
     .trim()

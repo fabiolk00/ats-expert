@@ -5,7 +5,7 @@ import { currentUser } from '@clerk/nextjs/server'
 
 import { POST } from './route'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
-import { getBillingInfo, saveBillingInfo } from '@/lib/billing/customer-info'
+import { saveBillingInfo } from '@/lib/billing/customer-info'
 import {
   createCheckoutRecordPending,
   markCheckoutCreated,
@@ -29,7 +29,6 @@ vi.mock('@/lib/auth/app-user', () => ({
 
 vi.mock('@/lib/billing/customer-info', () => ({
   saveBillingInfo: vi.fn(),
-  getBillingInfo: vi.fn(),
 }))
 
 vi.mock('@/lib/asaas/billing-checkouts', () => ({
@@ -73,7 +72,6 @@ describe('checkout route billing sequencing', () => {
       emailAddresses: [{ emailAddress: 'test@example.com' }],
     } as never)
     vi.mocked(saveBillingInfo).mockResolvedValue(undefined)
-    vi.mocked(getBillingInfo).mockResolvedValue(null)
     vi.mocked(createCheckoutRecordPending).mockResolvedValue({
       id: 'bc_123',
       userId: 'usr_123',
@@ -106,12 +104,20 @@ describe('checkout route billing sequencing', () => {
     expect(vi.mocked(createCheckoutLink)).toHaveBeenCalledWith(expect.objectContaining({
       checkoutReference: 'chk_123',
       externalReference: 'curria:v1:u:usr_123:c:chk_123',
+      billingInfo: {
+        cpfCnpj: '12345678901',
+        phoneNumber: '11999999999',
+        address: 'Rua X',
+        addressNumber: '123',
+        postalCode: '01234567',
+        province: 'SP',
+      },
     }))
     expect(markCheckoutCreated).toHaveBeenCalledWith('chk_123', 'https://asaas.test/pay')
     expect(await response.json()).toEqual({ url: 'https://asaas.test/pay' })
   })
 
-  it('normalizes a 7-digit cep and lowercase state before saving billing info', async () => {
+  it('rejects a 7-digit cep before saving billing info', async () => {
     const response = await POST(new NextRequest('http://localhost/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
@@ -122,9 +128,24 @@ describe('checkout route billing sequencing', () => {
       }),
     }))
 
+    expect(response.status).toBe(400)
+    expect(saveBillingInfo).not.toHaveBeenCalled()
+  })
+
+  it('normalizes a country-coded phone number and lowercase state before saving billing info', async () => {
+    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
+      body: JSON.stringify({
+        ...mockBillingBody,
+        phoneNumber: '+55 (11) 99999-9999',
+        province: 'sp',
+      }),
+    }))
+
     expect(response.status).toBe(200)
     expect(saveBillingInfo).toHaveBeenCalledWith('usr_123', expect.objectContaining({
-      postalCode: '08061022',
+      phoneNumber: '11999999999',
       province: 'SP',
     }))
   })

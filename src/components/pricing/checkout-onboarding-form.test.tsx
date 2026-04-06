@@ -68,8 +68,8 @@ describe('CheckoutOnboardingForm', () => {
 
     await user.click(screen.getByRole('button', { name: /Mensal/ }))
     await user.type(screen.getByLabelText('CPF ou CNPJ'), '123.456.789-01')
-    await user.type(screen.getByLabelText('Telefone / WhatsApp'), '(11) 99999-9999')
-    await user.type(screen.getByLabelText('CEP'), '8061022')
+    await user.type(screen.getByLabelText('Telefone / WhatsApp'), '+55 (11) 99999-9999')
+    await user.type(screen.getByLabelText('CEP'), '08061022')
     await user.type(screen.getByLabelText('Rua / Avenida'), ' Rua das Flores ')
     await user.type(screen.getByLabelText('Número'), '123')
     await user.selectOptions(screen.getByLabelText('Estado (UF)'), 'SP')
