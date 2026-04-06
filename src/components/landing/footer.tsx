@@ -1,32 +1,35 @@
+import Link from "next/link"
+
 import Logo from "@/components/logo"
 
 const links = [
   { label: "Preços", href: "#pricing" },
-  { label: "Termos", href: "#" },
-  { label: "Privacidade", href: "#" },
+  { label: "Termos", href: "/terms" },
+  { label: "Privacidade", href: "/privacy" },
 ]
 
 export default function Footer() {
   return (
-    <footer className="py-8 border-t border-border bg-background">
+    <footer className="border-t border-border bg-background py-8">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
           <Logo size="sm" />
 
           <nav className="flex items-center gap-6">
             {links.map((link) => (
-              <a
+              <Link
                 key={link.label}
                 href={link.href}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
 
           <p className="text-sm text-muted-foreground">
-            Curr<span className="text-purple-600 dark:text-purple-400">IA</span> © {new Date().getFullYear()}
+            Curr<span className="text-purple-600 dark:text-purple-400">IA</span> &copy;{" "}
+            {new Date().getFullYear()}
           </p>
         </div>
       </div>

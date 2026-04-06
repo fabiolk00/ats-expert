@@ -5,13 +5,11 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useAuth } from "@clerk/nextjs"
 import { Check, Loader2, X } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { CHECKOUT_ERROR_MESSAGE, getCheckoutErrorMessage } from "@/lib/asaas/checkout-errors"
-import { navigateToUrl } from "@/lib/navigation/external"
+import { buildCheckoutOnboardingPath, isPaidPlanSlug, type PaidPlanSlug } from "@/lib/billing/checkout-navigation"
 import { PLANS, formatPrice } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
@@ -35,23 +33,9 @@ const plans = [
 ] as const
 
 type DisplayPlan = (typeof plans)[number]["slug"]
-type CheckoutPlan = Exclude<DisplayPlan, "free">
 
-type CheckoutAttemptResult =
-  | { kind: "success"; url: string }
-  | { kind: "unauthorized" }
-  | { kind: "error"; message: string; retryable: boolean }
-
-function getCheckoutRedirectPath(plan: CheckoutPlan): string {
-  return `/pricing?checkoutPlan=${plan}`
-}
-
-function getLoginRedirectPath(plan: CheckoutPlan): string {
-  return `/login?redirect_to=${encodeURIComponent(getCheckoutRedirectPath(plan))}`
-}
-
-function getSignupRedirectPath(plan: CheckoutPlan): string {
-  return `/signup?redirect_to=${encodeURIComponent(getCheckoutRedirectPath(plan))}`
+function getSignupRedirectPath(plan: PaidPlanSlug): string {
+  return `/signup?redirect_to=${encodeURIComponent(buildCheckoutOnboardingPath(plan))}`
 }
 
 export default function PricingCards() {
@@ -62,58 +46,14 @@ export default function PricingCards() {
   const autoCheckoutStartedRef = useRef(false)
 
   const redirectToAuth = useCallback(
-    (plan: CheckoutPlan) => {
+    (plan: PaidPlanSlug) => {
       router.push(getSignupRedirectPath(plan))
     },
     [router],
   )
 
-  const requestCheckout = useCallback(async (plan: CheckoutPlan): Promise<CheckoutAttemptResult> => {
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-      })
-
-      let payload: unknown = null
-      try {
-        payload = await res.json()
-      } catch {
-        payload = null
-      }
-
-      if (
-        res.ok &&
-        typeof payload === "object" &&
-        payload !== null &&
-        "url" in payload &&
-        typeof payload.url === "string" &&
-        payload.url.length > 0
-      ) {
-        return { kind: "success", url: payload.url }
-      }
-
-      if (res.status === 401) {
-        return { kind: "unauthorized" }
-      }
-
-      return {
-        kind: "error",
-        message: getCheckoutErrorMessage(payload),
-        retryable: res.status >= 500,
-      }
-    } catch {
-      return {
-        kind: "error",
-        message: CHECKOUT_ERROR_MESSAGE,
-        retryable: true,
-      }
-    }
-  }, [])
-
   const handleCheckout = useCallback(
-    async (plan: CheckoutPlan) => {
+    async (plan: PaidPlanSlug) => {
       if (!isLoaded) {
         return
       }
@@ -125,28 +65,12 @@ export default function PricingCards() {
 
       setLoading(plan)
       try {
-        let result = await requestCheckout(plan)
-
-        if (result.kind !== "success" && (result.kind === "unauthorized" || result.retryable)) {
-          result = await requestCheckout(plan)
-        }
-
-        if (result.kind === "success") {
-          navigateToUrl(result.url)
-          return
-        }
-
-        if (result.kind === "unauthorized") {
-          router.push(getLoginRedirectPath(plan))
-          return
-        }
-
-        toast.error(result.message)
+        router.push(buildCheckoutOnboardingPath(plan))
       } finally {
         setLoading(null)
       }
     },
-    [isLoaded, isSignedIn, redirectToAuth, requestCheckout, router],
+    [isLoaded, isSignedIn, redirectToAuth, router],
   )
 
   const handlePlanAction = useCallback(
@@ -176,14 +100,14 @@ export default function PricingCards() {
       return
     }
 
-    if (checkoutPlan !== "unit" && checkoutPlan !== "monthly" && checkoutPlan !== "pro") {
+    if (!isPaidPlanSlug(checkoutPlan)) {
       return
     }
 
     autoCheckoutStartedRef.current = true
     router.replace("/pricing")
-    void handleCheckout(checkoutPlan)
-  }, [handleCheckout, isLoaded, isSignedIn, router, searchParams])
+    router.push(buildCheckoutOnboardingPath(checkoutPlan))
+  }, [isLoaded, isSignedIn, router, searchParams])
 
   return (
     <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-2 xl:grid-cols-4">

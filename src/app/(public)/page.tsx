@@ -7,10 +7,12 @@ import FinalCta from "@/components/landing/final-cta"
 import Footer from "@/components/landing/footer"
 import FaqSection from "@/components/landing/faq-section"
 import SocialProof from "@/components/landing/social-proof"
+import { Schema } from "@/components/schema"
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col">
+      <Schema />
       <Header />
       <main className="flex-1">
         <HeroSection />

@@ -1,0 +1,42 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e1b4b;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+
+  <!-- Decorative blobs -->
+  <circle cx="150" cy="100" r="120" fill="#7c3aed" opacity="0.1"/>
+  <circle cx="1050" cy="550" r="150" fill="#a855f7" opacity="0.1"/>
+
+  <!-- Main content -->
+  <g>
+    <!-- Logo/Icon -->
+    <circle cx="150" cy="315" r="80" fill="url(#accentGradient)" opacity="0.2"/>
+    <text x="150" y="340" font-size="100" font-weight="bold" text-anchor="middle" fill="#a855f7" font-family="Arial, sans-serif">IA</text>
+
+    <!-- Main headline -->
+    <text x="400" y="200" font-size="72" font-weight="bold" fill="#ffffff" font-family="Arial, sans-serif">Seu currículo</text>
+    <text x="400" y="280" font-size="72" font-weight="bold" fill="#ffffff" font-family="Arial, sans-serif">merece ser</text>
+    <text x="400" y="360" font-size="72" font-weight="bold" fill="url(#accentGradient)" font-family="Arial, sans-serif">visto.</text>
+
+    <!-- Subheading -->
+    <text x="400" y="430" font-size="28" fill="#cbd5e1" font-family="Arial, sans-serif">Otimize seu currículo para ATS com IA</text>
+
+    <!-- CTA badge -->
+    <rect x="400" y="470" width="320" height="60" rx="30" fill="url(#accentGradient)"/>
+    <text x="560" y="510" font-size="24" font-weight="bold" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif">Comece Grátis</text>
+
+    <!-- Branding -->
+    <text x="1100" y="600" font-size="18" text-anchor="end" fill="#94a3b8" font-family="Arial, sans-serif">© CurrIA 2026</text>
+  </g>
+</svg>

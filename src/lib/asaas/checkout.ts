@@ -1,5 +1,6 @@
 import { asaas } from '@/lib/asaas/client'
 import { PLANS, type PlanSlug } from '@/lib/plans'
+import type { BillingInfo } from '@/lib/billing/customer-info'
 
 type CreateCheckoutLinkInput = {
   appUserId: string
@@ -11,6 +12,7 @@ type CreateCheckoutLinkInput = {
   successUrl: string
   cancelUrl?: string
   expiredUrl?: string
+  billingInfo?: BillingInfo
 }
 
 function buildPaymentLinkName(planName: string): string {
@@ -27,10 +29,22 @@ function buildCheckoutSessionUrl(checkoutId: string): string {
   return `${getAsaasHostedOrigin()}/checkoutSession/show?id=${encodeURIComponent(checkoutId)}`
 }
 
-function buildCustomerData(userName: string, userEmail?: string | null) {
+function buildCustomerData(
+  userName: string,
+  userEmail?: string | null,
+  billingInfo?: BillingInfo,
+) {
   return {
     name: userName,
     email: userEmail ?? undefined,
+    ...(billingInfo && {
+      cpfCnpj: billingInfo.cpfCnpj,
+      phoneNumber: billingInfo.phoneNumber,
+      address: billingInfo.address,
+      addressNumber: billingInfo.addressNumber,
+      postalCode: billingInfo.postalCode,
+      province: billingInfo.province,
+    }),
   }
 }
 
@@ -50,14 +64,13 @@ export async function createCheckoutLink({
   successUrl,
   cancelUrl,
   expiredUrl,
+  billingInfo,
 }: CreateCheckoutLinkInput): Promise<string> {
   const planConfig = PLANS[plan]
-  console.log('[createCheckoutLink] called with plan:', plan, 'billing:', planConfig.billing)
   void appUserId
   void checkoutReference
 
   if (planConfig.billing === 'once') {
-    console.log('[createCheckoutLink] creating one-time checkout')
     const detachedCheckout = await asaas.post<{ id: string }>('/checkouts', {
       billingTypes: ['PIX', 'CREDIT_CARD'],
       chargeTypes: ['DETACHED'],
@@ -67,7 +80,7 @@ export async function createCheckoutLink({
         cancelUrl: cancelUrl ?? successUrl,
         expiredUrl: expiredUrl ?? cancelUrl ?? successUrl,
       },
-      customerData: buildCustomerData(userName, userEmail),
+      customerData: buildCustomerData(userName, userEmail, billingInfo),
       items: [
         {
           name: buildPaymentLinkName(planConfig.name),
@@ -79,12 +92,9 @@ export async function createCheckoutLink({
       externalReference,
     })
 
-    const url = buildCheckoutSessionUrl(detachedCheckout.id)
-    console.log('[createCheckoutLink] one-time checkout created:', url)
-    return url
+    return buildCheckoutSessionUrl(detachedCheckout.id)
   }
 
-  console.log('[createCheckoutLink] creating recurring checkout')
   const recurringCheckout = await asaas.post<{ id: string }>('/checkouts', {
     billingTypes: ['CREDIT_CARD'],
     chargeTypes: ['RECURRENT'],
@@ -94,7 +104,7 @@ export async function createCheckoutLink({
       cancelUrl: cancelUrl ?? successUrl,
       expiredUrl: expiredUrl ?? cancelUrl ?? successUrl,
     },
-    customerData: buildCustomerData(userName, userEmail),
+    customerData: buildCustomerData(userName, userEmail, billingInfo),
     items: [
       {
         name: buildPaymentLinkName(planConfig.name),
@@ -110,7 +120,5 @@ export async function createCheckoutLink({
     externalReference,
   })
 
-  const url = buildCheckoutSessionUrl(recurringCheckout.id)
-  console.log('[createCheckoutLink] recurring checkout created:', url)
-  return url
+  return buildCheckoutSessionUrl(recurringCheckout.id)
 }

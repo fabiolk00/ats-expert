@@ -209,6 +209,7 @@ model User {
   apiUsage       ApiUsage[]
   billingCheckouts BillingCheckout[]
   jobApplications JobApplication[]
+  billingInfo    CustomerBillingInfo?
 
   @@map("users")
 }
@@ -240,4 +241,22 @@ model CreditAccount {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("credit_accounts")
+}
+
+model CustomerBillingInfo {
+  id            String    @id @default(cuid())
+  userId        String    @unique @map("user_id")
+  cpfCnpj       String    @map("cpf_cnpj")
+  phoneNumber   String    @map("phone_number")
+  address       String
+  addressNumber String    @map("address_number")
+  postalCode    String    @map("postal_code")
+  province      String
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("customer_billing_info")
 }

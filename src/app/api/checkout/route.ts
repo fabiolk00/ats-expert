@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
+import { getBillingInfo, saveBillingInfo } from '@/lib/billing/customer-info'
 import {
   createCheckoutRecordPending,
   markCheckoutCreated,
@@ -15,44 +16,106 @@ import {
 } from '@/lib/asaas/checkout-errors'
 import { formatExternalReference } from '@/lib/asaas/external-reference'
 import { getActiveRecurringSubscription } from '@/lib/asaas/quota'
+import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
 import { getPlan } from '@/lib/plans'
-import { logError } from '@/lib/observability/structured-log'
 
 export const runtime = 'nodejs'
 
 const BodySchema = z.object({
   plan: z.enum(['unit', 'monthly', 'pro']),
+  cpfCnpj: z.string().min(1, 'CPF/CNPJ is required'),
+  phoneNumber: z.string().min(1, 'Phone number is required'),
+  address: z.string().min(1, 'Address is required'),
+  addressNumber: z.string().min(1, 'Address number is required'),
+  postalCode: z.string().min(1, 'Postal code is required'),
+  province: z.string().length(2, 'Province must be 2 characters'),
 })
+
+function sanitizeCheckoutErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : 'Unknown checkout error'
+
+  if (
+    message.startsWith('Invalid app user id for externalReference:')
+    || message.startsWith('Invalid checkout reference for externalReference:')
+  ) {
+    return 'Failed to format checkout external reference.'
+  }
+
+  return message
+}
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   let checkoutReference: string | null = null
 
   try {
-    console.log('[api/checkout] POST request started')
     const appUser = await getCurrentAppUser()
     if (!appUser) {
-      console.warn('[api/checkout] no app user found')
+      logWarn('checkout.unauthorized', {
+        success: false,
+      })
+
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    console.log('[api/checkout] appUser:', appUser.id)
 
     let rawBody: unknown
     try {
       rawBody = await req.json()
     } catch {
+      logWarn('checkout.invalid_body', {
+        success: false,
+      })
+
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
 
     const body = BodySchema.safeParse(rawBody)
     if (!body.success) {
+      logWarn('checkout.invalid_body', {
+        success: false,
+      })
+
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
 
     const plan = getPlan(body.data.plan)
-    console.log('[api/checkout] plan:', body.data.plan, plan)
     if (!plan || plan.price <= 0) {
-      console.error('[api/checkout] invalid plan:', body.data.plan)
+      logWarn('checkout.invalid_plan', {
+        plan: body.data.plan,
+        success: false,
+      })
+
       return NextResponse.json({ error: 'Invalid paid plan' }, { status: 400 })
+    }
+
+    logInfo('checkout.request_started', {
+      plan: plan.slug,
+    })
+
+    // Save billing info
+    try {
+      await saveBillingInfo(appUser.id, {
+        cpfCnpj: body.data.cpfCnpj,
+        phoneNumber: body.data.phoneNumber,
+        address: body.data.address,
+        addressNumber: body.data.addressNumber,
+        postalCode: body.data.postalCode,
+        province: body.data.province,
+      })
+    } catch (error) {
+      const errorMessage = sanitizeCheckoutErrorMessage(error)
+
+      logError('checkout.save_billing_info_failed', {
+        plan: plan.slug,
+        errorMessage,
+        success: false,
+      })
+
+      return NextResponse.json(
+        {
+          error: 'Failed to save billing information.',
+        },
+        { status: 400 },
+      )
     }
 
     if (plan.billing === 'monthly') {
@@ -60,7 +123,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       try {
         activeRecurringSubscription = await getActiveRecurringSubscription(appUser.id)
       } catch (error) {
-        console.error('[api/checkout] failed to validate recurring subscription state', error)
+        const errorMessage = sanitizeCheckoutErrorMessage(error)
+
+        logError('checkout.subscription_validation_failed', {
+          plan: plan.slug,
+          errorMessage,
+          success: false,
+        })
+
         return NextResponse.json(
           {
             error: RECURRING_SUBSCRIPTION_VALIDATION_ERROR_MESSAGE,
@@ -82,11 +152,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     let user = null
     try {
       user = await currentUser()
-    } catch (currentUserError) {
-      console.warn(
-        '[api/checkout] unable to load Clerk profile; continuing with fallback customer data',
-        currentUserError,
-      )
+    } catch {
+      logWarn('checkout.customer_profile_fallback', {
+        plan: plan.slug,
+        success: true,
+      })
     }
 
     const userName = user?.fullName ?? user?.firstName ?? 'Usuario CurrIA'
@@ -94,15 +164,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const origin = req.headers.get('origin') ?? 'http://localhost:3000'
     const successUrl = `${origin}/dashboard`
     const pricingUrl = `${origin}/pricing`
-    console.log('[api/checkout] creating checkout record')
     const checkout = await createCheckoutRecordPending(appUser.id, plan.slug, plan.price)
     checkoutReference = checkout.checkoutReference
-    console.log('[api/checkout] checkout record created:', checkoutReference)
 
+    const billingInfo = await getBillingInfo(appUser.id)
     const externalReference = formatExternalReference(appUser.id, checkout.checkoutReference)
-    console.log('[api/checkout] externalReference:', externalReference)
-
-    console.log('[api/checkout] calling createCheckoutLink')
     const url = await createCheckoutLink({
       appUserId: appUser.id,
       userName,
@@ -113,26 +179,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       successUrl,
       cancelUrl: pricingUrl,
       expiredUrl: pricingUrl,
+      billingInfo: billingInfo ?? undefined,
     })
-    console.log('[api/checkout] createCheckoutLink returned:', url)
 
     await markCheckoutCreated(checkout.checkoutReference, url)
 
-    console.log('[api/checkout] checkout successful')
+    logInfo('checkout.created', {
+      checkoutReference,
+      plan: plan.slug,
+      success: true,
+    })
+
     return NextResponse.json({ url })
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown checkout error'
-    console.error('[api/checkout] error:', errorMessage, err)
+    const errorMessage = sanitizeCheckoutErrorMessage(err)
 
     if (checkoutReference) {
       try {
         await markCheckoutFailed(checkoutReference, errorMessage)
       } catch (markCheckoutFailedError) {
-        console.error('[api/checkout] failed to mark checkout as failed:', markCheckoutFailedError)
         logError('checkout.mark_failed_error', {
           checkoutReference,
           originalError: errorMessage,
-          markFailedError: markCheckoutFailedError instanceof Error ? markCheckoutFailedError.message : String(markCheckoutFailedError),
+          markFailedError: sanitizeCheckoutErrorMessage(markCheckoutFailedError),
           success: false,
         })
       }

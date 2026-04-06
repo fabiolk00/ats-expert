@@ -5,6 +5,7 @@ import { currentUser } from '@clerk/nextjs/server'
 
 import { POST } from './route'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
+import { getBillingInfo, saveBillingInfo } from '@/lib/billing/customer-info'
 import {
   createCheckoutRecordPending,
   markCheckoutCreated,
@@ -25,6 +26,11 @@ vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn(),
 }))
 
+vi.mock('@/lib/billing/customer-info', () => ({
+  saveBillingInfo: vi.fn(),
+  getBillingInfo: vi.fn(),
+}))
+
 vi.mock('@/lib/asaas/billing-checkouts', () => ({
   createCheckoutRecordPending: vi.fn(),
   markCheckoutCreated: vi.fn(),
@@ -38,6 +44,16 @@ vi.mock('@/lib/asaas/checkout', () => ({
 vi.mock('@/lib/asaas/quota', () => ({
   getActiveRecurringSubscription: vi.fn(),
 }))
+
+const mockBillingBody = {
+  plan: 'monthly' as const,
+  cpfCnpj: '12345678901',
+  phoneNumber: '11999999999',
+  address: 'Rua X',
+  addressNumber: '123',
+  postalCode: '01234567',
+  province: 'SP',
+}
 
 describe('checkout route billing sequencing', () => {
   beforeEach(() => {
@@ -55,6 +71,8 @@ describe('checkout route billing sequencing', () => {
       firstName: 'Test',
       emailAddresses: [{ emailAddress: 'test@example.com' }],
     } as never)
+    vi.mocked(saveBillingInfo).mockResolvedValue(undefined)
+    vi.mocked(getBillingInfo).mockResolvedValue(null)
     vi.mocked(createCheckoutRecordPending).mockResolvedValue({
       id: 'bc_123',
       userId: 'usr_123',
@@ -77,7 +95,7 @@ describe('checkout route billing sequencing', () => {
     const response = await POST(new NextRequest('http://localhost/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
-      body: JSON.stringify({ plan: 'monthly' }),
+      body: JSON.stringify(mockBillingBody),
     }))
 
     expect(response.status).toBe(200)
@@ -98,7 +116,7 @@ describe('checkout route billing sequencing', () => {
     const response = await POST(new NextRequest('http://localhost/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ plan: 'monthly' }),
+      body: JSON.stringify(mockBillingBody),
     }))
 
     expect(response.status).toBe(500)
@@ -111,7 +129,7 @@ describe('checkout route billing sequencing', () => {
     const response = await POST(new NextRequest('http://localhost/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ plan: 'monthly' }),
+      body: JSON.stringify(mockBillingBody),
     }))
 
     expect(response.status).toBe(401)
@@ -125,7 +143,7 @@ describe('checkout route billing sequencing', () => {
     const response = await POST(new NextRequest('http://localhost/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ plan: 'monthly' }),
+      body: JSON.stringify(mockBillingBody),
     }))
 
     expect(response.status).toBe(500)
@@ -139,7 +157,7 @@ describe('checkout route billing sequencing', () => {
     const response = await POST(new NextRequest('http://localhost/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
-      body: JSON.stringify({ plan: 'monthly' }),
+      body: JSON.stringify(mockBillingBody),
     }))
 
     expect(response.status).toBe(200)
@@ -155,7 +173,7 @@ describe('checkout route billing sequencing', () => {
     const response = await POST(new NextRequest('http://localhost/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
-      body: JSON.stringify({ plan: 'monthly' }),
+      body: JSON.stringify(mockBillingBody),
     }))
 
     expect(response.status).toBe(500)
@@ -176,14 +194,14 @@ describe('checkout route billing sequencing', () => {
     const response = await POST(new NextRequest('http://localhost/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
-      body: JSON.stringify({ plan: 'monthly' }),
+      body: JSON.stringify(mockBillingBody),
     }))
 
     expect(response.status).toBe(500)
     expect(createCheckoutLink).not.toHaveBeenCalled()
     expect(markCheckoutFailed).toHaveBeenCalledWith(
       'chk_123',
-      'Invalid app user id for externalReference: invalid user id',
+      'Failed to format checkout external reference.',
     )
   })
 
@@ -198,7 +216,7 @@ describe('checkout route billing sequencing', () => {
       new NextRequest('http://localhost/api/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ plan: 'pro' }),
+        body: JSON.stringify({ ...mockBillingBody, plan: 'pro' }),
       }),
     )
 
@@ -217,7 +235,7 @@ describe('checkout route billing sequencing', () => {
       new NextRequest('http://localhost/api/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
-        body: JSON.stringify({ plan: 'pro' }),
+        body: JSON.stringify({ ...mockBillingBody, plan: 'pro' }),
       }),
     )
 
@@ -234,7 +252,7 @@ describe('checkout route billing sequencing', () => {
       new NextRequest('http://localhost/api/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ plan: 'monthly' }),
+        body: JSON.stringify(mockBillingBody),
       }),
     )
 

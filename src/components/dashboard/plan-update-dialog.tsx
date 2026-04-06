@@ -7,6 +7,7 @@ import { Check, Loader2, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 
 import { ACTIVE_MONTHLY_PLAN_ERROR_MESSAGE } from "@/lib/asaas/checkout-errors"
+import { buildCheckoutOnboardingPath, type PaidPlanSlug } from "@/lib/billing/checkout-navigation"
 import { PLANS, type PlanSlug, formatPrice } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
@@ -22,17 +23,13 @@ interface PlanUpdateDialogProps {
   currentCredits: number
 }
 
-const planCards: Array<{ slug: PlanSlug; popular: boolean }> = [
+const planCards: Array<{ slug: PaidPlanSlug; popular: boolean }> = [
   { slug: "unit", popular: false },
   { slug: "monthly", popular: true },
   { slug: "pro", popular: false },
 ]
 
 const CURRENT_MONTHLY_PLAN_MESSAGE = "Você já possui este plano mensal ativo"
-
-function getCheckoutRedirectPath(plan: PlanSlug): string {
-  return `/pricing?checkoutPlan=${plan}`
-}
 
 function getPlanPurchaseState(activeRecurringPlan: PlanSlug | null, candidatePlan: PlanSlug): {
   isCurrentActiveRecurringPlan: boolean
@@ -71,7 +68,7 @@ export function PlanUpdateDialog({
   }, [isOpen])
 
   const handleCheckout = useCallback(
-    (plan: PlanSlug) => {
+    (plan: PaidPlanSlug) => {
       const purchaseState = getPlanPurchaseState(activeRecurringPlan, plan)
 
       if (purchaseState.isCurrentActiveRecurringPlan) {
@@ -86,7 +83,7 @@ export function PlanUpdateDialog({
 
       setLoading(plan)
       onOpenChange(false)
-      router.push(getCheckoutRedirectPath(plan))
+      router.push(buildCheckoutOnboardingPath(plan))
     },
     [activeRecurringPlan, onOpenChange, router],
   )

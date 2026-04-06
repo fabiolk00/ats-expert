@@ -60,7 +60,7 @@ describe("PlanUpdateDialog", () => {
     expect(screen.getAllByRole("button", { name: "Selecionar" })).toHaveLength(3)
   })
 
-  it("closes the modal and redirects to pricing checkout for the selected plan", async () => {
+  it("closes the modal and redirects to checkout onboarding for the selected plan", async () => {
     const user = userEvent.setup()
     const onOpenChange = vi.fn()
 
@@ -76,7 +76,7 @@ describe("PlanUpdateDialog", () => {
     await user.click(screen.getAllByRole("button", { name: "Selecionar" })[0])
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
-    expect(mockPush).toHaveBeenCalledWith("/pricing?checkoutPlan=unit")
+    expect(mockPush).toHaveBeenCalledWith("/checkout?plan=unit")
     expect(mockToastError).not.toHaveBeenCalled()
   })
 
