@@ -55,6 +55,20 @@ const CreateJobApplicationInputSchema = z.object({
   appliedAt: z.union([z.date(), z.string().min(1)]).optional(),
 })
 
+const CreateJobApplicationPayloadSchema = z.object({
+  user_id: z.string().min(1),
+  role: z.string().min(1),
+  company: z.string().min(1),
+  status: JobApplicationStatusSchema,
+  salary: z.string().nullable(),
+  location: z.string().nullable(),
+  benefits: z.array(JobApplicationBenefitSchema),
+  resume_version_label: z.string().min(1),
+  job_description: z.string().nullable(),
+  notes: z.string().nullable(),
+  applied_at: z.string().min(1),
+})
+
 const UpdateJobApplicationInputSchema = z.object({
   role: z.string().min(1).optional(),
   company: z.string().min(1).optional(),
@@ -155,7 +169,7 @@ function buildJobApplicationStats(): JobApplicationSummary {
 function normalizeCreatePayload(input: CreateJobApplicationInput) {
   const parsed = CreateJobApplicationInputSchema.parse(input)
 
-  return {
+  const payload = {
     user_id: parsed.userId,
     role: parsed.role,
     company: parsed.company,
@@ -168,6 +182,8 @@ function normalizeCreatePayload(input: CreateJobApplicationInput) {
     notes: normalizeNullableString(parsed.notes),
     applied_at: toIsoTimestamp(parsed.appliedAt ?? new Date()),
   }
+
+  return CreateJobApplicationPayloadSchema.parse(payload)
 }
 
 function normalizeUpdatePayload(input: UpdateJobApplicationInput) {
@@ -197,7 +213,7 @@ export async function createJobApplication(input: CreateJobApplicationInput): Pr
   const { data, error } = await supabase
     .from('job_applications')
     .insert(normalizeCreatePayload(normalized))
-    .select('*')
+    .select()
     .single()
 
   if (error || !data) {
