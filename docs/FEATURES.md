@@ -13,6 +13,36 @@ updated: 2026-04-07
 
 CurrIA helps Brazilian job seekers improve resumes for ATS systems and recruiter review.
 
+## Profile Setup
+
+What it does: lets users establish their career profile once before starting chat sessions. Supports LinkedIn URL extraction and PDF upload, followed by field-by-field manual review and editing.
+
+Use cases:
+
+- onboard without uploading a resume in every chat session
+- pre-populate `cvState` so the agent starts working on the first message
+- fix incomplete or incorrectly extracted fields before the profile is used
+- update the profile when career details change
+- choose between LinkedIn extraction or PDF upload based on preference
+
+Key behaviors:
+
+- LinkedIn URL triggers async extraction via LinkdAPI with queue position feedback
+- PDF upload triggers synchronous parsing via the existing parse pipeline
+- both paths produce a structured `cvState` preview in an editable form
+- each `cvState` field (fullName, summary, experience entries, education entries, skills, certifications) is individually editable
+- the profile is saved only when the user explicitly confirms
+- the saved profile seeds every new session automatically
+
+Technical reference:
+
+- `src/lib/linkedin/linkdapi.ts`
+- `src/lib/linkedin/queue.ts`
+- `src/app/(auth)/profile/page.tsx`
+- `POST /api/profile/extract`
+- `POST /api/profile/upload`
+- `PUT /api/profile`
+
 ## Conversational Agent
 
 What it does: guides the user through resume analysis, targeting, rewriting, and generation while keeping a durable session state behind the chat.
@@ -22,6 +52,7 @@ Key behaviors:
 - detects pasted job descriptions before the model loop when the message clearly looks like a vacancy
 - can precompute targeting context for the assistant when the session already has enough resume information
 - keeps the conversation grounded in the user's real background instead of blindly optimizing for any target role
+- when `cvState` is pre-seeded from a saved user profile, skips the ingestion phase entirely and starts working from the first user message
 
 Technical reference: `POST /api/agent` in `src/app/api/agent/route.ts`
 

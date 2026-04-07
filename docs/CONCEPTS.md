@@ -25,6 +25,20 @@ A session is the durable record of one resume-optimization conversation.
 
 Why it matters: CurrIA keeps resume truth separate from AI working memory so the generated resume stays stable and auditable.
 
+## User Profile and Session Seeding
+
+CurrIA maintains a user-scoped canonical profile separate from the session.
+
+The user sets up their profile once from a dedicated screen before starting chat sessions. They can provide their LinkedIn URL or upload a PDF resume. Either option extracts their career data and populates a structured profile.
+
+After extraction, the user can review and edit each field individually — name, summary, experiences, education, skills, certifications — in a structured form. Incomplete or incorrectly extracted fields can be corrected before saving.
+
+When a new session starts, if `cvState` is empty, it is seeded from the user's saved profile. From that point, the session owns its own `cvState` and can evolve it independently through rewrites, gap analysis, and targeting.
+
+The user never needs to upload a resume or go through `parse_file` inside the chat if their profile is already set up.
+
+**Why it matters:** eliminates 2–4 wasted setup turns per session, reduces token cost, and lets the agent start doing useful work on the first message.
+
 ## Tool Loop
 
 The assistant improves resumes by calling explicit tools instead of mutating state freely.
@@ -37,12 +51,13 @@ The assistant improves resumes by calling explicit tools instead of mutating sta
 
 Why it matters: this makes tool behavior testable, keeps state mutations controlled, and reduces race-condition bugs.
 
-Important runtime nuance:
+Important runtime nuances:
 - the route can now detect a pasted job description before the model loop starts
 - high-confidence job descriptions can be persisted immediately into `agentState.targetJobDescription`
 - when enough resume context already exists, the route can also precompute `gapAnalysis` and a stored fit judgment before the assistant replies
+- when `cvState` is pre-seeded from a user profile, the ingestion phase (`parse_file`) is already complete before the conversation starts. The agent should skip asking for a resume upload and proceed directly to the user's stated goal for the session.
 
-Why it matters: the assistant no longer depends entirely on the LLM noticing that the user already pasted a vacancy.
+Why it matters: the assistant no longer depends entirely on the LLM noticing that the user already pasted a vacancy, and users with a saved profile can skip the resume upload step entirely.
 
 ## Billing and Credits
 

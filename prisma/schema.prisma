@@ -210,8 +210,25 @@ model User {
   billingCheckouts BillingCheckout[]
   jobApplications JobApplication[]
   billingInfo    CustomerBillingInfo?
+  profile        UserProfile?
 
   @@map("users")
+}
+
+model UserProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique @map("user_id")
+  cvState     Json
+  source      String   // 'linkedin' | 'pdf'
+  linkedinUrl String?  @map("linkedin_url")
+  extractedAt DateTime @map("extracted_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_profiles")
 }
 
 model UserAuthIdentity {

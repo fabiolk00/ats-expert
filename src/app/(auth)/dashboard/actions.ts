@@ -3,5 +3,5 @@
 import { redirect } from 'next/navigation'
 
 export async function createSession() {
-  redirect('/dashboard')
+  redirect('/dashboard/resumes/new')
 }

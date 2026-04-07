@@ -30,6 +30,7 @@ This index is the main directory for the active documentation set.
 - [agent-approach.md](./agent-approach.md)
 - [state-model.md](./state-model.md)
 - [tool-development.md](./tool-development.md)
+- [linkedin-profile-feature.md](./linkedin-profile-feature.md)
 - [error-codes.md](./error-codes.md)
 - [logging.md](./logging.md)
 - [CLAUDE.md](../CLAUDE.md)

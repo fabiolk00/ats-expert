@@ -102,6 +102,23 @@ Primary code:
 - `src/types/agent.ts`
 - `src/lib/db/sessions.ts`
 
+### User profile and cvState seeding
+- A `UserProfile` table stores a canonical `cvState` at the user scope, not the session scope.
+- Source is either `linkedin` (extracted via LinkdAPI) or `pdf` (parsed via the existing `parse_file` logic).
+- `UserProfile.cvState` is populated through one of two paths:
+  - LinkedIn URL extraction via LinkdAPI with async job processing
+  - PDF upload parsed via the existing `parse_file` logic adapted for profile scope
+- After either extraction method, the user can review and manually edit each `cvState` field in a structured form on the profile setup screen before saving.
+- When a new session is created with an empty `cvState`, the system seeds it from `UserProfile.cvState` if one exists.
+- Seeding happens in `src/lib/db/sessions.ts` at session creation time via `seedCvStateFromProfile()`.
+- The session `cvState` is the single source of truth after seeding. `UserProfile` is not consulted again during the session.
+- `UserProfile` is never mutated by tools. It is only updated through the profile setup pipeline (LinkedIn extraction, PDF upload, or manual save).
+
+Primary code:
+- `src/lib/linkedin/linkdapi.ts`
+- `src/lib/linkedin/queue.ts`
+- `src/lib/db/sessions.ts` (seedCvStateFromProfile function)
+
 ### Tool architecture
 Tools do not mutate `session` directly.
 
@@ -258,6 +275,25 @@ Rules:
 5. Return signed URLs to the client
 6. Persist only `generatedOutput` metadata
 
+### Profile setup flow — LinkedIn path
+1. User submits LinkedIn URL via `POST /api/profile/extract`
+2. Route validates URL and adds a BullMQ job to the `linkedin-profile-extract` queue
+3. Worker calls LinkdAPI `GET /api/v1/profile/full`
+4. Worker maps the response to the `cvState` shape via `mapLinkdAPIToCvState()`
+5. Worker saves the result to `UserProfile` with source `linkedin`
+6. User reviews extracted fields in the structured profile form and edits any incomplete or incorrect fields
+7. User saves the final profile via `PUT /api/profile`
+8. On next session creation, `sessions.ts` seeds `cvState` from `UserProfile.cvState`
+
+### Profile setup flow — PDF path
+1. User uploads a PDF via `POST /api/profile/upload`
+2. Route parses the PDF using the existing `parse_file` logic
+3. Parsed text is passed through the structured extraction prompt to produce a `cvState` object
+4. Result is saved to `UserProfile` with source `pdf`
+5. User reviews extracted fields in the structured profile form and edits any incomplete or incorrect fields
+6. User saves the final profile via `PUT /api/profile`
+7. On next session creation, `sessions.ts` seeds `cvState` from `UserProfile.cvState`
+
 ## API Surface
 
 ### Implemented routes
@@ -269,6 +305,11 @@ Rules:
 - `POST /api/webhook/asaas`
 - `POST /api/webhook/clerk`
 - `GET /api/cron/cleanup`
+- `POST /api/profile/extract` — validates LinkedIn URL, enqueues extraction job
+- `GET /api/profile/status/:jobId` — returns job state and queue position
+- `POST /api/profile/upload` — accepts PDF, parses and saves to UserProfile
+- `PUT /api/profile` — saves manually edited cvState fields to UserProfile
+- `GET /api/profile` — returns the saved UserProfile for the current user
 
 ### Important route realities
 - `/api/agent` uses SSE, but OpenAI is currently called with non-streaming completions and the server re-streams word chunks.
@@ -315,6 +356,14 @@ Rules:
 - Manual edits currently apply only to base canonical `cvState`.
 - Future target-specific manual edits must be modeled as target-owned writes, not as base-session mutations.
 
+### Profile invariants
+- `UserProfile.cvState` is not session truth. It is a seed source only.
+- Tools must never write to `UserProfile` directly.
+- `UserProfile` is updated only through the profile setup pipeline: LinkedIn extraction, PDF upload, or manual save from the profile form.
+- Seeding must not overwrite a `cvState` that already has data.
+- If `UserProfile` does not exist, session creation proceeds normally with empty `cvState`.
+- Manual edits on the profile screen write directly to `UserProfile` via `PUT /api/profile`. This does not create a `cv_versions` entry — versioning only applies to session-scoped `cvState`.
+
 ## Current Stack
 - Next.js 14 App Router
 - React 18
@@ -353,6 +402,15 @@ Rules:
 ### Generation
 - `src/lib/agent/tools/generate-file.ts`
 - `src/lib/templates/ats-standard.docx`
+
+### Profile setup
+- `src/lib/linkedin/linkdapi.ts`
+- `src/lib/linkedin/queue.ts`
+- `src/app/api/profile/extract/route.ts`
+- `src/app/api/profile/status/[jobId]/route.ts`
+- `src/app/api/profile/upload/route.ts`
+- `src/app/api/profile/route.ts`
+- `src/app/(auth)/profile/page.tsx`
 
 ## Developer Onboarding
 

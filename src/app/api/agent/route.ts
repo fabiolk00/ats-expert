@@ -7,7 +7,6 @@ import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
   getSession,
   createSessionWithCredit,
-  checkUserQuota,
   incrementMessageCount,
   updateSession,
 } from '@/lib/db/sessions'
@@ -18,7 +17,7 @@ import { agentLimiter } from '@/lib/rate-limit'
 import { AGENT_CONFIG } from '@/lib/agent/config'
 import { extractUrl } from '@/lib/agent/url-extractor'
 import { scrapeJobPosting } from '@/lib/agent/scraper'
-import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
+import { logInfo, logWarn } from '@/lib/observability/structured-log'
 import type { Session } from '@/types/agent'
 
 // ---------------------------------------------------------------------------
@@ -397,7 +396,9 @@ export async function POST(req: NextRequest) {
       success: false,
       latencyMs: Date.now() - requestStartedAt,
     })
-    return new Response(JSON.stringify({ error: 'Too many requests. Please wait a moment.' }), { status: 429 })
+    const response = new Response(JSON.stringify({ error: 'Too many requests. Please wait a moment.' }), { status: 429 })
+    response.headers.set('Retry-After', '60')
+    return response
   }
 
   // ── Body validation ─────────────────────────────────────────────────
@@ -483,16 +484,20 @@ export async function POST(req: NextRequest) {
         maxMessages: AGENT_CONFIG.maxMessagesPerSession,
         success: false,
       })
-      return new Response(JSON.stringify({
+      const response = new Response(JSON.stringify({
         error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
         action: 'new_session',
         messageCount: session.messageCount,
         maxMessages: AGENT_CONFIG.maxMessagesPerSession,
       }), { status: 429 })
+      response.headers.set('Retry-After', '0')
+      return response
     }
   } else {
-    const hasCredits = await checkUserQuota(appUserId)
-    if (!hasCredits) {
+    // Atomic: verify credit availability + consume credit + create session in single RPC.
+    // If RPC returns null, credits were insufficient.
+    const newSession = await createSessionWithCredit(appUserId)
+    if (!newSession) {
       logWarn('agent.session.create_blocked_no_credit', {
         requestId,
         appUserId,
@@ -503,21 +508,6 @@ export async function POST(req: NextRequest) {
         error: 'Seus créditos acabaram. Faça upgrade do seu plano para continuar.',
         upgradeUrl: '/pricing',
       }), { status: 402 })
-    }
-
-    // Atomic: consume credit + create session in a single DB transaction.
-    const newSession = await createSessionWithCredit(appUserId)
-    if (!newSession) {
-      logError('agent.credit.consume_failed', {
-        requestId,
-        appUserId,
-        creditConsumed: 0,
-        success: false,
-        latencyMs: Date.now() - requestStartedAt,
-      })
-      return new Response(JSON.stringify({
-        error: 'Erro ao processar crédito. Tente novamente.',
-      }), { status: 500 })
     }
 
     session = newSession
@@ -561,12 +551,14 @@ export async function POST(req: NextRequest) {
           maxMessages: AGENT_CONFIG.maxMessagesPerSession,
           success: false,
         })
-        return new Response(JSON.stringify({
+        const response = new Response(JSON.stringify({
           error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
           action: 'new_session',
           messageCount: AGENT_CONFIG.maxMessagesPerSession,
           maxMessages: AGENT_CONFIG.maxMessagesPerSession,
         }), { status: 429 })
+        response.headers.set('Retry-After', '0')
+        return response
       }
     } catch (err) {
       const isAbort = (err instanceof Error || err instanceof DOMException) && err.name === 'AbortError'

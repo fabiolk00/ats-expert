@@ -208,9 +208,32 @@ export async function getSession(sessionId: string, appUserId: string): Promise<
   return mapSessionRow(data as SessionRow)
 }
 
+/**
+ * Fetch and seed cvState from UserProfile if available.
+ * Returns the seeded cvState or empty cvState if no profile exists.
+ */
+async function seedCvStateFromProfile(appUserId: string): Promise<CVState> {
+  const supabase = getSupabaseAdminClient()
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('cv_state')
+    .eq('user_id', appUserId)
+    .single()
+
+  if (data && data.cv_state) {
+    return cloneCvState(data.cv_state as CVState)
+  }
+
+  return cloneCvState()
+}
+
 export async function createSession(appUserId: string): Promise<Session> {
   const supabase = getSupabaseAdminClient()
   const timestamps = createInsertTimestamps()
+
+  // Seed cvState from UserProfile if available
+  const cvState = await seedCvStateFromProfile(appUserId)
+
   const { data, error } = await supabase
     .from('sessions')
     .insert({
@@ -219,7 +242,7 @@ export async function createSession(appUserId: string): Promise<Session> {
       user_id:      appUserId,
       state_version: CURRENT_SESSION_STATE_VERSION,
       phase:        'intake',
-      cv_state:     cloneCvState(),
+      cv_state:     cvState,
       agent_state:  normalizeAgentState(undefined),
       generated_output: normalizeGeneratedOutput(undefined),
       credits_used: 0,
@@ -234,7 +257,7 @@ export async function createSession(appUserId: string): Promise<Session> {
     userId:         data.user_id,
     stateVersion:   normalizeStateVersion((data as SessionRow).state_version),
     phase:          'intake',
-    cvState:        cloneCvState(),
+    cvState:        cloneCvState(cvState),
     agentState:     normalizeAgentState(undefined),
     generatedOutput: normalizeGeneratedOutput(undefined),
     creditsUsed:    0,
@@ -249,6 +272,7 @@ export async function createSession(appUserId: string): Promise<Session> {
  * Atomically consumes one credit and creates a new session in a single transaction.
  * Returns the new session if successful, or null if no credits are available.
  * Prevents credit loss when session creation would fail after a non-atomic credit decrement.
+ * Seeds cvState from UserProfile if available.
  */
 export async function createSessionWithCredit(appUserId: string): Promise<Session | null> {
   const supabase = getSupabaseAdminClient()
@@ -262,7 +286,20 @@ export async function createSessionWithCredit(appUserId: string): Promise<Sessio
   // RPC returns NULL when no credits available
   if (!data) return null
 
-  return mapSessionRow(data as SessionRow)
+  const session = mapSessionRow(data as SessionRow)
+
+  // If session has empty cvState, seed from UserProfile
+  if (!session.cvState || Object.keys(session.cvState).length === 0 ||
+      (session.cvState.fullName === '' && session.cvState.email === '')) {
+    const profileCvState = await seedCvStateFromProfile(appUserId)
+    if (profileCvState && Object.keys(profileCvState).length > 0) {
+      // Update session with seeded cvState
+      await updateSession(session.id, { cvState: profileCvState })
+      session.cvState = profileCvState
+    }
+  }
+
+  return session
 }
 
 export async function updateSession(
