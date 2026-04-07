@@ -54,6 +54,7 @@ After the auth boundary, use app user IDs in domain code.
 - SQL functions that insert rows must also set `id = gen_random_uuid()::text` explicitly instead of relying on drift-prone defaults.
 - New tables should follow this pattern from day one rather than relying on later hardening migrations.
 - Mutable tables also use explicit timestamp hardening through `src/lib/db/timestamps.ts` plus `DEFAULT NOW()` on `created_at` and `updated_at`.
+- CI enforces these database conventions with `npm run audit:db-conventions`, including final schema defaults and SQL function insert columns.
 - Business identifiers that carry meaning keep their own format:
   - `users.id` is the internal app user id
   - `credit_accounts.id` is `cred_{userId}`

@@ -65,6 +65,7 @@ export type SerializedJobApplication = Omit<
 export type JobApplicationFormInput = {
   role: string
   company: string
+  status: JobApplicationStatus
   salary?: string
   location?: string
   benefits: JobApplicationBenefit[]

@@ -201,12 +201,14 @@ describe("JobApplicationsTracker", () => {
     await user.type(screen.getByLabelText("Benefícios"), "VR | R$ 1.200{enter}Plano de Saúde")
     await user.type(screen.getByLabelText("Descrição da vaga"), "Build dashboard flows")
     await user.type(screen.getByLabelText("Observações"), "Critical role")
+    await user.selectOptions(screen.getByRole("combobox"), "entrevista")
     await user.click(screen.getByRole("button", { name: /criar vaga/i }))
 
     await waitFor(() => {
       expect(createApplicationAction).toHaveBeenCalledWith({
         role: "Senior Frontend Engineer",
         company: "Fintech Corp",
+        status: "entrevista",
         salary: "R$ 15.000,00",
         location: "Remote",
         resumeVersionLabel: "curriculo_v3.pdf",
@@ -237,6 +239,7 @@ describe("JobApplicationsTracker", () => {
     const companyInput = screen.getByLabelText("Empresa")
     await user.clear(companyInput)
     await user.type(companyInput, "New Fintech")
+    await user.selectOptions(screen.getByRole("combobox"), "negativa")
 
     const notesInput = screen.getByLabelText("Observações")
     await user.clear(notesInput)
@@ -251,6 +254,7 @@ describe("JobApplicationsTracker", () => {
           company: "New Fintech",
           notes: "Updated notes",
           role: "Frontend Engineer",
+          status: "negativa",
         }),
       })
     })
@@ -259,25 +263,29 @@ describe("JobApplicationsTracker", () => {
     expect(screen.getByText("Vaga atualizada com sucesso.")).toBeInTheDocument()
   })
 
-  it("updates the controlled status field from the tracker card", async () => {
+  it("shows the status on the card and changes it through the edit modal", async () => {
     const user = userEvent.setup()
-    const updateApplicationStatusAction = vi.fn().mockResolvedValue({ success: true })
+    const updateApplicationDetailsAction = vi.fn().mockResolvedValue({ success: true })
 
     renderTracker({
-      updateApplicationStatusAction,
+      updateApplicationDetailsAction,
     })
 
-    await user.selectOptions(screen.getByLabelText("Atualizar status"), "entrevista")
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+    expect(screen.getAllByText("Aguardando").length).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole("button", { name: /editar/i }))
+    await user.selectOptions(screen.getByRole("combobox"), "entrevista")
+    await user.click(screen.getByRole("button", { name: /salvar/i }))
 
     await waitFor(() => {
-      expect(updateApplicationStatusAction).toHaveBeenCalledWith({
+      expect(updateApplicationDetailsAction).toHaveBeenCalledWith({
         applicationId: "app_123",
-        status: "entrevista",
+        values: expect.objectContaining({
+          status: "entrevista",
+        }),
       })
     })
-
-    expect(mockRefresh).toHaveBeenCalledTimes(1)
-    expect(screen.getByText("Status atualizado com sucesso.")).toBeInTheDocument()
   })
 
   it("confirms and deletes an application", async () => {

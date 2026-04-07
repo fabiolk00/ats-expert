@@ -124,6 +124,7 @@ type TrackerProps = {
 type JobApplicationFormState = {
   role: string
   company: string
+  status: JobApplicationStatus
   salary: string
   location: string
   resumeVersionLabel: string
@@ -150,6 +151,7 @@ function createEmptyFormState(): JobApplicationFormState {
   return {
     role: "",
     company: "",
+    status: "aguardando",
     salary: "",
     location: "",
     resumeVersionLabel: "",
@@ -205,6 +207,7 @@ function toFormState(application?: SerializedJobApplication): JobApplicationForm
   return {
     role: application.role,
     company: application.company,
+    status: application.status,
     salary: application.salary ?? "",
     location: application.location ?? "",
     resumeVersionLabel: application.resumeVersionLabel,
@@ -219,6 +222,7 @@ function toSubmissionPayload(form: JobApplicationFormState): JobApplicationFormI
   return {
     role: form.role.trim(),
     company: form.company.trim(),
+    status: form.status,
     salary: normalizeOptionalString(form.salary),
     location: normalizeOptionalString(form.location),
     benefits: parseBenefitsInput(form.benefitsText),
@@ -600,13 +604,16 @@ export function JobApplicationsTracker({
                           </div>
                         </div>
                       </div>
-                      <Badge
+                      <Button
+                        size="sm"
                         variant="outline"
-                        className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1 ${statusConfig[application.status].colorClass}`}
+                        className="h-9 shrink-0"
+                        disabled={interactionsDisabled}
+                        onClick={() => openEditDialog(application)}
                       >
-                        <StatusIcon className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline-block">{statusConfig[application.status].label}</span>
-                      </Badge>
+                        <PencilLine className="mr-2 h-4 w-4" />
+                        Editar
+                      </Button>
                     </div>
                   </CardHeader>
 
@@ -680,37 +687,17 @@ export function JobApplicationsTracker({
                         <span>Aplicado: {formatDisplayDate(application.appliedAt)}</span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Select
-                          value={application.status}
-                          disabled={interactionsDisabled}
-                          onValueChange={(value) =>
-                            void handleStatusChange(application.id, value as JobApplicationStatus)
-                          }
-                        >
-                          <SelectTrigger className="w-[170px]">
-                            <SelectValue placeholder="Atualizar status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STATUS_OPTIONS.map((status) => (
-                              <SelectItem key={status.value} value={status.value}>
-                                {status.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Button
-                          size="sm"
+                      <div className="flex justify-center md:flex-1">
+                        <Badge
                           variant="outline"
-                          className="h-9"
-                          disabled={interactionsDisabled}
-                          onClick={() => openEditDialog(application)}
+                          className={`flex min-w-[170px] items-center justify-center gap-1.5 px-3 py-2 text-sm ${statusConfig[application.status].colorClass}`}
                         >
-                          <PencilLine className="mr-2 h-4 w-4" />
-                          Editar
-                        </Button>
+                          <StatusIcon className="h-4 w-4" />
+                          <span>{statusConfig[application.status].label}</span>
+                        </Badge>
+                      </div>
 
+                      <div className="flex justify-end">
                         <Button
                           size="sm"
                           variant="ghost"
@@ -767,7 +754,7 @@ export function JobApplicationsTracker({
           <DialogHeader>
             <DialogTitle>{editingApplication ? "Editar vaga" : "Adicionar vaga"}</DialogTitle>
             <DialogDescription>
-              Preencha manualmente os dados da candidatura. O status fica controlado pela tela.
+              Preencha manualmente os dados da candidatura e defina o status inicial da vaga.
             </DialogDescription>
           </DialogHeader>
 
@@ -797,6 +784,31 @@ export function JobApplicationsTracker({
                   }
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="job-status">Status</Label>
+                <Select
+                  value={formState.status}
+                  disabled={interactionsDisabled}
+                  onValueChange={(value) =>
+                    setFormState((current) => ({
+                      ...current,
+                      status: value as JobApplicationStatus,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="job-status" aria-label="Status da vaga">
+                    <SelectValue placeholder="Selecione um status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

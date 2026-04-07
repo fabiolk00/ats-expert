@@ -70,6 +70,7 @@ describe("resumes actions", () => {
     const result = await createJobApplicationAction({
       role: "  Frontend Engineer  ",
       company: "  Fintech Corp  ",
+      status: "aguardando",
       salary: "   ",
       location: "  Remote ",
       benefits: [{ name: "VR", value: "   " }],
@@ -83,6 +84,7 @@ describe("resumes actions", () => {
       userId: "usr_123",
       role: "Frontend Engineer",
       company: "Fintech Corp",
+      status: "aguardando",
       salary: undefined,
       location: "Remote",
       benefits: [{ name: "VR", value: undefined }],
@@ -106,6 +108,7 @@ describe("resumes actions", () => {
     const result = await createJobApplicationAction({
       role: "Frontend Engineer",
       company: "Fintech Corp",
+      status: "aguardando",
       resumeVersionLabel: "curriculo_v1.pdf",
       benefits: Array.from({ length: 21 }, (_, index) => ({
         name: `Benefit ${index}`,
@@ -123,6 +126,7 @@ describe("resumes actions", () => {
       values: {
         role: "Senior Frontend Engineer",
         company: "Fintech Corp",
+        status: "negativa",
         salary: "R$ 15.000,00",
         location: "Remote",
         benefits: [{ name: "VR", value: "R$ 1.200" }],
@@ -136,6 +140,7 @@ describe("resumes actions", () => {
     expect(mockUpdateJobApplication).toHaveBeenCalledWith("usr_123", "app_123", {
       role: "Senior Frontend Engineer",
       company: "Fintech Corp",
+      status: "negativa",
       salary: "R$ 15.000,00",
       location: "Remote",
       benefits: [{ name: "VR", value: "R$ 1.200" }],
@@ -182,6 +187,7 @@ describe("resumes actions", () => {
     const result = await createJobApplicationAction({
       role: "Frontend Engineer",
       company: "Fintech Corp",
+      status: "aguardando",
       resumeVersionLabel: "curriculo_v1.pdf",
       benefits: [],
     })

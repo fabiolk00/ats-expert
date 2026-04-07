@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "audit:db-conventions": "tsx scripts/audit-database-conventions.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "phase1:model-selection": "tsx scripts/run-openai-model-selection-phase1.ts",

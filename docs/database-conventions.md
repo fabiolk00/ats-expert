@@ -109,6 +109,46 @@ When the table is mutable and has lifecycle timestamps:
 3. use `createUpdatedAtTimestamp()` for updates and upserts
 4. if SQL functions insert mutable rows, set both timestamps explicitly inside the SQL function
 
+## Automated Guardrails
+
+These conventions are enforced automatically in CI.
+
+Run locally:
+
+```bash
+npm run audit:db-conventions
+```
+
+The audit currently checks:
+
+- every migration-created table is intentionally classified in `src/lib/db/schema-guardrails.ts`
+- generic surrogate-key tables finish the migration chain with a UUID default on `id`
+- mutable tables finish the migration chain with `NOW()` defaults on `created_at` and `updated_at`
+- SQL functions that insert into managed tables explicitly include `id` and required timestamp columns
+
+If you add a new managed table or a new SQL function write path, update the convention map and keep this audit green in the same PR.
+
+## Migration Naming Rule
+
+New migrations should use a sortable date prefix:
+
+```text
+YYYYMMDD_descriptive_name.sql
+```
+
+Why this matters:
+
+- the audit reconstructs the final schema by replaying migration files in order
+- legacy undated migrations are treated as older baseline migrations
+- dated migrations are treated as later hardening or rollout steps
+
+For same-day follow-up migrations, prefer a more specific suffix that preserves intended order, for example:
+
+```text
+20260407_01_add_table.sql
+20260407_02_harden_defaults.sql
+```
+
 ## Existing Tables Covered By This Standard
 
 The hardening migration [20260407_harden_text_id_generation.sql](/C:/CurrIA/prisma/migrations/20260407_harden_text_id_generation.sql) restores or enforces this pattern for:

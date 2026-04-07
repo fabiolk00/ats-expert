@@ -79,5 +79,20 @@ describe('rewriteSection', () => {
 ## CI expectation
 Changes should pass:
 - `npm run typecheck`
+- `npm run audit:db-conventions`
 - `npm test`
 - `npm run lint`
+
+## Schema Guardrails
+
+Database-related changes must keep the automated schema guardrails green.
+
+What they check:
+- every created table is intentionally classified in `src/lib/db/schema-guardrails.ts`
+- generic text primary keys keep a UUID default by the end of the migration chain
+- mutable tables keep `created_at` and `updated_at` defaults by the end of the migration chain
+- SQL functions that insert into managed tables include explicit `id` and timestamp columns
+
+This guardrail runs in:
+- `npm run audit:db-conventions`
+- CI on every push and pull request

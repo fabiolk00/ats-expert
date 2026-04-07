@@ -21,6 +21,7 @@ const JobApplicationBenefitSchema = z.object({
 const JobApplicationFormSchema = z.object({
   role: z.string().trim().min(1).max(160),
   company: z.string().trim().min(1).max(160),
+  status: z.enum(JOB_APPLICATION_STATUSES),
   salary: z.string().trim().max(120).optional(),
   location: z.string().trim().max(160).optional(),
   benefits: z.array(JobApplicationBenefitSchema).max(20),
@@ -59,6 +60,7 @@ function normalizeFormInput(input: JobApplicationFormInput): JobApplicationFormI
   return {
     role: parsed.role,
     company: parsed.company,
+    status: parsed.status,
     salary: normalizeOptionalString(parsed.salary),
     location: normalizeOptionalString(parsed.location),
     benefits: parsed.benefits.map((benefit) => ({

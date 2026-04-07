@@ -74,14 +74,16 @@ BEGIN
     session_id,
     target_resume_id,
     snapshot,
-    source
+    source,
+    created_at
   )
   VALUES (
     gen_random_uuid()::text,
     p_session_id,
     p_target_resume_id,
     p_snapshot,
-    p_source
+    p_source,
+    NOW()
   )
   RETURNING *
   INTO v_created_version;
@@ -126,7 +128,9 @@ BEGIN
     target_job_description,
     derived_cv_state,
     gap_analysis,
-    generated_output
+    generated_output,
+    created_at,
+    updated_at
   )
   VALUES (
     gen_random_uuid()::text,
@@ -134,7 +138,9 @@ BEGIN
     p_target_job_description,
     p_derived_cv_state,
     p_gap_analysis,
-    NULL
+    NULL,
+    NOW(),
+    NOW()
   )
   RETURNING *
   INTO v_target;
