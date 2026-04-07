@@ -277,3 +277,33 @@ export async function getCheckoutBySubscriptionId(
 
   return data ? toBillingCheckout(data) : null
 }
+
+export async function getCheckoutByAsaasSessionId(
+  asaasSessionId: string,
+): Promise<BillingCheckout | null> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('billing_checkouts')
+    .select(`
+      id,
+      user_id,
+      checkout_reference,
+      plan,
+      amount_minor,
+      currency,
+      status,
+      asaas_link,
+      asaas_payment_id,
+      asaas_subscription_id,
+      created_at,
+      updated_at
+    `)
+    .ilike('asaas_link', `%show?id=${asaasSessionId}`)
+    .maybeSingle<BillingCheckoutRow>()
+
+  if (error) {
+    throw new Error(`Failed to load billing checkout for Asaas session ${asaasSessionId}: ${error.message}`)
+  }
+
+  return data ? toBillingCheckout(data) : null
+}

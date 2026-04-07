@@ -13,6 +13,7 @@ import {
   handleSubscriptionUpdated,
 } from './event-handlers'
 import {
+  getCheckoutByAsaasSessionId,
   getCheckoutBySubscriptionId,
   getCheckoutRecord,
   markCheckoutCanceled,
@@ -28,6 +29,7 @@ vi.mock('./credit-grants', () => ({
 }))
 
 vi.mock('./billing-checkouts', () => ({
+  getCheckoutByAsaasSessionId: vi.fn(),
   getCheckoutRecord: vi.fn(),
   getCheckoutBySubscriptionId: vi.fn(),
   markCheckoutCanceled: vi.fn(),
@@ -57,6 +59,20 @@ describe('Asaas billing event handlers', () => {
       currency: 'BRL',
       status: 'created',
       asaasLink: 'https://asaas.test/pay',
+      asaasPaymentId: null,
+      asaasSubscriptionId: null,
+      createdAt: '2026-03-29T00:00:00.000Z',
+      updatedAt: '2026-03-29T00:00:00.000Z',
+    })
+    vi.mocked(getCheckoutByAsaasSessionId).mockResolvedValue({
+      id: 'bc_123',
+      userId: 'usr_123',
+      checkoutReference: 'chk_123',
+      plan: 'unit',
+      amountMinor: 1990,
+      currency: 'BRL',
+      status: 'created',
+      asaasLink: 'https://www.asaas.com/checkoutSession/show?id=d7b9e334-9351-4fe1-83d1-852dc23b2e89',
       asaasPaymentId: null,
       asaasSubscriptionId: null,
       createdAt: '2026-03-29T00:00:00.000Z',
@@ -109,6 +125,28 @@ describe('Asaas billing event handlers', () => {
       reason: 'payment_received',
     })
     expect(markCheckoutPaid).toHaveBeenCalledWith('chk_123', 'pay_123')
+  })
+
+  it('resolves one-time payments from checkoutSession when externalReference is missing', async () => {
+    await handlePaymentSettlement({
+      event: 'PAYMENT_RECEIVED',
+      payment: {
+        id: 'pay_asaas_session',
+        externalReference: null,
+        checkoutSession: 'd7b9e334-9351-4fe1-83d1-852dc23b2e89',
+        subscription: null,
+        value: 19.9,
+      },
+    }, 'fp_checkout_session')
+
+    expect(getCheckoutByAsaasSessionId).toHaveBeenCalledWith('d7b9e334-9351-4fe1-83d1-852dc23b2e89')
+    expect(grantCreditsForEvent).toHaveBeenCalledWith(expect.objectContaining({
+      appUserId: 'usr_123',
+      checkoutReference: 'chk_123',
+      billingEventType: 'PAYMENT_SETTLED',
+      reason: 'payment_received',
+    }))
+    expect(markCheckoutPaid).toHaveBeenCalledWith('chk_123', 'pay_asaas_session')
   })
 
   it('surfaces partial-success failures when payment credits were granted but checkout marking fails', async () => {
@@ -391,7 +429,7 @@ describe('Asaas billing event handlers', () => {
     expect(updateSubscriptionMetadataForEvent).not.toHaveBeenCalled()
   })
 
-  it('rejects malformed payment events that are missing externalReference for one-time billing', async () => {
+  it('rejects malformed payment events that are missing externalReference and checkoutSession for one-time billing', async () => {
     await expect(handlePaymentSettlement({
       event: 'PAYMENT_RECEIVED',
       payment: {

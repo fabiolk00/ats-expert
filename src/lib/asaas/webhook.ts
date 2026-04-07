@@ -28,6 +28,7 @@ const handledSubscriptionEventSet = new Set<string>(HANDLED_SUBSCRIPTION_EVENTS)
 const AsaasPaymentSchema = z.object({
   id: z.string(),
   externalReference: z.string().nullable().optional(),
+  checkoutSession: z.string().nullable().optional(),
   subscription: z.string().nullable().optional(),
   amount: z.number().optional(),
   value: z.number().optional(),

@@ -6,6 +6,7 @@ import {
   updateSubscriptionMetadataForEvent,
 } from '@/lib/asaas/credit-grants'
 import {
+  getCheckoutByAsaasSessionId,
   getCheckoutBySubscriptionId,
   getCheckoutRecord,
   markCheckoutCanceled,
@@ -289,16 +290,56 @@ async function handleOneTimePaymentSettlement(
   eventFingerprint: string,
   payment: AsaasPayment,
 ): Promise<BillingApplyResult> {
-  const externalReference = requireExternalReference(payment.externalReference, 'Payment')
-  const parsedReference = parseExternalReferenceStrict(externalReference, event.event)
   const amountMinor = requireAmount(event, 'Payment event')
-  const checkout = assertCheckoutTrustAnchor(
-    await getCheckoutRecord(parsedReference.checkoutReference ?? ''),
-    parsedReference,
-    'created',
-    'once',
-    amountMinor,
-  )
+  let checkout: BillingCheckout
+
+  if (payment.externalReference) {
+    const parsedReference = parseExternalReferenceStrict(payment.externalReference, event.event)
+    checkout = assertCheckoutTrustAnchor(
+      await getCheckoutRecord(parsedReference.checkoutReference ?? ''),
+      parsedReference,
+      'created',
+      'once',
+      amountMinor,
+    )
+  } else if (payment.checkoutSession) {
+    const referencedCheckout = await getCheckoutByAsaasSessionId(payment.checkoutSession)
+
+    if (!referencedCheckout) {
+      throw createBillingError(
+        TOOL_ERROR_CODES.VALIDATION_ERROR,
+        'Billing checkout record not found for checkoutSession.',
+      )
+    }
+
+    if (referencedCheckout.status !== 'created') {
+      throw createBillingError(
+        TOOL_ERROR_CODES.VALIDATION_ERROR,
+        'Billing checkout must be in created status.',
+      )
+    }
+
+    if (referencedCheckout.amountMinor !== amountMinor) {
+      throw createBillingError(
+        TOOL_ERROR_CODES.VALIDATION_ERROR,
+        'Webhook amount does not match the billing checkout amount.',
+      )
+    }
+
+    if (referencedCheckout.plan !== 'unit') {
+      throw createBillingError(
+        TOOL_ERROR_CODES.VALIDATION_ERROR,
+        'One-time payments must resolve to the unit plan.',
+      )
+    }
+
+    checkout = referencedCheckout
+  } else {
+    throw createBillingError(
+      TOOL_ERROR_CODES.VALIDATION_ERROR,
+      'Payment is missing externalReference and checkoutSession.',
+    )
+  }
 
   const result = await grantCreditsForEvent({
     appUserId: checkout.userId,
