@@ -52,12 +52,12 @@ const navItems = [
     icon: MessageSquare,
   },
   {
-    label: "Minhas Vagas",
+    label: "Gerenciamento de Vagas",
     href: "/resumes",
     icon: BriefcaseBusiness,
   },
   {
-    label: "Meus Currículos",
+    label: "Currículos",
     href: "/dashboard/resumes",
     icon: FileText,
   },

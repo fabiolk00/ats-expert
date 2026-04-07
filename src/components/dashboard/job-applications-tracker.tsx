@@ -133,6 +133,15 @@ type JobApplicationFormState = {
   appliedAt: string
 }
 
+function getActionErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    const trimmed = error.message.trim()
+    return trimmed.length > 0 ? trimmed : fallback
+  }
+
+  return fallback
+}
+
 function getTodayDateInput(): string {
   return new Date().toISOString().slice(0, 10)
 }
@@ -320,12 +329,27 @@ export function JobApplicationsTracker({
     setErrorMessage(null)
     setStatusMessage(null)
 
-    const result = editingApplication
-      ? await updateApplicationDetailsAction({
-          applicationId: editingApplication.id,
-          values: payload,
-        })
-      : await createApplicationAction(payload)
+    let result: ActionResult
+
+    try {
+      result = editingApplication
+        ? await updateApplicationDetailsAction({
+            applicationId: editingApplication.id,
+            values: payload,
+          })
+        : await createApplicationAction(payload)
+    } catch (error) {
+      setErrorMessage(
+        getActionErrorMessage(
+          error,
+          editingApplication
+            ? "Não foi possível atualizar a vaga."
+            : "Não foi possível criar a vaga.",
+        ),
+      )
+      setPendingAction(null)
+      return
+    }
 
     if (!result.success) {
       setErrorMessage(result.error)
@@ -357,10 +381,18 @@ export function JobApplicationsTracker({
     setErrorMessage(null)
     setStatusMessage(null)
 
-    const result = await updateApplicationStatusAction({
-      applicationId,
-      status,
-    })
+    let result: ActionResult
+
+    try {
+      result = await updateApplicationStatusAction({
+        applicationId,
+        status,
+      })
+    } catch (error) {
+      setErrorMessage(getActionErrorMessage(error, "Não foi possível atualizar o status."))
+      setPendingAction(null)
+      return
+    }
 
     if (!result.success) {
       setErrorMessage(result.error)
@@ -382,9 +414,17 @@ export function JobApplicationsTracker({
     setErrorMessage(null)
     setStatusMessage(null)
 
-    const result = await deleteApplicationAction({
-      applicationId: deleteTarget.id,
-    })
+    let result: ActionResult
+
+    try {
+      result = await deleteApplicationAction({
+        applicationId: deleteTarget.id,
+      })
+    } catch (error) {
+      setErrorMessage(getActionErrorMessage(error, "Não foi possível excluir a vaga."))
+      setPendingAction(null)
+      return
+    }
 
     if (!result.success) {
       setErrorMessage(result.error)

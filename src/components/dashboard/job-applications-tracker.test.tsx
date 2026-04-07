@@ -350,6 +350,28 @@ describe("JobApplicationsTracker", () => {
     expect(mockRefresh).not.toHaveBeenCalled()
   })
 
+  it("surfaces rejected create actions without crashing the tracker", async () => {
+    const user = userEvent.setup()
+    const createApplicationAction = vi.fn().mockRejectedValue(new Error("Failed to create job application: network timeout"))
+
+    renderTracker({
+      applications: [],
+      createApplicationAction,
+    })
+
+    await user.click(screen.getByRole("button", { name: /adicionar primeira vaga/i }))
+    await user.type(screen.getByLabelText("Cargo"), "Senior Frontend Engineer")
+    await user.type(screen.getByLabelText("Empresa"), "Fintech Corp")
+    await user.type(screen.getByLabelText(/Nome do curr[íi]culo enviado/i), "curriculo_v3.pdf")
+    await user.click(screen.getByRole("button", { name: /criar vaga/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to create job application: network timeout")).toBeInTheDocument()
+    })
+
+    expect(mockRefresh).not.toHaveBeenCalled()
+  })
+
   it("locks the page for free access with blurred, disabled interactions", async () => {
     const { container } = renderTracker({
       applications: [buildApplication()],
