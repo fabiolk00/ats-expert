@@ -51,7 +51,11 @@ export const linkedinQueue = new Queue<LinkedInProfileJob>('linkedin-profile-ext
       type: 'exponential',
       delay: 3000,
     },
-    removeOnComplete: true,
+    // Keep completed jobs so status polling can verify success.
+    // If removeOnComplete were true, completed jobs disappear from queue,
+    // causing status polling to return 404 even though extraction succeeded.
+    // A cron job cleans up old jobs (>24h) to prevent queue bloat.
+    removeOnComplete: false,
     removeOnFail: false,
   },
 })

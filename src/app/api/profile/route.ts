@@ -102,7 +102,15 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = CVStateSchema.safeParse(await request.json())
+  let rawBody: unknown
+  try {
+    rawBody = await request.json()
+  } catch {
+    logError('[api/profile] Invalid JSON in request', { appUserId: appUser.id })
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  const body = CVStateSchema.safeParse(rawBody)
   if (!body.success) {
     return NextResponse.json({ error: body.error.flatten() }, { status: 400 })
   }
