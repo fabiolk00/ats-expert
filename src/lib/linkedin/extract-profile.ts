@@ -1,9 +1,29 @@
+import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { createUpdatedAtTimestamp } from '@/lib/db/timestamps'
 import { logError, logInfo } from '@/lib/observability/structured-log'
 import type { CVState } from '@/types/cv'
 
 import { fetchLinkedInProfile, mapLinkdAPIToCvState } from './linkdapi'
+
+type ExistingUserProfileRow = {
+  id: string
+}
+
+async function getExistingProfileId(appUserId: string): Promise<string | undefined> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('user_id', appUserId)
+    .single()
+
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`Failed to load existing profile: ${error.message}`)
+  }
+
+  return (data as ExistingUserProfileRow | null)?.id
+}
 
 /**
  * Pure orchestration: fetch LinkedIn profile, map to cvState, persist to UserProfile.
@@ -17,10 +37,12 @@ export async function extractAndSaveProfile(
 ): Promise<{ cvState: CVState }> {
   const profileData = await fetchLinkedInProfile(linkedinUrl)
   const cvState = mapLinkdAPIToCvState(profileData)
+  const existingProfileId = await getExistingProfileId(appUserId)
 
   const supabase = getSupabaseAdminClient()
   const { error } = await supabase.from('user_profiles').upsert(
     {
+      id: existingProfileId ?? createDatabaseId(),
       user_id: appUserId,
       cv_state: cvState,
       source: 'linkedin',

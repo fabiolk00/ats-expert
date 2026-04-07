@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { CVStateSchema } from '@/lib/cv/schema'
+import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { logError, logInfo } from '@/lib/observability/structured-log'
 import type { CVState } from '@/types/cv'
@@ -127,6 +128,7 @@ export async function PUT(request: Request) {
     const existingProfile = await getExistingProfile(appUser.id)
     const supabase = getSupabaseAdminClient()
     const payload = {
+      id: existingProfile?.id ?? createDatabaseId(),
       user_id: appUser.id,
       cv_state: body.data,
       source: existingProfile?.source ?? 'manual',
