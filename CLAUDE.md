@@ -286,13 +286,13 @@ Rules:
 8. On next session creation, `sessions.ts` seeds `cvState` from `UserProfile.cvState`
 
 ### Profile setup flow — PDF path
-1. User uploads a PDF via `POST /api/profile/upload`
-2. Route parses the PDF using the existing `parse_file` logic
-3. Parsed text is passed through the structured extraction prompt to produce a `cvState` object
-4. Result is saved to `UserProfile` with source `pdf`
-5. User reviews extracted fields in the structured profile form and edits any incomplete or incorrect fields
-6. User saves the final profile via `PUT /api/profile`
-7. On next session creation, `sessions.ts` seeds `cvState` from `UserProfile.cvState`
+1. Planned follow-up: user uploads a PDF via `POST /api/profile/upload`
+2. Planned follow-up: route parses the PDF using the existing `parse_file` logic
+3. Planned follow-up: parsed text is transformed into a `cvState` object
+4. Planned follow-up: result is saved to `UserProfile` with source `pdf`
+5. Planned follow-up: user reviews extracted fields in the structured profile form and edits any incomplete or incorrect fields
+6. Planned follow-up: user saves the final profile via `PUT /api/profile`
+7. Planned follow-up: future sessions seed from that saved `UserProfile.cvState`
 
 ## API Surface
 
@@ -315,6 +315,7 @@ Rules:
 - `/api/agent` uses SSE, but OpenAI is currently called with non-streaming completions and the server re-streams word chunks.
 - `/api/file/[sessionId]` is not implemented.
 - File delivery currently happens through signed URLs returned by `generate_file`.
+- `POST /api/profile/upload` is planned but not implemented yet, even though the broader profile setup flow already exists.
 
 ## Engineering Invariants
 
