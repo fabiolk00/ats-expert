@@ -7,6 +7,7 @@ import {
   TOOL_ERROR_CODES,
   toolFailure,
 } from '@/lib/agent/tool-errors'
+import { webhookLimiter } from '@/lib/rate-limit'
 import {
   handlePaymentSettlement,
   reconcileProcessedEventState,
@@ -80,6 +81,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const failure = toolFailure(TOOL_ERROR_CODES.UNAUTHORIZED, 'Unauthorized')
 
     logWarn('asaas.webhook.unauthorized', {
+      success: false,
+      errorCode: failure.code,
+      errorMessage: failure.error,
+    })
+
+    return NextResponse.json(failure, {
+      status: getHttpStatusForToolError(failure.code),
+    })
+  }
+
+  // Rate limit webhook deliveries by token to prevent brute-force and replay attacks
+  const { success: rateLimitPassed } = await webhookLimiter.limit(token)
+  if (!rateLimitPassed) {
+    const failure = toolFailure(TOOL_ERROR_CODES.RATE_LIMITED, 'Webhook rate limit exceeded.')
+
+    logWarn('asaas.webhook.rate_limited', {
       success: false,
       errorCode: failure.code,
       errorMessage: failure.error,

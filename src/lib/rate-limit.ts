@@ -19,3 +19,11 @@ export const publicLimiter = new Ratelimit({
   limiter: Ratelimit.slidingWindow(5, '1 m'),
   prefix:  'curria:public',
 })
+
+// Webhook security: 100 webhook deliveries per minute per token
+// Protects against token brute-force and replay attacks
+export const webhookLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(100, '1 m'),
+  prefix:  'curria:webhook',
+})
