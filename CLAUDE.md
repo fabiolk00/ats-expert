@@ -408,9 +408,9 @@ Rules:
 - `src/lib/linkedin/queue.ts`
 - `src/app/api/profile/extract/route.ts`
 - `src/app/api/profile/status/[jobId]/route.ts`
-- `src/app/api/profile/upload/route.ts`
 - `src/app/api/profile/route.ts`
-- `src/app/(auth)/profile/page.tsx`
+- `src/app/(auth)/dashboard/resumes/new/page.tsx`
+- `src/components/resume/user-data-page.tsx`
 
 ## Developer Onboarding
 

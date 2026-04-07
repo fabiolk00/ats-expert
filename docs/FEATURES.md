@@ -15,7 +15,7 @@ CurrIA helps Brazilian job seekers improve resumes for ATS systems and recruiter
 
 ## Profile Setup
 
-What it does: lets users establish their career profile once before starting chat sessions. Supports LinkedIn URL extraction and PDF upload, followed by field-by-field manual review and editing.
+What it does: lets users establish their career profile once before starting chat sessions. Supports LinkedIn URL extraction plus field-by-field manual review and editing on the canonical profile screen. PDF upload remains a planned follow-up.
 
 Use cases:
 
@@ -23,24 +23,25 @@ Use cases:
 - pre-populate `cvState` so the agent starts working on the first message
 - fix incomplete or incorrectly extracted fields before the profile is used
 - update the profile when career details change
-- choose between LinkedIn extraction or PDF upload based on preference
+- import from LinkedIn or start with a blank manual profile
 
 Key behaviors:
 
-- LinkedIn URL triggers async extraction via LinkdAPI with queue position feedback
-- PDF upload triggers synchronous parsing via the existing parse pipeline
-- both paths produce a structured `cvState` preview in an editable form
+- LinkedIn URL triggers async extraction via LinkdAPI
+- the canonical profile screen lives at `/dashboard/resumes/new`; `/profile` is a compatibility redirect
+- imported or manual data is loaded into a structured editable form
 - each `cvState` field (fullName, summary, experience entries, education entries, skills, certifications) is individually editable
 - the profile is saved only when the user explicitly confirms
 - the saved profile seeds every new session automatically
+- PDF upload remains disabled in the UI until `POST /api/profile/upload` is implemented
 
 Technical reference:
 
 - `src/lib/linkedin/linkdapi.ts`
 - `src/lib/linkedin/queue.ts`
-- `src/app/(auth)/profile/page.tsx`
+- `src/app/(auth)/dashboard/resumes/new/page.tsx`
+- `src/components/resume/user-data-page.tsx`
 - `POST /api/profile/extract`
-- `POST /api/profile/upload`
 - `PUT /api/profile`
 
 ## Conversational Agent
