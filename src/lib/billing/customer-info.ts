@@ -1,5 +1,3 @@
-import { randomUUID } from 'crypto'
-
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { z } from 'zod'
 
@@ -11,6 +9,7 @@ import {
   normalizePostalCode,
   normalizeProvince,
 } from '@/lib/billing/address'
+import { createDatabaseId } from '@/lib/db/ids'
 
 export const BillingInfoSchema = z.object({
   cpfCnpj: z.string().min(1, 'CPF/CNPJ is required'),
@@ -42,7 +41,7 @@ export async function saveBillingInfo(
 
   const { error } = await supabase.from('customer_billing_info').upsert(
     {
-      id: randomUUID(),
+      id: createDatabaseId(),
       user_id: appUserId,
       cpf_cnpj: parsedInfo.cpfCnpj,
       phone_number: parsedInfo.phoneNumber,

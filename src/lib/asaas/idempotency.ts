@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
 import { parseExternalReference } from '@/lib/asaas/external-reference'
+import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { getWebhookAmount, type AsaasWebhookEvent } from '@/lib/asaas/webhook'
 
@@ -135,6 +136,7 @@ export async function recordProcessedEvent(
   const { error } = await supabase
     .from('processed_events')
     .insert({
+      id: createDatabaseId(),
       event_id: fingerprint,
       event_fingerprint: fingerprint,
       event_type: event.event,

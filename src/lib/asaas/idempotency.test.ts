@@ -131,6 +131,7 @@ describe('Asaas webhook idempotency', () => {
     await recordProcessedEvent('fingerprint_123', event)
 
     expect(insert).toHaveBeenCalledWith({
+      id: expect.any(String),
       event_id: 'fingerprint_123',
       event_fingerprint: 'fingerprint_123',
       event_type: 'PAYMENT_RECEIVED',

@@ -77,6 +77,7 @@ describe('job applications db helpers', () => {
     })
 
     expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      id: expect.any(String),
       user_id: 'usr_123',
       role: 'Desenvolvedor Front-end Senior',
       company: 'Fintech Corp',

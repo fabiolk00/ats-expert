@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
+import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { getPlan, type PlanSlug } from '@/lib/plans'
 import { logError, logWarn } from '@/lib/observability/structured-log'
@@ -104,7 +105,7 @@ export async function createCheckoutRecordPending(
   const supabase = getSupabaseAdminClient()
   const now = new Date().toISOString()
   const payload = {
-    id: randomUUID(),
+    id: createDatabaseId(),
     user_id: userId,
     checkout_reference: checkoutReference,
     plan,

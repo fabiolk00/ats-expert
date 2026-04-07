@@ -63,9 +63,14 @@ WHERE user_id = '<user_id>';
   - `PAYMENT_SETTLED`
   - `SUBSCRIPTION_STARTED`
   - `SUBSCRIPTION_RENEWED`
+- some current Asaas one-time payloads arrive with:
+  - `payment.externalReference = null`
+  - `payment.checkoutSession = <session_id>`
+  - this is valid in the current CurrIA handler
 
 ### Recovery
 
+- If no processed row exists yet and the original payload contains `checkoutSession`, replay the original webhook as-is. Do not invent a synthetic `externalReference`.
 - If credits were granted but checkout status is still `created`, update the checkout manually after confirming the provider object:
 
 ```sql
@@ -104,7 +109,29 @@ ORDER BY created_at DESC;
 - If the checkout is `canceled`, the subscription snapshot probably arrived inactive/deleted and was safely ignored.
 - If `user_quotas.asaas_subscription_id` exists but the checkout is still `created`, reconcile it manually.
 
-## 3. Renewal did not replace credits
+## 3. Checkout creation fails with Asaas validation errors
+
+Typical symptoms:
+
+- `cpfCnpj deve ser informado`
+- `phone deve ser informado`
+- `postalCode é inválido`
+- provider rejects recurring checkouts that omit full address data
+
+### Checks
+
+- confirm the request body contains normalized billing data
+- confirm the outgoing Asaas payload uses:
+  - `customerData.phone`
+  - not `customerData.phoneNumber`
+- confirm phone is 11 digits and CEP is 8 digits before the provider call
+
+### Recovery
+
+- retry checkout only after the normalized billing fields are fixed
+- if recurring checkout was built without full customer data, deploy the current checkout payload contract before retrying
+
+## 4. Renewal did not replace credits
 
 ### Check the renewal event type
 
@@ -128,7 +155,33 @@ ORDER BY processed_at DESC;
 
 If the user was additive-credited incorrectly before this fix, correct the balance manually and note the adjustment in the support trail.
 
-## 4. Cancellation should not revoke credits
+## 5. Dashboard shows the wrong total credits
+
+Symptom examples:
+
+- `4 / 3`
+- preserved credits are correct in the numerator, but the denominator still shows the base plan allocation
+
+### Check
+
+```sql
+SELECT quota.user_id, quota.plan, quota.credits_remaining AS display_total, account.credits_remaining AS runtime_balance
+FROM user_quotas AS quota
+JOIN credit_accounts AS account ON account.user_id = quota.user_id
+WHERE quota.user_id = '<user_id>';
+```
+
+Expected:
+
+- `display_total >= runtime_balance`
+- for carryover scenarios, `display_total` may be greater than the base plan credits
+
+### Recovery
+
+- apply `20260407_persist_billing_display_totals.sql`
+- refresh the dashboard after deploy
+
+## 6. Cancellation should not revoke credits
 
 ### Check metadata-only updates
 
@@ -147,7 +200,7 @@ Expected:
 - checkout may be `canceled`
 - `credit_accounts.credits_remaining` unchanged
 
-## 5. Duplicate webhook delivery
+## 7. Duplicate webhook delivery
 
 ### Expected behavior
 
@@ -166,7 +219,7 @@ HAVING COUNT(*) > 1;
 
 Expected: zero rows.
 
-## 6. Pre-cutover legacy subscription issue
+## 8. Pre-cutover legacy subscription issue
 
 Legacy recurring flows still resolve by `user_quotas.asaas_subscription_id`.
 
@@ -182,7 +235,7 @@ If the row is missing or malformed:
 - confirm the plan is correct
 - then replay the renewal webhook
 
-## 7. Manual webhook replay
+## 9. Manual webhook replay
 
 Use the original webhook payload whenever possible.
 
@@ -204,6 +257,7 @@ If you get `400`, compare the payload to:
 - `billing_checkouts`
 - `user_quotas`
 - current trust-anchor rules in [IMPLEMENTATION.md](./IMPLEMENTATION.md)
+- for one-time events with `externalReference = null`, also compare `payment.checkoutSession` to `billing_checkouts.asaas_link`
 
 ## Escalate to engineering when
 

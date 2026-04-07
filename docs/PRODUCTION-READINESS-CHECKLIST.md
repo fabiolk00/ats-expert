@@ -8,6 +8,7 @@ Status: billing webhook contract updated for settlement-based processing.
 - [ ] `billing_webhook_hardening.sql` applied
 - [ ] `20260406_align_asaas_webhook_contract.sql` applied
 - [ ] `20260406_fix_billing_checkout_timestamp_defaults.sql` applied
+- [ ] `20260407_persist_billing_display_totals.sql` applied
 - [ ] Old overload of `apply_billing_credit_grant_event` removed
 - [ ] Focused billing tests passing
 - [ ] Typecheck passing
@@ -15,12 +16,14 @@ Status: billing webhook contract updated for settlement-based processing.
 ## Runtime behavior to confirm
 
 - [ ] One-time purchases grant credits from settled payments only
+- [ ] One-time purchases still settle when Asaas sends `checkoutSession` and `externalReference = null`
 - [ ] Initial recurring activation comes from settled payment with `payment.subscription`
 - [ ] `SUBSCRIPTION_CREATED` invalid snapshots return `200 ignored`
 - [ ] Renewals replace balance, not add to it
 - [ ] Cancellations preserve credits
 - [ ] Duplicate `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` do not double-grant
 - [ ] `processed_events` stores internal event types, not old raw names
+- [ ] Dashboard credit denominator is never lower than the runtime balance
 
 ## DB verification
 

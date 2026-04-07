@@ -6,7 +6,7 @@ related:
   - state-model.md
   - tool-development.md
 status: current
-updated: 2026-04-06
+updated: 2026-04-07
 ---
 
 # CurrIA Features
@@ -103,8 +103,38 @@ Use cases:
 - free trial entry point
 - paid monthly plans for heavier usage
 - predictable billing and cost control
+- show the current plan and dynamic credit totals in the authenticated dashboard without changing the runtime source of truth
 
 Technical reference: [billing/IMPLEMENTATION.md](./billing/IMPLEMENTATION.md)
+
+## Auth and Checkout Resume Flow
+
+What it does: preserves the user's intended destination through login, signup, and email verification so billing and onboarding flows can continue without manual recovery.
+
+Use cases:
+- start a paid checkout from pricing while logged out
+- verify email and continue to the requested plan flow
+- avoid the raw Clerk `Session already exists` dead-end when the user is already authenticated
+
+Technical reference:
+- `src/components/auth/signup-form.tsx`
+- `src/components/auth/login-form.tsx`
+- `src/lib/auth/clerk-errors.ts`
+
+## Job Application Tracker
+
+What it does: lets paid users manually register applications, track status, and remember which resume version was sent.
+
+Use cases:
+- maintain a lightweight application pipeline inside CurrIA
+- record salary, location, benefits, job description, and notes per application
+- update statuses manually without losing the selected resume label
+- surface rejected create/update/delete actions as inline UI errors instead of opaque client failures
+
+Technical reference:
+- `src/app/(auth)/resumes/actions.ts`
+- `src/lib/db/job-applications.ts`
+- `src/components/dashboard/job-applications-tracker.tsx`
 
 ## Related Documentation
 

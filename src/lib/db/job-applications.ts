@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import type {
   CreateJobApplicationInput,
@@ -56,6 +57,7 @@ const CreateJobApplicationInputSchema = z.object({
 })
 
 const CreateJobApplicationPayloadSchema = z.object({
+  id: z.string().min(1),
   user_id: z.string().min(1),
   role: z.string().min(1),
   company: z.string().min(1),
@@ -170,6 +172,7 @@ function normalizeCreatePayload(input: CreateJobApplicationInput) {
   const parsed = CreateJobApplicationInputSchema.parse(input)
 
   const payload = {
+    id: createDatabaseId(),
     user_id: parsed.userId,
     role: parsed.role,
     company: parsed.company,

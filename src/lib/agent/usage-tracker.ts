@@ -1,4 +1,5 @@
 import { DEFAULT_OPENAI_MODEL } from '@/lib/agent/config'
+import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 
 export const MODEL_PRICING_CENTS_PER_MILLION = {
@@ -33,6 +34,7 @@ export async function trackApiUsage(params: {
 
   try {
     await supabase.from('api_usage').insert({
+      id: createDatabaseId(),
       user_id: params.userId,
       session_id: params.sessionId ?? null,
       model: params.model,

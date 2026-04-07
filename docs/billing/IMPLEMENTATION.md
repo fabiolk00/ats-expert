@@ -3,7 +3,7 @@ title: CurrIA Billing Implementation
 audience: [developers, operations]
 related: [../INDEX.md, README.md, MIGRATION_GUIDE.md, OPS_RUNBOOK.md]
 status: current
-updated: 2026-04-06
+updated: 2026-04-07
 ---
 
 # Billing Implementation
@@ -16,7 +16,7 @@ CurrIA billing is webhook-driven.
 
 - Credits are granted only from trusted Asaas webhook events.
 - `credit_accounts` is the authoritative runtime balance.
-- `user_quotas` stores subscription metadata only.
+- `user_quotas` stores subscription metadata plus the UI-facing display total in `credits_remaining`.
 - `billing_checkouts` is the source of truth for post-cutover paid checkout resolution.
 - `processed_events` guarantees idempotent webhook processing.
 
@@ -30,11 +30,13 @@ CurrIA billing is webhook-driven.
 
 ### `user_quotas`
 
-- Owns billing metadata:
+- Owns billing metadata and display state:
   - `plan`
+  - `credits_remaining` as the dashboard display total for the current plan cycle
   - `asaas_subscription_id`
   - `renews_at`
   - `status`
+- Runtime credit enforcement still reads `credit_accounts`, not `user_quotas`.
 - Pre-cutover recurring subscriptions continue to resolve from this table by `asaas_subscription_id`.
 
 ### `billing_checkouts`
@@ -57,11 +59,31 @@ CurrIA billing is webhook-driven.
 ## Checkout Flow
 
 1. Validate authenticated user and requested paid plan.
-2. Create a `billing_checkouts` row in `pending`.
-3. Format `externalReference` as `curria:v1:c:<checkoutReference>`.
-4. Call Asaas with that `externalReference`.
-5. If Asaas succeeds, mark the checkout `created`.
-6. If Asaas fails, mark the checkout `failed`.
+2. Validate and persist billing info before the provider call.
+3. Normalize billing fields:
+   - `phoneNumber` -> 11-digit BR number
+   - `postalCode` -> 8-digit CEP
+   - `province` -> uppercase UF
+4. Create a `billing_checkouts` row in `pending`.
+5. Format `externalReference` as `curria:v1:c:<checkoutReference>`.
+6. Call Asaas with that `externalReference`.
+7. If Asaas succeeds, mark the checkout `created`.
+8. If Asaas fails, mark the checkout `failed`.
+
+### Asaas `customerData` Contract
+
+- Both one-time and recurring checkout creation send the full billing payload when available:
+  - `cpfCnpj`
+  - `phone`
+  - `address`
+  - `addressNumber`
+  - `postalCode`
+  - `province`
+- CurrIA stores the normalized phone internally as `phoneNumber`, but the outgoing Asaas field must be `customerData.phone`.
+- CurrIA validates checkout onboarding input before persistence and before the provider call so the same normalized values are used for:
+  - `customer_billing_info`
+  - `billing_checkouts`
+  - the Asaas checkout request
 
 ## Webhook Resolution
 
@@ -69,6 +91,9 @@ CurrIA billing is webhook-driven.
 
 - Both are treated as the same internal semantic event: `PAYMENT_SETTLED`.
 - One-time purchases resolve plan and user from `billing_checkouts`.
+- Current Asaas payloads may omit `payment.externalReference` for one-time payments and send only `payment.checkoutSession`. CurrIA supports both trust anchors:
+  - preferred path: v1 `externalReference`
+  - fallback path: `checkoutSession`, resolved through the stored hosted-checkout URL in `billing_checkouts.asaas_link`
 - Initial recurring activation also resolves from `billing_checkouts`, but only when `payment.subscription` is present and the checkout is still `created`.
 - Renewal payments resolve from persisted `user_quotas.asaas_subscription_id`.
 - The fingerprint normalizes `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` so the same settled payment cannot grant credits twice.
@@ -147,6 +172,7 @@ This value is then passed to the RPC, which applies the correct logic:
 - Users upgrading plans mid-cycle preserve their unused credits.
 - Subsequent renewals replace credits, not add to them.
 - The RPC behavior is controlled by application code setting the `p_is_renewal` parameter based on event type.
+- The dashboard denominator uses the persisted display total in `user_quotas.credits_remaining`, which is written alongside billing grants and refreshed by the `20260407_persist_billing_display_totals.sql` migration.
 
 ## externalReference Formats
 
@@ -209,7 +235,10 @@ Pre-launch audit:
 
 - Must create `billing_checkouts` before the Asaas call.
 - Must use v1 `externalReference`.
+- Must send Asaas `customerData.phone`, not `customerData.phoneNumber`.
+- Must normalize phone and CEP before persistence and provider creation.
 - Initial paid webhook events fail closed if the checkout record is missing.
+- One-time webhook reconciliation may use `checkoutSession` when `externalReference` is null in the provider payload.
 
 ## Monitoring
 
@@ -233,6 +262,8 @@ Useful queries:
   - `SELECT * FROM billing_checkouts WHERE status = 'created' AND plan IN ('monthly', 'pro') AND created_at < NOW() - INTERVAL '1 hour';`
 - orphaned recurring metadata:
   - `SELECT * FROM user_quotas WHERE asaas_subscription_id IS NULL AND plan IN ('monthly', 'pro');`
+- display-total drift between UI metadata and runtime balance:
+  - `SELECT quota.user_id, quota.plan, quota.credits_remaining AS display_total, account.credits_remaining AS runtime_balance FROM user_quotas AS quota JOIN credit_accounts AS account ON account.user_id = quota.user_id WHERE quota.credits_remaining < account.credits_remaining;`
 - duplicate fingerprint audit:
   - `SELECT event_type, COUNT(*) FROM processed_events GROUP BY event_type;`
 - legacy-path webhook payloads still reaching the system:
@@ -251,7 +282,7 @@ Operational expectations:
 |---|---|---|---|---|
 | Checkout record exists before Asaas call | `src/app/api/checkout/route.ts` -> `POST` | `createCheckoutRecordPending()` runs before `createCheckoutLink()` | Automated: `src/app/api/checkout/route.test.ts` asserts call order | Create a checkout and verify a new `billing_checkouts` row appears as `pending` before the provider call finishes |
 | Asaas creation failures end in `failed` status | `src/app/api/checkout/route.ts` -> `POST` | `catch` block calls `markCheckoutFailed()` when provider creation throws | Automated: `src/app/api/checkout/route.test.ts` covers provider failure and post-provider marking failure | Query `billing_checkouts` for `status = 'failed'`; correlate with `billing.checkout.failed` logs and recent checkout attempts |
-| One-time settlements resolve from checkout records only | `src/lib/asaas/event-handlers.ts` -> `handlePaymentSettlement()` | Requires v1 `externalReference`, loads `billing_checkouts`, validates amount and `status='created'` | Automated: `src/lib/asaas/event-handlers.test.ts` covers valid v1, missing checkout, and legacy rejection | Inspect `processed_events` for `PAYMENT_SETTLED`, then confirm matching `billing_checkouts.checkout_reference`, `status='paid'`, and unchanged plan source |
+| One-time settlements resolve from checkout trust anchors only | `src/lib/asaas/event-handlers.ts` -> `handlePaymentSettlement()` | Requires either v1 `externalReference` or `checkoutSession`, loads `billing_checkouts`, validates amount and `status='created'` | Automated: `src/lib/asaas/event-handlers.test.ts` covers valid v1, `checkoutSession` fallback, missing checkout, and legacy rejection | Inspect `processed_events` for `PAYMENT_SETTLED`, then confirm matching `billing_checkouts.checkout_reference`, `status='paid'`, and unchanged plan source |
 | Initial subscriptions activate from first settled payment, not `SUBSCRIPTION_CREATED` | `src/lib/asaas/event-handlers.ts` -> `handlePaymentSettlement()` | Requires `payment.subscription`, v1 `externalReference`, checkout in `created`, and matching amount | Automated: `src/lib/asaas/event-handlers.test.ts` covers recurring activation from `PAYMENT_CONFIRMED` | Inspect `processed_events` for `SUBSCRIPTION_STARTED`, then verify `billing_checkouts.status='subscription_active'` and `user_quotas.asaas_subscription_id` populated |
 | Renewals resolve from `asaas_subscription_id`, not initial checkout trust | `src/lib/asaas/event-handlers.ts` -> `handlePaymentSettlement()` / `handleSubscriptionRenewed()` | Uses persisted subscription metadata and explicit renewal semantics | Automated: `src/lib/asaas/event-handlers.test.ts` covers payment-driven renewal and legacy renewal | Run `SELECT * FROM user_quotas WHERE asaas_subscription_id = '<sub_id>';` then verify the renewal replaced the user's balance once |
 | Cancellation updates metadata only and never revokes credits | `src/lib/asaas/event-handlers.ts` -> `handleSubscriptionCanceled()` / `handleSubscriptionUpdated()` | Calls metadata RPC only; no credit grant path is invoked | Automated: `src/lib/asaas/event-handlers.test.ts` covers cancellation and ignored pre-activation snapshots | Compare `credit_accounts.credits_remaining` before and after a `SUBSCRIPTION_CANCELED` event; only `user_quotas.status` and `renews_at` should change |
@@ -261,6 +292,7 @@ Operational expectations:
 | RPC trust-anchor validation rejects bad checkout or subscription references | `src/lib/asaas/credit-grants.ts`; billing RPCs in `prisma/migrations/billing_webhook_hardening.sql` | RPC re-checks `billing_checkouts` or `user_quotas` before mutating state | Automated: `src/lib/asaas/credit-grants.test.ts` covers propagation of invalid checkout, invalid subscription, overflow, and negative-balance rejections; SQL semantics should still be spot-checked in staging | Call the RPC with a bad `checkout_reference` or `asaas_subscription_id` in staging and verify it raises without writing `processed_events` or changing balances |
 | Pre-cutover recurring metadata gaps are visible | `src/lib/asaas/credit-grants.ts` -> `getPersistedSubscriptionMetadata()` | Logs `billing.pre_cutover_missing_metadata` and `billing.pre_cutover_invalid_plan_metadata` | Automated: recurring resolution tests cover the positive path; anomaly logging is operationally verified | Run `SELECT * FROM user_quotas WHERE plan IN ('monthly', 'pro') AND status != 'canceled' AND asaas_subscription_id IS NULL;` and treat any row or matching warning log as a migration blocker |
 | Partial-success exceptions are detectable and recoverable | `src/app/api/checkout/route.ts`; `src/lib/asaas/event-handlers.ts` | If post-provider or post-RPC marking fails, the request errors instead of silently succeeding; processed state may already exist | Automated: `src/app/api/checkout/route.test.ts` covers `markCheckoutCreated()` and `formatExternalReference()` failures after pending row creation; `src/lib/asaas/event-handlers.test.ts` covers `markCheckoutPaid()` and `markCheckoutSubscriptionActive()` failures after successful grant | Look for `processed_events` entries where the corresponding `billing_checkouts.status` is still `created`; reconcile by checking the provider object and manually updating the checkout lifecycle if the economic event already succeeded |
+| Dashboard credit denominators stay aligned with preserved balances | `src/lib/asaas/quota.ts`; `apply_billing_credit_grant_event`; `20260407_persist_billing_display_totals.sql` | Stores a UI-facing display total in `user_quotas.credits_remaining` while runtime checks still use `credit_accounts` | Automated: `src/lib/asaas/quota.test.ts` covers preserved-credit totals larger than the base plan allocation | Compare `user_quotas.credits_remaining` to `credit_accounts.credits_remaining`; the display total should never be lower than the runtime balance |
 
 ## Related Documentation
 

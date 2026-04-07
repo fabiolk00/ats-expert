@@ -9,6 +9,7 @@ import type {
   ToolPatch,
 } from '@/types/agent'
 import type { ATSScoreResult, CVState } from '@/types/cv'
+import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 
 // Increment only when the top-level session state bundle shape or interpretation changes.
@@ -207,6 +208,7 @@ export async function createSession(appUserId: string): Promise<Session> {
   const { data, error } = await supabase
     .from('sessions')
     .insert({
+      id: createDatabaseId(),
       user_id:      appUserId,
       state_version: CURRENT_SESSION_STATE_VERSION,
       phase:        'intake',
@@ -410,7 +412,12 @@ export async function appendMessage(
   content: string,
 ): Promise<void> {
   const supabase = getSupabaseAdminClient()
-  await supabase.from('messages').insert({ session_id: sessionId, role, content })
+  await supabase.from('messages').insert({
+    id: createDatabaseId(),
+    session_id: sessionId,
+    role,
+    content,
+  })
 }
 
 export async function checkUserQuota(appUserId: string): Promise<boolean> {

@@ -5,6 +5,7 @@ import type { Session, ToolPatch } from '@/types/agent'
 import {
   applyToolPatch,
   applyToolPatchWithVersion,
+  appendMessage,
   createSession,
   CURRENT_SESSION_STATE_VERSION,
   getSession,
@@ -46,17 +47,25 @@ const insert = vi.fn(() => ({
 }))
 const rpc = vi.fn()
 
+const messageInsert = vi.fn()
+
 const mockSupabase = {
   from: vi.fn((table: string) => {
-    if (table !== 'sessions') {
-      throw new Error(`Unexpected table: ${table}`)
+    if (table === 'sessions') {
+      return {
+        select,
+        insert,
+        update,
+      }
     }
 
-    return {
-      select,
-      insert,
-      update,
+    if (table === 'messages') {
+      return {
+        insert: messageInsert,
+      }
     }
+
+    throw new Error(`Unexpected table: ${table}`)
   }),
   rpc,
 }
@@ -131,6 +140,7 @@ describe('session tool patch application', () => {
       },
       error: null,
     })
+    messageInsert.mockResolvedValue({ error: null })
     vi.mocked(getSupabaseAdminClient).mockReturnValue(
       mockSupabase as unknown as ReturnType<typeof getSupabaseAdminClient>,
     )
@@ -297,6 +307,7 @@ describe('session state versioning', () => {
     const session = await createSession('usr_123')
 
     expect(insert).toHaveBeenCalledWith({
+      id: expect.any(String),
       user_id: 'usr_123',
       state_version: CURRENT_SESSION_STATE_VERSION,
       phase: 'intake',
@@ -306,6 +317,17 @@ describe('session state versioning', () => {
       credits_used: 0,
     })
     expect(session.stateVersion).toBe(CURRENT_SESSION_STATE_VERSION)
+  })
+
+  it('generates an explicit id when appending messages', async () => {
+    await appendMessage('sess_123', 'user', 'Ola')
+
+    expect(messageInsert).toHaveBeenCalledWith({
+      id: expect.any(String),
+      session_id: 'sess_123',
+      role: 'user',
+      content: 'Ola',
+    })
   })
 
   it('loads existing sessions without the field and keeps state intact', async () => {

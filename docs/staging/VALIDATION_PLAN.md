@@ -10,6 +10,7 @@ Before running scenarios:
 2. Apply:
    - `billing_webhook_hardening.sql`
    - `20260406_align_asaas_webhook_contract.sql`
+   - `20260407_persist_billing_display_totals.sql`
 3. Ensure a staging user exists, for example `usr_staging_001`.
 4. Confirm the webhook token is configured.
 
@@ -26,8 +27,13 @@ Validate that a one-time checkout grants credits only from a settled payment eve
 3. send `PAYMENT_CONFIRMED` or `PAYMENT_RECEIVED`
 4. verify:
    - credits increase once
+   - `user_quotas.credits_remaining >= credit_accounts.credits_remaining`
    - checkout becomes `paid`
    - `processed_events.event_type = 'PAYMENT_SETTLED'`
+5. repeat with a payload where:
+   - `payment.externalReference = null`
+   - `payment.checkoutSession = <checkout_session_id>`
+   - verify the same one-time checkout still settles exactly once
 
 ## Scenario 2: Invalid subscription snapshot is ignored
 
@@ -72,6 +78,7 @@ Validate that the first recurring payment activates the subscription.
    - v1 `externalReference`
 4. verify:
    - credits increase additively
+   - `user_quotas.credits_remaining` reflects the full display total for the current cycle
    - `user_quotas.asaas_subscription_id` is set
    - checkout becomes `subscription_active`
    - `processed_events.event_type = 'SUBSCRIPTION_STARTED'`

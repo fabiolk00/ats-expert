@@ -12,6 +12,7 @@ Preferred command:
 npx prisma db execute --file prisma/migrations/billing_webhook_hardening.sql --schema prisma/schema.prisma
 npx prisma db execute --file prisma/migrations/20260406_align_asaas_webhook_contract.sql --schema prisma/schema.prisma
 npx prisma db execute --file prisma/migrations/20260406_fix_billing_checkout_timestamp_defaults.sql --schema prisma/schema.prisma
+npx prisma db execute --file prisma/migrations/20260407_persist_billing_display_totals.sql --schema prisma/schema.prisma
 ```
 
 If your deployment flow requires manual SQL execution, run the contents of:
@@ -19,8 +20,9 @@ If your deployment flow requires manual SQL execution, run the contents of:
 - `prisma/migrations/billing_webhook_hardening.sql`
 - `prisma/migrations/20260406_align_asaas_webhook_contract.sql`
 - `prisma/migrations/20260406_fix_billing_checkout_timestamp_defaults.sql`
+- `prisma/migrations/20260407_persist_billing_display_totals.sql`
 
-against the target database before deploying code that depends on `billing_checkouts` and the updated RPC signatures.
+against the target database before deploying code that depends on `billing_checkouts`, the updated RPC signatures, and the persisted dashboard display totals.
 
 ## 2. Verify Database Objects
 
@@ -103,8 +105,13 @@ Watch for:
 4. simulate `PAYMENT_CONFIRMED` or `PAYMENT_RECEIVED`
 5. verify:
    - credits increased in `credit_accounts`
+   - `user_quotas.credits_remaining` is greater than or equal to the runtime balance
    - row becomes `paid`
    - processed fingerprint exists
+6. repeat with a payload where:
+   - `payment.externalReference = null`
+   - `payment.checkoutSession = <asaas_session_id>`
+   - verify one-time settlement still resolves and credits do not double-grant
 
 ### Subscription
 
@@ -121,6 +128,7 @@ Watch for:
    - renewal resolves from `user_quotas`
    - no checkout lookup is needed
    - credits are replaced once, not added twice
+   - `user_quotas.credits_remaining` matches the renewed plan allocation
 
 ### Duplicate replay
 
@@ -162,6 +170,14 @@ SELECT event_type, processed_at,
 FROM processed_events
 WHERE COALESCE(event_payload->'payment'->>'externalReference', event_payload->'subscription'->>'externalReference') ~ '^usr_[A-Za-z0-9]+$'
 ORDER BY processed_at DESC;
+```
+
+```sql
+SELECT quota.user_id, quota.plan, quota.credits_remaining AS display_total, account.credits_remaining AS runtime_balance
+FROM user_quotas AS quota
+JOIN credit_accounts AS account ON account.user_id = quota.user_id
+WHERE quota.credits_remaining < account.credits_remaining
+ORDER BY quota.user_id;
 ```
 
 ## 7. Rollback Guidance

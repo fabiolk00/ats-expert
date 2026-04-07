@@ -84,12 +84,19 @@ This means unused credits from the previous month are not carried over to the ne
 6. Complete the payment process
 7. After successful payment, your credits will be updated automatically
 
+### Auth Resume Behavior
+
+- If you start from pricing or checkout while logged out, CurrIA preserves the requested safe destination through `redirect_to`.
+- If Clerk finishes verification and the session already exists, CurrIA resumes the requested path instead of showing a raw `Session already exists` blocker.
+- Authenticated visitors who open `/login` or `/signup` are redirected back to the requested safe path automatically.
+
 ## What Happens to Your Data
 
 - Your session history is preserved
 - Your generated resumes remain available
 - Your account information stays the same
 - Only your plan and available credits change
+- The dashboard credit widget keeps the runtime balance as the numerator and a persisted display total as the denominator. This means carryover scenarios can show totals like `4 / 4` or `21 / 21` instead of falling back to the base plan allocation.
 
 ## Subscription Management
 

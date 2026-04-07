@@ -6,8 +6,10 @@ This document defines the minimum monitoring setup for the Asaas billing flow af
 
 - Credits now come from payment settlement, not from `SUBSCRIPTION_CREATED`.
 - `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` collapse into the internal event type `PAYMENT_SETTLED`.
+- One-time payment settlement can reconcile from `payment.checkoutSession` when `payment.externalReference` is null.
 - Subscription snapshots that are not actionable return `200 ignored` instead of pausing the Asaas queue.
 - Metadata-only subscription events use the internal event type `SUBSCRIPTION_CANCELED` or `SUBSCRIPTION_UPDATED`.
+- Dashboard credit denominators now come from the persisted display total in `user_quotas.credits_remaining`.
 
 ## Core alerts
 
@@ -89,6 +91,19 @@ ORDER BY date DESC;
 
 This should trend toward zero.
 
+### 6. Display-total drift
+
+Run every hour:
+
+```sql
+SELECT COUNT(*) AS drift_count
+FROM user_quotas AS quota
+JOIN credit_accounts AS account ON account.user_id = quota.user_id
+WHERE quota.credits_remaining < account.credits_remaining;
+```
+
+Alert if `drift_count > 0`.
+
 ## Useful sanity queries
 
 ### Recent internal billing event types
@@ -122,6 +137,7 @@ LIMIT 20;
 Expected:
 
 - newly paid one-time checkouts move to `paid`
+- some provider payloads may show `event_payload.payment.externalReference = null`; `checkoutSession` is still a valid reconciliation path
 
 ### Reconciled recurring activations
 
@@ -155,6 +171,7 @@ If you see both `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` here, the new SQL con
 - stale `created` recurring checkouts: inspect whether the first settled payment arrived, or whether the snapshot was ignored and should have canceled the checkout.
 - trust-anchor rejection: compare `billing_checkouts`, `user_quotas`, and the webhook payload.
 - legacy-path frequency rising: investigate whether new traffic is still being emitted with legacy `externalReference`.
+- display-total drift: apply `20260407_persist_billing_display_totals.sql` and confirm future grants update `user_quotas.credits_remaining`.
 
 ## Sunset note
 
