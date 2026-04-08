@@ -252,7 +252,7 @@ export default function UserDataPage() {
       <main
         className={cn(
           "relative mx-auto max-w-5xl space-y-8 px-4 py-8 md:py-12",
-          allSectionsClosed && "space-y-4 py-5 md:grid md:h-[calc(100vh-1.5rem)] md:grid-rows-[auto,minmax(0,1fr),auto] md:gap-3 md:space-y-0 md:overflow-hidden md:py-4",
+          allSectionsClosed && "space-y-4 py-5 md:grid md:h-[100dvh] md:grid-rows-[auto,minmax(0,1fr),auto] md:gap-3 md:space-y-0 md:overflow-hidden md:py-3",
         )}
       >
         <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white/90 shadow-sm backdrop-blur dark:border-border dark:bg-card/90">
@@ -288,24 +288,24 @@ export default function UserDataPage() {
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-3 gap-2.5">
                 {stats.map((stat) => {
                   const Icon = stat.icon
 
                   return (
                     <div
                       key={stat.label}
-                      className="flex min-h-[112px] flex-col rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3.5 dark:border-border dark:bg-background/50 md:min-h-[124px] md:px-4 md:py-4"
+                      className="flex min-h-[122px] flex-col rounded-2xl border border-slate-200 bg-slate-50/70 px-3.5 py-4 dark:border-border dark:bg-background/50 md:min-h-[136px] md:px-4 md:py-4.5"
                     >
-                      <div className="mb-3 flex flex-col items-start gap-2">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-900 shadow-sm dark:bg-card dark:text-slate-100 md:h-10 md:w-10">
-                          <Icon className="h-4 w-4 md:h-4.5 md:w-4.5" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-900 shadow-sm dark:bg-card dark:text-slate-100 md:h-11 md:w-11">
+                          <Icon className="h-4.5 w-4.5 md:h-5 md:w-5" />
                         </div>
                         <p className="text-[10px] leading-4 font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400 md:text-[11px]">
                           {stat.label}
                         </p>
                       </div>
-                      <p className="flex flex-1 items-center text-2xl font-semibold leading-none text-slate-900 dark:text-slate-100 md:text-[30px]">
+                      <p className="flex flex-1 items-center justify-center text-center text-[32px] font-semibold leading-none text-slate-900 dark:text-slate-100 md:text-[38px]">
                         {stat.value}
                       </p>
                     </div>
@@ -395,7 +395,7 @@ export default function UserDataPage() {
             <div
               className={cn(
                 "rounded-[28px] border border-slate-200 bg-white/90 shadow-sm backdrop-blur dark:border-border dark:bg-card/90",
-                allSectionsClosed ? "min-h-0 p-3 md:h-full md:overflow-hidden md:p-4" : "p-4 md:p-6",
+                allSectionsClosed ? "min-h-0 p-3 md:h-full md:overflow-hidden md:p-3.5" : "p-4 md:p-6",
               )}
             >
               <VisualResumeEditor
