@@ -6,15 +6,13 @@ import {
   Layers3,
   Linkedin,
   Loader2,
-  Moon,
   Sparkles,
-  Sun,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import type { CVState } from "@/types/cv"
 
 import { ImportResumeModal, type ResumeData } from "./resume-builder"
@@ -102,13 +100,13 @@ const secondaryButtonClassName =
 
 export default function UserDataPage() {
   const router = useRouter()
-  const { theme, setTheme } = useTheme()
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [resumeData, setResumeData] = useState<CVState>(() => normalizeResumeData())
   const [profileSource, setProfileSource] = useState<string | null>(null)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [allSectionsClosed, setAllSectionsClosed] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -233,17 +231,30 @@ export default function UserDataPage() {
   ]
 
   const updatedLabel = lastUpdatedAt
-    ? `Atualizado em ${new Date(lastUpdatedAt).toLocaleDateString("pt-BR")} as ${new Date(lastUpdatedAt).toLocaleTimeString("pt-BR", {
+    ? `Atualizado em ${new Date(lastUpdatedAt).toLocaleDateString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+      })} as ${new Date(lastUpdatedAt).toLocaleTimeString("pt-BR", {
         hour: "2-digit",
         minute: "2-digit",
+        timeZone: "America/Sao_Paulo",
       })}`
     : "Nenhuma atualizacao salva ainda."
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50/70 font-sans dark:bg-background">
+    <div
+      className={cn(
+        "relative overflow-hidden bg-slate-50/70 font-sans dark:bg-background",
+        allSectionsClosed ? "min-h-screen md:h-screen md:overflow-y-hidden" : "min-h-screen",
+      )}
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.12),_transparent_24%),linear-gradient(to_bottom,rgba(255,255,255,0.3),transparent_30%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(15,23,42,0.35),_transparent_28%),linear-gradient(to_bottom,rgba(15,23,42,0.16),transparent_36%)]" />
 
-      <main className="relative mx-auto max-w-5xl space-y-8 px-4 py-8 md:py-12">
+      <main
+        className={cn(
+          "relative mx-auto max-w-5xl space-y-8 px-4 py-8 md:py-12",
+          allSectionsClosed && "md:h-full md:overflow-hidden",
+        )}
+      >
         <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white/90 shadow-sm backdrop-blur dark:border-border dark:bg-card/90">
           <div className="grid gap-8 px-5 py-7 md:grid-cols-[1.3fr_0.7fr] md:px-8 md:py-8">
             <div className="space-y-6">
@@ -252,16 +263,6 @@ export default function UserDataPage() {
                   <Sparkles className="h-3.5 w-3.5" />
                   Base profissional
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  className="relative rounded-full text-muted-foreground hover:text-foreground"
-                  aria-label="Alternar tema"
-                >
-                  <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                  <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                </Button>
               </div>
 
               <div className="space-y-3">
@@ -330,7 +331,12 @@ export default function UserDataPage() {
         ) : (
           <>
             <div className="rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-border dark:bg-card/90 md:p-6">
-              <VisualResumeEditor value={resumeData} onChange={setResumeData} disabled={isSaving} />
+              <VisualResumeEditor
+                value={resumeData}
+                onChange={setResumeData}
+                disabled={isSaving}
+                onAllSectionsClosedChange={setAllSectionsClosed}
+              />
             </div>
 
             <div className="flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:justify-end">

@@ -4,8 +4,9 @@ import {
   buildOrganizationSchema,
   buildSoftwareApplicationSchema,
 } from "@/lib/seo/schema-builder"
+import { getAppOrigin } from "@/lib/config/app-url"
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://curria.com.br"
+const baseUrl = getAppOrigin()
 
 function JsonLdScript({ data }: { data: unknown }) {
   return (

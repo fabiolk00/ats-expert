@@ -10,7 +10,7 @@ const BodySchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const appUser = await getCurrentAppUser()
+  const appUser = await getCurrentAppUser(req)
   if (!appUser) {
     logError('[api/profile/extract] Unauthorized access attempt')
     return NextResponse.json(

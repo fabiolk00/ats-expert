@@ -415,10 +415,13 @@ export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID()
 
   // ── Auth ────────────────────────────────────────────────────────────
-  const appUser = await getCurrentAppUser()
+  const appUser = await getCurrentAppUser(req)
   if (!appUser) {
     logWarn('agent.request.unauthorized', {
       requestId,
+      requestHost: req.headers.get('host') ?? undefined,
+      requestOrigin: req.headers.get('origin') ?? undefined,
+      requestReferer: req.headers.get('referer') ?? undefined,
       success: false,
       latencyMs: Date.now() - requestStartedAt,
     })

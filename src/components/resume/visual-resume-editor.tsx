@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import {
   BadgeCheck,
   BriefcaseBusiness,
@@ -25,6 +25,7 @@ type VisualResumeEditorProps = {
   value: CVState
   onChange: (nextValue: CVState) => void
   disabled?: boolean
+  onAllSectionsClosedChange?: (allClosed: boolean) => void
 }
 
 type SectionId =
@@ -200,6 +201,7 @@ export function VisualResumeEditor({
   value,
   onChange,
   disabled = false,
+  onAllSectionsClosedChange,
 }: VisualResumeEditorProps) {
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
     personal: true,
@@ -209,6 +211,10 @@ export function VisualResumeEditor({
     education: true,
     certifications: true,
   })
+
+  useEffect(() => {
+    onAllSectionsClosedChange?.(Object.values(openSections).every((isOpen) => !isOpen))
+  }, [onAllSectionsClosedChange, openSections])
 
   const toggleSection = (section: SectionId) => {
     setOpenSections((current) => ({

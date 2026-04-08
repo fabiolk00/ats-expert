@@ -3,9 +3,10 @@ import type { Metadata } from "next"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { getAppOrigin } from "@/lib/config/app-url"
 import "./globals.css"
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://curria.com.br"
+const baseUrl = getAppOrigin()
 const imageUrl = `${baseUrl}/og-image.svg`
 
 export const metadata: Metadata = {

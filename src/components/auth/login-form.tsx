@@ -30,6 +30,7 @@ type FormData = z.infer<typeof schema>
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [authReadySlow, setAuthReadySlow] = useState(false)
+  const [authReadyStalled, setAuthReadyStalled] = useState(false)
   const { isSignedIn } = useAuth()
   const { signIn, isLoaded } = useSignIn()
   const searchParams = useSearchParams()
@@ -54,15 +55,26 @@ export default function LoginForm() {
   useEffect(() => {
     if (isLoaded) {
       setAuthReadySlow(false)
+      setAuthReadyStalled(false)
       return
     }
 
-    const timeout = window.setTimeout(() => {
+    const slowTimeout = window.setTimeout(() => {
       setAuthReadySlow(true)
     }, 4000)
+    const stalledTimeout = window.setTimeout(() => {
+      setAuthReadyStalled(true)
+    }, 10000)
 
-    return () => window.clearTimeout(timeout)
+    return () => {
+      window.clearTimeout(slowTimeout)
+      window.clearTimeout(stalledTimeout)
+    }
   }, [isLoaded])
+
+  const reloadAuth = () => {
+    window.location.reload()
+  }
 
   const handleGoogleSignIn = async () => {
     if (!isLoaded) {
@@ -204,10 +216,19 @@ export default function LoginForm() {
           {!isLoaded ? (
             <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {authReadySlow
-                  ? "A autenticação está demorando para carregar neste navegador. Verifique bloqueadores, rede ou extensões e tente novamente."
-                  : "Carregando autenticação..."}
+              <AlertDescription className="space-y-3">
+                <p>
+                  {authReadyStalled
+                    ? "A autenticação não carregou neste navegador. Recarregue a página ou verifique bloqueadores, rede e extensões."
+                    : authReadySlow
+                      ? "A autenticação está demorando para carregar neste navegador. Verifique bloqueadores, rede ou extensões e tente novamente."
+                      : "Carregando autenticação..."}
+                </p>
+                {authReadyStalled ? (
+                  <Button type="button" variant="outline" className="h-10 rounded-full" onClick={reloadAuth}>
+                    Recarregar autenticação
+                  </Button>
+                ) : null}
               </AlertDescription>
             </Alert>
           ) : null}

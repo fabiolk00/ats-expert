@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, getAuth } from '@clerk/nextjs/server'
 
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import type { AppUser, AuthProvider, UserStatus } from '@/types/user'
@@ -116,8 +116,8 @@ export async function getOrCreateAppUserByClerkUserId(clerkUserId: string): Prom
   return mapBootstrapRowToAppUser(parseBootstrapAppUser(data))
 }
 
-export async function getCurrentAppUser(): Promise<AppUser | null> {
-  const { userId: clerkUserId } = await auth()
+export async function getCurrentAppUser(req?: Parameters<typeof getAuth>[0]): Promise<AppUser | null> {
+  const { userId: clerkUserId } = req ? getAuth(req) : await auth()
   if (!clerkUserId) {
     return null
   }

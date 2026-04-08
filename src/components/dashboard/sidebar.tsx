@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 
 import { PlanUpdateDialog } from "@/components/dashboard/plan-update-dialog"
@@ -77,13 +77,13 @@ const navItems: NavItem[] = [
     isActive: (pathname) => pathname === "/dashboard",
   },
   {
-    label: "Curr\u00edculos",
+    label: "Currículos",
     href: "/dashboard/resumes",
     icon: FileText,
     isActive: (pathname) => pathname === "/dashboard/resumes" || pathname.startsWith("/dashboard/resumes/"),
   },
   {
-    label: "O que \u00e9 ATS?",
+    label: "O que é ATS?",
     href: "/what-is-ats",
     icon: HelpCircle,
     isActive: (pathname) => pathname === "/what-is-ats" || pathname.startsWith("/what-is-ats/"),
@@ -91,7 +91,7 @@ const navItems: NavItem[] = [
 ]
 
 function getInitials(fullName?: string | null, email?: string | null): string {
-  const source = fullName?.trim() || email?.trim() || "Usu\u00e1rio"
+  const source = fullName?.trim() || email?.trim() || "Usuário"
   const initials = source
     .split(/[\s@._-]+/)
     .filter(Boolean)
@@ -113,6 +113,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
   const { theme, setTheme } = useTheme()
   const { signOut } = useClerk()
   const { user } = useUser()
@@ -124,11 +125,18 @@ export function DashboardSidebar({
   const email = user?.primaryEmailAddress?.emailAddress || ""
   const initials = getInitials(displayName, email)
   const currentCredits = creditsRemaining ?? 0
-  const planLabel = currentPlan ? `Plano ${PLANS[currentPlan].name}` : "Plano indispon\u00edvel"
+  const planLabel = currentPlan ? `Plano ${PLANS[currentPlan].name}` : "Plano indisponível"
 
-  const handleSignOut = (): void => {
+  const handleSignOut = async (): Promise<void> => {
     onClose?.()
-    void signOut({ redirectUrl: "/" })
+
+    try {
+      await signOut()
+      router.push("/")
+      router.refresh()
+    } catch {
+      window.location.assign("/")
+    }
   }
 
   return (
@@ -194,7 +202,7 @@ export function DashboardSidebar({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-primary">
                   <SiteFaviconIcon className="h-4 w-4 shadow-sm" />
-                  <span className="text-sm font-medium">Cr\u00e9ditos</span>
+                  <span className="text-sm font-medium">Créditos</span>
                 </div>
                 <span className="text-xs font-bold">
                   {creditsRemaining} / {maxCredits}
@@ -248,13 +256,13 @@ export function DashboardSidebar({
               <DropdownMenuItem asChild>
                 <Link href="/settings" onClick={onClose}>
                   <Settings className="h-4 w-4" />
-                  Configura\u00e7\u00f5es
+                  Configurações
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/what-is-ats" onClick={onClose}>
                   <HelpCircle className="h-4 w-4" />
-                  O que \u00e9 ATS?
+                  O que é ATS?
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -262,7 +270,7 @@ export function DashboardSidebar({
                 variant="destructive"
                 onSelect={(event) => {
                   event.preventDefault()
-                  handleSignOut()
+                  void handleSignOut()
                 }}
               >
                 <LogOut className="h-4 w-4" />

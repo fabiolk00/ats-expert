@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import "@testing-library/jest-dom"
 import React from "react"
@@ -173,6 +173,22 @@ describe("LoginForm", () => {
 
     expect(screen.getByRole("button", { name: /carregando/i })).toBeDisabled()
     expect(screen.getByText(/Carregando autenticação/i)).toBeInTheDocument()
+  })
+
+  it("shows a bounded recovery action when Clerk stays unavailable", async () => {
+    vi.useFakeTimers()
+    mockIsLoaded.mockReturnValue(false)
+
+    render(<LoginForm />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000)
+    })
+
+    expect(screen.getByText(/A autenticação não carregou/i)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /recarregar autenticação/i })).toBeInTheDocument()
+
+    vi.useRealTimers()
   })
 
   it("redirects authenticated visitors away from login", async () => {

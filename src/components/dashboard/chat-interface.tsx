@@ -167,7 +167,9 @@ export function ChatInterface({
 
     let cancelled = false
 
-    fetch(`/api/session/${sessionId}/messages`)
+    fetch(`/api/session/${sessionId}/messages`, {
+      credentials: "include",
+    })
       .then((response) => response.json())
       .then((data) => {
         if (cancelled) {
@@ -280,6 +282,7 @@ export function ChatInterface({
     try {
       const response = await fetch("/api/agent", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId,
@@ -311,9 +314,11 @@ export function ChatInterface({
         }
 
         const errorMessage =
-          errorPayload && "error" in errorPayload
-            ? errorPayload.error
-            : "Não foi possível continuar a conversa."
+          response.status === 401
+            ? "Sua sessão expirou. Faça login novamente para continuar."
+            : errorPayload && "error" in errorPayload
+              ? errorPayload.error
+              : "Não foi possível continuar a conversa."
         throw new Error(errorMessage)
       }
 

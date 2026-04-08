@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import React from 'react'
@@ -134,6 +134,22 @@ describe('SignupForm', () => {
     await waitFor(() => {
       expect(mockNavigateToUrl).toHaveBeenCalledWith('/pricing?checkoutPlan=pro')
     })
+  })
+
+  it('shows a bounded recovery action when Clerk stays unavailable', async () => {
+    vi.useFakeTimers()
+    mockIsLoaded.mockReturnValue(false)
+
+    render(<SignupForm />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000)
+    })
+
+    expect(screen.getByText(/A autenticação não carregou/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /recarregar autenticação/i })).toBeInTheDocument()
+
+    vi.useRealTimers()
   })
 
   it('resumes the requested path when Clerk reports an existing session during signup', async () => {
