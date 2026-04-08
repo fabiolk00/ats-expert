@@ -727,6 +727,7 @@ describe('agent tool dispatch', () => {
       session.userId,
       session.id,
       { type: 'session' },
+      session.agentState,
     )
     expect(execution.patch).toEqual({
       generatedOutput: {
@@ -787,6 +788,7 @@ describe('agent tool dispatch', () => {
       session.userId,
       session.id,
       { type: 'target', targetId: 'target_123' },
+      'AWS backend role',
     )
     expect(updateResumeTargetGeneratedOutput).toHaveBeenCalledWith(
       session.id,
