@@ -10,6 +10,7 @@ import type { CVState, ExperienceEntry } from '@/types/cv'
 
 import { CURRENT_SESSION_STATE_VERSION } from '@/lib/db/sessions'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
+import { cvStateToTemplateData } from '@/lib/templates/cv-state-to-template-data'
 
 import { generateFileDeps } from './generate-file'
 import { dispatchTool } from './index'
@@ -154,6 +155,7 @@ describe('agent pipeline session state evolution', () => {
       ...session.cvState,
       summary: rewrittenSummary,
     })
+    const expectedTemplateData = cvStateToTemplateData(canonicalCvStateBeforeGeneration, session.agentState)
 
     pdfParse.mockResolvedValue({
       text: parsedResumeText,
@@ -253,7 +255,7 @@ describe('agent pipeline session state evolution', () => {
       },
     }, session)) as GenerateFileOutput
 
-    expect(generateDOCX).toHaveBeenCalledWith(canonicalCvStateBeforeGeneration)
+    expect(generateDOCX).toHaveBeenCalledWith(expectedTemplateData)
     expect(generateResult).toEqual({
       success: true,
       docxUrl: 'https://cdn.example.com/usr_123/sess_pipeline/resume.docx',
