@@ -157,6 +157,38 @@ function deriveFullName(data: NonNullable<LinkdAPIProfile['data']>): string {
   return [data.firstName?.trim(), data.lastName?.trim()].filter(Boolean).join(' ')
 }
 
+function containsCyrillic(value: string): boolean {
+  return /[\u0400-\u04FF]/.test(value)
+}
+
+function normalizeExperienceLocation(
+  location: string | undefined,
+  profileLocation: string | undefined,
+): string {
+  const trimmedLocation = location?.trim() ?? ''
+  if (!trimmedLocation) {
+    return ''
+  }
+
+  if (!containsCyrillic(trimmedLocation)) {
+    return trimmedLocation
+  }
+
+  const profileCity = profileLocation?.split(',')[0]?.trim()
+  if (!profileCity) {
+    return trimmedLocation
+  }
+
+  const suffix = trimmedLocation
+    .split(',')
+    .slice(1)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join(', ')
+
+  return suffix ? `${profileCity}, ${suffix}` : profileCity
+}
+
 function getNamedValue(value?: string | { name?: string }): string | undefined {
   if (typeof value === 'string') {
     return value
@@ -184,13 +216,14 @@ export function mapLinkdAPIToCvState(data: LinkdAPIProfile['data']): CVState {
     throw new Error('No profile data to map')
   }
 
+  const profileLocation = data.location?.full ?? data.geo?.full ?? undefined
   const rawExperience = data.fullPositions ?? data.position ?? data.currentPositions ?? data.experience ?? []
   const experience: ExperienceEntry[] = rawExperience
     .filter((exp) => Boolean(exp.title && (exp.companyName || getNamedValue(exp.company))))
     .map((exp) => ({
       title: exp.title ?? '',
       company: getNamedValue(exp.company) ?? exp.companyName ?? '',
-      location: exp.location ?? '',
+      location: normalizeExperienceLocation(exp.location, profileLocation),
       startDate: firstNonEmpty(exp.startDate, formatPartialDate(exp.start)) ?? '',
       endDate: firstNonEmpty(exp.endDate, formatPartialDate(exp.end)) ?? '',
       bullets: exp.description
@@ -237,7 +270,7 @@ export function mapLinkdAPIToCvState(data: LinkdAPIProfile['data']): CVState {
     email: data.email ?? '',
     phone: data.phone ?? '',
     linkedin: deriveProfileUrl(data),
-    location: data.location?.full ?? data.geo?.full ?? undefined,
+    location: profileLocation,
     summary: data.summary ?? '',
     experience,
     skills,

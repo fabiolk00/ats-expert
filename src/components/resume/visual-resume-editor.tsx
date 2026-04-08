@@ -107,8 +107,7 @@ function SectionCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-border dark:bg-background/60 dark:text-slate-400">
-          <span>{isOpen ? "Aberta" : "Fechada"}</span>
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-border dark:bg-background/60 dark:text-slate-400">
           <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
         </div>
       </button>

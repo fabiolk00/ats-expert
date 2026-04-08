@@ -17,7 +17,7 @@ describe('mapLinkdAPIToCvState', () => {
         {
           title: 'Senior Business Intelligence',
           companyName: 'CNH',
-          location: 'Curitiba, PR',
+          location: 'Куритиба, PR',
           description: 'Primeira linha\nSegunda linha',
           start: { year: 2025, month: 1 },
           end: { year: 0, month: 0 },

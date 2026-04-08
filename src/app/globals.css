@@ -98,6 +98,19 @@
     @apply border-border outline-ring/50;
   }
 
+  a[href],
+  button,
+  [role='button'],
+  [role='menuitem'],
+  summary {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     background-image:

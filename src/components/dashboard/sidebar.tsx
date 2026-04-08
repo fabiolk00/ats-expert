@@ -19,6 +19,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 
+import { PlanUpdateDialog } from "@/components/dashboard/plan-update-dialog"
 import Logo from "@/components/logo"
 import { SiteFaviconIcon } from "@/components/site-favicon-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -30,10 +31,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { PlanUpdateDialog } from "@/components/dashboard/plan-update-dialog"
-import { PLANS, PlanSlug } from "@/lib/plans"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { PLANS, PlanSlug } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
 interface DashboardSidebarProps {
@@ -46,44 +46,52 @@ interface DashboardSidebarProps {
   activeRecurringPlan?: PlanSlug | null
 }
 
-const navItems = [
-  {
-    label: "Chat",
-    href: "/dashboard",
-    icon: MessageSquare,
-  },
+type NavItem = {
+  label: string
+  href: string
+  icon: typeof User
+  isActive: (pathname: string) => boolean
+}
+
+const navItems: NavItem[] = [
   {
     label: "Meu Perfil",
     href: "/dashboard/resumes/new",
     icon: User,
+    isActive: (pathname) =>
+      pathname === "/dashboard/resumes/new" ||
+      pathname.startsWith("/dashboard/resumes/new/") ||
+      pathname === "/profile" ||
+      pathname.startsWith("/profile/"),
   },
   {
     label: "Gerenciamento de Vagas",
     href: "/resumes",
     icon: BriefcaseBusiness,
+    isActive: (pathname) => pathname === "/resumes" || pathname.startsWith("/resumes/"),
   },
   {
-    label: "Currículos",
+    label: "Chat",
+    href: "/dashboard",
+    icon: MessageSquare,
+    isActive: (pathname) => pathname === "/dashboard",
+  },
+  {
+    label: "Curr\u00edculos",
     href: "/dashboard/resumes",
     icon: FileText,
+    isActive: (pathname) => pathname === "/dashboard/resumes" || pathname.startsWith("/dashboard/resumes/"),
   },
   {
-    label: "O que é ATS?",
+    label: "O que \u00e9 ATS?",
     href: "/what-is-ats",
     icon: HelpCircle,
+    isActive: (pathname) => pathname === "/what-is-ats" || pathname.startsWith("/what-is-ats/"),
   },
 ]
 
-function isActivePath(pathname: string, href: string): boolean {
-  if (href === "/dashboard") {
-    return pathname === href
-  }
-
-  return pathname === href || pathname.startsWith(`${href}/`)
-}
-
 function getInitials(fullName?: string | null, email?: string | null): string {
-  const source = fullName?.trim() || email?.trim() || "Usuário"
+  const source = fullName?.trim() || email?.trim() || "Usu\u00e1rio"
   const initials = source
     .split(/[\s@._-]+/)
     .filter(Boolean)
@@ -116,7 +124,8 @@ export function DashboardSidebar({
   const email = user?.primaryEmailAddress?.emailAddress || ""
   const initials = getInitials(displayName, email)
   const currentCredits = creditsRemaining ?? 0
-  const planLabel = currentPlan ? `Plano ${PLANS[currentPlan].name}` : "Plano indisponível"
+  const planLabel = currentPlan ? `Plano ${PLANS[currentPlan].name}` : "Plano indispon\u00edvel"
+
   const handleSignOut = (): void => {
     onClose?.()
     void signOut({ redirectUrl: "/" })
@@ -157,7 +166,8 @@ export function DashboardSidebar({
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
             {navItems.map((item) => {
-              const isActive = isActivePath(pathname, item.href)
+              const isActive = item.isActive(pathname)
+
               return (
                 <Link
                   key={item.href}
@@ -184,7 +194,7 @@ export function DashboardSidebar({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-primary">
                   <SiteFaviconIcon className="h-4 w-4 shadow-sm" />
-                  <span className="text-sm font-medium">Créditos</span>
+                  <span className="text-sm font-medium">Cr\u00e9ditos</span>
                 </div>
                 <span className="text-xs font-bold">
                   {creditsRemaining} / {maxCredits}
@@ -232,23 +242,29 @@ export function DashboardSidebar({
                   setIsPlanDialogOpen(true)
                 }}
               >
-                  <Sparkles className="h-4 w-4" />
-                  Ver planos
+                <Sparkles className="h-4 w-4" />
+                Ver planos
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/settings" onClick={onClose}>
                   <Settings className="h-4 w-4" />
-                  Configurações
+                  Configura\u00e7\u00f5es
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/what-is-ats" onClick={onClose}>
                   <HelpCircle className="h-4 w-4" />
-                  O que é ATS?
+                  O que \u00e9 ATS?
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={(event) => {
+                  event.preventDefault()
+                  handleSignOut()
+                }}
+              >
                 <LogOut className="h-4 w-4" />
                 Sair
               </DropdownMenuItem>
