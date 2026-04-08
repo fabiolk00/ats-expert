@@ -295,17 +295,19 @@ export default function UserDataPage() {
                   return (
                     <div
                       key={stat.label}
-                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-border dark:bg-background/50"
+                      className="flex min-h-[112px] flex-col rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3.5 dark:border-border dark:bg-background/50 md:min-h-[124px] md:px-4 md:py-4"
                     >
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                      <div className="mb-3 flex flex-col items-start gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-900 shadow-sm dark:bg-card dark:text-slate-100 md:h-10 md:w-10">
+                          <Icon className="h-4 w-4 md:h-4.5 md:w-4.5" />
+                        </div>
+                        <p className="text-[10px] leading-4 font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400 md:text-[11px]">
                           {stat.label}
                         </p>
-                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-slate-900 shadow-sm dark:bg-card dark:text-slate-100">
-                          <Icon className="h-4 w-4" />
-                        </div>
                       </div>
-                      <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">{stat.value}</p>
+                      <p className="flex flex-1 items-center text-2xl font-semibold leading-none text-slate-900 dark:text-slate-100 md:text-[30px]">
+                        {stat.value}
+                      </p>
                     </div>
                   )
                 })}
