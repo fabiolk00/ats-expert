@@ -1,4 +1,4 @@
-import { Bot, Check, Download, User, X } from "lucide-react"
+import { Bot, Check, Download, Loader2, User, X } from "lucide-react"
 
 import ATSScoreBadge from "@/components/ats-score-badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -12,6 +12,7 @@ interface ChatMessageProps {
   role: "user" | "assistant"
   content: string
   timestamp?: string
+  toolStatus?: string
   analysisResult?: {
     scoreBefore: number
     scoreAfter: number
@@ -38,7 +39,7 @@ function ThinkingIndicator() {
   )
 }
 
-export function ChatMessage({ role, content, timestamp, analysisResult }: ChatMessageProps) {
+export function ChatMessage({ role, content, timestamp, toolStatus, analysisResult }: ChatMessageProps) {
   const isAssistant = role === "assistant"
   const isThinking = isAssistant && content === "Pensando..."
 
@@ -70,6 +71,15 @@ export function ChatMessage({ role, content, timestamp, analysisResult }: ChatMe
               <p className="whitespace-pre-wrap">{content}</p>
             )}
           </div>
+          {isAssistant && toolStatus ? (
+            <div
+              className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"
+              data-testid="tool-status"
+            >
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>{toolStatus}</span>
+            </div>
+          ) : null}
           {timestamp && (
             <p
               className={cn(

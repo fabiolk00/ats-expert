@@ -8,11 +8,9 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import type { AgentStreamChunk, Phase } from "@/types/agent"
+import type { AgentDoneChunk, AgentStreamChunk, Phase } from "@/types/agent"
 
 import { ChatMessage } from "./chat-message"
-
-type AgentDoneChunk = Extract<AgentStreamChunk, { done: true }>
 
 const EMPTY_ASSISTANT_RESPONSE_FALLBACK = "Analisei sua mensagem, mas não consegui concluir a resposta desta vez. Tente enviar novamente."
 const CREDIT_EXHAUSTED_ERROR_PATTERN = /cr[eé]ditos acabaram/i
@@ -97,6 +95,16 @@ interface ChatInterfaceProps {
   onCreditsExhausted?: () => void
 }
 
+type SessionSnapshotResponse = {
+  session?: {
+    phase?: Phase
+    atsScore?: {
+      total?: number
+    }
+    messageCount?: number
+  }
+}
+
 export function ChatInterface({
   sessionId: initialSessionId,
   userName = "Você",
@@ -120,6 +128,9 @@ export function ChatInterface({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
+  const [isToolExecuting, setIsToolExecuting] = useState(false)
+  const [currentToolName, setCurrentToolName] = useState<string | null>(null)
+  const [activeAssistantMessageId, setActiveAssistantMessageId] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>("intake")
   const [atsScore, setAtsScore] = useState<number | undefined>()
   const [messageCount, setMessageCount] = useState(0)
@@ -144,6 +155,37 @@ export function ChatInterface({
         item.id === assistantMessageId ? { ...item, content } : item,
       ),
     )
+  }
+
+  const refreshSessionSnapshot = async (targetSessionId: string): Promise<void> => {
+    try {
+      const response = await fetch(`/api/session/${targetSessionId}`, {
+        credentials: "include",
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to refetch session (${response.status})`)
+      }
+
+      const data = (await response.json()) as SessionSnapshotResponse
+      if (!data.session) {
+        return
+      }
+
+      if (data.session.phase) {
+        setPhase(data.session.phase)
+      }
+
+      if (data.session.atsScore?.total !== undefined) {
+        setAtsScore(data.session.atsScore.total)
+      }
+
+      if (data.session.messageCount !== undefined) {
+        setMessageCount(data.session.messageCount)
+      }
+    } catch {
+      console.error("[chat] failed to refetch session on done")
+    }
   }
 
   useEffect(() => {
@@ -242,8 +284,11 @@ export function ChatInterface({
     setInput("")
     setUploadedFile(null)
     setIsStreaming(true)
+    setIsToolExecuting(false)
+    setCurrentToolName(null)
 
     const assistantMessageId = `${Date.now() + 1}`
+    setActiveAssistantMessageId(assistantMessageId)
     setMessages((previous) => [
       ...previous,
       {
@@ -335,6 +380,8 @@ export function ChatInterface({
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ""
+      let receivedDone = false
+      let receivedError = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -356,69 +403,93 @@ export function ChatInterface({
             try {
               const chunk = JSON.parse(line.slice(6)) as AgentStreamChunk
 
-              if ("delta" in chunk) {
-                setMessages((previous) =>
-                  previous.map((message) =>
-                    message.id === assistantMessageId
-                      ? {
-                          ...message,
-                          content: message.content === copy.thinkingText ? chunk.delta : message.content + chunk.delta,
-                        }
-                      : message,
-                  ),
-                )
-                continue
-              }
+              switch (chunk.type) {
+                case "text":
+                  setMessages((previous) =>
+                    previous.map((message) =>
+                      message.id === assistantMessageId
+                        ? {
+                            ...message,
+                            content: message.content === copy.thinkingText ? chunk.content : message.content + chunk.content,
+                          }
+                        : message,
+                    ),
+                  )
+                  break
 
-              if ("sessionCreated" in chunk && chunk.sessionCreated) {
-                applySessionState(chunk.sessionId)
-                onSessionChange?.(chunk.sessionId)
-                continue
-              }
-
-              if ("done" in chunk && chunk.done) {
-                setMessages((previous) =>
-                  previous.map((message) =>
-                    message.id === assistantMessageId && message.content === copy.thinkingText
-                      ? { ...message, content: EMPTY_ASSISTANT_RESPONSE_FALLBACK }
-                      : message,
-                  ),
-                )
-                setPhase(chunk.phase)
-                if (chunk.atsScore?.total !== undefined) {
-                  setAtsScore(chunk.atsScore.total)
-                }
-                if (chunk.messageCount !== undefined) {
-                  setMessageCount(chunk.messageCount)
-                }
-                if (chunk.sessionId) {
+                case "sessionCreated":
                   applySessionState(chunk.sessionId)
                   onSessionChange?.(chunk.sessionId)
+                  break
+
+                case "toolStart":
+                  setCurrentToolName(chunk.toolName)
+                  setIsToolExecuting(true)
+                  break
+
+                case "toolResult":
+                  break
+
+                case "patch":
+                  setIsToolExecuting(false)
+                  setCurrentToolName(null)
+                  setPhase(chunk.phase)
+                  if (chunk.patch.atsScore?.total !== undefined) {
+                    setAtsScore(chunk.patch.atsScore.total)
+                  }
+                  break
+
+                case "done":
+                  receivedDone = true
+                  setIsToolExecuting(false)
+                  setCurrentToolName(null)
+                  setMessages((previous) =>
+                    previous.map((message) =>
+                      message.id === assistantMessageId && message.content === copy.thinkingText
+                        ? { ...message, content: EMPTY_ASSISTANT_RESPONSE_FALLBACK }
+                        : message,
+                    ),
+                  )
+                  setPhase(chunk.phase)
+                  if (chunk.atsScore?.total !== undefined) {
+                    setAtsScore(chunk.atsScore.total)
+                  }
+                  if (chunk.messageCount !== undefined) {
+                    setMessageCount(chunk.messageCount)
+                  }
+                  if (chunk.sessionId) {
+                    applySessionState(chunk.sessionId)
+                    onSessionChange?.(chunk.sessionId)
+                    void refreshSessionSnapshot(chunk.sessionId)
+                  }
+                  onAgentTurnCompleted?.(chunk)
+                  break
+
+                case "error": {
+                  receivedError = true
+                  setIsToolExecuting(false)
+                  setCurrentToolName(null)
+                  const shouldOpenCreditsModal =
+                    isCreditExhaustedError(chunk.error)
+                    || (chunk.action === "new_session" && currentCredits !== undefined && currentCredits <= 0)
+
+                  if (chunk.action === "new_session") {
+                    setSessionLimitReached(true)
+                  }
+
+                  if (shouldOpenCreditsModal) {
+                    onCreditsExhausted?.()
+                  }
+
+                  setMessages((previous) =>
+                    previous.map((message) =>
+                      message.id === assistantMessageId
+                        ? { ...message, content: `Aviso: ${chunk.error}` }
+                        : message,
+                    ),
+                  )
+                  break
                 }
-                onAgentTurnCompleted?.(chunk)
-                continue
-              }
-
-              if ("error" in chunk) {
-                const shouldOpenCreditsModal =
-                  isCreditExhaustedError(chunk.error)
-                  || (chunk.action === "new_session" && currentCredits !== undefined && currentCredits <= 0)
-
-                if (chunk.action === "new_session") {
-                  setSessionLimitReached(true)
-                }
-
-                if (shouldOpenCreditsModal) {
-                  onCreditsExhausted?.()
-                }
-
-                setMessages((previous) =>
-                  previous.map((message) =>
-                    message.id === assistantMessageId
-                      ? { ...message, content: `Aviso: ${chunk.error}` }
-                      : message,
-                  ),
-                )
               }
             } catch {
               continue
@@ -426,8 +497,28 @@ export function ChatInterface({
           }
         }
       }
+
+      if (!receivedDone && !receivedError) {
+        setMessages((previous) =>
+          previous.map((message) => {
+            if (message.id !== assistantMessageId) {
+              return message
+            }
+
+            const interruptionMessage = "Aviso: A resposta foi interrompida. Sua sessão foi salva e você pode tentar novamente."
+            return {
+              ...message,
+              content: message.content === copy.thinkingText
+                ? interruptionMessage
+                : `${message.content}\n\n${interruptionMessage}`,
+            }
+          }),
+        )
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro inesperado."
+      setIsToolExecuting(false)
+      setCurrentToolName(null)
       setMessages((previous) =>
         previous.map((item) =>
           item.id === assistantMessageId ? { ...item, content: `Aviso: ${message}` } : item,
@@ -435,6 +526,9 @@ export function ChatInterface({
       )
     } finally {
       setIsStreaming(false)
+      setIsToolExecuting(false)
+      setCurrentToolName(null)
+      setActiveAssistantMessageId(null)
     }
   }
 
@@ -504,7 +598,15 @@ export function ChatInterface({
         <ScrollArea className="h-full px-4 md:px-6">
           <div className="mx-auto w-full max-w-3xl space-y-6 py-6">
             {messages.map((message) => (
-              <ChatMessage key={message.id} {...message} />
+              <ChatMessage
+                key={message.id}
+                {...message}
+                toolStatus={
+                  isToolExecuting && currentToolName && message.id === activeAssistantMessageId
+                    ? `Executando ${currentToolName}...`
+                    : undefined
+                }
+              />
             ))}
             <div ref={bottomRef} />
           </div>

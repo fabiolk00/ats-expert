@@ -18,8 +18,19 @@ vi.mock("@clerk/nextjs", () => ({
 }))
 
 vi.mock("./chat-message", () => ({
-  ChatMessage: ({ role, content }: { role: string; content: string }) => (
-    <div data-testid={`message-${role}`}>{content}</div>
+  ChatMessage: ({
+    role,
+    content,
+    toolStatus,
+  }: {
+    role: string
+    content: string
+    toolStatus?: string
+  }) => (
+    <div data-testid={`message-${role}`}>
+      <div>{content}</div>
+      {toolStatus ? <div data-testid="tool-status">{toolStatus}</div> : null}
+    </div>
   ),
 }))
 
@@ -28,7 +39,48 @@ vi.mock("@/components/ui/scroll-area", () => ({
 }))
 
 function sseEvent(data: unknown): string {
-  return `data: ${JSON.stringify(data)}\n\n`
+  const event = (() => {
+    if (!data || typeof data !== "object" || Array.isArray(data) || "type" in data) {
+      return data
+    }
+
+    const legacy = data as Record<string, unknown>
+
+    if ("delta" in legacy) {
+      return { type: "text", content: legacy.delta }
+    }
+
+    if ("sessionCreated" in legacy && legacy.sessionCreated) {
+      return { type: "sessionCreated", sessionId: legacy.sessionId }
+    }
+
+    if ("done" in legacy && legacy.done) {
+      return {
+        type: "done",
+        sessionId: legacy.sessionId,
+        phase: legacy.phase,
+        atsScore: legacy.atsScore,
+        messageCount: legacy.messageCount,
+        maxMessages: legacy.maxMessages,
+        isNewSession: legacy.isNewSession,
+      }
+    }
+
+    if ("error" in legacy) {
+      return {
+        type: "error",
+        error: legacy.error,
+        action: legacy.action,
+        messageCount: legacy.messageCount,
+        maxMessages: legacy.maxMessages,
+        upgradeUrl: legacy.upgradeUrl,
+      }
+    }
+
+    return data
+  })()
+
+  return `data: ${JSON.stringify(event)}\n\n`
 }
 
 function createSSEStream(events: unknown[]): ReadableStream<Uint8Array> {
@@ -41,6 +93,19 @@ function createSSEStream(events: unknown[]): ReadableStream<Uint8Array> {
         controller.enqueue(encoder.encode(chunk))
       }
       controller.close()
+    },
+  })
+}
+
+function createPendingSSEStream(events: unknown[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder()
+  const chunks = events.map((event) => sseEvent(event))
+
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk))
+      }
     },
   })
 }
@@ -512,5 +577,153 @@ describe("ChatInterface", () => {
       const lastMessage = messages[messages.length - 1]
       expect(lastMessage).toHaveTextContent("Failed to fetch")
     })
+  })
+
+  it("shows the tool execution indicator on toolStart", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        return new Response(
+          createPendingSSEStream([
+            { type: "toolStart", toolName: "parse_file" },
+          ]),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface sessionId="sess_tool" userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    await userEvent.type(textarea, "Execute a ferramenta")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(screen.getByTestId("tool-status")).toHaveTextContent("Executando parse_file...")
+    })
+  })
+
+  it("clears the tool execution indicator on patch", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        return new Response(
+          createSSEStream([
+            { type: "toolStart", toolName: "rewrite_section" },
+            { type: "patch", patch: {}, phase: "dialog" },
+          ]),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface sessionId="sess_patch" userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    await userEvent.type(textarea, "Aplique a mudanÃ§a")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("tool-status")).not.toBeInTheDocument()
+    })
+  })
+
+  it("refetches the session snapshot on done and applies the server truth to the header", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        return new Response(
+          createSSEStream([
+            { type: "done", sessionId: "sess_done", phase: "intake", messageCount: 1 },
+          ]),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        )
+      }
+
+      if (typeof url === "string" && url === "/api/session/sess_done") {
+        return new Response(
+          JSON.stringify({
+            session: {
+              phase: "dialog",
+              atsScore: { total: 88 },
+              messageCount: 3,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    await userEvent.type(textarea, "Sincronize a sessÃ£o")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith("/api/session/sess_done", {
+        credentials: "include",
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText(/Mensagem\s+3\s+de\s+15/i)).toBeInTheDocument()
+      expect(screen.getByText(/Fase:\s+dialog/i)).toBeInTheDocument()
+      expect(screen.getByText(/ATS:\s+88/i)).toBeInTheDocument()
+    })
+  })
+
+  it("keeps the UI usable when the done-session refetch fails", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        return new Response(
+          createSSEStream([
+            { type: "done", sessionId: "sess_refetch_fail", phase: "dialog", messageCount: 1 },
+          ]),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        )
+      }
+
+      if (typeof url === "string" && url === "/api/session/sess_refetch_fail") {
+        throw new Error("refetch failed")
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    await userEvent.type(textarea, "Finalize")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      const messages = screen.getAllByTestId("message-assistant")
+      const lastMessage = messages[messages.length - 1]
+      expect(lastMessage).toHaveTextContent("Analisei sua mensagem")
+    })
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith("[chat] failed to refetch session on done")
+    })
+
+    consoleErrorSpy.mockRestore()
   })
 })
