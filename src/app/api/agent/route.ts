@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server'
-import { APIError } from 'openai'
 import { z } from 'zod'
 
 import { runAgentLoop } from '@/lib/agent/agent-loop'
@@ -12,13 +11,14 @@ import {
 } from '@/lib/db/sessions'
 import { dispatchTool } from '@/lib/agent/tools'
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
+import { TOOL_ERROR_CODES, type ToolErrorCode } from '@/lib/agent/tool-errors'
 import { deriveTargetFitAssessment } from '@/lib/agent/target-fit'
 import { agentLimiter } from '@/lib/rate-limit'
 import { AGENT_CONFIG } from '@/lib/agent/config'
 import { extractUrl } from '@/lib/agent/url-extractor'
 import { scrapeJobPosting } from '@/lib/agent/scraper'
 import { logInfo, logWarn } from '@/lib/observability/structured-log'
-import type { Session } from '@/types/agent'
+import type { AgentSessionCreatedChunk, Session } from '@/types/agent'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -650,15 +650,34 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
       }
 
-      function sendStreamError(errorMessage: string) {
-        send({ error: errorMessage, requestId })
+      function sendStreamError(
+        errorMessage: string,
+        code: ToolErrorCode,
+        heartbeatInterval?: ReturnType<typeof setInterval>,
+      ) {
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval)
+        }
+        send({ type: 'error', error: errorMessage, code, requestId })
         controller.close()
       }
+
+      const heartbeat = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(': heartbeat\n\n'))
+        } catch {
+          clearInterval(heartbeat)
+        }
+      }, 15_000)
 
       // For new sessions, emit sessionCreated immediately so the frontend
       // can persist the sessionId (URL + state) before any slow work runs.
       if (isNewSession) {
-        send({ sessionCreated: true, sessionId: session!.id })
+        const sessionCreatedChunk: AgentSessionCreatedChunk = {
+          type: 'sessionCreated',
+          sessionId: session!.id,
+        }
+        send(sessionCreatedChunk)
 
         try {
           // For brand-new sessions with attachments, avoid consuming the first
@@ -669,7 +688,11 @@ export async function POST(req: NextRequest) {
 
           const messageCountIncremented = await incrementMessageCount(session!.id)
           if (!messageCountIncremented) {
-            sendStreamError('Erro interno ao registrar mensagem. Tente novamente.')
+            sendStreamError(
+              'Erro interno ao registrar mensagem. Tente novamente.',
+              TOOL_ERROR_CODES.INTERNAL_ERROR,
+              heartbeat,
+            )
             return
           }
 
@@ -686,7 +709,11 @@ export async function POST(req: NextRequest) {
           const errorMessage = isAbort
             ? 'A requisição demorou muito. Por favor, tente novamente.'
             : 'Algo deu errado. Por favor, tente novamente.'
-          sendStreamError(errorMessage)
+          sendStreamError(
+            errorMessage,
+            TOOL_ERROR_CODES.INTERNAL_ERROR,
+            heartbeat,
+          )
           return
         }
       }
@@ -701,50 +728,14 @@ export async function POST(req: NextRequest) {
         signal: req.signal,
       })
 
-      for await (const event of loop) {
-        switch (event.type) {
-          case 'delta':
-            send({ delta: event.text })
-            break
-
-          case 'done':
-            send({
-              done: true,
-              requestId: event.requestId,
-              sessionId: event.sessionId,
-              phase: event.phase,
-              atsScore: event.atsScore,
-              messageCount: event.messageCount,
-              maxMessages: event.maxMessages,
-              isNewSession: event.isNewSession,
-            })
-            break
-
-          case 'error': {
-            let errorMessage = 'Algo deu errado. Por favor, tente novamente.'
-
-            if (event.error instanceof APIError && event.error.status) {
-              const statusMessages: Record<number, string> = {
-                400: 'Erro na requisição. Por favor, tente novamente.',
-                401: 'Erro de configuração da IA. Entre em contato com o suporte.',
-                403: 'Acesso negado ao serviço de IA. Entre em contato com o suporte.',
-                429: 'O serviço de IA está sobrecarregado. Tente novamente em alguns segundos.',
-                500: 'O serviço de IA está temporariamente indisponível. Tente novamente.',
-                502: 'O serviço de IA está temporariamente indisponível. Tente novamente.',
-                503: 'O serviço de IA está em manutenção. Tente novamente em alguns minutos.',
-              }
-              errorMessage = statusMessages[event.error.status] ?? errorMessage
-            } else if (event.error.name === 'AbortError') {
-              errorMessage = 'A requisição demorou muito. Por favor, tente novamente.'
-            }
-
-            send({ error: errorMessage, requestId })
-            break
-          }
+      try {
+        for await (const event of loop) {
+          send(event)
         }
+      } finally {
+        clearInterval(heartbeat)
+        controller.close()
       }
-
-      controller.close()
     },
   })
 
@@ -752,6 +743,7 @@ export async function POST(req: NextRequest) {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
   }
 
   if (isNewSession && session) {
@@ -760,3 +752,4 @@ export async function POST(req: NextRequest) {
 
   return new Response(stream, { headers })
 }
+

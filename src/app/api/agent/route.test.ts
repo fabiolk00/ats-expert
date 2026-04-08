@@ -555,11 +555,11 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
 
     const text = await response.text()
     const events = text.split('\n\n').filter(Boolean)
-    const doneEvent = events.find((e) => e.includes('"done":true'))
+    const doneEvent = events.find((e) => e.includes('"type":"done"'))
     expect(doneEvent).toBeDefined()
 
     const doneData = JSON.parse(doneEvent!.replace('data: ', ''))
-    expect(doneData.done).toBe(true)
+    expect(doneData.type).toBe('done')
     expect(doneData.sessionId).toBe('s1')
     expect(doneData.phase).toBe('intake')
     expect(doneData.isNewSession).toBe(true)
@@ -608,7 +608,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     expect(events.length).toBeGreaterThanOrEqual(2)
 
     const firstData = JSON.parse(events[0].replace('data: ', ''))
-    expect(firstData).toEqual({ sessionCreated: true, sessionId: 'sess_early' })
+    expect(firstData).toEqual({ type: 'sessionCreated', sessionId: 'sess_early' })
   })
 
   it('returns X-Session-Id header for new sessions', async () => {
@@ -692,11 +692,12 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
 
     const text = await response.text()
     const events = text.split('\n\n').filter(Boolean)
-    const hasSessionCreated = events.some((e) => e.includes('"sessionCreated"'))
+    const hasSessionCreated = events.some((e) => e.includes('"type":"sessionCreated"'))
     expect(hasSessionCreated).toBe(false)
   })
 
   it('aborts new-session stream with error when incrementMessageCount fails', async () => {
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
     vi.mocked(getSession).mockResolvedValue(null)
     vi.mocked(checkUserQuota).mockResolvedValue(true)
     vi.mocked(createSessionWithCredit).mockResolvedValue({
@@ -740,14 +741,18 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
 
     // sessionCreated is still the first event (frontend already has the ID)
     const firstData = JSON.parse(events[0].replace('data: ', ''))
-    expect(firstData).toEqual({ sessionCreated: true, sessionId: 'sess_inc_fail' })
+    expect(firstData).toEqual({ type: 'sessionCreated', sessionId: 'sess_inc_fail' })
 
     // Second event is the error, stream closes without a done event
     const secondData = JSON.parse(events[1].replace('data: ', ''))
+    expect(secondData.type).toBe('error')
+    expect(secondData.code).toBe('INTERNAL_ERROR')
     expect(secondData.error).toBe('Erro interno ao registrar mensagem. Tente novamente.')
+    expect(clearIntervalSpy).toHaveBeenCalled()
 
-    const hasDone = events.some((e) => e.includes('"done":true'))
+    const hasDone = events.some((e) => e.includes('"type":"done"'))
     expect(hasDone).toBe(false)
+    clearIntervalSpy.mockRestore()
   })
 
   it('sends SSE error and closes stream when incrementMessageCount throws', async () => {
@@ -780,12 +785,14 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     const events = text.split('\n\n').filter(Boolean)
 
     const firstData = JSON.parse(events[0].replace('data: ', ''))
-    expect(firstData).toEqual({ sessionCreated: true, sessionId: 'sess_throw_inc' })
+    expect(firstData).toEqual({ type: 'sessionCreated', sessionId: 'sess_throw_inc' })
 
     const secondData = JSON.parse(events[1].replace('data: ', ''))
+    expect(secondData.type).toBe('error')
     expect(secondData.error).toBe('Algo deu errado. Por favor, tente novamente.')
+    expect(secondData.code).toBe('INTERNAL_ERROR')
 
-    expect(events.some((e) => e.includes('"done":true'))).toBe(false)
+    expect(events.some((e) => e.includes('"type":"done"'))).toBe(false)
   })
 
   it('sends SSE error and closes stream when handleFileAttachment throws', async () => {
@@ -819,13 +826,15 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     const events = text.split('\n\n').filter(Boolean)
 
     const firstData = JSON.parse(events[0].replace('data: ', ''))
-    expect(firstData).toEqual({ sessionCreated: true, sessionId: 'sess_throw_file' })
+    expect(firstData).toEqual({ type: 'sessionCreated', sessionId: 'sess_throw_file' })
 
     const secondData = JSON.parse(events[1].replace('data: ', ''))
+    expect(secondData.type).toBe('error')
     expect(secondData.error).toBe('Algo deu errado. Por favor, tente novamente.')
+    expect(secondData.code).toBe('INTERNAL_ERROR')
 
     expect(incrementMessageCount).not.toHaveBeenCalled()
-    expect(events.some((e) => e.includes('"done":true'))).toBe(false)
+    expect(events.some((e) => e.includes('"type":"done"'))).toBe(false)
   })
 
   it('sends AbortError-specific message when pre-loop work is aborted', async () => {
@@ -858,6 +867,8 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     const events = text.split('\n\n').filter(Boolean)
 
     const secondData = JSON.parse(events[1].replace('data: ', ''))
+    expect(secondData.type).toBe('error')
+    expect(secondData.code).toBe('INTERNAL_ERROR')
     expect(secondData.error).toBe('A requisição demorou muito. Por favor, tente novamente.')
   })
 })
