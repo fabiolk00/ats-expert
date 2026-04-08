@@ -5,27 +5,16 @@ import { useCallback, useEffect, useState } from "react"
 import { usePreviewPanel } from "@/context/preview-panel-context"
 import { usePreviewPanelOverlay } from "@/hooks/use-preview-panel-overlay"
 import {
-  applyGapAction,
-  compareSnapshots,
-  createTarget,
   generateResume,
-  getDownloadUrls,
   getSessionWorkspace,
   isGeneratedOutputReady,
-  listVersions,
   manualEditBaseSection,
 } from "@/lib/dashboard/workspace-client"
 import type { PlanSlug } from "@/lib/plans"
 import type { ManualEditInput, ManualEditSection, ManualEditSectionData } from "@/types/agent"
-import type {
-  CompareSnapshotRef,
-  CompareSnapshotsResponse,
-  SerializedTimelineEntry,
-  SessionWorkspace,
-} from "@/types/dashboard"
+import type { SessionWorkspace } from "@/types/dashboard"
 
 import { ChatInterface } from "./chat-interface"
-import { CompareDrawer } from "./compare-drawer"
 import { ManualEditDialog } from "./manual-edit-dialog"
 import { PlanUpdateDialog } from "./plan-update-dialog"
 import { PreviewPanel } from "./preview-panel"
@@ -33,9 +22,7 @@ import { WorkspaceSidePanel } from "./workspace-side-panel"
 
 type MutationKind =
   | "workspace-refresh"
-  | "create-target"
   | "manual-edit"
-  | "gap-action"
   | "generate"
   | null
 
@@ -88,16 +75,6 @@ function getManualEditSectionValue(
   }
 }
 
-function buildCompareDefaultsForTarget(targetId: string): {
-  left: CompareSnapshotRef
-  right: CompareSnapshotRef
-} {
-  return {
-    left: { kind: "base" },
-    right: { kind: "target", id: targetId },
-  }
-}
-
 export function ResumeWorkspace({
   initialSessionId,
   userName,
@@ -107,19 +84,10 @@ export function ResumeWorkspace({
   const [sessionId, setSessionId] = useState<string | undefined>(initialSessionId)
   const [availableCredits, setAvailableCredits] = useState(currentCredits)
   const [workspace, setWorkspace] = useState<SessionWorkspace | null>(null)
-  const [versions, setVersions] = useState<SerializedTimelineEntry[]>([])
   const [activeMutation, setActiveMutation] = useState<MutationKind>("workspace-refresh")
   const [isStreaming, setIsStreaming] = useState(false)
-  const [compareBusy, setCompareBusy] = useState(false)
-  const [compareOpen, setCompareOpen] = useState(false)
-  const [compareResult, setCompareResult] = useState<CompareSnapshotsResponse | null>(null)
-  const [compareDefaults, setCompareDefaults] = useState<{
-    left?: CompareSnapshotRef
-    right?: CompareSnapshotRef
-  }>({})
   const [manualEditOpen, setManualEditOpen] = useState(false)
   const [manualEditSection, setManualEditSection] = useState<ManualEditSection | null>(null)
-  const [targetJobDescription, setTargetJobDescription] = useState("")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [planUpdateOpen, setPlanUpdateOpen] = useState(false)
@@ -153,13 +121,8 @@ export function ResumeWorkspace({
     setErrorMessage(null)
 
     try {
-      const [nextWorkspace, nextVersions] = await Promise.all([
-        getSessionWorkspace(targetSessionId),
-        listVersions(targetSessionId),
-      ])
-
+      const nextWorkspace = await getSessionWorkspace(targetSessionId)
       setWorkspace(nextWorkspace)
-      setVersions(nextVersions)
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
     } finally {
@@ -170,7 +133,6 @@ export function ResumeWorkspace({
   useEffect(() => {
     if (!sessionId) {
       setWorkspace(null)
-      setVersions([])
       setActiveMutation(null)
       return
     }
@@ -219,50 +181,6 @@ export function ResumeWorkspace({
     }
   }
 
-  const handleCreateTarget = async (): Promise<void> => {
-    if (!sessionId || !targetJobDescription.trim()) {
-      return
-    }
-
-    setActiveMutation("create-target")
-    setErrorMessage(null)
-    setStatusMessage(null)
-
-    try {
-      await createTarget(sessionId, targetJobDescription.trim())
-      await refreshWorkspace(sessionId)
-      setTargetJobDescription("")
-      setStatusMessage("Nova variante target criada com sucesso.")
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error))
-    } finally {
-      setActiveMutation(null)
-    }
-  }
-
-  const handleGapAction = async (
-    itemType: "missing_skill" | "weak_area" | "suggestion",
-    itemValue: string,
-  ): Promise<void> => {
-    if (!sessionId) {
-      return
-    }
-
-    setActiveMutation("gap-action")
-    setErrorMessage(null)
-    setStatusMessage(null)
-
-    try {
-      await applyGapAction(sessionId, { itemType, itemValue })
-      await refreshWorkspace(sessionId)
-      setStatusMessage(`Melhoria aplicada a partir de: ${itemValue}`)
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error))
-    } finally {
-      setActiveMutation(null)
-    }
-  }
-
   const handleGenerateBase = async (): Promise<void> => {
     if (!sessionId) {
       return
@@ -281,75 +199,6 @@ export function ResumeWorkspace({
     } finally {
       setActiveMutation(null)
     }
-  }
-
-  const handleGenerateTarget = async (targetId: string): Promise<void> => {
-    if (!sessionId) {
-      return
-    }
-
-    setActiveMutation("generate")
-    setErrorMessage(null)
-    setStatusMessage(null)
-
-    try {
-      await generateResume(sessionId, { scope: "target", targetId })
-      await refreshWorkspace(sessionId)
-      setStatusMessage("Arquivos da variante target gerados com sucesso.")
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error))
-    } finally {
-      setActiveMutation(null)
-    }
-  }
-
-  const handleDownload = async (targetId?: string): Promise<void> => {
-    if (!sessionId) {
-      return
-    }
-
-    setErrorMessage(null)
-
-    try {
-      const urls = await getDownloadUrls(sessionId, targetId)
-      window.open(urls.pdfUrl, "_blank", "noopener,noreferrer")
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error))
-    }
-  }
-
-  const handleCompare = async (
-    left: CompareSnapshotRef,
-    right: CompareSnapshotRef,
-  ): Promise<void> => {
-    if (!sessionId) {
-      return
-    }
-
-    setCompareBusy(true)
-    setErrorMessage(null)
-
-    try {
-      const result = await compareSnapshots(sessionId, left, right)
-      setCompareResult(result)
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error))
-    } finally {
-      setCompareBusy(false)
-    }
-  }
-
-  const handleOpenCompareWithTarget = (targetId: string): void => {
-    const defaults = buildCompareDefaultsForTarget(targetId)
-    setCompareDefaults(defaults)
-    setCompareResult(null)
-    setCompareOpen(true)
-  }
-
-  const handleOpenCompare = (): void => {
-    setCompareDefaults({})
-    setCompareResult(null)
-    setCompareOpen(true)
   }
 
   return (
@@ -375,31 +224,12 @@ export function ResumeWorkspace({
           />
         </div>
 
-        {isPreviewOpen && previewFile && !isPreviewOverlay ? (
-          <PreviewPanel inline />
-        ) : (
-          <WorkspaceSidePanel
-            sessionId={sessionId}
-            workspace={workspace}
-            versions={versions}
-            isStreaming={isStreaming}
-            activeMutation={activeMutation}
-            isBusy={isBusy}
-            baseOutputReady={baseOutputReady}
-            targetJobDescription={targetJobDescription}
-            errorMessage={errorMessage}
-            statusMessage={statusMessage}
-            onTargetJobDescriptionChange={setTargetJobDescription}
-            onManualEdit={openManualEdit}
-            onGenerateBase={handleGenerateBase}
-            onDownload={handleDownload}
-            onOpenCompare={handleOpenCompare}
-            onCreateTarget={handleCreateTarget}
-            onGenerateTarget={handleGenerateTarget}
-            onGapAction={handleGapAction}
-            onOpenCompareWithTarget={handleOpenCompareWithTarget}
-          />
-        )}
+        <WorkspaceSidePanel
+          sessionId={sessionId}
+          showInlinePreview={!isPreviewOverlay}
+          previewFile={!isPreviewOverlay ? previewFile : null}
+          baseOutputReady={baseOutputReady}
+        />
       </div>
 
       {isPreviewOpen && previewFile && isPreviewOverlay ? <PreviewPanel /> : null}
@@ -416,18 +246,6 @@ export function ResumeWorkspace({
           }
         }}
         onSubmit={handleManualEdit}
-      />
-
-      <CompareDrawer
-        open={compareOpen}
-        busy={compareBusy}
-        versions={versions}
-        targets={workspace?.targets ?? []}
-        initialLeft={compareDefaults.left}
-        initialRight={compareDefaults.right}
-        result={compareResult}
-        onOpenChange={setCompareOpen}
-        onCompare={handleCompare}
       />
 
       <PlanUpdateDialog

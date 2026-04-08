@@ -4,20 +4,28 @@ import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { Download, ExternalLink, Loader2, X } from 'lucide-react'
 
-import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
+import type { PreviewFile } from '@/context/preview-panel-context'
 import { usePreviewPanel } from '@/context/preview-panel-context'
 import { usePreviewPanelOverlay } from '@/hooks/use-preview-panel-overlay'
+import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 type PreviewPanelProps = {
   inline?: boolean
+  fileOverride?: PreviewFile | null
+  showCloseButton?: boolean
 }
 
-export function PreviewPanel({ inline = false }: PreviewPanelProps) {
+export function PreviewPanel({
+  inline = false,
+  fileOverride = null,
+  showCloseButton = true,
+}: PreviewPanelProps) {
   const { file, close } = usePreviewPanel()
   const isOverlay = usePreviewPanelOverlay()
+  const activeFile = fileOverride ?? file
 
-  if (!file || file.type !== 'pdf') {
+  if (!activeFile || activeFile.type !== 'pdf') {
     return null
   }
 
@@ -25,7 +33,13 @@ export function PreviewPanel({ inline = false }: PreviewPanelProps) {
     return null
   }
 
-  const content = <PreviewPanelContent file={file} onClose={close} />
+  const content = (
+    <PreviewPanelContent
+      file={activeFile}
+      onClose={close}
+      showCloseButton={showCloseButton}
+    />
+  )
 
   if (inline) {
     return (
@@ -53,9 +67,11 @@ export function PreviewPanel({ inline = false }: PreviewPanelProps) {
 function PreviewPanelContent({
   file,
   onClose,
+  showCloseButton,
 }: {
-  file: NonNullable<ReturnType<typeof usePreviewPanel>['file']>
+  file: PreviewFile
   onClose: () => void
+  showCloseButton: boolean
 }) {
   const { getCachedUrl, setCachedUrl } = usePreviewPanel()
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -80,7 +96,7 @@ function PreviewPanelContent({
       const urls = await getDownloadUrls(file.sessionId, file.targetId ?? undefined)
 
       if (!urls.pdfUrl) {
-        setError('Não foi possível carregar a pré-visualização do PDF.')
+        setError('Nao foi possivel carregar a pre-visualizacao do PDF.')
         return
       }
 
@@ -125,13 +141,13 @@ function PreviewPanelContent({
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3 shrink-0">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{file.label}</p>
           <p className="text-xs text-muted-foreground">PDF</p>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex shrink-0 items-center gap-1">
           {previewUrl && !error ? (
             <>
               <button
@@ -155,14 +171,16 @@ function PreviewPanelContent({
             </>
           ) : null}
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Fechar pré-visualização"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          {showCloseButton ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              aria-label="Fechar pre-visualizacao"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -190,7 +208,7 @@ function PreviewPanelContent({
           <iframe
             src={previewUrl}
             className="h-full w-full border-0"
-            title={`Pré-visualização: ${file.label}`}
+            title={`Pre-visualizacao: ${file.label}`}
           />
         ) : null}
       </div>

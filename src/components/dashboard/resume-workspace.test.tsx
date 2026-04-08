@@ -5,27 +5,22 @@ import userEvent from "@testing-library/user-event"
 import "@testing-library/jest-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { PreviewPanelProvider } from "@/context/preview-panel-context"
 import { ResumeWorkspace } from "./resume-workspace"
 
 const {
   mockGetSessionWorkspace,
-  mockListVersions,
   mockIsGeneratedOutputReady,
 } = vi.hoisted(() => ({
   mockGetSessionWorkspace: vi.fn(),
-  mockListVersions: vi.fn(),
   mockIsGeneratedOutputReady: vi.fn(),
 }))
 
 vi.mock("@/lib/dashboard/workspace-client", () => ({
   getSessionWorkspace: mockGetSessionWorkspace,
-  listVersions: mockListVersions,
   isGeneratedOutputReady: mockIsGeneratedOutputReady,
-  applyGapAction: vi.fn(),
-  compareSnapshots: vi.fn(),
-  createTarget: vi.fn(),
   generateResume: vi.fn(),
-  getDownloadUrls: vi.fn(),
+  getDownloadUrls: vi.fn().mockResolvedValue({ docxUrl: null, pdfUrl: null }),
   manualEditBaseSection: vi.fn(),
 }))
 
@@ -77,10 +72,6 @@ vi.mock("./plan-update-dialog", () => ({
   ),
 }))
 
-vi.mock("./compare-drawer", () => ({
-  CompareDrawer: () => null,
-}))
-
 vi.mock("./manual-edit-dialog", () => ({
   ManualEditDialog: () => null,
 }))
@@ -124,18 +115,38 @@ function buildWorkspace() {
   }
 }
 
+function renderWorkspace(ui: React.ReactElement) {
+  return render(
+    <PreviewPanelProvider>
+      {ui}
+    </PreviewPanelProvider>,
+  )
+}
+
 describe("ResumeWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockIsGeneratedOutputReady.mockReturnValue(true)
     mockGetSessionWorkspace.mockResolvedValue(buildWorkspace())
-    mockListVersions.mockResolvedValue([])
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    })
   })
 
   it("syncs sessionId to URL via replaceState when session changes", async () => {
     const replaceStateSpy = vi.spyOn(window.history, "replaceState")
 
-    render(<ResumeWorkspace initialSessionId={undefined} userName="Fabio" />)
+    renderWorkspace(<ResumeWorkspace initialSessionId={undefined} userName="Fabio" />)
 
     await userEvent.click(screen.getByRole("button", { name: /^simulate new session$/i }))
 
@@ -158,7 +169,7 @@ describe("ResumeWorkspace", () => {
 
     const replaceStateSpy = vi.spyOn(window.history, "replaceState")
 
-    render(<ResumeWorkspace initialSessionId="sess_existing" userName="Fabio" />)
+    renderWorkspace(<ResumeWorkspace initialSessionId="sess_existing" userName="Fabio" />)
 
     // Wait for initial effects to settle
     await waitFor(() => {
@@ -176,7 +187,7 @@ describe("ResumeWorkspace", () => {
   })
 
   it("opens the plan update modal when the chat reports exhausted credits", async () => {
-    render(<ResumeWorkspace initialSessionId="sess_123" userName="Fabio" />)
+    renderWorkspace(<ResumeWorkspace initialSessionId="sess_123" userName="Fabio" />)
 
     await waitFor(() => {
       expect(mockGetSessionWorkspace).toHaveBeenCalledWith("sess_123")
@@ -192,7 +203,7 @@ describe("ResumeWorkspace", () => {
   })
 
   it("decrements local credits after the first completed turn of a new session", async () => {
-    render(
+    renderWorkspace(
       <ResumeWorkspace
         initialSessionId={undefined}
         userName="Fabio"

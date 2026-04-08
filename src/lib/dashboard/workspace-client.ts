@@ -1,11 +1,5 @@
 import type { GeneratedOutput, ManualEditInput } from '@/types/agent'
-import type {
-  CompareSnapshotRef,
-  CompareSnapshotsResponse,
-  SerializedResumeTarget,
-  SerializedTimelineEntry,
-  SessionWorkspace,
-} from '@/types/dashboard'
+import type { SessionWorkspace } from '@/types/dashboard'
 
 export class DashboardApiError extends Error {
   status: number
@@ -35,49 +29,6 @@ export async function getSessionWorkspace(sessionId: string): Promise<SessionWor
   return requestJson<SessionWorkspace>(`/api/session/${sessionId}`)
 }
 
-export async function listVersions(
-  sessionId: string,
-  scope: 'all' | 'base' | 'target-derived' = 'all',
-): Promise<SerializedTimelineEntry[]> {
-  const response = await requestJson<{ sessionId: string; versions: SerializedTimelineEntry[] }>(
-    `/api/session/${sessionId}/versions?scope=${scope}`,
-  )
-
-  return response.versions
-}
-
-export async function compareSnapshots(
-  sessionId: string,
-  left: CompareSnapshotRef,
-  right: CompareSnapshotRef,
-): Promise<CompareSnapshotsResponse> {
-  return requestJson<CompareSnapshotsResponse>(`/api/session/${sessionId}/compare`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ left, right }),
-  })
-}
-
-export async function listTargets(sessionId: string): Promise<SerializedResumeTarget[]> {
-  const response = await requestJson<{ targets: SerializedResumeTarget[] }>(
-    `/api/session/${sessionId}/targets`,
-  )
-
-  return response.targets
-}
-
-export async function createTarget(sessionId: string, targetJobDescription: string): Promise<void> {
-  await requestJson<{ target: SerializedResumeTarget }>(`/api/session/${sessionId}/targets`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ targetJobDescription }),
-  })
-}
-
 export async function manualEditBaseSection(
   sessionId: string,
   input: ManualEditInput,
@@ -98,19 +49,6 @@ export async function manualEditBaseSection(
   return {
     changed: response.changed,
   }
-}
-
-export async function applyGapAction(
-  sessionId: string,
-  input: { itemType: 'missing_skill' | 'weak_area' | 'suggestion'; itemValue: string },
-): Promise<void> {
-  await requestJson<{ result: unknown }>(`/api/session/${sessionId}/gap-action`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(input),
-  })
 }
 
 export async function generateResume(

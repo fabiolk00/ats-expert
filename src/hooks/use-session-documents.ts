@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import { getDownloadUrls, listTargets, listVersions } from '@/lib/dashboard/workspace-client'
-import type { SerializedResumeTarget, SerializedTimelineEntry } from '@/types/dashboard'
+import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
 
 type SessionFiles = {
   docxUrl: string | null
@@ -11,8 +10,6 @@ type SessionFiles = {
 }
 
 type SessionDocuments = {
-  versions: SerializedTimelineEntry[]
-  targets: SerializedResumeTarget[]
   files: SessionFiles
   isLoading: boolean
   error: string | null
@@ -20,8 +17,6 @@ type SessionDocuments = {
 }
 
 export function useSessionDocuments(sessionId: string | null): SessionDocuments {
-  const [versions, setVersions] = useState<SerializedTimelineEntry[]>([])
-  const [targets, setTargets] = useState<SerializedResumeTarget[]>([])
   const [files, setFiles] = useState<SessionFiles>({ docxUrl: null, pdfUrl: null })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,8 +28,6 @@ export function useSessionDocuments(sessionId: string | null): SessionDocuments 
 
   useEffect(() => {
     if (!sessionId) {
-      setVersions([])
-      setTargets([])
       setFiles({ docxUrl: null, pdfUrl: null })
       setError(null)
       setIsLoading(false)
@@ -48,25 +41,26 @@ export function useSessionDocuments(sessionId: string | null): SessionDocuments 
       setError(null)
 
       try {
-        const [nextVersions, nextTargets, nextFiles] = await Promise.all([
-          listVersions(sessionId),
-          listTargets(sessionId),
-          getDownloadUrls(sessionId).catch(() => ({ docxUrl: null, pdfUrl: null })),
-        ])
+        const nextFiles = await getDownloadUrls(sessionId).catch(() => ({
+          docxUrl: null,
+          pdfUrl: null,
+        }))
 
         if (isCancelled) {
           return
         }
 
-        setVersions(nextVersions)
-        setTargets(nextTargets)
         setFiles({
           docxUrl: nextFiles.docxUrl ?? null,
           pdfUrl: nextFiles.pdfUrl ?? null,
         })
       } catch (fetchError) {
         if (!isCancelled) {
-          setError(fetchError instanceof Error ? fetchError.message : 'Não foi possível carregar os documentos da sessão.')
+          setError(
+            fetchError instanceof Error
+              ? fetchError.message
+              : 'Nao foi possivel carregar os documentos da sessao.',
+          )
         }
       } finally {
         if (!isCancelled) {
@@ -91,5 +85,5 @@ export function useSessionDocuments(sessionId: string | null): SessionDocuments 
     return () => window.clearInterval(interval)
   }, [refresh, sessionId])
 
-  return { versions, targets, files, isLoading, error, refresh }
+  return { files, isLoading, error, refresh }
 }
