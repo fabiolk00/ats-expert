@@ -78,9 +78,9 @@ function createWelcomeMessage(firstName?: string): Message {
     role: "assistant",
     content: `${greeting} Sou seu consultor especialista em ATS e RH.
 
-Já tenho conhecimento sobre seu perfil, qualificações e habilidades, baseado no seu preenchimento em "Meu Perfil".
+Já analisei o seu perfil, qualificações e habilidades com base no que você preencheu em "Meu Perfil".
 
-Envie o texto da vaga ou link para avaliarmos seu match com ela!`,
+Envie o texto da vaga ou o link que vamos avaliar o match com ela!`,
     timestamp: new Date().toLocaleTimeString("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",
