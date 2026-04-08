@@ -18,7 +18,7 @@ const isPublicRoute = createRouteMatcher([
 
 /**
  * Security headers applied to all responses.
- * See: OWASP, ARCHITECTURE_REVIEW.md
+ * See: OWASP recommendations for modern web apps.
  */
 function addSecurityHeaders(response: NextResponse): NextResponse {
   const clerkFrontendApi = decodeClerkFrontendApi(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)

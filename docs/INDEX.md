@@ -78,5 +78,3 @@ This index is the main directory for the active documentation set.
 - [design-system-migration.md](./design-system-migration.md)
 - [figma-layout-comparison-matrix.md](./figma-layout-comparison-matrix.md)
 - [plan-update-feature.md](./plan-update-feature.md)
-- [priority-2-operations-guide.md](./priority-2-operations-guide.md)
-- [SEO_DOCUMENTATION_PLAN.md](./SEO_DOCUMENTATION_PLAN.md)

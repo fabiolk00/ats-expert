@@ -1,24 +1,25 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useClerk, useUser } from "@clerk/nextjs"
+import { AnimatePresence, motion } from "motion/react"
 import {
   BriefcaseBusiness,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   HelpCircle,
   LogOut,
   MessageSquare,
-  Moon,
   Settings,
   Sparkles,
-  Sun,
   User,
   X,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
 
+import { SessionDocumentsPanel } from "@/components/dashboard/session-documents-panel"
 import { PlanUpdateDialog } from "@/components/dashboard/plan-update-dialog"
 import Logo from "@/components/logo"
 import { SiteFaviconIcon } from "@/components/site-favicon-icon"
@@ -33,12 +34,22 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useSidebarContext } from "@/context/sidebar-context"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { PLANS, PlanSlug } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
+const EXPANDED_WIDTH = 240
+const COLLAPSED_WIDTH = 56
+
 interface DashboardSidebarProps {
-  isOpen?: boolean
-  onClose?: () => void
   creditsRemaining?: number
   maxCredits?: number
   renewsIn?: string
@@ -96,6 +107,14 @@ const navItems: NavItem[] = [
   },
 ]
 
+function getShortcutLabel(): string {
+  if (typeof window !== "undefined" && /(Mac|iPhone|iPad|iPod)/i.test(window.navigator.platform)) {
+    return "⌘B"
+  }
+
+  return "Ctrl+B"
+}
+
 function getInitials(fullName?: string | null, email?: string | null): string {
   const source = fullName?.trim() || email?.trim() || "Usuário"
   const initials = source
@@ -108,20 +127,81 @@ function getInitials(fullName?: string | null, email?: string | null): string {
   return initials || "U"
 }
 
-export function DashboardSidebar({
+function SidebarNavItem({
+  item,
   isOpen,
-  onClose,
+  isMobile,
+  onNavigate,
+}: {
+  item: NavItem
+  isOpen: boolean
+  isMobile: boolean
+  onNavigate?: () => void
+}) {
+  const pathname = usePathname()
+  const isActive = item.isActive(pathname)
+
+  const link = (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={cn(
+        "flex items-center rounded-lg text-sm font-medium transition-colors",
+        isOpen || isMobile
+          ? "gap-3 px-3 py-2"
+          : "h-10 w-10 justify-center px-0 py-0",
+        isActive
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+      )}
+    >
+      <item.icon className="h-5 w-5 shrink-0" />
+      <AnimatePresence initial={false}>
+        {isOpen || isMobile ? (
+          <motion.span
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: "auto" }}
+            exit={{ opacity: 0, width: 0 }}
+            className="overflow-hidden whitespace-nowrap"
+          >
+            {item.label}
+          </motion.span>
+        ) : null}
+      </AnimatePresence>
+    </Link>
+  )
+
+  if (!isOpen && !isMobile) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right">{item.label}</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return link
+}
+
+function SidebarContent({
+  isOpen,
+  isMobile,
+  onToggle,
+  onCloseMobile,
   creditsRemaining,
   maxCredits,
   renewsIn,
   currentPlan,
   activeRecurringPlan,
-}: DashboardSidebarProps) {
+}: DashboardSidebarProps & {
+  isOpen: boolean
+  isMobile: boolean
+  onToggle: () => void
+  onCloseMobile?: () => void
+}) {
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
-  const pathname = usePathname()
   const router = useRouter()
-  const { theme, setTheme } = useTheme()
   const { signOut } = useClerk()
   const { user } = useUser()
   const hasBillingData = maxCredits !== undefined && creditsRemaining !== undefined
@@ -134,6 +214,7 @@ export function DashboardSidebar({
   const currentCredits = creditsRemaining ?? 0
   const planLabel = currentPlan ? `Plano ${PLANS[currentPlan].name}` : "Plano indisponível"
   const avatarSrc = profilePhotoUrl ?? user?.imageUrl ?? undefined
+  const shortcutLabel = useMemo(getShortcutLabel, [])
 
   useEffect(() => {
     let isMounted = true
@@ -169,7 +250,7 @@ export function DashboardSidebar({
   }, [])
 
   const handleSignOut = async (): Promise<void> => {
-    onClose?.()
+    onCloseMobile?.()
 
     try {
       await signOut()
@@ -180,106 +261,155 @@ export function DashboardSidebar({
     }
   }
 
-  return (
-    <aside
+  const brand = isOpen || isMobile ? (
+    <Logo size="sm" linkTo="/dashboard" />
+  ) : (
+    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background/80">
+      <SiteFaviconIcon className="h-4 w-4 shadow-none" />
+    </div>
+  )
+
+  const accountTrigger = (
+    <button
+      type="button"
       className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-sidebar transition-transform duration-300 lg:translate-x-0",
-        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+        "flex w-full items-center rounded-xl text-left transition-colors hover:bg-sidebar-accent/60",
+        isOpen || isMobile ? "gap-3 px-3 py-2.5" : "justify-center px-0 py-2",
       )}
     >
+      <Avatar className="h-9 w-9 border border-border/60">
+        <AvatarImage src={avatarSrc} alt={displayName} />
+        <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+      <AnimatePresence initial={false}>
+        {isOpen || isMobile ? (
+          <motion.div
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: "auto" }}
+            exit={{ opacity: 0, width: 0 }}
+            className="min-w-0 flex-1 overflow-hidden"
+          >
+            <p className="truncate text-sm font-medium text-sidebar-foreground">{displayName}</p>
+            <p className="truncate text-xs text-sidebar-foreground/60">{planLabel}</p>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      {isOpen || isMobile ? <Settings className="h-4 w-4 text-sidebar-foreground/60" /> : null}
+    </button>
+  )
+
+  return (
+    <>
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b border-border px-4 py-4">
-          <Logo size="sm" linkTo="/dashboard" />
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              aria-label="Alternar tema"
-            >
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={onClose}
-              aria-label="Fechar menu"
-            >
-              <X className="h-5 w-5" />
-            </Button>
+        <div
+          className={cn(
+            "flex items-center border-b border-border",
+            isOpen || isMobile ? "justify-between px-3 py-4" : "justify-center px-2 py-4",
+          )}
+        >
+          {brand}
+          <div className={cn("flex items-center gap-1", !isOpen && !isMobile && "flex-col")}>
+            {isMobile ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onCloseMobile}
+                aria-label="Fechar menu"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={onToggle}
+                    aria-label={isOpen ? "Recolher sidebar" : "Expandir sidebar"}
+                  >
+                    {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {isOpen ? "Recolher sidebar" : "Expandir sidebar"} • {shortcutLabel}
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
 
-        <ScrollArea className="flex-1 px-3 py-4">
+        <ScrollArea className="flex-1 px-2 py-4">
           <nav className="space-y-1">
-            {navItems.map((item) => {
-              const isActive = item.isActive(pathname)
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onClose}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              )
-            })}
+            {navItems.map((item) => (
+              <SidebarNavItem
+                key={item.href}
+                item={item}
+                isOpen={isOpen}
+                isMobile={isMobile}
+                onNavigate={onCloseMobile}
+              />
+            ))}
           </nav>
+
+          <SessionDocumentsPanel isSidebarOpen={isOpen || isMobile} />
         </ScrollArea>
 
-        <div className="mt-auto border-t border-border px-3 py-4">
+        <div className="mt-auto border-t border-border px-2 py-4">
           {hasBillingData ? (
-            <div className="mb-4 space-y-2 px-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-primary">
-                  <SiteFaviconIcon className="h-4 w-4 shadow-sm" />
-                  <span className="text-sm font-medium">Créditos</span>
-                </div>
-                <span className="text-xs font-bold">
-                  {creditsRemaining} / {maxCredits}
-                </span>
+            <div className={cn("mb-4 space-y-2", isOpen || isMobile ? "px-3" : "px-1")}>
+              <div className={cn("flex items-center", isOpen || isMobile ? "justify-between" : "justify-center")}>
+                {isOpen || isMobile ? (
+                  <>
+                    <div className="flex items-center gap-2 text-primary">
+                      <SiteFaviconIcon className="h-4 w-4 shadow-sm" />
+                      <span className="text-sm font-medium">Créditos</span>
+                    </div>
+                    <span className="text-xs font-bold">
+                      {creditsRemaining} / {maxCredits}
+                    </span>
+                  </>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-accent-foreground">
+                        <SiteFaviconIcon className="h-4 w-4 shadow-none" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      Créditos: {creditsRemaining} / {maxCredits}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
-              <Progress value={percentage} className="h-2" />
-              {renewsIn && (
-                <p className="text-center text-[10px] text-muted-foreground">Reseta em {renewsIn}</p>
-              )}
+              {(isOpen || isMobile) ? (
+                <>
+                  <Progress value={percentage} className="h-2" />
+                  {renewsIn ? (
+                    <p className="text-center text-[10px] text-muted-foreground">Reseta em {renewsIn}</p>
+                  ) : null}
+                </>
+              ) : null}
             </div>
           ) : null}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-sidebar-accent/60"
-              >
-                <Avatar className="h-9 w-9 border border-border/60">
-                  <AvatarImage src={avatarSrc} alt={displayName} />
-                  <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-sidebar-foreground">
-                    {displayName}
-                  </p>
-                  <p className="truncate text-xs text-sidebar-foreground/60">
-                    {planLabel}
-                  </p>
-                </div>
-                <Settings className="h-4 w-4 text-sidebar-foreground/60" />
-              </button>
+              {!isOpen && !isMobile ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>{accountTrigger}</TooltipTrigger>
+                  <TooltipContent side="right">{displayName}</TooltipContent>
+                </Tooltip>
+              ) : (
+                accountTrigger
+              )}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="top" className="w-56">
+            <DropdownMenuContent
+              align={isOpen || isMobile ? "end" : "center"}
+              side={isOpen || isMobile ? "top" : "right"}
+              className="w-56"
+            >
               <div className="px-2 py-1.5">
                 <p className="text-sm font-medium">{displayName}</p>
                 <p className="text-xs text-muted-foreground">{planLabel}</p>
@@ -287,7 +417,7 @@ export function DashboardSidebar({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  onClose?.()
+                  onCloseMobile?.()
                   setIsPlanDialogOpen(true)
                 }}
               >
@@ -295,13 +425,13 @@ export function DashboardSidebar({
                 Ver planos
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/settings" onClick={onClose}>
+                <Link href="/settings" onClick={onCloseMobile}>
                   <Settings className="h-4 w-4" />
                   Configurações
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/what-is-ats" onClick={onClose}>
+                <Link href="/what-is-ats" onClick={onCloseMobile}>
                   <HelpCircle className="h-4 w-4" />
                   O que é ATS?
                 </Link>
@@ -328,6 +458,69 @@ export function DashboardSidebar({
         activeRecurringPlan={activeRecurringPlan ?? null}
         currentCredits={currentCredits}
       />
-    </aside>
+    </>
+  )
+}
+
+export function DashboardSidebar({
+  creditsRemaining,
+  maxCredits,
+  renewsIn,
+  currentPlan,
+  activeRecurringPlan,
+}: DashboardSidebarProps) {
+  const isMobile = useIsMobile()
+  const {
+    isOpen,
+    isMounted,
+    isMobileOpen,
+    toggle,
+    closeMobile,
+  } = useSidebarContext()
+
+  if (isMobile) {
+    return (
+      <Sheet open={isMobileOpen} onOpenChange={(open) => !open && closeMobile()}>
+        <SheetContent side="left" className="w-[240px] p-0 sm:max-w-[240px]">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navegação</SheetTitle>
+          </SheetHeader>
+          <SidebarContent
+            isOpen
+            isMobile
+            onToggle={toggle}
+            onCloseMobile={closeMobile}
+            creditsRemaining={creditsRemaining}
+            maxCredits={maxCredits}
+            renewsIn={renewsIn}
+            currentPlan={currentPlan}
+            activeRecurringPlan={activeRecurringPlan}
+          />
+        </SheetContent>
+      </Sheet>
+    )
+  }
+
+  if (!isMounted) {
+    return <div style={{ width: EXPANDED_WIDTH }} className="h-screen shrink-0 border-r border-border bg-sidebar" />
+  }
+
+  return (
+    <motion.aside
+      animate={{ width: isOpen ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
+      transition={{ duration: 0.2, ease: "easeInOut" }}
+      className="relative h-screen shrink-0 overflow-hidden border-r border-border bg-sidebar"
+    >
+      <SidebarContent
+        isOpen={isOpen}
+        isMobile={false}
+        onToggle={toggle}
+        creditsRemaining={creditsRemaining}
+        maxCredits={maxCredits}
+        renewsIn={renewsIn}
+        currentPlan={currentPlan}
+        activeRecurringPlan={activeRecurringPlan}
+      />
+    </motion.aside>
   )
 }

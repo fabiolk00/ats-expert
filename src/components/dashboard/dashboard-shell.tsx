@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
 import { Menu } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useSidebarContext } from "@/context/sidebar-context"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { PlanSlug } from "@/lib/plans"
 
 import { DashboardSidebar } from "./sidebar"
@@ -25,32 +26,24 @@ export default function DashboardShell({
   currentPlan,
   activeRecurringPlan,
 }: DashboardShellProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { openMobile } = useSidebarContext()
+  const isMobile = useIsMobile()
 
   return (
-    <div className="min-h-screen bg-background">
-      {!sidebarOpen ? (
+    <div className="flex min-h-screen bg-background md:h-screen md:overflow-hidden">
+      {isMobile ? (
         <Button
           variant="outline"
           size="icon"
           className="fixed left-4 top-4 z-50 rounded-full bg-background/95 shadow-lg backdrop-blur lg:hidden"
-          onClick={() => setSidebarOpen(true)}
+          onClick={openMobile}
           aria-label="Abrir menu"
         >
           <Menu className="h-5 w-5" />
         </Button>
       ) : null}
 
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       <DashboardSidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
         creditsRemaining={creditsRemaining}
         maxCredits={maxCredits}
         renewsIn={renewsIn ?? undefined}
@@ -58,7 +51,7 @@ export default function DashboardShell({
         activeRecurringPlan={activeRecurringPlan ?? null}
       />
 
-      <main className="min-h-screen lg:ml-64">{children}</main>
+      <main className="min-h-screen min-w-0 flex-1 md:h-screen md:overflow-auto">{children}</main>
     </div>
   )
 }

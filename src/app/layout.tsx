@@ -2,6 +2,7 @@ import { ClerkProvider } from "@clerk/nextjs"
 import type { Metadata } from "next"
 
 import { ThemeProvider } from "@/components/theme-provider"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
 import { getAppOrigin } from "@/lib/config/app-url"
 import "./globals.css"
@@ -61,9 +62,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="pt-BR" suppressHydrationWarning>
         <head />
         <body>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            {children}
-            <Toaster />
+          <ThemeProvider>
+            <TooltipProvider delayDuration={300}>
+              {children}
+              <Toaster />
+            </TooltipProvider>
           </ThemeProvider>
         </body>
       </html>

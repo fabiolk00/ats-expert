@@ -8,13 +8,9 @@ import Header from "./header"
 const {
   mockIsLoaded,
   mockIsSignedIn,
-  mockTheme,
-  mockSetTheme,
 } = vi.hoisted(() => ({
   mockIsLoaded: vi.fn(),
   mockIsSignedIn: vi.fn(),
-  mockTheme: vi.fn(),
-  mockSetTheme: vi.fn(),
 }))
 
 vi.mock("@clerk/nextjs", () => ({
@@ -23,13 +19,6 @@ vi.mock("@clerk/nextjs", () => ({
     isSignedIn: mockIsSignedIn(),
   }),
   UserButton: () => <div>Perfil</div>,
-}))
-
-vi.mock("next-themes", () => ({
-  useTheme: () => ({
-    theme: mockTheme(),
-    setTheme: mockSetTheme,
-  }),
 }))
 
 vi.mock("@/components/logo", () => ({
@@ -41,7 +30,6 @@ describe("Header", () => {
     vi.clearAllMocks()
     mockIsLoaded.mockReturnValue(true)
     mockIsSignedIn.mockReturnValue(false)
-    mockTheme.mockReturnValue("light")
   })
 
   it("shows login and signup actions while Clerk is still loading", () => {

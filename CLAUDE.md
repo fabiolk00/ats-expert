@@ -378,6 +378,18 @@ Rules:
 - Upstash Redis / Ratelimit
 - Vitest + React Testing Library
 
+## Removed Dependencies
+
+- `stripe` was removed because billing is implemented through Asaas and there are no runtime imports in `src/` or `next.config.js`.
+- `resend` was removed because there is no email delivery flow implemented in `src/` or `next.config.js`.
+- `embla-carousel-react` was removed because the only related code was the unused `src/components/ui/carousel.tsx` wrapper and nothing imports that wrapper.
+- `cmdk` was removed because the only related code was the unused `src/components/ui/command.tsx` wrapper and nothing imports that wrapper.
+- `input-otp` was removed because the only related code was the unused `src/components/ui/input-otp.tsx` wrapper and nothing imports that wrapper.
+- `react-day-picker` was removed because the only related code was the unused `src/components/ui/calendar.tsx` wrapper and nothing imports that wrapper.
+- `react-resizable-panels` was removed because it has no imports in `src/` or `next.config.js`.
+
+Keep these removed unless a concrete feature lands that imports them in application code.
+
 ## Key Files By Concern
 
 ### Identity
