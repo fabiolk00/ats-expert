@@ -8,19 +8,38 @@ if (!LINKDAPI_KEY) {
 
 type LinkdAPIExperience = {
   title?: string
-  company?: string
+  company?: string | { name?: string }
+  companyName?: string
   location?: string
   startDate?: string
   endDate?: string
   description?: string
+  start?: {
+    year?: number
+    month?: number
+  }
+  end?: {
+    year?: number
+    month?: number
+  }
 }
 
 type LinkdAPIEducation = {
-  school?: string
+  school?: string | { name?: string }
+  schoolName?: string
   degree?: string
   field?: string
+  fieldOfStudy?: string
   startDate?: string
   endDate?: string
+  start?: {
+    year?: number
+    month?: number
+  }
+  end?: {
+    year?: number
+    month?: number
+  }
 }
 
 type LinkdAPIProfile = {
@@ -28,19 +47,46 @@ type LinkdAPIProfile = {
   message?: string
   data?: {
     fullName?: string
+    firstName?: string
+    lastName?: string
     email?: string
     phone?: string
     profileUrl?: string
+    username?: string
     location?: {
+      full?: string
+    }
+    geo?: {
       full?: string
     }
     summary?: string
     experience?: LinkdAPIExperience[]
+    position?: LinkdAPIExperience[]
+    currentPositions?: LinkdAPIExperience[]
+    fullPositions?: LinkdAPIExperience[]
     education?: LinkdAPIEducation[]
+    educations?: LinkdAPIEducation[]
+    currentEducation?: LinkdAPIEducation[]
     skills?: Array<{ name?: string } | string>
-    certifications?: Array<{ name?: string; issuer?: string; date?: string }>
+    certifications?: Array<{
+      name?: string
+      issuer?: string
+      authority?: string
+      date?: string
+      start?: {
+        year?: number
+        month?: number
+      }
+      end?: {
+        year?: number
+        month?: number
+      }
+    }>
   }
 }
+
+type LinkdAPISkill = NonNullable<NonNullable<LinkdAPIProfile['data']>['skills']>[number]
+type LinkdAPICertification = NonNullable<NonNullable<LinkdAPIProfile['data']>['certifications']>[number]
 
 export async function fetchLinkedInProfile(linkedinUrl: string): Promise<LinkdAPIProfile['data']> {
   if (!LINKDAPI_KEY) {
@@ -75,19 +121,78 @@ export async function fetchLinkedInProfile(linkedinUrl: string): Promise<LinkdAP
   return json.data
 }
 
+function formatPartialDate(date?: { year?: number; month?: number }): string {
+  if (!date?.year) {
+    return ''
+  }
+
+  if (date.month && date.month >= 1 && date.month <= 12) {
+    return `${String(date.month).padStart(2, '0')}/${date.year}`
+  }
+
+  return String(date.year)
+}
+
+function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
+  return values.find((value) => Boolean(value && value.trim()))
+}
+
+function deriveProfileUrl(data: NonNullable<LinkdAPIProfile['data']>): string | undefined {
+  if (data.profileUrl?.trim()) {
+    return data.profileUrl.trim()
+  }
+
+  if (data.username?.trim()) {
+    return `https://www.linkedin.com/in/${data.username.trim()}/`
+  }
+
+  return undefined
+}
+
+function deriveFullName(data: NonNullable<LinkdAPIProfile['data']>): string {
+  if (data.fullName?.trim()) {
+    return data.fullName.trim()
+  }
+
+  return [data.firstName?.trim(), data.lastName?.trim()].filter(Boolean).join(' ')
+}
+
+function getNamedValue(value?: string | { name?: string }): string | undefined {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  return value?.name
+}
+
+function getSkillName(skill: LinkdAPISkill): string {
+  if (typeof skill === 'string') {
+    return skill.trim()
+  }
+
+  return skill.name?.trim() ?? ''
+}
+
+function hasCertificationName(
+  cert: LinkdAPICertification,
+): cert is LinkdAPICertification & { name: string } {
+  return Boolean(cert.name)
+}
+
 export function mapLinkdAPIToCvState(data: LinkdAPIProfile['data']): CVState {
   if (!data) {
     throw new Error('No profile data to map')
   }
 
-  const experience: ExperienceEntry[] = (data.experience ?? [])
-    .filter((exp): exp is Required<LinkdAPIExperience> => !!(exp.title && exp.company))
+  const rawExperience = data.fullPositions ?? data.position ?? data.currentPositions ?? data.experience ?? []
+  const experience: ExperienceEntry[] = rawExperience
+    .filter((exp) => Boolean(exp.title && (exp.companyName || getNamedValue(exp.company))))
     .map((exp) => ({
-      title: exp.title,
-      company: exp.company,
+      title: exp.title ?? '',
+      company: getNamedValue(exp.company) ?? exp.companyName ?? '',
       location: exp.location ?? '',
-      startDate: exp.startDate ?? '',
-      endDate: exp.endDate ?? '',
+      startDate: firstNonEmpty(exp.startDate, formatPartialDate(exp.start)) ?? '',
+      endDate: firstNonEmpty(exp.endDate, formatPartialDate(exp.end)) ?? '',
       bullets: exp.description
         ? exp.description
             .split('\n')
@@ -96,38 +201,43 @@ export function mapLinkdAPIToCvState(data: LinkdAPIProfile['data']): CVState {
         : [],
     }))
 
-  const education: EducationEntry[] = (data.education ?? [])
-    .filter((edu): edu is Required<Pick<LinkdAPIEducation, 'school'>> & LinkdAPIEducation => !!edu.school)
+  const rawEducation = data.educations ?? data.education ?? data.currentEducation ?? []
+  const education: EducationEntry[] = rawEducation
+    .filter((edu) => Boolean(edu.schoolName || getNamedValue(edu.school)))
     .map((edu) => ({
-      degree: edu.degree ?? '',
-      institution: edu.school,
-      year: edu.endDate ?? edu.startDate ?? '',
+      degree: [edu.degree, edu.fieldOfStudy ?? edu.field].filter(Boolean).join(' - '),
+      institution: getNamedValue(edu.school) ?? edu.schoolName ?? '',
+      year: firstNonEmpty(
+        edu.endDate,
+        formatPartialDate(edu.end),
+        edu.startDate,
+        formatPartialDate(edu.start),
+      ) ?? '',
       gpa: undefined,
     }))
 
   const skills: string[] = (data.skills ?? [])
-    .map((skill) => {
-      if (typeof skill === 'string') {
-        return skill.trim()
-      }
-      return (skill as any)?.name?.trim() ?? ''
-    })
+    .map(getSkillName)
     .filter((skill) => skill.length > 0)
 
   const certifications: CertificationEntry[] = (data.certifications ?? [])
-    .filter((cert): cert is Required<Pick<typeof cert, 'name'>> & typeof cert => !!cert.name)
+    .filter(hasCertificationName)
     .map((cert) => ({
       name: cert.name,
-      issuer: cert.issuer ?? '',
-      year: cert.date ?? undefined,
+      issuer: cert.issuer ?? cert.authority ?? '',
+      year: firstNonEmpty(
+        cert.date,
+        formatPartialDate(cert.end),
+        formatPartialDate(cert.start),
+      ),
     }))
 
   return {
-    fullName: data.fullName ?? '',
+    fullName: deriveFullName(data),
     email: data.email ?? '',
     phone: data.phone ?? '',
-    linkedin: data.profileUrl ?? undefined,
-    location: data.location?.full ?? undefined,
+    linkedin: deriveProfileUrl(data),
+    location: data.location?.full ?? data.geo?.full ?? undefined,
     summary: data.summary ?? '',
     experience,
     skills,
