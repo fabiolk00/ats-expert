@@ -265,9 +265,14 @@ function SidebarContent({
   const brand = isOpen || isMobile ? (
     <Logo size="sm" linkTo="/dashboard" />
   ) : (
-    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background/80">
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label="Expandir sidebar"
+      className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background/80 transition-colors hover:bg-sidebar-accent/60"
+    >
       <PanelLeft className="h-4 w-4 text-sidebar-foreground/75" strokeWidth={1.75} />
-    </div>
+    </button>
   )
 
   const accountTrigger = (
@@ -321,7 +326,7 @@ function SidebarContent({
               >
                 <X className="h-5 w-5" />
               </Button>
-            ) : (
+            ) : isOpen ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -337,7 +342,7 @@ function SidebarContent({
                   {isOpen ? "Recolher sidebar" : "Expandir sidebar"} • {shortcutLabel}
                 </TooltipContent>
               </Tooltip>
-            )}
+            ) : null}
           </div>
         </div>
 

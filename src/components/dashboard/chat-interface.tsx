@@ -34,6 +34,14 @@ function hasConversationMessages(items: Message[]): boolean {
   return items.some((message) => message.id !== "welcome")
 }
 
+function isLegacyWelcomeMessage(content: string): boolean {
+  return (
+    content.includes("Sou seu consultor especialista em ATS e RH.") &&
+    content.includes("Envie seu currículo em PDF ou DOCX") &&
+    content.includes("cole a descrição da vaga para eu iniciar a análise.")
+  )
+}
+
 type ChatCopy = {
   heading: string
   description: string
@@ -70,9 +78,9 @@ function createWelcomeMessage(firstName?: string): Message {
     role: "assistant",
     content: `${greeting} Sou seu consultor especialista em ATS e RH.
 
-Envie seu currículo em PDF ou DOCX e cole a descrição da vaga para eu iniciar a análise.
+Já tenho conhecimento sobre seu perfil, qualificações e habilidades, baseado no seu preenchimento em "Meu Perfil".
 
-Depois disso, vamos melhorar o currículo, criar variações por vaga e gerar os arquivos finais.`,
+Envie o texto da vaga ou link para avaliarmos seu match com ela!`,
     timestamp: new Date().toLocaleTimeString("pt-BR", {
       hour: "2-digit",
       minute: "2-digit",
@@ -227,7 +235,10 @@ export function ChatInterface({
               ) => ({
                 id: String(index),
                 role: message.role as "user" | "assistant",
-                content: message.content,
+                content:
+                  message.role === "assistant" && index === 0 && isLegacyWelcomeMessage(message.content)
+                    ? welcomeMessage.content
+                    : message.content,
                 timestamp: new Date(message.createdAt).toLocaleTimeString("pt-BR", {
                   hour: "2-digit",
                   minute: "2-digit",
