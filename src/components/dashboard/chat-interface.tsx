@@ -14,6 +14,7 @@ import { ChatMessage } from "./chat-message"
 
 type AgentDoneChunk = Extract<AgentStreamChunk, { done: true }>
 
+const EMPTY_ASSISTANT_RESPONSE_FALLBACK = "Analisei sua mensagem, mas não consegui concluir a resposta desta vez. Tente enviar novamente."
 const CREDIT_EXHAUSTED_ERROR_PATTERN = /cr[eé]ditos acabaram/i
 const CREDIT_EXHAUSTED_MESSAGE = "Seus créditos acabaram. Faça upgrade do seu plano para continuar."
 
@@ -376,6 +377,13 @@ export function ChatInterface({
               }
 
               if ("done" in chunk && chunk.done) {
+                setMessages((previous) =>
+                  previous.map((message) =>
+                    message.id === assistantMessageId && message.content === copy.thinkingText
+                      ? { ...message, content: EMPTY_ASSISTANT_RESPONSE_FALLBACK }
+                      : message,
+                  ),
+                )
                 setPhase(chunk.phase)
                 if (chunk.atsScore?.total !== undefined) {
                   setAtsScore(chunk.atsScore.total)

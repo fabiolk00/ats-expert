@@ -284,6 +284,25 @@ async function maybeAutoGenerateGapAnalysisForDetectedTarget(
   await persistTargetJobAgentState(session, nextAgentState, appUserId, requestId)
 }
 
+function scheduleAutoGenerateGapAnalysisForDetectedTarget(
+  session: Pick<Session, 'id' | 'phase' | 'stateVersion' | 'agentState' | 'updatedAt' | 'cvState' | 'userId'>,
+  detection: TargetJobDetection | undefined,
+  appUserId: string,
+  requestId: string,
+): void {
+  void maybeAutoGenerateGapAnalysisForDetectedTarget(session, detection, appUserId, requestId).catch((error) => {
+    logWarn('agent.target_job_detection.auto_gap_background_failed', {
+      requestId,
+      sessionId: session.id,
+      appUserId,
+      phase: session.phase,
+      stateVersion: session.stateVersion,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    })
+  })
+}
+
 function parseJsonObject(value: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(value) as unknown
@@ -580,15 +599,6 @@ export async function POST(req: NextRequest) {
   )
 
   if (!isNewSession) {
-    await maybeAutoGenerateGapAnalysisForDetectedTarget(
-      session!,
-      detectedTargetJob,
-      appUserId,
-      requestId,
-    )
-  }
-
-  if (!isNewSession) {
     try {
       if (file && fileMime) {
         message = await handleFileAttachment(message, file, fileMime, session!, appUserId, requestId, req.signal)
@@ -615,6 +625,13 @@ export async function POST(req: NextRequest) {
         response.headers.set('Retry-After', '0')
         return response
       }
+
+      scheduleAutoGenerateGapAnalysisForDetectedTarget(
+        session!,
+        detectedTargetJob,
+        appUserId,
+        requestId,
+      )
     } catch (err) {
       const isAbort = (err instanceof Error || err instanceof DOMException) && err.name === 'AbortError'
       const errorMessage = isAbort
@@ -656,8 +673,9 @@ export async function POST(req: NextRequest) {
             return
           }
 
-          // After sessionId is safe, complete any expensive target-job work.
-          await maybeAutoGenerateGapAnalysisForDetectedTarget(
+          // After sessionId is safe, complete any expensive target-job work in
+          // the background so it does not delay the current assistant reply.
+          scheduleAutoGenerateGapAnalysisForDetectedTarget(
             session!,
             detectedTargetJob,
             appUserId,

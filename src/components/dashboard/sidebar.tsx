@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useClerk, useUser } from "@clerk/nextjs"
 import {
   BriefcaseBusiness,
@@ -51,6 +51,12 @@ type NavItem = {
   href: string
   icon: typeof User
   isActive: (pathname: string) => boolean
+}
+
+type ProfileResponse = {
+  profile: {
+    profilePhotoUrl: string | null
+  } | null
 }
 
 const navItems: NavItem[] = [
@@ -112,6 +118,7 @@ export function DashboardSidebar({
   activeRecurringPlan,
 }: DashboardSidebarProps) {
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false)
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
   const pathname = usePathname()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
@@ -126,6 +133,40 @@ export function DashboardSidebar({
   const initials = getInitials(displayName, email)
   const currentCredits = creditsRemaining ?? 0
   const planLabel = currentPlan ? `Plano ${PLANS[currentPlan].name}` : "Plano indisponível"
+  const avatarSrc = profilePhotoUrl ?? user?.imageUrl ?? undefined
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadProfilePhoto = async (): Promise<void> => {
+      try {
+        const response = await fetch("/api/profile", {
+          credentials: "include",
+        })
+
+        if (!response.ok) {
+          return
+        }
+
+        const data = (await response.json()) as ProfileResponse
+        if (!isMounted) {
+          return
+        }
+
+        setProfilePhotoUrl(data.profile?.profilePhotoUrl ?? null)
+      } catch {
+        if (isMounted) {
+          setProfilePhotoUrl(null)
+        }
+      }
+    }
+
+    void loadProfilePhoto()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const handleSignOut = async (): Promise<void> => {
     onClose?.()
@@ -222,7 +263,7 @@ export function DashboardSidebar({
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-sidebar-accent/60"
               >
                 <Avatar className="h-9 w-9 border border-border/60">
-                  <AvatarImage src={user?.imageUrl} alt={displayName} />
+                  <AvatarImage src={avatarSrc} alt={displayName} />
                   <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
                     {initials}
                   </AvatarFallback>

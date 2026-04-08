@@ -38,6 +38,7 @@ vi.mock('@/lib/observability/structured-log', () => ({
 
 vi.mock('./linkdapi', () => ({
   fetchLinkedInProfile: vi.fn(async () => ({ raw: true })),
+  extractLinkedInProfilePhotoUrl: vi.fn(() => 'https://cdn.example.com/profile-photo.jpg'),
   mapLinkdAPIToCvState: vi.fn(() => ({
     fullName: 'Fabio Test',
     email: 'fabio@example.com',
@@ -67,6 +68,7 @@ describe('extractAndSaveProfile', () => {
     )
 
     expect(result.cvState.fullName).toBe('Fabio Test')
+    expect(result.profilePhotoUrl).toBe('https://cdn.example.com/profile-photo.jpg')
     expect(mockFrom).toHaveBeenCalledWith('user_profiles')
     expect(mockSelect).toHaveBeenCalledWith('id')
     expect(mockEq).toHaveBeenCalledWith('user_id', 'usr_test_123')
@@ -79,6 +81,7 @@ describe('extractAndSaveProfile', () => {
         }),
         source: 'linkedin',
         linkedin_url: 'https://www.linkedin.com/in/fabio-test/',
+        profile_photo_url: 'https://cdn.example.com/profile-photo.jpg',
         updated_at: '2026-04-07T23:40:00.000Z',
       }),
       { onConflict: 'user_id' },

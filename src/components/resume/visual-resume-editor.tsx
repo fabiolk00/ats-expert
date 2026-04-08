@@ -26,6 +26,7 @@ type VisualResumeEditorProps = {
   onChange: (nextValue: CVState) => void
   disabled?: boolean
   onAllSectionsClosedChange?: (allClosed: boolean) => void
+  compactMode?: boolean
 }
 
 type SectionId =
@@ -81,6 +82,7 @@ function SectionCard({
   icon,
   isOpen,
   onToggle,
+  compactMode = false,
   children,
 }: {
   title: string
@@ -88,6 +90,7 @@ function SectionCard({
   icon: ReactNode
   isOpen: boolean
   onToggle: () => void
+  compactMode?: boolean
   children: ReactNode
 }) {
   return (
@@ -95,20 +98,47 @@ function SectionCard({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-slate-50/80 dark:hover:bg-muted/30 md:px-8"
+        className={cn(
+          "flex w-full items-center justify-between gap-4 text-left transition-colors hover:bg-slate-50/80 dark:hover:bg-muted/30",
+          compactMode && !isOpen ? "px-5 py-3.5 md:px-6" : "px-6 py-5 md:px-8",
+        )}
         aria-expanded={isOpen}
       >
         <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          <div
+            className={cn(
+              "flex shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200",
+              compactMode && !isOpen ? "h-9 w-9" : "h-11 w-11",
+            )}
+          >
             {icon}
           </div>
           <div className="space-y-1">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
+            <h2
+              className={cn(
+                "font-semibold text-slate-900 dark:text-slate-100",
+                compactMode && !isOpen ? "text-lg" : "text-xl",
+              )}
+            >
+              {title}
+            </h2>
+            <p
+              className={cn(
+                "text-slate-500 dark:text-slate-400",
+                compactMode && !isOpen ? "text-xs" : "text-sm",
+              )}
+            >
+              {description}
+            </p>
           </div>
         </div>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-border dark:bg-background/60 dark:text-slate-400">
+        <div
+          className={cn(
+            "flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-border dark:bg-background/60 dark:text-slate-400",
+            compactMode && !isOpen ? "h-9 w-9" : "h-10 w-10",
+          )}
+        >
           <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
         </div>
       </button>
@@ -202,6 +232,7 @@ export function VisualResumeEditor({
   onChange,
   disabled = false,
   onAllSectionsClosedChange,
+  compactMode = false,
 }: VisualResumeEditorProps) {
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
     personal: true,
@@ -224,13 +255,14 @@ export function VisualResumeEditor({
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", compactMode && "space-y-3 md:space-y-2.5")}>
       <SectionCard
         title="Dados pessoais"
         description="Estrutura visual pronta para receber seus dados manuais ou importados."
         icon={<UserRound className="h-5 w-5" />}
         isOpen={openSections.personal}
         onToggle={() => toggleSection("personal")}
+        compactMode={compactMode}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Input
@@ -273,6 +305,7 @@ export function VisualResumeEditor({
         icon={<FileText className="h-5 w-5" />}
         isOpen={openSections.summary}
         onToggle={() => toggleSection("summary")}
+        compactMode={compactMode}
       >
         <Textarea
           value={value.summary}
@@ -289,6 +322,7 @@ export function VisualResumeEditor({
         icon={<BriefcaseBusiness className="h-5 w-5" />}
         isOpen={openSections.experience}
         onToggle={() => toggleSection("experience")}
+        compactMode={compactMode}
       >
         <div className="space-y-4">
           {value.experience.map((item, index) => (
@@ -417,6 +451,7 @@ export function VisualResumeEditor({
         icon={<Wrench className="h-5 w-5" />}
         isOpen={openSections.skills}
         onToggle={() => toggleSection("skills")}
+        compactMode={compactMode}
       >
         <Textarea
           value={value.skills.join("\n")}
@@ -441,6 +476,7 @@ export function VisualResumeEditor({
         icon={<GraduationCap className="h-5 w-5" />}
         isOpen={openSections.education}
         onToggle={() => toggleSection("education")}
+        compactMode={compactMode}
       >
         <div className="space-y-4">
           {value.education.map((item, index) => (
@@ -536,6 +572,7 @@ export function VisualResumeEditor({
         icon={<BadgeCheck className="h-5 w-5" />}
         isOpen={openSections.certifications}
         onToggle={() => toggleSection("certifications")}
+        compactMode={compactMode}
       >
         <div className="space-y-4">
           {(value.certifications ?? []).map((item, index) => (

@@ -4,7 +4,11 @@ import { createUpdatedAtTimestamp } from '@/lib/db/timestamps'
 import { logError, logInfo } from '@/lib/observability/structured-log'
 import type { CVState } from '@/types/cv'
 
-import { fetchLinkedInProfile, mapLinkdAPIToCvState } from './linkdapi'
+import {
+  extractLinkedInProfilePhotoUrl,
+  fetchLinkedInProfile,
+  mapLinkdAPIToCvState,
+} from './linkdapi'
 
 type ExistingUserProfileRow = {
   id: string
@@ -34,9 +38,10 @@ async function getExistingProfileId(appUserId: string): Promise<string | undefin
 export async function extractAndSaveProfile(
   linkedinUrl: string,
   appUserId: string,
-): Promise<{ cvState: CVState }> {
+): Promise<{ cvState: CVState; profilePhotoUrl?: string }> {
   const profileData = await fetchLinkedInProfile(linkedinUrl)
   const cvState = mapLinkdAPIToCvState(profileData)
+  const profilePhotoUrl = extractLinkedInProfilePhotoUrl(profileData)
   const existingProfileId = await getExistingProfileId(appUserId)
 
   const supabase = getSupabaseAdminClient()
@@ -47,6 +52,7 @@ export async function extractAndSaveProfile(
       cv_state: cvState,
       source: 'linkedin',
       linkedin_url: linkedinUrl,
+      profile_photo_url: profilePhotoUrl ?? null,
       extracted_at: new Date().toISOString(),
       ...createUpdatedAtTimestamp(),
     },
@@ -71,5 +77,5 @@ export async function extractAndSaveProfile(
     skillsCount: cvState.skills.length,
   })
 
-  return { cvState }
+  return { cvState, profilePhotoUrl }
 }

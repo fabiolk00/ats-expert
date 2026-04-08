@@ -52,6 +52,10 @@ type LinkdAPIProfile = {
     email?: string
     phone?: string
     profileUrl?: string
+    profilePictureURL?: string
+    profilePictureUrl?: string
+    profilePicture?: string
+    pictureUrl?: string
     username?: string
     location?: {
       full?: string
@@ -119,6 +123,23 @@ export async function fetchLinkedInProfile(linkedinUrl: string): Promise<LinkdAP
   }
 
   return json.data
+}
+
+export function extractLinkedInProfilePhotoUrl(
+  data: LinkdAPIProfile['data'],
+): string | undefined {
+  if (!data) {
+    return undefined
+  }
+
+  const candidates = [
+    data.profilePictureURL,
+    data.profilePictureUrl,
+    data.profilePicture,
+    data.pictureUrl,
+  ]
+
+  return candidates.find((value) => Boolean(value?.trim()))?.trim()
 }
 
 function formatPartialDate(date?: { year?: number; month?: number }): string {

@@ -400,6 +400,39 @@ describe("ChatInterface", () => {
     })
   })
 
+  it("replaces the thinking bubble when the stream ends without assistant delta text", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        return new Response(
+          createSSEStream([
+            { done: true, sessionId: "sess_empty", phase: "dialog", messageCount: 2 },
+          ]),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "text/event-stream",
+              "X-Session-Id": "sess_empty",
+            },
+          },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText(/Cole a descrição da vaga aqui/i)
+    await userEvent.type(textarea, "Teste sem delta")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      const messages = screen.getAllByTestId("message-assistant")
+      const lastMessage = messages[messages.length - 1]
+      expect(lastMessage).toHaveTextContent("Analisei sua mensagem, mas não consegui concluir a resposta desta vez.")
+    })
+  })
+
   it("opens the credits modal immediately when there are no credits and no reusable session", async () => {
     const onCreditsExhausted = vi.fn()
     const fetchSpy = vi.spyOn(globalThis, "fetch")

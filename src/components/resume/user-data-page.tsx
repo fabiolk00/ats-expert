@@ -252,12 +252,17 @@ export default function UserDataPage() {
       <main
         className={cn(
           "relative mx-auto max-w-5xl space-y-8 px-4 py-8 md:py-12",
-          allSectionsClosed && "md:h-full md:overflow-hidden",
+          allSectionsClosed && "space-y-4 py-5 md:h-full md:overflow-hidden md:space-y-3 md:py-4",
         )}
       >
         <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white/90 shadow-sm backdrop-blur dark:border-border dark:bg-card/90">
-          <div className="grid gap-8 px-5 py-7 md:grid-cols-[1.3fr_0.7fr] md:px-8 md:py-8">
-            <div className="space-y-6">
+          <div
+            className={cn(
+              "grid gap-8 px-5 py-7 md:grid-cols-[1.3fr_0.7fr] md:px-8 md:py-8",
+              allSectionsClosed && "gap-4 px-4 py-4 md:grid-cols-1 md:px-6 md:py-4",
+            )}
+          >
+            <div className={cn("space-y-6", allSectionsClosed && "space-y-3")}>
               <div className="flex items-start justify-between gap-4">
                 <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-200">
                   <Sparkles className="h-3.5 w-3.5" />
@@ -265,48 +270,71 @@ export default function UserDataPage() {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-4xl">
+              <div className={cn("space-y-3", allSectionsClosed && "space-y-2")}>
+                <h1
+                  className={cn(
+                    "max-w-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-4xl",
+                    allSectionsClosed ? "text-2xl md:text-3xl" : "text-3xl",
+                  )}
+                >
                   {"Revise seu curr\u00edculo com uma base limpa e consistente."}
                 </h1>
-                <p className="max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400 md:text-base">
+                <p
+                  className={cn(
+                    "max-w-2xl text-slate-500 dark:text-slate-400",
+                    allSectionsClosed ? "text-xs leading-5 md:text-sm" : "text-sm leading-6 md:text-base",
+                  )}
+                >
                   {"Importe do LinkedIn, ajuste os campos manualmente e deixe seu perfil pronto para novas sess\u00f5es."}
                 </p>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center", allSectionsClosed && "gap-2")}>
                 <Button
                   onClick={() => setIsImportOpen(true)}
-                  className={`flex h-11 items-center gap-2 ${primaryButtonClassName}`}
+                  className={cn("flex items-center gap-2", primaryButtonClassName, allSectionsClosed ? "h-10 px-4" : "h-11")}
                 >
                   <Linkedin className="h-4 w-4" />
                   Importar do LinkedIn ou PDF
                 </Button>
-                <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600 dark:border-border dark:bg-background/60 dark:text-slate-300">
+                <div
+                  className={cn(
+                    "rounded-full border border-slate-200 bg-slate-50 text-slate-600 dark:border-border dark:bg-background/60 dark:text-slate-300",
+                    allSectionsClosed ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm",
+                  )}
+                >
                   {profileBadgeText}
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-3">
+            <div className={cn("grid gap-3", allSectionsClosed && "md:grid-cols-3")}>
               {stats.map((stat) => {
                 const Icon = stat.icon
 
                 return (
                   <div
                     key={stat.label}
-                    className="rounded-3xl border border-slate-200 bg-slate-50/70 p-4 dark:border-border dark:bg-background/50"
+                    className={cn(
+                      "rounded-3xl border border-slate-200 bg-slate-50/70 dark:border-border dark:bg-background/50",
+                      allSectionsClosed ? "p-3" : "p-4",
+                    )}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="space-y-1">
                         <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                           {stat.label}
                         </p>
-                        <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                        <p className={cn("font-semibold text-slate-900 dark:text-slate-100", allSectionsClosed ? "text-xl" : "text-2xl")}>
                           {stat.value}
                         </p>
                       </div>
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-900 shadow-sm dark:bg-card dark:text-slate-100">
+                      <div
+                        className={cn(
+                          "flex items-center justify-center rounded-2xl bg-white text-slate-900 shadow-sm dark:bg-card dark:text-slate-100",
+                          allSectionsClosed ? "h-9 w-9" : "h-10 w-10",
+                        )}
+                      >
                         <Icon className="h-5 w-5" />
                       </div>
                     </div>
@@ -316,7 +344,12 @@ export default function UserDataPage() {
             </div>
           </div>
 
-          <div className="border-t border-slate-100 px-5 py-4 text-sm text-slate-500 dark:border-border dark:text-slate-400 md:px-8">
+          <div
+            className={cn(
+              "border-t border-slate-100 text-slate-500 dark:border-border dark:text-slate-400",
+              allSectionsClosed ? "px-4 py-3 text-xs md:px-6" : "px-5 py-4 text-sm md:px-8",
+            )}
+          >
             {updatedLabel}
           </div>
         </section>
@@ -330,22 +363,28 @@ export default function UserDataPage() {
           </div>
         ) : (
           <>
-            <div className="rounded-[28px] border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-border dark:bg-card/90 md:p-6">
+            <div
+              className={cn(
+                "rounded-[28px] border border-slate-200 bg-white/90 shadow-sm backdrop-blur dark:border-border dark:bg-card/90",
+                allSectionsClosed ? "p-3 md:p-4" : "p-4 md:p-6",
+              )}
+            >
               <VisualResumeEditor
                 value={resumeData}
                 onChange={setResumeData}
                 disabled={isSaving}
                 onAllSectionsClosedChange={setAllSectionsClosed}
+                compactMode={allSectionsClosed}
               />
             </div>
 
-            <div className="flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:justify-end">
+            <div className={cn("flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:justify-end", allSectionsClosed && "gap-2 pb-3")}>
               <Button
                 type="button"
                 variant="outline"
                 disabled={isSaving}
                 onClick={() => router.push("/dashboard/resumes")}
-                className={secondaryButtonClassName}
+                className={cn(secondaryButtonClassName, allSectionsClosed && "h-10 px-4")}
               >
                 Cancelar
               </Button>
@@ -353,7 +392,7 @@ export default function UserDataPage() {
                 type="button"
                 disabled={isSaving}
                 onClick={() => void handleSave()}
-                className={primaryButtonClassName}
+                className={cn(primaryButtonClassName, allSectionsClosed && "h-10 px-4")}
               >
                 {isSaving ? (
                   <>

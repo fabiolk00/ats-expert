@@ -13,6 +13,7 @@ type UserProfileRow = {
   cv_state: unknown
   source: string
   linkedin_url: string | null
+  profile_photo_url: string | null
   extracted_at: string
   created_at: string
   updated_at: string
@@ -24,6 +25,7 @@ function mapProfileResponse(data: UserProfileRow) {
     source: data.source,
     cvState: data.cv_state,
     linkedinUrl: data.linkedin_url,
+    profilePhotoUrl: data.profile_photo_url,
     extractedAt: data.extracted_at,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
@@ -133,6 +135,7 @@ export async function PUT(request: Request) {
       cv_state: body.data,
       source: existingProfile?.source ?? 'manual',
       linkedin_url: normalizeLinkedinUrl(body.data, existingProfile?.linkedin_url),
+      profile_photo_url: existingProfile?.profile_photo_url ?? null,
       extracted_at: existingProfile?.extracted_at ?? new Date().toISOString(),
     }
 

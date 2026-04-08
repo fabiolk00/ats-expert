@@ -21,8 +21,26 @@ interface ChatMessageProps {
   }
 }
 
+function ThinkingIndicator() {
+  return (
+    <div className="inline-flex items-center gap-2 text-sm font-medium">
+      <span>Pensando</span>
+      <span className="flex items-center gap-1" aria-hidden="true">
+        {[0, 1, 2].map((index) => (
+          <span
+            key={index}
+            className="h-1.5 w-1.5 rounded-full bg-current animate-bounce"
+            style={{ animationDelay: `${index * 0.15}s` }}
+          />
+        ))}
+      </span>
+    </div>
+  )
+}
+
 export function ChatMessage({ role, content, timestamp, analysisResult }: ChatMessageProps) {
   const isAssistant = role === "assistant"
+  const isThinking = isAssistant && content === "Pensando..."
 
   return (
     <div className={cn("flex gap-3", isAssistant ? "justify-start" : "justify-end")}>
@@ -44,7 +62,13 @@ export function ChatMessage({ role, content, timestamp, analysisResult }: ChatMe
           )}
         >
           <div className="text-sm">
-            {isAssistant ? renderSimpleMarkdown(content) : <p className="whitespace-pre-wrap">{content}</p>}
+            {isThinking ? (
+              <ThinkingIndicator />
+            ) : isAssistant ? (
+              renderSimpleMarkdown(content)
+            ) : (
+              <p className="whitespace-pre-wrap">{content}</p>
+            )}
           </div>
           {timestamp && (
             <p

@@ -11,6 +11,8 @@ import { getChatCompletionUsage, createChatCompletionWithRetry } from '@/lib/ope
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import type { Session } from '@/types/agent'
 
+const EMPTY_ASSISTANT_RESPONSE_FALLBACK = 'Analisei sua mensagem, mas não consegui concluir a resposta desta vez. Tente enviar novamente e eu continuo a partir do contexto já salvo.'
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -138,6 +140,7 @@ export async function* runAgentLoop(
   try {
     let continueLoop = true
     let toolIterations = 0
+    let assistantResponded = false
 
     // Cache the system prompt; only rebuild when session state changes (4.3)
     let cachedSystemPrompt = buildSystemPrompt(session)
@@ -213,9 +216,10 @@ export async function* runAgentLoop(
 
       const responseMessage = response.choices[0]?.message
       const finishReason = response.choices[0]?.finish_reason
-      const assistantText = responseMessage?.content ?? ''
+      const assistantText = responseMessage?.content?.trim() ?? ''
 
       if (assistantText) {
+        assistantResponded = true
         for (const word of assistantText.split(' ')) {
           yield { type: 'delta', text: word + ' ' }
         }
@@ -250,6 +254,22 @@ export async function* runAgentLoop(
         // Tool dispatch may have mutated session state via applyToolPatchWithVersion
         systemPromptDirty = true
       }
+    }
+
+    if (!assistantResponded && !signal?.aborted) {
+      for (const word of EMPTY_ASSISTANT_RESPONSE_FALLBACK.split(' ')) {
+        yield { type: 'delta', text: word + ' ' }
+      }
+      await appendMessage(session.id, 'assistant', EMPTY_ASSISTANT_RESPONSE_FALLBACK)
+      logWarn('agent.response.empty_fallback', {
+        requestId,
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        toolIterations,
+        success: true,
+      })
     }
 
     logInfo('agent.request.completed', {

@@ -435,6 +435,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
       'usr_123',
       'sess_gap_ready',
     )
+    await new Promise((resolve) => setTimeout(resolve, 0))
     expect(updateSession).toHaveBeenCalledWith('sess_gap_ready', {
       agentState: expect.objectContaining({
         targetJobDescription: expect.stringContaining('Power BI'),
@@ -450,6 +451,63 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
         }),
       }),
     })
+  })
+
+  it('does not block the current response while auto gap analysis is still running', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_gap_background',
+      userId: 'usr_123',
+      stateVersion: 1,
+      phase: 'dialog',
+      cvState: {
+        fullName: 'Fabio Silva',
+        email: 'fabio@example.com',
+        phone: '11999999999',
+        summary: 'Analista de dados com foco em BI e automacao.',
+        experience: [],
+        skills: ['SQL', 'Power BI'],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'parsed',
+        sourceResumeText: 'Experiencia em Power BI, SQL e integracao de dados.',
+        rewriteHistory: {},
+      },
+      generatedOutput: { status: 'idle' },
+      creditsUsed: 1,
+      messageCount: 2,
+      creditConsumed: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(incrementMessageCount).mockResolvedValue(true)
+    vi.mocked(analyzeGap).mockImplementation(() => new Promise(() => {}))
+
+    const jobDescription = `Analista de BI Senior
+
+Responsabilidades:
+Levantar requisitos com as areas de negocio.
+Construir dashboards em Power BI com foco em usabilidade.
+Automatizar processos de coleta e transformacao de dados.
+
+Requisitos:
+Experiencia com Power BI, DAX, SQL e integracao de dados.
+Boa comunicacao com areas nao tecnicas.
+
+Diferenciais:
+Python, APIs, Microsoft Fabric e storytelling de dados.`
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'sess_gap_background',
+        message: jobDescription,
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(analyzeGap).toHaveBeenCalledTimes(1)
   })
 
   it('streams SSE done event for a valid new session', async () => {
