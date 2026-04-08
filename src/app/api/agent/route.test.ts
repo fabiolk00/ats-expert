@@ -5,6 +5,7 @@ import { POST } from './route'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession, createSessionWithCredit, checkUserQuota, incrementMessageCount, updateSession } from '@/lib/db/sessions'
 import { agentLimiter } from '@/lib/rate-limit'
+import { runAgentLoop } from '@/lib/agent/agent-loop'
 import { dispatchTool } from '@/lib/agent/tools'
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 
@@ -74,6 +75,13 @@ vi.mock('@/lib/agent/scraper', () => ({
 vi.mock('@/lib/agent/tools/gap-analysis', () => ({
   analyzeGap: vi.fn(),
 }))
+
+function parseSseDataEvents(payload: string): Array<Record<string, unknown>> {
+  return payload
+    .split('\n\n')
+    .filter((entry) => entry.startsWith('data: '))
+    .map((entry) => JSON.parse(entry.replace('data: ', '')) as Record<string, unknown>)
+}
 
 describe('agent route billing guard', () => {
   beforeEach(() => {
@@ -870,5 +878,88 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     expect(secondData.type).toBe('error')
     expect(secondData.code).toBe('INTERNAL_ERROR')
     expect(secondData.error).toBe('A requisição demorou muito. Por favor, tente novamente.')
+  })
+
+  it('forwards runAgentLoop events to SSE in order without corruption', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_forwarding',
+      userId: 'usr_123',
+      stateVersion: 1,
+      phase: 'dialog',
+      cvState: {
+        fullName: 'Test',
+        email: 'test@test.com',
+        phone: '123',
+        summary: 'test',
+        experience: [],
+        skills: [],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+      },
+      generatedOutput: { status: 'idle' },
+      creditsUsed: 1,
+      messageCount: 2,
+      creditConsumed: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(incrementMessageCount).mockResolvedValue(true)
+    vi.mocked(runAgentLoop).mockImplementationOnce(async function* () {
+      yield { type: 'text', content: 'Hello' }
+      yield { type: 'toolStart', toolName: 'parse_file' }
+      yield { type: 'toolResult', toolName: 'parse_file', output: { success: true } }
+      yield { type: 'patch', patch: { agentState: { parseStatus: 'parsed' } }, phase: 'analysis' }
+      yield {
+        type: 'done',
+        sessionId: 'sess_forwarding',
+        phase: 'analysis',
+        requestId: 'req_forward',
+        messageCount: 3,
+        maxMessages: 15,
+        isNewSession: false,
+        toolIterations: 1,
+      }
+    })
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'sess_forwarding',
+        message: 'Continue',
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+
+    const events = parseSseDataEvents(await response.text())
+    expect(events.map((event) => event.type)).toEqual([
+      'text',
+      'toolStart',
+      'toolResult',
+      'patch',
+      'done',
+    ])
+    expect(events[0]).toEqual({ type: 'text', content: 'Hello' })
+    expect(events[1]).toEqual({ type: 'toolStart', toolName: 'parse_file' })
+    expect(events[2]).toEqual({ type: 'toolResult', toolName: 'parse_file', output: { success: true } })
+    expect(events[3]).toEqual({
+      type: 'patch',
+      patch: { agentState: { parseStatus: 'parsed' } },
+      phase: 'analysis',
+    })
+    expect(events[4]).toEqual({
+      type: 'done',
+      sessionId: 'sess_forwarding',
+      phase: 'analysis',
+      requestId: 'req_forward',
+      messageCount: 3,
+      maxMessages: 15,
+      isNewSession: false,
+      toolIterations: 1,
+    })
   })
 })

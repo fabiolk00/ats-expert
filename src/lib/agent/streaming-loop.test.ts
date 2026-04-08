@@ -398,4 +398,37 @@ describe('runAgentLoop streaming', () => {
       error: 'The AI response was incomplete.',
     }))
   })
+
+  it('stops cleanly when the abort signal fires after the first chunk', async () => {
+    const controller = new AbortController()
+
+    mockCreateChatCompletionStreamWithRetry.mockResolvedValue(
+      mockTextStream('hello world from stream') as never,
+    )
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session: buildSession(),
+      userMessage: 'Teste de cancelamento',
+      appUserId: 'usr_123',
+      requestId: 'req_abort',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+      signal: controller.signal,
+    })) {
+      events.push(event)
+
+      if (event.type === 'text') {
+        controller.abort()
+      }
+    }
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      type: 'text',
+      content: expect.stringContaining('hello'),
+    })
+    expect(events.some((event) => event.type === 'done')).toBe(false)
+    expect(mockDispatchToolWithContext).not.toHaveBeenCalled()
+  })
 })
