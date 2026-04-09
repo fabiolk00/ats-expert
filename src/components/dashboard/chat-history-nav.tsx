@@ -32,9 +32,9 @@ export function ChatHistoryNav({ isOpen }: ChatHistoryNavProps) {
         const data = await response.json() as { sessions?: any[] }
         if (data.sessions) {
           const sessionList = data.sessions
-            .sort((a: any, b: any) => new Date(b.session.createdAt).getTime() - new Date(a.session.createdAt).getTime())
+            .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             .slice(0, 5)
-            .map((ws: any) => ({ id: ws.session.id, createdAt: ws.session.createdAt }))
+            .map((session: any) => ({ id: session.id, createdAt: session.createdAt }))
           setSessions(sessionList)
         }
       } catch (error) {

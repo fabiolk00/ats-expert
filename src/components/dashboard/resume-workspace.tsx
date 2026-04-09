@@ -109,6 +109,14 @@ export function ResumeWorkspace({
     setAvailableCredits(currentCredits)
   }, [currentCredits])
 
+  // Sync initialSessionId prop changes to internal state
+  // This handles URL changes like when Nova Conversa clears the session param.
+  // The parent component updates initialSessionId based on the current URL searchParams,
+  // and this effect ensures the workspace state stays in sync with navigation changes.
+  useEffect(() => {
+    setSessionId(initialSessionId)
+  }, [initialSessionId])
+
   useEffect(() => {
     if (!sessionId) {
       return

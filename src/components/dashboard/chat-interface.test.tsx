@@ -192,10 +192,10 @@ describe("ChatInterface", () => {
       if (typeof url === "string" && url.includes("/api/agent")) {
         return new Response(
           JSON.stringify({
-            error: "Esta sessão atingiu o limite de 15 mensagens.",
+            error: "Esta sessão atingiu o limite de 30 mensagens.",
             action: "new_session",
-            messageCount: 15,
-            maxMessages: 15,
+            messageCount: 30,
+            maxMessages: 30,
           }),
           { status: 429, headers: { "Content-Type": "application/json" } },
         )
@@ -297,8 +297,8 @@ describe("ChatInterface", () => {
             {
               error: "Limite atingido.",
               action: "new_session",
-              messageCount: 15,
-              maxMessages: 15,
+              messageCount: 30,
+              maxMessages: 30,
             },
           ]),
           { status: 200, headers: { "Content-Type": "text/event-stream" } },
@@ -679,7 +679,7 @@ describe("ChatInterface", () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText(/Mensagem\s+3\s+de\s+15/i)).toBeInTheDocument()
+      expect(screen.getByText(/Mensagem\s+3\s+de\s+30/i)).toBeInTheDocument()
       expect(screen.getByText(/Fase:\s+dialog/i)).toBeInTheDocument()
       expect(screen.getByText(/ATS:\s+88/i)).toBeInTheDocument()
     })

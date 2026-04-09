@@ -64,6 +64,10 @@ const BodySchema = z.object({
 // Helpers
 // ---------------------------------------------------------------------------
 
+function buildSessionLimitReachedError(maxMessages: number): string {
+  return `Esta sessão atingiu o limite de ${maxMessages} mensagens. Inicie uma nova análise para continuar.`
+}
+
 function sanitizeUserInput(input: string): string {
   return input
     .replace(/<\/?user_resume_data>/gi, '')
@@ -592,7 +596,7 @@ export async function POST(req: NextRequest) {
         success: false,
       })
       const response = new Response(JSON.stringify({
-        error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
+        error: buildSessionLimitReachedError(AGENT_CONFIG.maxMessagesPerSession),
         action: 'new_session',
         messageCount: session.messageCount,
         maxMessages: AGENT_CONFIG.maxMessagesPerSession,
@@ -663,7 +667,7 @@ export async function POST(req: NextRequest) {
           success: false,
         })
         const response = new Response(JSON.stringify({
-          error: 'Esta sessão atingiu o limite de 15 mensagens. Inicie uma nova análise para continuar.',
+          error: buildSessionLimitReachedError(AGENT_CONFIG.maxMessagesPerSession),
           action: 'new_session',
           messageCount: AGENT_CONFIG.maxMessagesPerSession,
           maxMessages: AGENT_CONFIG.maxMessagesPerSession,
@@ -798,4 +802,3 @@ export async function POST(req: NextRequest) {
 
   return new Response(stream, { headers })
 }
-

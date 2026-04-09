@@ -36,6 +36,7 @@ vi.mock('@/lib/agent/config', () => ({
     timeout: 30_000,
     maxTokens: 2_000,
     maxToolIterations: 3,
+    maxHistoryMessages: 24,
     maxMessagesPerSession: 15,
   },
   MODEL_CONFIG: {
@@ -341,6 +342,58 @@ describe('runAgentLoop streaming', () => {
       code: 'LLM_INVALID_OUTPUT',
     }))
     expect(events.filter((event) => event.type === 'toolResult')).toHaveLength(1)
+  })
+
+  it('appends a tool message for failed tool executions before the next assistant turn', async () => {
+    mockCreateChatCompletionStreamWithRetry
+      .mockResolvedValueOnce(
+        mockToolCallStream('rewrite_section', {
+          section: 'summary',
+          current_content: 'old',
+          instructions: 'new',
+        }) as never,
+      )
+      .mockResolvedValueOnce(
+        mockTextStream('fallback answer') as never,
+      )
+
+    mockDispatchToolWithContext.mockResolvedValueOnce({
+      output: { success: false, code: 'VALIDATION_ERROR', error: 'Input validation failed.' },
+      outputJson: JSON.stringify({ success: false, code: 'VALIDATION_ERROR', error: 'Input validation failed.' }),
+      outputFailure: { success: false, code: 'VALIDATION_ERROR', error: 'Input validation failed.' },
+      persistedPatch: undefined,
+    })
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session: buildSession(),
+      userMessage: 'Teste',
+      appUserId: 'usr_123',
+      requestId: 'req_123',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'error',
+      code: 'VALIDATION_ERROR',
+    }))
+
+    const secondRequestParams = mockCreateChatCompletionStreamWithRetry.mock.calls[1]?.[1]
+    const toolMessages = secondRequestParams.messages.filter((message: { role: string }) => message.role === 'tool')
+
+    expect(toolMessages).toHaveLength(1)
+    expect(toolMessages[0]).toMatchObject({
+      role: 'tool',
+      tool_call_id: 'call_test_1',
+    })
+    expect(JSON.parse(toolMessages[0].content)).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'Input validation failed.',
+    })
   })
 
   it('emits an error when the streamed response is truncated', async () => {

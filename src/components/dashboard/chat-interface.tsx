@@ -7,6 +7,7 @@ import { FileText, Send, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
+import { AGENT_CONFIG } from "@/lib/agent/config"
 import { cn } from "@/lib/utils"
 import type { AgentDoneChunk, AgentStreamChunk, Phase } from "@/types/agent"
 
@@ -162,7 +163,7 @@ export function ChatInterface({
   const [phase, setPhase] = useState<Phase>("intake")
   const [atsScore, setAtsScore] = useState<number | undefined>()
   const [messageCount, setMessageCount] = useState(0)
-  const [maxMessages] = useState(15)
+  const [maxMessages] = useState(AGENT_CONFIG.maxMessagesPerSession)
   const [sessionLimitReached, setSessionLimitReached] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)

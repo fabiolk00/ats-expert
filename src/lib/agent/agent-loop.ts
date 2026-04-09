@@ -308,7 +308,7 @@ export async function* runAgentLoop(
 
   await appendMessage(session.id, 'user', userMessage)
 
-  const history = await getMessages(session.id)
+  const history = await getMessages(session.id, AGENT_CONFIG.maxHistoryMessages)
   const messages = toOpenAIHistory(
     trimMessages(history.map((message) => ({ role: message.role, content: message.content }))),
   )
@@ -446,6 +446,10 @@ export async function* runAgentLoop(
         const toolResult = await dispatchToolWithContext(toolCall.name, toolInput, session, signal)
 
         if (toolResult.outputFailure) {
+          // Append tool message for failed execution (required by chat API protocol)
+          // Even failed tools must have a matching tool message in the conversation history
+          messages.push(buildToolMessage(toolCall.id, JSON.stringify(toolResult.outputFailure)))
+
           yield {
             type: 'error',
             error: toolResult.outputFailure.error,
@@ -464,7 +468,7 @@ export async function* runAgentLoop(
           continue
         }
 
-        // Only add successful tool results to message history
+        // Add successful tool results to message history
         messages.push(buildToolMessage(toolCall.id, toolResult.outputJson))
 
         yield {

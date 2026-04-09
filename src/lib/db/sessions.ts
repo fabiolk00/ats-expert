@@ -9,6 +9,7 @@ import type {
   ToolPatch,
 } from '@/types/agent'
 import type { ATSScoreResult, CVState } from '@/types/cv'
+import { AGENT_CONFIG } from '@/lib/agent/config'
 import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import {
@@ -19,6 +20,7 @@ import {
 
 // Increment only when the top-level session state bundle shape or interpretation changes.
 export const CURRENT_SESSION_STATE_VERSION = 1
+const SESSION_MESSAGE_CAP = AGENT_CONFIG.maxMessagesPerSession
 
 const EMPTY_CV_STATE: CVState = {
   fullName: '', email: '', phone: '', summary: '',
@@ -416,7 +418,7 @@ export async function incrementMessageCount(sessionId: string): Promise<boolean>
       .eq('id', sessionId)
       .single()
 
-    if (!sessionData || sessionData.message_count >= 15) return false
+    if (!sessionData || sessionData.message_count >= SESSION_MESSAGE_CAP) return false
 
     // Atomic update with optimistic lock
     const { data: updateData } = await supabase
@@ -427,7 +429,7 @@ export async function incrementMessageCount(sessionId: string): Promise<boolean>
       })
       .eq('id', sessionId)
       .eq('message_count', sessionData.message_count)  // Only update if value hasn't changed
-      .lt('message_count', 15)  // Only update if below cap
+      .lt('message_count', SESSION_MESSAGE_CAP)  // Only update if below cap
       .select('message_count')
 
     return updateData !== null && updateData.length > 0
@@ -437,7 +439,7 @@ export async function incrementMessageCount(sessionId: string): Promise<boolean>
   return data === true
 }
 
-export async function getMessages(sessionId: string, limit = 12): Promise<Message[]> {
+export async function getMessages(sessionId: string, limit = 24): Promise<Message[]> {
   const supabase = getSupabaseAdminClient()
   const { data } = await supabase
     .from('messages')

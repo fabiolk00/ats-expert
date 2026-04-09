@@ -48,8 +48,8 @@ describe('AGENT_CONFIG', () => {
     expect(resolveOpenAIModel('unknown-model', 'gpt-5-mini')).toBe('gpt-5-mini')
   })
 
-  it('has maxMessagesPerSession set to 15', () => {
-    expect(AGENT_CONFIG.maxMessagesPerSession).toBe(15)
+  it('has maxMessagesPerSession set to 30', () => {
+    expect(AGENT_CONFIG.maxMessagesPerSession).toBe(30)
   })
 
   it('has maxToolIterations to prevent infinite loops', () => {

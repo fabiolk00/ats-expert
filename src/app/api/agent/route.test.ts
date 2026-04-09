@@ -193,7 +193,7 @@ describe('agent route billing guard', () => {
       },
       generatedOutput: { status: 'idle' },
       creditsUsed: 1,
-      messageCount: 15,
+      messageCount: 30, // maxMessagesPerSession cap
       creditConsumed: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -213,8 +213,8 @@ describe('agent route billing guard', () => {
     expect(response.status).toBe(429)
     const body = await response.json()
     expect(body.action).toBe('new_session')
-    expect(body.messageCount).toBe(15)
-    expect(body.maxMessages).toBe(15)
+    expect(body.messageCount).toBe(30)
+    expect(body.maxMessages).toBe(30)
     expect(incrementMessageCount).not.toHaveBeenCalled()
   })
 

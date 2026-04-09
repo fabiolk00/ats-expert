@@ -6,7 +6,7 @@ export const AGENT_CONFIG = {
   maxToolIterations: 10,
   rateLimitPerMinute: 30,
   maxHistoryMessages: 24,
-  maxMessagesPerSession: 15,
+  maxMessagesPerSession: 30, // Hard cap on messages per session; must be >= maxHistoryMessages
   /** Max system prompt length in characters (~6000 tokens). Truncates user-provided sections when exceeded. */
   maxSystemPromptChars: 24_000,
 } as const
