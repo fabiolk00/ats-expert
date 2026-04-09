@@ -30,6 +30,12 @@ interface Message {
   }
 }
 
+type ProfileResponse = {
+  profile: {
+    profilePhotoUrl: string | null
+  } | null
+}
+
 function hasConversationMessages(items: Message[]): boolean {
   return items.some((message) => message.id !== "welcome")
 }
@@ -147,6 +153,7 @@ export function ChatInterface({
   ])
   const [input, setInput] = useState("")
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
   const [isToolExecuting, setIsToolExecuting] = useState(false)
@@ -220,6 +227,39 @@ export function ChatInterface({
   useEffect(() => {
     onStreamingChange?.(isStreaming)
   }, [isStreaming, onStreamingChange])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadProfilePhoto = async (): Promise<void> => {
+      try {
+        const response = await fetch("/api/profile", {
+          credentials: "include",
+        })
+
+        if (!response.ok) {
+          return
+        }
+
+        const data = (await response.json()) as ProfileResponse
+        if (!isMounted) {
+          return
+        }
+
+        setProfilePhotoUrl(data.profile?.profilePhotoUrl ?? null)
+      } catch {
+        if (isMounted) {
+          setProfilePhotoUrl(null)
+        }
+      }
+    }
+
+    void loadProfilePhoto()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
     const welcomeMessage = createWelcomeMessage(user?.firstName?.trim() || userName.trim() || undefined)
@@ -624,11 +664,12 @@ export function ChatInterface({
 
       <div className="min-h-0 flex-1">
         <ScrollArea className="h-full px-2 md:px-3">
-          <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
+          <div className="mx-auto w-full max-w-3xl space-y-6 pt-4">
             {messages.map((message) => (
               <ChatMessage
                 key={message.id}
                 {...message}
+                userAvatarUrl={message.role === "user" ? profilePhotoUrl ?? user?.imageUrl ?? null : null}
                 toolStatus={
                   isToolExecuting && currentToolName && message.id === activeAssistantMessageId
                     ? `Executando ${currentToolName}...`
@@ -643,14 +684,14 @@ export function ChatInterface({
 
       <div
         className={cn(
-          "bg-[#faf9f5] px-2 pb-2 pt-1 transition-colors md:px-3",
+          "bg-[#faf9f5] px-2 pb-0 pt-1 transition-colors md:px-3",
           isDragging && "bg-primary/5",
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="mx-auto max-w-3xl space-y-3">
+        <div className="mx-auto max-w-3xl space-y-2">
           {copy.allowFileUpload && uploadedFile && (
             <div className="flex w-fit items-center gap-2 rounded-lg bg-muted px-3 py-2">
               <FileText className="h-4 w-4 text-primary" />
@@ -715,15 +756,15 @@ export function ChatInterface({
           </div>
 
           {sessionExpired ? (
-            <p className="text-center text-xs text-amber-600">
+            <p className="pb-1 text-center text-xs text-amber-600">
               {copy.sessionExpiredText}
             </p>
           ) : sessionLimitReached ? (
-            <p className="text-center text-xs text-amber-600">
+            <p className="pb-1 text-center text-xs text-amber-600">
               {copy.sessionLimitText}
             </p>
           ) : (
-            <p className="text-center text-xs text-muted-foreground">
+            <p className="pb-0 text-center text-xs text-muted-foreground">
               {copy.helperText}
             </p>
           )}

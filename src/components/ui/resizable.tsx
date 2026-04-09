@@ -36,14 +36,14 @@ function ResizableHandle({
   return (
     <ResizablePrimitive.Separator
       className={cn(
-        'group relative flex w-5 shrink-0 cursor-col-resize items-center justify-center focus-visible:outline-none',
+        'group relative -mx-[2px] flex w-4 shrink-0 cursor-col-resize items-center justify-center self-stretch bg-[#faf9f5] focus-visible:outline-none',
         className,
       )}
       {...props}
     >
       {withHandle ? (
         <>
-          <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/50 transition-colors group-hover:bg-border group-focus-visible:bg-border" />
+          <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/40 transition-colors group-hover:bg-border/60 group-focus-visible:bg-border/60" />
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-11 w-[8px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/70 bg-[#faf9f5] shadow-sm transition-colors group-hover:border-border group-focus-visible:border-border" />
         </>
       ) : null}

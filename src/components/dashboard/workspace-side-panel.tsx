@@ -29,8 +29,8 @@ export function WorkspaceSidePanel({
   const inlinePreviewFile = previewFile ?? defaultPreviewFile
 
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      <div className="shrink-0 px-3 pb-2 pt-3">
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden bg-[#faf9f5]">
+      <div className="shrink-0 px-3 pb-1 pt-3">
         <p className="text-sm font-semibold text-foreground">Template viewer</p>
         <p className="mt-1 text-xs text-muted-foreground">
           Aqui aparece a pre-visualizacao do PDF gerado.
@@ -39,7 +39,7 @@ export function WorkspaceSidePanel({
 
       <div className="flex min-h-0 flex-1 flex-col px-0 pb-0">
         {showInlinePreview && inlinePreviewFile ? (
-          <div className="min-h-[32rem] flex-1 overflow-hidden rounded-[1.1rem] bg-background">
+          <div className="min-h-[32rem] flex-1 overflow-hidden bg-background">
             <PreviewPanel
               inline
               fileOverride={inlinePreviewFile}
@@ -47,7 +47,7 @@ export function WorkspaceSidePanel({
             />
           </div>
         ) : (
-          <div className="mx-1 flex flex-1 items-center justify-center rounded-[1.1rem] bg-muted/20 p-6 text-sm text-muted-foreground">
+          <div className="flex flex-1 items-center justify-center bg-muted/20 p-6 text-sm text-muted-foreground">
             Gere um arquivo.
           </div>
         )}

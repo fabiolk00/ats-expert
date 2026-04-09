@@ -246,21 +246,21 @@ export function ResumeWorkspace({
   return (
     <>
       {isPreviewOverlay ? (
-        <div className="space-y-4 p-2">
+        <div className="space-y-0 p-0">
           {chatPane}
           {viewerPane}
         </div>
       ) : (
-        <div className="h-[calc(100svh-4rem)] px-1 py-1">
+        <div className="h-[calc(100svh-4rem)] px-0 py-0">
           <ResizablePanelGroup
             id="resume-workspace-split-view"
             orientation="horizontal"
             defaultLayout={defaultLayout}
             onLayoutChanged={onLayoutChanged}
-            className="items-stretch"
+            className="items-stretch bg-[#faf9f5]"
           >
             <ResizablePanel id="workspace-chat-panel" defaultSize="68%" minSize="44%">
-              <div className="h-full min-w-0 pr-0">
+              <div className="h-full min-w-0">
                 {chatPane}
               </div>
             </ResizablePanel>
@@ -273,7 +273,7 @@ export function ResumeWorkspace({
               minSize="24%"
               maxSize="56%"
             >
-              <div className="h-full min-w-0 pl-0">
+              <div className="h-full min-w-0">
                 {viewerPane}
               </div>
             </ResizablePanel>

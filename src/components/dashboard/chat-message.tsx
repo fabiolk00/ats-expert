@@ -1,7 +1,7 @@
 import { Bot, Check, Download, Loader2, User, X } from "lucide-react"
 
 import ATSScoreBadge from "@/components/ats-score-badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,6 +13,7 @@ interface ChatMessageProps {
   content: string
   timestamp?: string
   toolStatus?: string
+  userAvatarUrl?: string | null
   analysisResult?: {
     scoreBefore: number
     scoreAfter: number
@@ -39,7 +40,14 @@ function ThinkingIndicator() {
   )
 }
 
-export function ChatMessage({ role, content, timestamp, toolStatus, analysisResult }: ChatMessageProps) {
+export function ChatMessage({
+  role,
+  content,
+  timestamp,
+  toolStatus,
+  userAvatarUrl,
+  analysisResult,
+}: ChatMessageProps) {
   const isAssistant = role === "assistant"
   const isThinking = isAssistant && content === "Pensando..."
 
@@ -59,7 +67,7 @@ export function ChatMessage({ role, content, timestamp, toolStatus, analysisResu
             "rounded-2xl px-4 py-3",
             isAssistant
               ? "bg-card border border-border text-card-foreground rounded-tl-md"
-              : "bg-primary text-primary-foreground rounded-tr-md",
+              : "rounded-tr-md bg-[#faf9f5] text-foreground shadow-[0_8px_24px_-18px_rgba(15,23,42,0.35)] ring-1 ring-black/5",
           )}
         >
           <div className="text-sm">
@@ -84,7 +92,7 @@ export function ChatMessage({ role, content, timestamp, toolStatus, analysisResu
             <p
               className={cn(
                 "text-xs mt-2",
-                isAssistant ? "text-muted-foreground" : "text-primary-foreground/70",
+                isAssistant ? "text-muted-foreground" : "text-muted-foreground",
               )}
             >
               {timestamp}
@@ -162,6 +170,7 @@ export function ChatMessage({ role, content, timestamp, toolStatus, analysisResu
 
       {!isAssistant && (
         <Avatar className="h-8 w-8 shrink-0">
+          <AvatarImage src={userAvatarUrl ?? undefined} alt="Sua foto de perfil" />
           <AvatarFallback className="bg-muted text-muted-foreground">
             <User className="h-4 w-4" />
           </AvatarFallback>
