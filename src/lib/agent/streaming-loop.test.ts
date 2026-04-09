@@ -430,6 +430,56 @@ describe('runAgentLoop streaming', () => {
     )
   })
 
+  it('falls back to a concise answer when truncation recovery still cannot finish', async () => {
+    async function* emptyLengthStream() {
+      yield {
+        choices: [{
+          delta: {},
+          finish_reason: 'length',
+        }],
+        usage: null,
+      }
+    }
+
+    mockCreateChatCompletionStreamWithRetry
+      .mockResolvedValueOnce(
+        mockLengthExceededStream() as never,
+      )
+      .mockResolvedValueOnce(
+        emptyLengthStream() as never,
+      )
+      .mockResolvedValueOnce(
+        emptyLengthStream() as never,
+      )
+      .mockResolvedValueOnce(
+        mockTextStream('Resposta curta final.') as never,
+      )
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session: buildSession(),
+      userMessage: 'Teste',
+      appUserId: 'usr_123',
+      requestId: 'req_123',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    expect(events.some((event) => event.type === 'error' && event.error.includes('too long and was truncated'))).toBe(false)
+    expect(events.at(-1)).toMatchObject({
+      type: 'done',
+      sessionId: 'sess_123',
+    })
+    expect(mockAppendMessage).toHaveBeenNthCalledWith(
+      2,
+      'sess_123',
+      'assistant',
+      'Resposta curta final.',
+    )
+  })
+
   it('emits an error when the stream ends without a finish reason', async () => {
     async function* incompleteStream() {
       yield {

@@ -22,6 +22,7 @@ import type {
 
 const EMPTY_ASSISTANT_RECOVERY_PROMPT = 'The previous completion returned no visible assistant text. Respond to the user now with a direct, helpful plain-text answer. Do not call tools. Do not leave the content empty.'
 const LENGTH_RECOVERY_PROMPT = 'Your previous response was cut off by token limits. Continue exactly where it stopped. Do not repeat prior text. Do not call tools.'
+const CONCISE_LENGTH_RECOVERY_PROMPT = 'The previous response kept getting cut off by token limits. Answer the user again from scratch with a concise, high-signal plain-text reply under 180 words. Do not call tools.'
 
 type AgentLoopEvent =
   | AgentTextChunk
@@ -376,6 +377,32 @@ async function* recoverTruncatedTurn(params: {
   }
 }
 
+async function* recoverConciseTurn(params: {
+  session: Session
+  userMessage: string
+  cachedSystemPrompt: string
+  requestId: string
+  appUserId: string
+  requestStartedAt: number
+  signal?: AbortSignal
+}): AsyncGenerator<AgentTextChunk, StreamTurnResult> {
+  return yield* streamAssistantTurn({
+    session: params.session,
+    messages: [
+      {
+        role: 'user',
+        content: `${CONCISE_LENGTH_RECOVERY_PROMPT}\n\nOriginal user request:\n${params.userMessage}`,
+      },
+    ],
+    cachedSystemPrompt: params.cachedSystemPrompt,
+    requestId: params.requestId,
+    appUserId: params.appUserId,
+    requestStartedAt: params.requestStartedAt,
+    signal: params.signal,
+    maxCompletionTokens: 500,
+  })
+}
+
 export async function* runAgentLoop(
   params: AgentLoopParams,
 ): AsyncGenerator<AgentLoopEvent> {
@@ -460,6 +487,26 @@ export async function* runAgentLoop(
           signal,
           maxCompletionTokens: AGENT_CONFIG.maxTokens,
         })
+      }
+
+      if (
+        turn.toolCalls.length === 0
+        && (turn.finishReason === 'length' || !turn.assistantText.trim())
+      ) {
+        const conciseTurn = yield* recoverConciseTurn({
+          session,
+          userMessage,
+          cachedSystemPrompt,
+          requestId,
+          appUserId,
+          requestStartedAt,
+          signal,
+        })
+
+        turn = {
+          ...conciseTurn,
+          usage: mergeUsage(turn.usage, conciseTurn.usage),
+        }
       }
 
       if (turn.usage) {
@@ -703,5 +750,4 @@ export async function* runAgentLoop(
     })
   }
 }
-
 
