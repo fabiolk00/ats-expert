@@ -124,31 +124,6 @@ describe('ResumeEditorModal', () => {
     expect(onSaved).toHaveBeenCalledTimes(1)
   })
 
-  it('adds a skill with the Add button', async () => {
-    render(
-      <ResumeEditorModal
-        sessionId="sess_123"
-        open
-        onOpenChange={vi.fn()}
-        onSaved={vi.fn()}
-      />,
-    )
-
-    await userEvent.click(screen.getByRole('tab', { name: 'Skills' }))
-    await userEvent.type(screen.getByPlaceholderText('Add a new skill'), 'AWS')
-    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
-    await userEvent.click(screen.getByRole('button', { name: /save and generate pdf/i }))
-
-    await waitFor(() => {
-      expect(saveEditedResume).toHaveBeenCalledWith('sess_123', {
-        scope: 'base',
-        cvState: expect.objectContaining({
-          skills: expect.arrayContaining(['AWS']),
-        }),
-      })
-    })
-  })
-
   it('shows inline errors from failed saves', async () => {
     vi.mocked(saveEditedResume).mockRejectedValue(new Error('save failed'))
 

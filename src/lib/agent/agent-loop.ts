@@ -188,20 +188,29 @@ async function* streamAssistantTurn(params: {
   toolChoice?: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption
 }): AsyncGenerator<AgentTextChunk, StreamTurnResult> {
   const streamStartedAt = Date.now()
+
+  // Only include tool_choice if tools are provided. OpenAI API requires tools when tool_choice is set.
+  const requestParams: Parameters<typeof createChatCompletionStreamWithRetry>[1] = {
+    model: MODEL_CONFIG.agent,
+    max_completion_tokens: params.maxCompletionTokens,
+    messages: [
+      { role: 'system', content: params.cachedSystemPrompt },
+      ...params.messages,
+    ],
+    stream: true,
+    stream_options: { include_usage: true },
+  }
+
+  if (params.tools && params.tools.length > 0) {
+    requestParams.tools = params.tools
+    if (params.toolChoice) {
+      requestParams.tool_choice = params.toolChoice
+    }
+  }
+
   const stream = await createChatCompletionStreamWithRetry(
     openai,
-    {
-      model: MODEL_CONFIG.agent,
-      max_completion_tokens: params.maxCompletionTokens,
-      messages: [
-        { role: 'system', content: params.cachedSystemPrompt },
-        ...params.messages,
-      ],
-      tools: params.tools,
-      tool_choice: params.toolChoice,
-      stream: true,
-      stream_options: { include_usage: true },
-    },
+    requestParams,
     3,
     AGENT_CONFIG.timeout,
     params.signal,
@@ -487,7 +496,7 @@ export async function* runAgentLoop(
         requestStartedAt,
         signal,
         maxCompletionTokens: Math.min(AGENT_CONFIG.maxTokens, 900),
-        toolChoice: 'none',
+        // No tools in recovery mode, so no tool_choice needed
       })
 
       if (recoveryTurn.usage) {
