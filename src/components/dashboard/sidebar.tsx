@@ -316,14 +316,14 @@ function SidebarContent({
             ) : isOpen ? (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
+                  <button
+                    type="button"
                     onClick={onToggle}
                     aria-label={isOpen ? "Recolher sidebar" : "Expandir sidebar"}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background/80 transition-colors hover:bg-sidebar-accent/60"
                   >
                     {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  </Button>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   {isOpen ? "Recolher sidebar" : "Expandir sidebar"} • {shortcutLabel}

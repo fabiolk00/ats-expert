@@ -684,7 +684,7 @@ export function ChatInterface({
 
       <div
         className={cn(
-          "flex-shrink-0 bg-[#faf9f5] px-2 pb-4 pt-1 transition-colors md:px-3",
+          "flex-shrink-0 bg-[#faf9f5] px-2 py-4 transition-colors md:px-3",
           isDragging && "bg-primary/5",
         )}
         onDragOver={handleDragOver}
