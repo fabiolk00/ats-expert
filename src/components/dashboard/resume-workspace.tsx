@@ -213,7 +213,7 @@ export function ResumeWorkspace({
   }
 
   const chatPane = (
-    <div className="flex min-h-[72svh] min-w-0 flex-col overflow-hidden bg-[#faf9f5] lg:h-full lg:min-h-0">
+    <div className="flex h-full min-h-[72svh] min-w-0 flex-col overflow-hidden bg-[#faf9f5] lg:min-h-0">
       <ChatInterface
         sessionId={sessionId}
         userName={userName}
