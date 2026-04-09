@@ -113,6 +113,19 @@ type SessionSnapshotResponse = {
   }
 }
 
+function ChatWindowChrome() {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex items-center gap-2 rounded-full bg-[#faf9f5]/90 px-3 py-2 backdrop-blur"
+    >
+      <span className="h-3 w-3 rounded-full bg-rose-400/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]" />
+      <span className="h-3 w-3 rounded-full bg-amber-300/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]" />
+      <span className="h-3 w-3 rounded-full bg-emerald-400/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]" />
+    </div>
+  )
+}
+
 export function ChatInterface({
   sessionId: initialSessionId,
   userName = "Você",
@@ -581,9 +594,13 @@ export function ChatInterface({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#faf9f5]">
+      <div className="px-3 pb-1 pt-3 md:px-4">
+        <ChatWindowChrome />
+      </div>
+
       {messageCount > 0 && (
-        <div className="px-4 py-2">
+        <div className="px-3 py-2 md:px-4">
           <div className="mx-auto flex max-w-3xl items-center justify-between text-sm">
             <span className="text-muted-foreground">
               Mensagem {messageCount} de {maxMessages} {copy.sessionCounterLabel}
@@ -597,7 +614,7 @@ export function ChatInterface({
       )}
 
       {messages.length === 1 && (
-        <div className="px-4 pb-10 pt-8 text-center">
+        <div className="px-3 pb-8 pt-5 text-center md:px-4">
           <h1 className="mb-3 text-2xl font-bold md:text-3xl">{copy.heading}</h1>
           <p className="mx-auto max-w-md text-muted-foreground">
             {copy.description}
@@ -606,7 +623,7 @@ export function ChatInterface({
       )}
 
       <div className="min-h-0 flex-1">
-        <ScrollArea className="h-full px-4 md:px-6">
+        <ScrollArea className="h-full px-2 md:px-3">
           <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
             {messages.map((message) => (
               <ChatMessage
@@ -626,7 +643,7 @@ export function ChatInterface({
 
       <div
         className={cn(
-          "bg-background px-4 pb-4 pt-2 transition-colors",
+          "bg-[#faf9f5] px-2 pb-2 pt-1 transition-colors md:px-3",
           isDragging && "bg-primary/5",
         )}
         onDragOver={handleDragOver}
@@ -650,7 +667,7 @@ export function ChatInterface({
             </div>
           )}
 
-          <div className="rounded-[1.75rem] border border-border/45 bg-background/85 p-3 shadow-[0_18px_45px_-38px_oklch(var(--foreground)/0.7)] backdrop-blur">
+          <div className="rounded-[1.75rem] border border-border/35 bg-[#faf9f5] p-3 shadow-[0_18px_45px_-38px_oklch(var(--foreground)/0.7)] backdrop-blur">
             <div className="flex items-end gap-2">
               {copy.allowFileUpload ? (
                 <>

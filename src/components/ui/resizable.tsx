@@ -44,7 +44,7 @@ function ResizableHandle({
       {withHandle ? (
         <>
           <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border/50 transition-colors group-hover:bg-border group-focus-visible:bg-border" />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 h-16 w-[4px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/12 transition-colors group-hover:bg-foreground/18 group-focus-visible:bg-foreground/18" />
+          <div className="pointer-events-none absolute left-1/2 top-1/2 h-11 w-[8px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-border/70 bg-[#faf9f5] shadow-sm transition-colors group-hover:border-border group-focus-visible:border-border" />
         </>
       ) : null}
     </ResizablePrimitive.Separator>

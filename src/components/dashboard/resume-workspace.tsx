@@ -213,7 +213,7 @@ export function ResumeWorkspace({
   }
 
   const chatPane = (
-    <div className="flex min-h-[72svh] min-w-0 flex-col overflow-hidden lg:h-full lg:min-h-0">
+    <div className="flex min-h-[72svh] min-w-0 flex-col overflow-hidden bg-[#faf9f5] lg:h-full lg:min-h-0">
       <ChatInterface
         sessionId={sessionId}
         userName={userName}
@@ -246,12 +246,12 @@ export function ResumeWorkspace({
   return (
     <>
       {isPreviewOverlay ? (
-        <div className="space-y-6 p-4">
+        <div className="space-y-4 p-2">
           {chatPane}
           {viewerPane}
         </div>
       ) : (
-        <div className="h-[calc(100svh-4rem)] px-4 py-4">
+        <div className="h-[calc(100svh-4rem)] px-1 py-1">
           <ResizablePanelGroup
             id="resume-workspace-split-view"
             orientation="horizontal"
@@ -260,7 +260,7 @@ export function ResumeWorkspace({
             className="items-stretch"
           >
             <ResizablePanel id="workspace-chat-panel" defaultSize="68%" minSize="44%">
-              <div className="h-full min-w-0 pr-0.5">
+              <div className="h-full min-w-0 pr-0">
                 {chatPane}
               </div>
             </ResizablePanel>
@@ -273,7 +273,7 @@ export function ResumeWorkspace({
               minSize="24%"
               maxSize="56%"
             >
-              <div className="h-full min-w-0 pl-0.5">
+              <div className="h-full min-w-0 pl-0">
                 {viewerPane}
               </div>
             </ResizablePanel>
