@@ -143,7 +143,7 @@ function SidebarNavItem({
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
       )}
     >
-      <item.icon className="h-5 w-5 shrink-0" />
+      <item.icon className="h-4 w-4 shrink-0 text-sidebar-foreground/75" strokeWidth={1.75} />
       <AnimatePresence initial={false}>
         {isOpen || isMobile ? (
           <motion.span
@@ -322,7 +322,7 @@ function SidebarContent({
                     aria-label={isOpen ? "Recolher sidebar" : "Expandir sidebar"}
                     className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background/80 transition-colors hover:bg-sidebar-accent/60"
                   >
-                    {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    {isOpen ? <ChevronLeft className="h-4 w-4 text-sidebar-foreground/75" strokeWidth={1.75} /> : <ChevronRight className="h-4 w-4 text-sidebar-foreground/75" strokeWidth={1.75} />}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">

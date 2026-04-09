@@ -662,8 +662,8 @@ export function ChatInterface({
         </div>
       )}
 
-      <div className="min-h-0 flex-1">
-        <ScrollArea className="h-full px-2 md:px-3">
+      <div className="min-h-0 flex-1 bg-[#faf9f5]">
+        <ScrollArea className="h-full px-2 md:px-3 bg-[#faf9f5]">
           <div className="mx-auto w-full max-w-3xl space-y-6 pt-4">
             {messages.map((message) => (
               <ChatMessage
