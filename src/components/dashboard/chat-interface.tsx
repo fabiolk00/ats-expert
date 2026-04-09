@@ -734,7 +734,7 @@ export function ChatInterface({
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 placeholder={copy.placeholder}
-                className="max-h-[220px] min-h-[54px] resize-none border-0 bg-transparent px-1 py-3 shadow-none focus-visible:ring-0"
+                className="max-h-[220px] min-h-[54px] resize-none border-0 bg-[#ffffff] px-1 py-3 shadow-none focus-visible:ring-0 text-card-foreground"
                 rows={1}
                 disabled={isInputDisabled}
                 onKeyDown={(event) => {
