@@ -235,6 +235,52 @@ async function persistDetectedTargetJobDescriptionBase(
   return detection
 }
 
+/**
+ * Retry wrapper for gap analysis with exponential backoff.
+ * Retries up to 3 times with delays: 1s, 2s, 4s
+ */
+async function analyzeGapWithRetry(
+  cvState: Parameters<typeof analyzeGap>[0],
+  targetJobDescription: Parameters<typeof analyzeGap>[1],
+  userId: Parameters<typeof analyzeGap>[2],
+  sessionId: Parameters<typeof analyzeGap>[3],
+  maxAttempts = 3,
+): ReturnType<typeof analyzeGap> {
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await analyzeGap(cvState, targetJobDescription, userId, sessionId)
+
+      // Check if result indicates success
+      if ('success' in result.output && result.output.success && result.result) {
+        return result
+      }
+
+      // Failed result but no exception - will retry unless it's last attempt
+      if (attempt === maxAttempts) {
+        return result
+      }
+
+      // Wait before retry
+      const delayMs = Math.pow(2, attempt - 1) * 1000 // 1s, 2s, 4s
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    } catch (error) {
+      lastError = error
+
+      if (attempt === maxAttempts) {
+        throw error
+      }
+
+      // Wait before retry
+      const delayMs = Math.pow(2, attempt - 1) * 1000 // 1s, 2s, 4s
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+  }
+
+  throw lastError || new Error('Gap analysis failed after all retries')
+}
+
 async function maybeAutoGenerateGapAnalysisForDetectedTarget(
   session: Pick<Session, 'id' | 'phase' | 'stateVersion' | 'agentState' | 'updatedAt' | 'cvState' | 'userId'>,
   detection: TargetJobDetection | undefined,
@@ -253,7 +299,7 @@ async function maybeAutoGenerateGapAnalysisForDetectedTarget(
   }
 
   const analyzedAt = new Date().toISOString()
-  const gapAnalysisResult = await analyzeGap(
+  const gapAnalysisResult = await analyzeGapWithRetry(
     session.cvState,
     detection.targetJobDescription,
     session.userId,

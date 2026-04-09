@@ -56,11 +56,11 @@ describe('AGENT_CONFIG', () => {
     expect(AGENT_CONFIG.maxToolIterations).toBe(10)
   })
 
-  it('has reasonable timeout (30 seconds)', () => {
-    expect(AGENT_CONFIG.timeout).toBe(30_000)
+  it('has reasonable timeout (45 seconds)', () => {
+    expect(AGENT_CONFIG.timeout).toBe(45_000)
   })
 
-  it('keeps max 12 messages in history', () => {
-    expect(AGENT_CONFIG.maxHistoryMessages).toBe(12)
+  it('keeps max 24 messages in history', () => {
+    expect(AGENT_CONFIG.maxHistoryMessages).toBe(24)
   })
 })

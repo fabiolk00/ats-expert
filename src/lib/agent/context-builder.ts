@@ -272,7 +272,7 @@ ${targetFitCtx}
 ${STATIC_SUFFIX}`
 }
 
-export function trimMessages<T extends { role: string; content: string }>(messages: T[], maxTurns = 12): T[] {
+export function trimMessages<T extends { role: string; content: string }>(messages: T[], maxTurns = AGENT_CONFIG.maxHistoryMessages): T[] {
   if (messages.length <= maxTurns) return messages
   return [messages[0], ...messages.slice(-(maxTurns - 1))]
 }

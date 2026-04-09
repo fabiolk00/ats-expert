@@ -238,7 +238,7 @@ describe('runAgentLoop streaming', () => {
       events.push(event)
     }
 
-    expect(mockCreateChatCompletionStreamWithRetry.mock.calls.length).toBeLessThanOrEqual(4)
+    expect(mockCreateChatCompletionStreamWithRetry.mock.calls.length).toBeLessThanOrEqual(6)
     expect(events).toContainEqual(expect.objectContaining({
       type: 'error',
       error: expect.stringContaining('número máximo'),

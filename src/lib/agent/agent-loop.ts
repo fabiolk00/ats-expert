@@ -20,7 +20,6 @@ import type {
   Session,
 } from '@/types/agent'
 
-const EMPTY_ASSISTANT_RESPONSE_FALLBACK = 'Analisei sua mensagem, mas não consegui concluir a resposta desta vez. Tente enviar novamente e eu continuo a partir do contexto já salvo.'
 const EMPTY_ASSISTANT_RECOVERY_PROMPT = 'The previous completion returned no visible assistant text. Respond to the user now with a direct, helpful plain-text answer. Do not call tools. Do not leave the content empty.'
 
 type AgentLoopEvent =
@@ -445,7 +444,6 @@ export async function* runAgentLoop(
         }
 
         const toolResult = await dispatchToolWithContext(toolCall.name, toolInput, session, signal)
-        messages.push(buildToolMessage(toolCall.id, toolResult.outputJson))
 
         if (toolResult.outputFailure) {
           yield {
@@ -466,6 +464,9 @@ export async function* runAgentLoop(
           continue
         }
 
+        // Only add successful tool results to message history
+        messages.push(buildToolMessage(toolCall.id, toolResult.outputJson))
+
         yield {
           type: 'toolResult',
           toolName: toolCall.name,
@@ -484,45 +485,60 @@ export async function* runAgentLoop(
     }
 
     if (!assistantResponded && !signal?.aborted) {
-      const recoveryTurn = yield* streamAssistantTurn({
-        session,
-        messages: [
-          ...messages,
-          { role: 'system', content: EMPTY_ASSISTANT_RECOVERY_PROMPT },
-        ],
-        cachedSystemPrompt,
-        requestId,
-        appUserId,
-        requestStartedAt,
-        signal,
-        maxCompletionTokens: Math.min(AGENT_CONFIG.maxTokens, 900),
-        // No tools in recovery mode, so no tool_choice needed
-      })
+      // Recovery attempt with retry logic: up to 3 attempts with exponential backoff
+      let recoverySucceeded = false
+      let finalAssistantText = ''
+      const maxRecoveryAttempts = 3
 
-      if (recoveryTurn.usage) {
-        trackApiUsage({
-          userId: appUserId,
-          sessionId: session.id,
-          model: MODEL_CONFIG.agent,
-          inputTokens: recoveryTurn.usage.inputTokens,
-          outputTokens: recoveryTurn.usage.outputTokens,
-          endpoint: 'agent',
-        }).catch(() => {})
+      for (let recoveryAttempt = 1; recoveryAttempt <= maxRecoveryAttempts && !recoverySucceeded && !signal?.aborted; recoveryAttempt++) {
+        if (recoveryAttempt > 1) {
+          // Wait before retry: 1s, 2s delays
+          const delayMs = Math.pow(2, recoveryAttempt - 2) * 1000
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
+
+        const recoveryTurn = yield* streamAssistantTurn({
+          session,
+          messages: [
+            ...messages,
+            { role: 'system', content: EMPTY_ASSISTANT_RECOVERY_PROMPT },
+          ],
+          cachedSystemPrompt,
+          requestId,
+          appUserId,
+          requestStartedAt,
+          signal,
+          maxCompletionTokens: Math.min(AGENT_CONFIG.maxTokens, 900),
+          // No tools in recovery mode, so no tool_choice needed
+        })
+
+        if (recoveryTurn.usage) {
+          trackApiUsage({
+            userId: appUserId,
+            sessionId: session.id,
+            model: MODEL_CONFIG.agent,
+            inputTokens: recoveryTurn.usage.inputTokens,
+            outputTokens: recoveryTurn.usage.outputTokens,
+            endpoint: 'agent',
+          }).catch(() => {})
+        }
+
+        // Check if recovery was successful (got assistant text)
+        if (recoveryTurn.assistantText?.trim()) {
+          recoverySucceeded = true
+          finalAssistantText = recoveryTurn.assistantText.trim()
+        }
       }
 
-      const finalAssistantText = recoveryTurn.assistantText.trim() || EMPTY_ASSISTANT_RESPONSE_FALLBACK
-
-      if (!recoveryTurn.assistantText.trim()) {
-        yield {
-          type: 'text',
-          content: finalAssistantText,
-        }
+      if (!recoverySucceeded) {
+        // Final fallback after all recovery attempts failed
+        finalAssistantText = 'I encountered an issue processing your request. Please try again or rephrase your question.'
       }
 
       assistantResponded = true
       await appendMessage(session.id, 'assistant', finalAssistantText)
 
-      logWarn(recoveryTurn.assistantText.trim() ? 'agent.response.empty_recovered' : 'agent.response.empty_fallback', {
+      logWarn(recoverySucceeded ? 'agent.response.empty_recovered' : 'agent.response.empty_fallback', {
         requestId,
         sessionId: session.id,
         appUserId,
