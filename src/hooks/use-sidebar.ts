@@ -11,15 +11,19 @@ export function useSidebar() {
 
   useEffect(() => {
     setIsMounted(true)
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored !== null) {
-      setIsOpen(stored === 'true')
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(STORAGE_KEY)
+      if (stored !== null) {
+        setIsOpen(stored === 'true')
+      }
     }
   }, [])
 
   const persistDesktopState = useCallback((nextValue: boolean) => {
     setIsOpen(nextValue)
-    window.localStorage.setItem(STORAGE_KEY, String(nextValue))
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, String(nextValue))
+    }
   }, [])
 
   const toggle = useCallback(() => {
@@ -47,6 +51,10 @@ export function useSidebar() {
   }, [])
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
         event.preventDefault()
