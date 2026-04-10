@@ -24,8 +24,9 @@ Generates a 7-day OpenAI cost and generation baseline using production data sour
 
 Checks whether the staging environment is ready for billing and webhook validation.
 
-- Purpose: verify staging environment variables, database access, billing tables, billing RPC functions, API reachability, webhook token presence, and staging test-user data
-- Requires: Bash, `psql`, `curl`, and a populated `.env.staging`
+- Purpose: operator preflight for the Phase 1 staging proof path
+- Requires: Bash, `psql`, `curl`, and a populated `.env.staging` copied from `.env.staging.example`
+- Verifies: required staging vars, database access, billing tables, billing RPC functions, staging API reachability, Asaas webhook/access tokens, and the staging test user
 - Typical use:
 
 ```bash
