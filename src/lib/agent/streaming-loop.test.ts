@@ -498,7 +498,49 @@ describe('runAgentLoop streaming', () => {
     )
   })
 
-  it('includes saved resume context and avoids duplicating the vacancy text in concise recovery prompts', async () => {
+  it('keeps the best visible text when concise recovery returns empty after a truncated answer', async () => {
+    async function* emptyLengthStream() {
+      yield {
+        choices: [{
+          delta: {},
+          finish_reason: 'length',
+        }],
+        usage: null,
+      }
+    }
+
+    const events = []
+    mockCreateChatCompletionStreamWithRetry
+      .mockResolvedValueOnce(mockLengthExceededStream() as never)
+      .mockResolvedValueOnce(emptyLengthStream() as never)
+      .mockResolvedValueOnce(emptyLengthStream() as never)
+      .mockResolvedValueOnce(emptyLengthStream() as never)
+
+    for await (const event of runAgentLoop({
+      session: buildSession(),
+      userMessage: 'Teste',
+      appUserId: 'usr_123',
+      requestId: 'req_keep_best_visible_text',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    expect(mockCreateChatCompletionStreamWithRetry).toHaveBeenCalledTimes(4)
+    expect(mockAppendMessage).toHaveBeenNthCalledWith(
+      2,
+      'sess_123',
+      'assistant',
+      'This is a very long response',
+    )
+    expect(events.at(-1)).toMatchObject({
+      type: 'done',
+      sessionId: 'sess_123',
+    })
+  })
+
+  it('includes saved resume and saved target context in concise recovery prompts when the latest message is not the vacancy itself', async () => {
     async function* emptyLengthStream() {
       yield {
         choices: [{
@@ -535,7 +577,7 @@ describe('runAgentLoop streaming', () => {
 
     for await (const _event of runAgentLoop({
       session,
-      userMessage: jobDescription,
+      userMessage: 'Compare meu curriculo com a vaga ja salva',
       appUserId: 'usr_123',
       requestId: 'req_recovery_prompt',
       isNewSession: false,
@@ -549,7 +591,7 @@ describe('runAgentLoop streaming', () => {
 
     expect(typeof recoveryPrompt).toBe('string')
     expect(recoveryPrompt).toContain('Saved resume context:')
-    expect(recoveryPrompt).not.toContain('Saved target job context:')
+    expect(recoveryPrompt).toContain('Saved target job context:')
   })
 
   it('returns a vacancy-specific fallback instead of the generic empty fallback when every recovery returns empty', async () => {
@@ -703,7 +745,7 @@ describe('runAgentLoop streaming', () => {
     expect(finalText).not.toContain('Tente novamente com um pedido curto')
   })
 
-  it('keeps automatic analysis bootstrap silent when analyze_gap fails but the turn can continue', async () => {
+  it('handles the first pasted vacancy turn deterministically without waiting on analyze_gap or the model', async () => {
     const session = {
       ...buildSession(),
       phase: 'analysis' as const,
@@ -716,39 +758,49 @@ describe('runAgentLoop streaming', () => {
     }
 
     mockDispatchToolWithContext
-      .mockResolvedValueOnce({
-        output: { success: true, total: 51 },
-        outputJson: JSON.stringify({ success: true, total: 51 }),
-        persistedPatch: {
-          atsScore: {
-            total: 51,
-            breakdown: {
-              format: 70,
-              structure: 60,
-              keywords: 45,
-              contact: 95,
-              impact: 35,
-            },
-            issues: [],
-            suggestions: [],
+      .mockImplementationOnce(async (_toolName, _toolInput, currentSession) => {
+        currentSession.atsScore = {
+          total: 51,
+          breakdown: {
+            format: 70,
+            structure: 60,
+            keywords: 45,
+            contact: 95,
+            impact: 35,
           },
-        },
-      })
-      .mockResolvedValueOnce({
-        output: { success: false, code: 'LLM_INVALID_OUTPUT', error: 'Invalid gap analysis payload.' },
-        outputJson: JSON.stringify({ success: false, code: 'LLM_INVALID_OUTPUT', error: 'Invalid gap analysis payload.' }),
-        outputFailure: { success: false, code: 'LLM_INVALID_OUTPUT', error: 'Invalid gap analysis payload.' },
-        persistedPatch: undefined,
-      })
+          issues: [],
+          suggestions: [],
+        }
 
-    mockCreateChatCompletionStreamWithRetry.mockResolvedValue(
-      mockTextStream('Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.') as never,
-    )
+        return {
+          output: { success: true, total: 51 },
+          outputJson: JSON.stringify({ success: true, total: 51 }),
+          persistedPatch: {
+            atsScore: currentSession.atsScore,
+          },
+        }
+      })
+      .mockImplementationOnce(async (_toolName, _toolInput, currentSession) => {
+        currentSession.phase = 'dialog'
+
+        return {
+          output: { success: true, phase: 'dialog' },
+          outputJson: JSON.stringify({ success: true, phase: 'dialog' }),
+          persistedPatch: {
+            phase: 'dialog',
+          },
+        }
+      })
 
     const events = []
     for await (const event of runAgentLoop({
       session,
-      userMessage: 'Responsabilidades e requisitos da vaga...',
+      userMessage: [
+        'Responsabilidades',
+        'Projetar, desenvolver e manter dashboards e solucoes analiticas.',
+        'Requisitos',
+        'SQL avancado, Power BI, ETL/ELT e ingles fluente.',
+      ].join('\n'),
       appUserId: 'usr_123',
       requestId: 'req_silent_bootstrap',
       isNewSession: false,
@@ -766,11 +818,12 @@ describe('runAgentLoop streaming', () => {
     )
     expect(mockDispatchToolWithContext).toHaveBeenNthCalledWith(
       2,
-      'analyze_gap',
+      'set_phase',
       expect.any(Object),
       expect.any(Object),
       undefined,
     )
+    expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
     expect(events.some((event) => event.type === 'toolStart')).toBe(false)
     expect(
       events.some(
@@ -787,11 +840,18 @@ describe('runAgentLoop streaming', () => {
         }),
       }),
     }))
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'patch',
+      patch: expect.objectContaining({
+        phase: 'dialog',
+      }),
+      phase: 'dialog',
+    }))
     expect(mockAppendMessage).toHaveBeenNthCalledWith(
       2,
       'sess_123',
       'assistant',
-      'Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.',
+      'Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo. Pontuacao ATS atual: 51/100. Posso seguir reescrevendo seu resumo ou experiencia com base nesses pontos.',
     )
   })
 

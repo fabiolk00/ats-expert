@@ -73,6 +73,10 @@ type DeterministicToolOutcome = {
   failureCode?: AgentErrorChunk['code']
 }
 
+type AnalysisPrimeResult = {
+  mutatedPromptState: boolean
+}
+
 function parseJsonObject(value: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(value) as unknown
@@ -446,10 +450,43 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
   }
 
   if (hasTargetJobContext) {
+    return 'Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo. Posso seguir reescrevendo seu resumo ou experiencia com base nela.'
+  }
+
+  if (hasTargetJobContext) {
     return 'Recebi a vaga e vou usá-la como referência. Tente novamente com um pedido curto, como "compare meu currículo com esta vaga" ou "reescreva meu resumo para esta vaga".'
   }
 
   return 'Recebi sua mensagem, mas esta resposta falhou. Tente repetir o pedido em uma frase curta e objetiva que eu continuo daqui.'
+}
+
+function shouldUseDeterministicVacancyBootstrap(session: Session, userMessage: string): boolean {
+  return session.phase === 'analysis'
+    && hasResumeContextForDeterministicAnalysis(session)
+    && looksLikeJobDescription(userMessage)
+}
+
+function mergeConciseRecoveryTurn(
+  priorTurn: StreamTurnResult,
+  conciseTurn: StreamTurnResult,
+): StreamTurnResult {
+  const priorText = priorTurn.assistantText.trim()
+  const conciseText = conciseTurn.assistantText.trim()
+  const shouldPreferConciseText = conciseText.length > 0
+    && (
+      !priorText
+      || conciseTurn.finishReason === 'stop'
+    )
+
+  return {
+    ...priorTurn,
+    assistantText: shouldPreferConciseText ? conciseTurn.assistantText : priorTurn.assistantText,
+    finishReason: shouldPreferConciseText ? conciseTurn.finishReason : priorTurn.finishReason,
+    toolCalls: conciseTurn.toolCalls.length > 0 ? conciseTurn.toolCalls : priorTurn.toolCalls,
+    usage: mergeUsage(priorTurn.usage, conciseTurn.usage),
+    usedLengthRecovery: Boolean(priorTurn.usedLengthRecovery || conciseTurn.usedLengthRecovery),
+    usedConciseRecovery: true,
+  }
 }
 
 async function trackTurnUsage(params: {
@@ -793,16 +830,20 @@ async function* runDeterministicTool(params: {
 
 async function* primeAnalysisState(params: {
   session: Session
+  userMessage: string
   requestId: string
   signal?: AbortSignal
-}): AsyncGenerator<AgentLoopEvent, boolean> {
+}): AsyncGenerator<AgentLoopEvent, AnalysisPrimeResult> {
   const { session } = params
 
   if (session.phase !== 'analysis' || !hasResumeContextForDeterministicAnalysis(session)) {
-    return false
+    return {
+      mutatedPromptState: false,
+    }
   }
 
   let mutatedPromptState = false
+  const latestMessageLooksLikeVacancy = looksLikeJobDescription(params.userMessage)
 
   if (!session.atsScore) {
     const scoreResult = yield* runDeterministicTool({
@@ -820,7 +861,11 @@ async function* primeAnalysisState(params: {
     mutatedPromptState = mutatedPromptState || scoreResult.hadPatch
   }
 
-  if (session.agentState.targetJobDescription?.trim() && !session.agentState.gapAnalysis) {
+  if (
+    !latestMessageLooksLikeVacancy
+    && session.agentState.targetJobDescription?.trim()
+    && !session.agentState.gapAnalysis
+  ) {
     const gapResult = yield* runDeterministicTool({
       session,
       toolName: 'analyze_gap',
@@ -835,7 +880,9 @@ async function* primeAnalysisState(params: {
     mutatedPromptState = mutatedPromptState || gapResult.hadPatch
   }
 
-  return mutatedPromptState
+  return {
+    mutatedPromptState,
+  }
 }
 
 async function* handleConfirmedGeneration(params: {
@@ -937,12 +984,64 @@ export async function* runAgentLoop(
 
     const analysisPrimed = yield* primeAnalysisState({
       session,
+      userMessage,
       requestId,
       signal,
     })
 
-    if (analysisPrimed) {
+    if (analysisPrimed.mutatedPromptState) {
       systemPromptDirty = true
+    }
+
+    if (shouldUseDeterministicVacancyBootstrap(session, userMessage)) {
+      yield* runDeterministicTool({
+        session,
+        toolName: 'set_phase',
+        toolInput: {
+          phase: 'dialog',
+          reason: 'Vacancy was saved and the initial ATS-oriented bootstrap summary is ready.',
+        },
+        requestId,
+        signal,
+        surfaceToolStartToUser: false,
+        surfaceFailureToUser: false,
+      })
+
+      const bootstrapAssistantText = buildDeterministicAssistantFallback(session, userMessage)
+
+      yield {
+        type: 'text',
+        content: bootstrapAssistantText,
+      }
+
+      assistantResponded = true
+      await appendMessage(session.id, 'assistant', bootstrapAssistantText)
+
+      logInfo('agent.stream.completed', {
+        requestId,
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        isNewSession,
+        messageCountAfter: session.messageCount + 1,
+        toolLoopsUsed: toolIterations,
+        success: true,
+        latencyMs: Date.now() - requestStartedAt,
+      })
+
+      yield {
+        type: 'done',
+        requestId,
+        sessionId: session.id,
+        phase: session.phase,
+        atsScore: session.atsScore,
+        messageCount: session.messageCount + 1,
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        isNewSession,
+        toolIterations,
+      }
+      return
     }
 
     while (true) {
@@ -1044,11 +1143,7 @@ export async function* runAgentLoop(
           signal,
         })
 
-        turn = {
-          ...conciseTurn,
-          usage: mergeUsage(turn.usage, conciseTurn.usage),
-          usedLengthRecovery: turn.usedLengthRecovery || conciseTurn.usedLengthRecovery,
-        }
+        turn = mergeConciseRecoveryTurn(turn, conciseTurn)
       }
 
       if (turn.usage) {
