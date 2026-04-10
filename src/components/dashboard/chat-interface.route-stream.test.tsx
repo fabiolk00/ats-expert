@@ -257,16 +257,34 @@ describe("ChatInterface real /api/agent transcript integration", () => {
     vi.resetModules()
   })
 
-  it('renders the real route rewrite fallback as one visible assistant turn for "reescreva"', async () => {
+  it('renders the real route deterministic rewrite as one visible assistant turn for "reescreva"', async () => {
     const session = buildDialogSession({
       id: "sess_route_rewrite",
       targetJobDescription: "Analista de BI Senior com foco em Power BI, SQL e ETL.",
     })
     const { POST } = await loadRoute()
     mockGetSession.mockResolvedValue(session)
-    mockCreateChatCompletionStreamWithRetry.mockImplementation(
-      async () => emptyStopStream() as never,
-    )
+    mockDispatchToolWithContext.mockResolvedValueOnce({
+      output: {
+        success: true,
+        rewritten_content: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
+        section_data: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
+        keywords_added: ["Power BI", "SQL", "ETL"],
+        changes_made: ["Resumo alinhado a BI senior"],
+      },
+      outputJson: JSON.stringify({
+        success: true,
+        rewritten_content: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
+        section_data: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
+        keywords_added: ["Power BI", "SQL", "ETL"],
+        changes_made: ["Resumo alinhado a BI senior"],
+      }),
+      persistedPatch: {
+        cvState: {
+          summary: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
+        },
+      },
+    })
     const routeResponse = await POST(new NextRequest("http://localhost/api/agent", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -333,11 +351,9 @@ describe("ChatInterface real /api/agent transcript integration", () => {
       expect(assistantMessages).toHaveLength(2)
 
       const finalAssistantMessage = assistantMessages[assistantMessages.length - 1]
-      expect(finalAssistantMessage).toHaveTextContent("Posso reescrever agora seu resumo profissional.")
-      expect(finalAssistantMessage).toHaveTextContent("Ja tenho seu curriculo e a vaga como referencia.")
-      expect(finalAssistantMessage).not.toHaveTextContent(
-        "Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.",
-      )
+      expect(finalAssistantMessage).toHaveTextContent("Aqui esta uma versao reescrita do seu resumo profissional:")
+      expect(finalAssistantMessage).toHaveTextContent("Analista de BI com experiencia em Power BI, SQL e ETL")
+      expect(finalAssistantMessage).toHaveTextContent('gere o arquivo')
     })
   })
 

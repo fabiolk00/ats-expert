@@ -72,14 +72,14 @@ function getChatCopy(firstName?: string): ChatCopy {
 
   return {
     heading: greeting,
-    description: "Cole a descri\u00E7\u00E3o da vaga e envie seu curr\u00EDculo para iniciar a an\u00E1lise ATS.",
+    description: "Cole a descri\u00E7\u00E3o da vaga para eu adaptar seu curr\u00EDculo ATS com base no perfil salvo.",
     placeholder: "Cole a descri\u00E7\u00E3o da vaga aqui...",
-    helperText: "Arraste um arquivo PDF ou DOCX, ou clique no bot\u00E3o de upload.",
+    helperText: "Quando a vers\u00E3o otimizada estiver pronta, confirme a gera\u00E7\u00E3o digitando \"Aceito\" ou usando o bot\u00E3o.",
     thinkingText: "Pensando...",
     sessionCounterLabel: "nesta an\u00E1lise",
     sessionExpiredText: "Sess\u00E3o n\u00E3o encontrada. Inicie uma nova an\u00E1lise para continuar.",
     sessionLimitText: "Esta sess\u00E3o atingiu o limite de mensagens. Inicie uma nova an\u00E1lise para continuar.",
-    allowFileUpload: true,
+    allowFileUpload: false,
   }
 }
 
@@ -430,12 +430,14 @@ export function ChatInterface({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSend = async (): Promise<void> => {
-    if ((!input.trim() && !uploadedFile) || isInputDisabled) {
+  const handleSend = async (options?: { message?: string }): Promise<void> => {
+    const overrideMessage = options?.message
+
+    if ((!overrideMessage?.trim() && !input.trim() && !uploadedFile) || isInputDisabled) {
       return
     }
 
-    const messageToSend = input
+    const messageToSend = overrideMessage ?? input
     const fileToSend = uploadedFile
 
     const baseMessageId = Date.now()
@@ -695,6 +697,10 @@ export function ChatInterface({
     }
   }
 
+  const handleApproveGeneration = async (): Promise<void> => {
+    await handleSend({ message: "Aceito" })
+  }
+
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
     event.preventDefault()
     if (!disabled && copy.allowFileUpload) {
@@ -797,6 +803,22 @@ export function ChatInterface({
         onDrop={handleDrop}
       >
         <div className="mx-auto max-w-3xl space-y-2">
+          {phase === "confirm" ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-[#fffaf0] px-4 py-3">
+              <p className="text-sm text-foreground">
+                Confirme a gera\u00E7\u00E3o do seu curr\u00EDculo otimizado ATS digitando <span className="font-semibold">"Aceito"</span> ou usando o bot\u00E3o.
+              </p>
+              <Button
+                data-testid="chat-accept-generate"
+                variant="secondary"
+                className="rounded-2xl"
+                disabled={isInputDisabled}
+                onClick={() => void handleApproveGeneration()}
+              >
+                Aceito
+              </Button>
+            </div>
+          ) : null}
           {copy.allowFileUpload && uploadedFile && (
             <div className="flex w-fit items-center gap-2 rounded-lg bg-muted px-3 py-2">
               <FileText className="h-4 w-4 text-primary" />
@@ -872,7 +894,9 @@ export function ChatInterface({
             </p>
           ) : (
             <p className="text-center text-xs text-muted-foreground">
-              {copy.helperText}
+              {phase === "confirm"
+                ? 'Para gerar os arquivos finais, responda com "Aceito" ou use o botao acima.'
+                : copy.helperText}
             </p>
           )}
         </div>

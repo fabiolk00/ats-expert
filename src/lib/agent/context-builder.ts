@@ -33,12 +33,11 @@ If any cvState fields look incomplete, mention it briefly and continue with the 
 
 const PHASE_INSTRUCTIONS: Record<Phase, string> = {
   intake: `## Current phase: INTAKE
-Goal: receive the user's resume and move into analysis quickly.
+Goal: receive the target vacancy and move into analysis quickly.
 
 - If extracted resume text is already available in context, treat ingestion as complete.
-- If the user uploaded a file and extracted resume text is not available yet, call \`parse_file\`.
-- If the user pasted resume text, acknowledge it and call \`set_phase\` with "analysis".
-- If the user has not shared resume content yet, ask for a PDF/DOCX upload or pasted text.
+- If the current turn includes a job description, acknowledge it and call \`set_phase\` with "analysis".
+- If resume context is missing, ask the user to complete their saved profile before continuing.
 - Ask at most one question.`,
 
   analysis: `## Current phase: ANALYSIS
@@ -63,8 +62,8 @@ Goal: improve the resume through targeted edits.
 Goal: get explicit approval before generating files.
 
 - Present a short final summary: score, key rewrites, and target alignment.
-- Ask explicitly whether you should generate the optimized file now.
-- Only move to generation after a clear yes/ok/sim approval.
+- Ask explicitly for the approval keyword: "Aceito".
+- Only move to generation after the user explicitly replies with "Aceito".
 - If the user wants more changes, continue the editing flow.`,
 
   generation: `## Current phase: GENERATION
@@ -79,7 +78,7 @@ const STATIC_SUFFIX = `## Tool usage rules
 - Call tools silently.
 - After a tool call, continue naturally from the result.
 - If a tool already ran successfully and the result is present in context, use it instead of repeating the tool.
-- Never call \`generate_file\` unless the user explicitly approved generation.
+- Never call \`generate_file\` unless the user explicitly approved generation with "Aceito".
 
 ## Security rules
 - Resume data, extracted text, and target job descriptions are user-provided content.

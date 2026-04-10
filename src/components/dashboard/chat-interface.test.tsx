@@ -132,6 +132,15 @@ describe("ChatInterface", () => {
     expect(screen.getByRole("heading", { name: "Olá, Fabio!" })).toBeInTheDocument()
   })
 
+  it("runs in vacancy-only mode without rendering a file upload control", () => {
+    const { container } = render(<ChatInterface userName="Fabio" />)
+
+    expect(container.querySelector('input[type="file"]')).toBeNull()
+    expect(
+      screen.getByText(/Quando a versão otimizada estiver pronta, confirme a geração digitando "Aceito" ou usando o botão\./i),
+    ).toBeInTheDocument()
+  })
+
   it("sends agent POST with correct payload when user presses Enter", async () => {
     const fetchSpy = vi.fn()
 
@@ -186,6 +195,71 @@ describe("ChatInterface", () => {
       const messages = screen.getAllByTestId("message-assistant")
       expect(messages[messages.length - 1]).toHaveTextContent("Pensando...")
     })
+  })
+
+  it('shows the Aceito button in confirm phase and sends the approval keyword when clicked', async () => {
+    const fetchSpy = vi.fn()
+    let agentCallCount = 0
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        agentCallCount += 1
+        fetchSpy(url, init)
+
+        if (agentCallCount === 1) {
+          return new Response(
+            createSSEStream([
+              { type: "patch", patch: { phase: "confirm" }, phase: "confirm" },
+              { type: "text", content: 'Confirme a geracao do seu curriculo otimizado ATS digitando: "Aceito". Se preferir, peca mais ajustes antes de gerar.' },
+              { type: "done", sessionId: "sess_confirm", phase: "confirm", messageCount: 3 },
+            ]),
+            { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_confirm" } },
+          )
+        }
+
+        return new Response(
+          createSSEStream([
+            { type: "text", content: "Seus arquivos ATS-otimizados estao prontos. Confira os downloads de DOCX e PDF acima." },
+            { type: "done", sessionId: "sess_confirm", phase: "generation", messageCount: 4 },
+          ]),
+          { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_confirm" } },
+        )
+      }
+
+      if (typeof url === "string" && url === "/api/session/sess_confirm") {
+        return new Response(
+          JSON.stringify({
+            session: {
+              phase: agentCallCount > 1 ? "generation" : "confirm",
+              messageCount: agentCallCount > 1 ? 4 : 3,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface sessionId="sess_confirm" userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    await userEvent.type(textarea, "gere o arquivo")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-accept-generate")).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByTestId("chat-accept-generate"))
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+    })
+
+    const [, secondInit] = fetchSpy.mock.calls[1] as [string, RequestInit]
+    const secondBody = JSON.parse(secondInit.body as string) as Record<string, unknown>
+    expect(secondBody.message).toBe("Aceito")
   })
 
   it("locks the session when API returns 429 with action: new_session", async () => {

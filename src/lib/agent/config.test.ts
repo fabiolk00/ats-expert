@@ -68,7 +68,7 @@ describe('AGENT_CONFIG', () => {
     })
   })
 
-  it('uses real bakeoff model combinations without changing the default combo', () => {
+  it('uses the real bakeoff model combinations', () => {
     expect(MODEL_COMBINATIONS).toEqual({
       combo_a: {
         agent: DEFAULT_OPENAI_MODEL,
@@ -88,10 +88,10 @@ describe('AGENT_CONFIG', () => {
     })
   })
 
-  it('falls back to combo_a for invalid OPENAI_MODEL_COMBO values', () => {
-    expect(resolveModelCombo(undefined)).toBe('combo_a')
+  it('falls back to combo_c for invalid OPENAI_MODEL_COMBO values', () => {
+    expect(resolveModelCombo(undefined)).toBe('combo_c')
     expect(resolveModelCombo('combo_b')).toBe('combo_b')
-    expect(resolveModelCombo('invalid')).toBe('combo_a')
+    expect(resolveModelCombo('invalid')).toBe('combo_c')
   })
 
   it('resolves the standardized OPENAI_MODEL with a safe fallback', () => {
@@ -146,9 +146,10 @@ describe('AGENT_CONFIG', () => {
     expect(loadedConfig.resolveAgentModelForPhase('analysis')).toBe('gpt-5.4-mini')
   })
 
-  it('keeps the conversation output budget intentionally short', () => {
-    expect(AGENT_CONFIG.conversationMaxOutputTokens).toBe(900)
-    expect(AGENT_CONFIG.conciseFallbackMaxTokens).toBe(350)
+  it('raises the conversation output budget for longer vacancy and rewrite turns', () => {
+    expect(AGENT_CONFIG.conversationMaxOutputTokens).toBe(1400)
+    expect(AGENT_CONFIG.conciseFallbackMaxTokens).toBe(500)
+    expect(AGENT_CONFIG.rewriterMaxTokens).toBe(1600)
   })
 
   it('caps prompt size by phase', () => {
@@ -171,14 +172,13 @@ describe('AGENT_CONFIG', () => {
     })
   })
 
-  it('keeps the default combo pinned to the cheapest production model', () => {
-    const comboADefault = {
-      agent: DEFAULT_OPENAI_MODEL,
+  it('keeps combo_c pinned to the stronger default production model', () => {
+    expect(resolveModelCombo(undefined)).toBe('combo_c')
+    expect(MODEL_COMBINATIONS.combo_c).toEqual({
+      agent: 'gpt-5-mini',
       structured: DEFAULT_OPENAI_MODEL,
       vision: DEFAULT_OPENAI_MODEL,
-    }
-
-    expect(MODEL_COMBINATIONS.combo_a).toEqual(comboADefault)
+    })
   })
 
   it('has maxMessagesPerSession set to 30', () => {

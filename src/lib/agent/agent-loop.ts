@@ -22,12 +22,15 @@ import type {
 } from '@/types/agent'
 
 const LENGTH_RECOVERY_PROMPT = 'Your previous response was cut off by token limits. Continue exactly where it stopped. Do not repeat prior text. Do not call tools.'
+const GENERATION_CONFIRMATION_TEXT = 'Confirme a geracao do seu curriculo otimizado ATS digitando: "Aceito". Se preferir, peca mais ajustes antes de gerar.'
+const MISSING_PROFILE_WITH_TARGET_TEXT = 'Recebi a vaga. Para adaptar seu curriculo, complete primeiro seu perfil em "Meu Perfil" antes de continuar.'
+const MISSING_PROFILE_TEXT = 'Preciso do seu curriculo salvo em "Meu Perfil" para continuar.'
 const RECOVERY_SYSTEM_PROMPT = [
   'You are CurrIA, a resume optimization assistant for Brazilian users.',
   'Respond in the same language as the user, in plain text, with a short and useful answer.',
   'Do not call tools.',
   'Do not leave the content empty.',
-  'If the user pasted a job description but has not provided a resume yet, acknowledge the vacancy and ask for the resume file or pasted resume text.',
+  'If the user pasted a job description but resume context is missing, acknowledge the vacancy and ask them to complete their saved profile before continuing.',
   'If the user already has resume context loaded, acknowledge the latest request and give the clearest next step you can.',
 ].join(' ')
 
@@ -72,6 +75,7 @@ type StreamTurnResult = {
 type DeterministicToolOutcome = {
   success: boolean
   hadPatch: boolean
+  output?: unknown
   failureMessage?: string
   failureCode?: AgentErrorChunk['code']
 }
@@ -254,7 +258,23 @@ function isGenerationApproval(message: string): boolean {
     return false
   }
 
-  return /\b(sim|yes|ok|okay|pode gerar|pode seguir|gera|gerar agora|generate now)\b/.test(normalized)
+  return /\b(aceito|aceito gerar|aceito a geracao|confirmo a geracao)\b/.test(normalized)
+}
+
+function isGenerationRequest(message: string): boolean {
+  const normalized = normalizeText(message)
+
+  if (!normalized || /\b(nao|not|cancel|depois)\b/.test(normalized)) {
+    return false
+  }
+
+  return (
+    /\b(pode gerar|gerar agora|gere o arquivo|gere os arquivos|gere o curriculo|gere meu curriculo)\b/.test(normalized)
+    || (
+      /\b(gere|gerar|gera|exporte|exportar|baixar|baixe|download)\b/.test(normalized)
+      && /\b(arquivo|arquivos|curriculo|pdf|docx|versao final)\b/.test(normalized)
+    )
+  )
 }
 
 function isDialogContinuationApproval(message: string): boolean {
@@ -333,8 +353,75 @@ function buildDialogRewriteContinuation(params: {
         : `Posso seguir, sim. Ja tenho seu curriculo e a vaga como referencia. Vou continuar pelo trecho com maior impacto para essa vaga: seu ${focusLabel}.`)
       : (params.explicit
         ? `Posso reescrever agora seu ${focusLabel}. Ja tenho seu curriculo em contexto e vou te devolver uma versao mais forte e objetiva.`
-        : `Posso seguir, sim. Ja tenho seu curriculo em contexto. Vou continuar pelo trecho com maior impacto: seu ${focusLabel}.`),
+      : `Posso seguir, sim. Ja tenho seu curriculo em contexto. Vou continuar pelo trecho com maior impacto: seu ${focusLabel}.`),
   }
+}
+
+function buildRewriteCurrentContent(
+  session: Session,
+  focus: RewriteFocus,
+): string | null {
+  switch (focus) {
+    case 'summary':
+      return session.cvState.summary.trim() || buildResumeTextForScoring(session)
+    case 'experience':
+      return session.cvState.experience.length > 0
+        ? JSON.stringify(session.cvState.experience, null, 2)
+        : null
+    case 'skills':
+      return session.cvState.skills.length > 0
+        ? session.cvState.skills.join(', ')
+        : null
+  }
+}
+
+function buildRewriteInstructions(
+  session: Session,
+  focus: RewriteFocus,
+): string {
+  const targetJobDescription = session.agentState.targetJobDescription?.trim()
+  const commonRules = 'Keep the content truthful, ATS-friendly, concise, and in pt-BR. Preserve only claims supported by the saved resume context.'
+  const targetContext = targetJobDescription
+    ? `Target job description:\n${truncateForRecovery(targetJobDescription, 1_600)}`
+    : 'No target job description is saved yet. Optimize for clarity and ATS readability only.'
+
+  switch (focus) {
+    case 'summary':
+      return [
+        'Rewrite the professional summary for this target opportunity.',
+        'Keep it to 3 to 4 lines, emphasize business impact, analytics ownership, SQL/BI strengths, and collaboration with non-technical stakeholders when supported by the resume.',
+        commonRules,
+        targetContext,
+      ].join('\n\n')
+    case 'experience':
+      return [
+        'Rewrite the professional experience bullets for this target opportunity.',
+        'Prioritize measurable impact, analytics delivery, Power BI/SQL/ETL work, and stakeholder partnership when supported by the resume.',
+        commonRules,
+        targetContext,
+      ].join('\n\n')
+    case 'skills':
+      return [
+        'Rewrite and reorder the skills section for this target opportunity.',
+        'Prioritize the most relevant ATS keywords first and keep the final list clean and realistic.',
+        commonRules,
+        targetContext,
+      ].join('\n\n')
+  }
+}
+
+function buildRewriteTargetKeywords(session: Session): string[] | undefined {
+  const missingSkills = session.agentState.gapAnalysis?.result.missingSkills ?? []
+  const existingSkills = session.cvState.skills ?? []
+  const targetKeywords = Array.from(
+    new Set(
+      [...missingSkills, ...existingSkills]
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 8)
+
+  return targetKeywords.length > 0 ? targetKeywords : undefined
 }
 
 function buildResumeTextForScoring(session: Session): string {
@@ -498,17 +585,20 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
     || session.agentState.targetFitAssessment
     || session.agentState.gapAnalysis
   )
+  const confirmFallbackText = session.phase === 'confirm'
+    ? GENERATION_CONFIRMATION_TEXT
+    : null
 
   if (!hasResumeContext && hasTargetJobContext) {
-    return 'Recebi a vaga. Para comparar aderência e adaptar seu currículo a essa oportunidade, envie seu currículo em PDF/DOCX ou cole o texto do currículo aqui.'
+    return MISSING_PROFILE_WITH_TARGET_TEXT
   }
 
   if (!hasResumeContext) {
-    return 'Preciso do seu currículo para continuar. Envie um PDF/DOCX ou cole o texto do currículo aqui no chat.'
+    return MISSING_PROFILE_TEXT
   }
 
-  if (session.phase === 'confirm') {
-    return 'Estou na etapa final. Se quiser gerar os arquivos agora, responda com "sim, pode gerar". Se preferir, peça mais ajustes no currículo.'
+  if (confirmFallbackText) {
+    return confirmFallbackText
   }
 
   if (hasTargetJobContext && hasStructuredTargetAnalysis) {
@@ -607,26 +697,29 @@ function resolveDeterministicAssistantFallback(session: Session, userMessage: st
     || session.agentState.targetFitAssessment
     || session.agentState.gapAnalysis
   )
+  const confirmFallback = session.phase === 'confirm'
+    ? {
+        kind: 'confirm_generation_prompt' as const,
+        text: GENERATION_CONFIRMATION_TEXT,
+      }
+    : null
 
   if (!hasResumeContext && hasTargetJobContext) {
     return {
       kind: 'missing_resume_with_target_job',
-      text: 'Recebi a vaga. Para comparar aderência e adaptar seu currículo a essa oportunidade, envie seu currículo em PDF/DOCX ou cole o texto do currículo aqui.',
+      text: MISSING_PROFILE_WITH_TARGET_TEXT,
     }
   }
 
   if (!hasResumeContext) {
     return {
       kind: 'missing_resume',
-      text: 'Preciso do seu currículo para continuar. Envie um PDF/DOCX ou cole o texto do currículo aqui no chat.',
+      text: MISSING_PROFILE_TEXT,
     }
   }
 
-  if (session.phase === 'confirm') {
-    return {
-      kind: 'confirm_generation_prompt',
-      text: 'Estou na etapa final. Se quiser gerar os arquivos agora, responda com "sim, pode gerar". Se preferir, peca mais ajustes no curriculo.',
-    }
+  if (confirmFallback) {
+    return confirmFallback
   }
 
   if (session.phase === 'dialog') {
@@ -1076,6 +1169,7 @@ async function* runDeterministicTool(params: {
     return {
       success: false,
       hadPatch: toolResult.persistedPatch !== undefined,
+      output: toolResult.outputFailure,
       failureMessage: toolResult.outputFailure.error,
       failureCode: toolResult.outputFailure.code,
     }
@@ -1098,6 +1192,7 @@ async function* runDeterministicTool(params: {
   return {
     success: true,
     hadPatch: toolResult.persistedPatch !== undefined,
+    output: toolResult.output,
   }
 }
 
@@ -1195,6 +1290,116 @@ async function* handleConfirmedGeneration(params: {
   return `Nao consegui gerar os arquivos agora. ${generationResult.failureMessage ?? 'Tente novamente em alguns instantes.'}`
 }
 
+async function* handleGenerationConfirmationRequest(params: {
+  session: Session
+  requestId: string
+  signal?: AbortSignal
+}): AsyncGenerator<AgentLoopEvent, string> {
+  if (params.session.phase !== 'confirm') {
+    const setPhaseResult = yield* runDeterministicTool({
+      session: params.session,
+      toolName: 'set_phase',
+      toolInput: {
+        phase: 'confirm',
+        reason: 'User requested deterministic file generation confirmation.',
+      },
+      requestId: params.requestId,
+      signal: params.signal,
+      surfaceToolStartToUser: false,
+      surfaceFailureToUser: false,
+    })
+
+    if (!setPhaseResult.success) {
+      return `Nao consegui preparar a confirmacao da geracao agora. ${setPhaseResult.failureMessage ?? 'Tente novamente em alguns instantes.'}`
+    }
+  }
+
+  return GENERATION_CONFIRMATION_TEXT
+}
+
+async function* handleDeterministicRewriteRequest(params: {
+  session: Session
+  userMessage: string
+  requestId: string
+  signal?: AbortSignal
+}): AsyncGenerator<AgentLoopEvent, string> {
+  const focus = resolveRewriteFocus(params.userMessage) ?? 'summary'
+  const currentContent = buildRewriteCurrentContent(params.session, focus)
+
+  if (!currentContent?.trim()) {
+    switch (focus) {
+      case 'experience':
+        return 'Seu perfil salvo ainda nao tem experiencias suficientes para eu reescrever essa secao. Posso comecar pelo resumo profissional se quiser.'
+      case 'skills':
+        return 'Seu perfil salvo ainda nao tem competencias suficientes para eu reorganizar essa secao. Posso comecar pelo resumo profissional se quiser.'
+      case 'summary':
+        return 'Nao encontrei resumo suficiente no seu perfil salvo para reescrever agora. Atualize seu perfil e tente novamente.'
+    }
+  }
+
+  if (!params.session.agentState.targetJobDescription?.trim()) {
+    return 'Ja tenho seu curriculo salvo. Cole a descricao da vaga antes de pedir a reescrita otimizada.'
+  }
+
+  if (params.session.phase !== 'dialog') {
+    yield* runDeterministicTool({
+      session: params.session,
+      toolName: 'set_phase',
+      toolInput: {
+        phase: 'dialog',
+        reason: 'User requested another deterministic rewrite.',
+      },
+      requestId: params.requestId,
+      signal: params.signal,
+      surfaceToolStartToUser: false,
+      surfaceFailureToUser: false,
+    })
+  }
+
+  const rewriteResult = yield* runDeterministicTool({
+    session: params.session,
+    toolName: 'rewrite_section',
+    toolInput: {
+      section: focus,
+      current_content: currentContent,
+      instructions: buildRewriteInstructions(params.session, focus),
+      target_keywords: buildRewriteTargetKeywords(params.session),
+    },
+    requestId: params.requestId,
+    signal: params.signal,
+  })
+
+  if (!rewriteResult.success) {
+    return `Nao consegui reescrever essa secao agora. ${rewriteResult.failureMessage ?? 'Tente novamente em alguns instantes.'}`
+  }
+
+  const rewriteOutput = rewriteResult.output
+  const rewrittenContent = (
+    rewriteOutput
+    && typeof rewriteOutput === 'object'
+    && 'success' in rewriteOutput
+    && rewriteOutput.success === true
+    && 'rewritten_content' in rewriteOutput
+    && typeof rewriteOutput.rewritten_content === 'string'
+  )
+    ? rewriteOutput.rewritten_content
+    : null
+
+  if (!rewrittenContent?.trim()) {
+    return 'Consegui atualizar a secao, mas nao recebi um texto legivel para mostrar aqui. Tente novamente em alguns instantes.'
+  }
+
+  const focusLabel = formatRewriteFocusLabel(focus)
+
+  return [
+    `Aqui esta uma versao reescrita do seu ${focusLabel}:`,
+    '',
+    rewrittenContent.trim(),
+    '',
+    'Se quiser seguir para a geracao, responda com "gere o arquivo".',
+  ].join('\n')
+}
+
 export async function* runAgentLoop(
   params: AgentLoopParams,
 ): AsyncGenerator<AgentLoopEvent> {
@@ -1228,6 +1433,106 @@ export async function* runAgentLoop(
 
       assistantResponded = true
       await appendMessage(session.id, 'assistant', generationAssistantText)
+
+      logInfo('agent.stream.completed', {
+        ...releaseMetadata,
+        requestId,
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        isNewSession,
+        messageCountAfter: session.messageCount + 1,
+        toolLoopsUsed: toolIterations,
+        success: true,
+        latencyMs: Date.now() - requestStartedAt,
+      })
+
+      yield {
+        type: 'done',
+        requestId,
+        sessionId: session.id,
+        phase: session.phase,
+        atsScore: session.atsScore,
+        messageCount: session.messageCount + 1,
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        isNewSession,
+        toolIterations,
+      }
+      return
+    }
+
+    if (isGenerationRequest(userMessage)) {
+      const hasResumeContext = hasResumeContextForDeterministicAnalysis(session)
+      const hasTargetJobContext = Boolean(session.agentState.targetJobDescription?.trim())
+
+      let generationAssistantText: string
+
+      if (!hasResumeContext && hasTargetJobContext) {
+        generationAssistantText = MISSING_PROFILE_WITH_TARGET_TEXT
+      } else if (!hasResumeContext) {
+        generationAssistantText = MISSING_PROFILE_TEXT
+      } else if (!hasTargetJobContext) {
+        generationAssistantText = 'Ja tenho seu curriculo salvo. Cole a descricao da vaga antes de gerar o curriculo otimizado ATS.'
+      } else {
+        generationAssistantText = yield* handleGenerationConfirmationRequest({
+          session,
+          requestId,
+          signal,
+        })
+      }
+
+      yield {
+        type: 'text',
+        content: generationAssistantText,
+      }
+
+      assistantResponded = true
+      await appendMessage(session.id, 'assistant', generationAssistantText)
+
+      logInfo('agent.stream.completed', {
+        ...releaseMetadata,
+        requestId,
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        isNewSession,
+        messageCountAfter: session.messageCount + 1,
+        toolLoopsUsed: toolIterations,
+        success: true,
+        latencyMs: Date.now() - requestStartedAt,
+      })
+
+      yield {
+        type: 'done',
+        requestId,
+        sessionId: session.id,
+        phase: session.phase,
+        atsScore: session.atsScore,
+        messageCount: session.messageCount + 1,
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        isNewSession,
+        toolIterations,
+      }
+      return
+    }
+
+    if ((session.phase === 'dialog' || session.phase === 'confirm') && isDialogRewriteRequest(userMessage)) {
+      const rewriteAssistantText = yield* handleDeterministicRewriteRequest({
+        session,
+        userMessage,
+        requestId,
+        signal,
+      })
+
+      yield {
+        type: 'text',
+        content: rewriteAssistantText,
+      }
+
+      assistantResponded = true
+      await appendMessage(session.id, 'assistant', rewriteAssistantText)
 
       logInfo('agent.stream.completed', {
         ...releaseMetadata,

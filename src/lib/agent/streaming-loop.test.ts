@@ -753,7 +753,7 @@ describe('runAgentLoop streaming', () => {
     const events = []
     for await (const event of runAgentLoop({
       session,
-      userMessage: 'reescreva',
+      userMessage: 'pode fazer',
       appUserId: 'usr_123',
       requestId: 'req_prefer_useful_concise_text',
       isNewSession: false,
@@ -930,7 +930,7 @@ describe('runAgentLoop streaming', () => {
       .join('')
 
     expect(finalText).toContain('Recebi a vaga')
-    expect(finalText).toContain('currículo')
+    expect(finalText).toContain('curriculo')
     expect(finalText).not.toContain('Não consegui concluir a resposta completa desta vez')
     expect(mockAppendMessage).toHaveBeenNthCalledWith(
       2,
@@ -1086,17 +1086,7 @@ describe('runAgentLoop streaming', () => {
     )
   })
 
-  it('returns a rewrite-specific dialog fallback for terse rewrite requests', async () => {
-    async function* emptyStopStream() {
-      yield {
-        choices: [{
-          delta: {},
-          finish_reason: 'stop',
-        }],
-        usage: null,
-      }
-    }
-
+  it('rewrites the summary deterministically for terse rewrite requests', async () => {
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
@@ -1108,11 +1098,37 @@ describe('runAgentLoop streaming', () => {
       },
     }
 
-    mockCreateChatCompletionStreamWithRetry
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
+    mockDispatchToolWithContext.mockResolvedValueOnce({
+      output: {
+        success: true,
+        rewritten_content: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+        section_data: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+        keywords_added: ['Power BI', 'SQL', 'ETL'],
+        changes_made: ['Resumo alinhado a BI senior'],
+      },
+      outputJson: JSON.stringify({
+        success: true,
+        rewritten_content: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+        section_data: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+        keywords_added: ['Power BI', 'SQL', 'ETL'],
+        changes_made: ['Resumo alinhado a BI senior'],
+      }),
+      persistedPatch: {
+        cvState: {
+          summary: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+        },
+        agentState: {
+          rewriteHistory: {
+            summary: {
+              rewrittenContent: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+              keywordsAdded: ['Power BI', 'SQL', 'ETL'],
+              changesMade: ['Resumo alinhado a BI senior'],
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        },
+      },
+    })
 
     const events = []
     for await (const event of runAgentLoop({
@@ -1131,28 +1147,19 @@ describe('runAgentLoop streaming', () => {
       .map((event) => event.content)
       .join('')
 
-    expect(finalText).toContain('Posso reescrever agora seu resumo profissional.')
-    expect(finalText).toContain('Ja tenho seu curriculo e a vaga como referencia.')
-    expect(finalText).not.toContain('Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.')
+    expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
+    expect(finalText).toContain('Aqui esta uma versao reescrita do seu resumo profissional:')
+    expect(finalText).toContain('Analista de BI com experiencia em Power BI, SQL e ETL')
+    expect(finalText).toContain('gere o arquivo')
     expect(mockAppendMessage).toHaveBeenNthCalledWith(
       2,
       'sess_123',
       'assistant',
-      expect.stringContaining('Posso reescrever agora seu resumo profissional.'),
+      expect.stringContaining('Aqui esta uma versao reescrita do seu resumo profissional:'),
     )
   })
 
-  it('logs the rewrite-specific fallback kind for terse rewrite requests', async () => {
-    async function* emptyStopStream() {
-      yield {
-        choices: [{
-          delta: {},
-          finish_reason: 'stop',
-        }],
-        usage: null,
-      }
-    }
-
+  it('does not log an empty fallback when deterministic rewrite succeeds', async () => {
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
@@ -1164,11 +1171,27 @@ describe('runAgentLoop streaming', () => {
       },
     }
 
-    mockCreateChatCompletionStreamWithRetry
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
+    mockDispatchToolWithContext.mockResolvedValueOnce({
+      output: {
+        success: true,
+        rewritten_content: 'Resumo reescrito com foco em BI, SQL, ETL e dashboards.',
+        section_data: 'Resumo reescrito com foco em BI, SQL, ETL e dashboards.',
+        keywords_added: ['BI', 'SQL', 'ETL'],
+        changes_made: ['Resumo alinhado'],
+      },
+      outputJson: JSON.stringify({
+        success: true,
+        rewritten_content: 'Resumo reescrito com foco em BI, SQL, ETL e dashboards.',
+        section_data: 'Resumo reescrito com foco em BI, SQL, ETL e dashboards.',
+        keywords_added: ['BI', 'SQL', 'ETL'],
+        changes_made: ['Resumo alinhado'],
+      }),
+      persistedPatch: {
+        cvState: {
+          summary: 'Resumo reescrito com foco em BI, SQL, ETL e dashboards.',
+        },
+      },
+    })
 
     for await (const _event of runAgentLoop({
       session,
@@ -1181,16 +1204,9 @@ describe('runAgentLoop streaming', () => {
       // consume stream
     }
 
-    const fallbackLog = mockLogWarn.mock.calls.find(([event]) => event === 'agent.response.empty_fallback')?.[1]
+    const fallbackLog = mockLogWarn.mock.calls.find(([event]) => event === 'agent.response.empty_fallback')
 
-    expect(fallbackLog).toMatchObject({
-      releaseId: 'rel_test_123',
-      releaseSource: 'vercel_commit',
-      model: 'test-dialog-model',
-      fallbackKind: 'dialog_rewrite_saved_target_summary',
-    })
-    expect(fallbackLog?.finalAssistantTextChars).toEqual(expect.any(Number))
-    expect(fallbackLog?.finalAssistantTextChars).toBeGreaterThan(0)
+    expect(fallbackLog).toBeUndefined()
   })
 
   it('logs release provenance and fallback kind when the dialog fallback is used', async () => {
@@ -1488,7 +1504,7 @@ describe('runAgentLoop streaming', () => {
     const events = []
     for await (const event of runAgentLoop({
       session,
-      userMessage: 'sim, pode gerar',
+      userMessage: 'Aceito',
       appUserId: 'usr_123',
       requestId: 'req_confirm',
       isNewSession: false,
@@ -1514,6 +1530,57 @@ describe('runAgentLoop streaming', () => {
       'assistant',
       'Seus arquivos ATS-otimizados estao prontos. Confira os downloads de DOCX e PDF acima.',
     )
+  })
+
+  it('requires the Aceito confirmation keyword before generating files', async () => {
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL e ETL.',
+      },
+    }
+
+    mockDispatchToolWithContext.mockImplementationOnce(async (_toolName, _toolInput, currentSession) => {
+      currentSession.phase = 'confirm'
+      return {
+        output: { success: true, phase: 'confirm' },
+        outputJson: JSON.stringify({ success: true, phase: 'confirm' }),
+        persistedPatch: {
+          phase: 'confirm',
+        },
+      }
+    })
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage: 'gere o arquivo',
+      appUserId: 'usr_123',
+      requestId: 'req_generation_confirmation',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => event.content)
+      .join('')
+
+    expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
+    expect(finalText).toBe('Confirme a geracao do seu curriculo otimizado ATS digitando: "Aceito". Se preferir, peca mais ajustes antes de gerar.')
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'patch',
+      patch: expect.objectContaining({
+        phase: 'confirm',
+      }),
+      phase: 'confirm',
+    }))
   })
 
   it('stops cleanly when the abort signal fires after the first chunk', async () => {

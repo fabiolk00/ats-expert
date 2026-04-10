@@ -11,9 +11,9 @@ type AgentToolName =
   | 'generate_file'
 
 export const AGENT_CONFIG = {
-  conversationMaxOutputTokens: 900,
-  conciseFallbackMaxTokens: 350,
-  rewriterMaxTokens: 1200,
+  conversationMaxOutputTokens: 1400,
+  conciseFallbackMaxTokens: 500,
+  rewriterMaxTokens: 1600,
   ocrMaxTokens: 2000,
   timeout: 45_000,
   maxToolIterations: 10,
@@ -83,7 +83,7 @@ export function resolveModelCombo(value: string | undefined): ModelComboName {
     return normalized as ModelComboName
   }
 
-  return 'combo_a'
+  return 'combo_c'
 }
 
 export const ACTIVE_MODEL_COMBO = resolveModelCombo(process.env.OPENAI_MODEL_COMBO)

@@ -303,7 +303,7 @@ describe('/api/agent SSE fallback coverage', () => {
     ])
   })
 
-  it('streams a rewrite-specific dialog fallback for terse requests like "reescreva"', async () => {
+  it('streams a deterministic summary rewrite for terse requests like "reescreva"', async () => {
     const session = buildDialogSession({
       id: 'sess_dialog_rewrite_real',
       agentState: {
@@ -312,9 +312,27 @@ describe('/api/agent SSE fallback coverage', () => {
     })
 
     vi.mocked(getSession).mockResolvedValue(session)
-    vi.mocked(createChatCompletionStreamWithRetry).mockImplementation(
-      async () => emptyStopStream() as never,
-    )
+    mockDispatchToolWithContext.mockResolvedValueOnce({
+      output: {
+        success: true,
+        rewritten_content: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
+        section_data: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
+        keywords_added: ['Power BI', 'SQL', 'ETL'],
+        changes_made: ['Resumo alinhado a BI senior'],
+      },
+      outputJson: JSON.stringify({
+        success: true,
+        rewritten_content: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
+        section_data: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
+        keywords_added: ['Power BI', 'SQL', 'ETL'],
+        changes_made: ['Resumo alinhado a BI senior'],
+      }),
+      persistedPatch: {
+        cvState: {
+          summary: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
+        },
+      },
+    })
 
     const response = await POST(new NextRequest('http://localhost/api/agent', {
       method: 'POST',
@@ -334,21 +352,69 @@ describe('/api/agent SSE fallback coverage', () => {
       .map((event) => String(event.content ?? ''))
       .join('')
 
-    expect(finalText).toContain('Posso reescrever agora seu resumo profissional.')
-    expect(finalText).toContain('Ja tenho seu curriculo e a vaga como referencia.')
-    expect(finalText).not.toContain('Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.')
+    expect(finalText).toContain('Aqui esta uma versao reescrita do seu resumo profissional:')
+    expect(finalText).toContain('Analista de BI com experiencia em Power BI, SQL e ETL')
+    expect(finalText).toContain('gere o arquivo')
     expect(events.at(-1)).toMatchObject({
       type: 'done',
       sessionId: session.id,
       phase: 'dialog',
       isNewSession: false,
     })
-    expect(createChatCompletionStreamWithRetry).toHaveBeenCalledTimes(5)
+    expect(createChatCompletionStreamWithRetry).not.toHaveBeenCalled()
     expect(vi.mocked(appendMessage).mock.calls.at(-1)).toEqual([
       session.id,
       'assistant',
-      expect.stringContaining('Posso reescrever agora seu resumo profissional.'),
+      expect.stringContaining('Aqui esta uma versao reescrita do seu resumo profissional:'),
     ])
+  })
+
+  it('streams the Aceito confirmation prompt before generating files', async () => {
+    const session = buildDialogSession({
+      id: 'sess_dialog_generation_confirm_real',
+      agentState: {
+        targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL e ETL.',
+      },
+    })
+
+    vi.mocked(getSession).mockResolvedValue(session)
+    mockDispatchToolWithContext.mockImplementationOnce(async (_toolName, _toolInput, currentSession) => {
+      currentSession.phase = 'confirm'
+      return {
+        output: { success: true, phase: 'confirm' },
+        outputJson: JSON.stringify({ success: true, phase: 'confirm' }),
+        persistedPatch: {
+          phase: 'confirm',
+        },
+      }
+    })
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: session.id,
+        message: 'gere o arquivo',
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+
+    const events = parseSseDataEvents(await response.text())
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => String(event.content ?? ''))
+      .join('')
+
+    expect(finalText).toBe('Confirme a geracao do seu curriculo otimizado ATS digitando: "Aceito". Se preferir, peca mais ajustes antes de gerar.')
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'patch',
+      phase: 'confirm',
+      patch: expect.objectContaining({
+        phase: 'confirm',
+      }),
+    }))
+    expect(createChatCompletionStreamWithRetry).not.toHaveBeenCalled()
   })
 
   it('streams the latest pasted vacancy acknowledgement through the real agent loop when dialog recovery fails', async () => {
