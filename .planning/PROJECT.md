@@ -19,11 +19,11 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - [x] User can generate DOCX and PDF resume artifacts from current resume state.
 - [x] Paid usage can be enforced through credit-backed session creation and Asaas billing flows.
 - [x] Paid users can track job applications inside the dashboard.
+- [x] Phase 1: Runtime, CI, and operator docs share the same provider contract and fail fast on missing critical configuration.
 
 ### Active
 
 - [ ] Core launch funnel is reliable across auth, profile setup, agent chat, target resume creation, and artifact download.
-- [ ] Deployment, staging, and CI use the same provider contract and fail fast on missing critical configuration.
 - [ ] Billing settlement and credit behavior are validated end-to-end before launch.
 - [ ] Production debugging is fast enough to diagnose failures in agent, billing, and profile import flows.
 
@@ -38,6 +38,7 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - The existing codebase is a Next.js 14 App Router monolith with Clerk auth, Supabase/Postgres persistence, Prisma migrations, OpenAI agent orchestration, Asaas billing, and LinkdAPI profile import.
 - README and current docs show the product already covers analysis, rewriting, target resume creation, file generation, and paid plans.
 - The highest-risk gaps are operational rather than breadth: no committed browser E2E suite, incomplete production-readiness checklist, CI/runtime env drift, and some fail-open configuration or logging behavior in fragile routes.
+- Phase 1 closed the env-contract drift and fail-open configuration gaps, so the next bottleneck is proving the core journey in the browser and then validating live billing behavior in staging.
 - Billing logic was recently updated to settlement-based processing, so launch work must preserve idempotency and credit correctness rather than redesign billing from scratch.
 - The agent, billing, and profile import paths are already feature-rich but live in large or sensitive modules, so safer verification and observability are higher leverage than adding more surface area first.
 
@@ -54,6 +55,7 @@ A job seeker can reliably turn their real profile and a target role into an hone
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Focus the next milestone on launch hardening for the core funnel | The product already has breadth; the main gaps are verification, deployment safety, and diagnosability | Pending |
+| Finish Phase 1 before adding browser coverage | Contract drift and fail-open provider behavior would have made browser failures noisy and misleading | Good |
 | Treat current shipped capabilities as the validated baseline | This is a brownfield repo with working auth, profile, agent, billing, and file-generation flows | Good |
 | Defer PDF profile upload until after core launch hardening | It is a visible onboarding gap, but less leverage than making the current funnel safe to ship | Pending |
 | Prefer additive hardening over architectural rewrites | Large sensitive modules exist today; verification and observability reduce risk faster than broad refactors | Good |
@@ -76,4 +78,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-09 after initialization*
+*Last updated: 2026-04-10 after Phase 1 completion*

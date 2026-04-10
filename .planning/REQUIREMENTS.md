@@ -7,9 +7,9 @@
 
 ### Runtime Contracts
 
-- [ ] **OPS-01**: Deployment and CI use the same env variable contract for OpenAI, Asaas, Upstash, and other core launch dependencies.
-- [ ] **OPS-02**: Missing required production credentials fail fast with actionable errors before silent runtime degradation.
-- [ ] **OPS-03**: Release and staging docs describe the current billing contract, migrations, and validation prerequisites without stale steps.
+- [x] **OPS-01**: Deployment and CI use the same env variable contract for OpenAI, Asaas, Upstash, and other core launch dependencies.
+- [x] **OPS-02**: Missing required production credentials fail fast with actionable errors before silent runtime degradation.
+- [x] **OPS-03**: Release and staging docs describe the current billing contract, migrations, and validation prerequisites without stale steps.
 
 ### Core Journey Verification
 
@@ -52,9 +52,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OPS-01 | Phase 1 | Pending |
-| OPS-02 | Phase 1 | Pending |
-| OPS-03 | Phase 1 | Pending |
+| OPS-01 | Phase 1 | Complete |
+| OPS-02 | Phase 1 | Complete |
+| OPS-03 | Phase 1 | Complete |
 | QA-01 | Phase 2 | Pending |
 | QA-02 | Phase 2 | Pending |
 | QA-03 | Phase 2 | Pending |
@@ -71,4 +71,4 @@
 
 ---
 *Requirements defined: 2026-04-09*
-*Last updated: 2026-04-09 after initial definition*
+*Last updated: 2026-04-10 after Phase 1 completion*

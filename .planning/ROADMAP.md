@@ -12,7 +12,7 @@ This roadmap turns an already feature-rich brownfield product into a launch-read
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Contract Alignment and Fail-Fast Guards** - Remove silent configuration drift and make release prerequisites explicit.
+- [x] **Phase 1: Contract Alignment and Fail-Fast Guards** - Remove silent configuration drift and make release prerequisites explicit. (completed 2026-04-10)
 - [ ] **Phase 2: Core Funnel Browser Verification** - Add browser-level coverage for the launch-critical user journey.
 - [ ] **Phase 3: Billing Settlement Validation** - Prove that staged billing behavior matches the current contract and stays idempotent.
 - [ ] **Phase 4: Observability and Launch Readiness** - Standardize diagnostics, error handling, and final launch checks.
@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01: Align env contracts in runtime code, CI, and related docs
 - [x] 01-02: Add or tighten fail-fast guards for critical provider configuration
-- [ ] 01-03: Refresh production-readiness and staging validation instructions
+- [x] 01-03: Refresh production-readiness and staging validation instructions
 
 ### Phase 2: Core Funnel Browser Verification
 **Goal**: Create automated browser confidence for the highest-value user journey from auth to resume artifact delivery.
@@ -86,7 +86,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Contract Alignment and Fail-Fast Guards | 2/3 | In Progress | - |
+| 1. Contract Alignment and Fail-Fast Guards | 3/3 | Complete    | 2026-04-10 |
 | 2. Core Funnel Browser Verification | 0/3 | Not started | - |
 | 3. Billing Settlement Validation | 0/3 | Not started | - |
 | 4. Observability and Launch Readiness | 0/3 | Not started | - |
