@@ -21,10 +21,10 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - [x] Paid users can track job applications inside the dashboard.
 - [x] Phase 1: Runtime, CI, and operator docs share the same provider contract and fail fast on missing critical configuration.
 - [x] Phase 2: Browser verification covers auth, manual profile setup, session creation, target outcome, preview readiness, artifact delivery, and CI gating for the core funnel.
+- [x] Phase 3: Billing settlement, replay safety, and dashboard credit totals are validated end-to-end with live evidence.
 
 ### Active
 
-- [ ] Billing settlement and credit behavior are validated end-to-end before launch.
 - [ ] Production debugging is fast enough to diagnose failures in agent, billing, and profile import flows.
 
 ### Out of Scope
@@ -38,8 +38,8 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - The existing codebase is a Next.js 14 App Router monolith with Clerk auth, Supabase/Postgres persistence, Prisma migrations, OpenAI agent orchestration, Asaas billing, and LinkdAPI profile import.
 - README and current docs show the product already covers analysis, rewriting, target resume creation, file generation, and paid plans.
 - The highest-risk gaps are operational rather than breadth: launch confidence now depends most on live billing validation and diagnosable failure handling.
-- Phase 1 closed the env-contract drift and fail-open configuration gaps, and Phase 2 closed the browser verification gap with a committed Playwright lane plus CI coverage.
-- Billing logic was recently updated to settlement-based processing, so launch work must preserve idempotency and credit correctness rather than redesign billing from scratch.
+- Phase 1 closed the env-contract drift and fail-open configuration gaps, Phase 2 closed the browser verification gap with a committed Playwright lane plus CI coverage, and Phase 3 added live billing evidence for settlement, replay, and display-balance correctness.
+- Billing logic was recently updated to settlement-based processing, and the live Phase 3 proof confirmed the current contract without requiring runtime billing remediation.
 - The agent, billing, and profile import paths are already feature-rich but live in large or sensitive modules, so safer verification and observability are higher leverage than adding more surface area first.
 
 ## Constraints
@@ -78,4 +78,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after Phase 2 completion*
+*Last updated: 2026-04-10 after Phase 3 completion*

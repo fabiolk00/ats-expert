@@ -19,9 +19,9 @@
 
 ### Billing Validation
 
-- [ ] **BILL-01**: Settlement-based one-time and subscription billing scenarios are validated end-to-end in staging.
-- [ ] **BILL-02**: Duplicate or replayed billing events are verified to remain idempotent and not double-grant credits.
-- [ ] **BILL-03**: Dashboard credit totals are verified to stay consistent with runtime balance during validated billing scenarios.
+- [x] **BILL-01**: Settlement-based one-time and subscription billing scenarios are validated end-to-end in staging.
+- [x] **BILL-02**: Duplicate or replayed billing events are verified to remain idempotent and not double-grant credits.
+- [x] **BILL-03**: Dashboard credit totals are verified to stay consistent with runtime balance during validated billing scenarios.
 
 ### Observability and Failure Handling
 
@@ -58,9 +58,9 @@
 | QA-01 | Phase 2 | Complete |
 | QA-02 | Phase 2 | Complete |
 | QA-03 | Phase 2 | Complete |
-| BILL-01 | Phase 3 | Pending |
-| BILL-02 | Phase 3 | Pending |
-| BILL-03 | Phase 3 | Pending |
+| BILL-01 | Phase 3 | Complete |
+| BILL-02 | Phase 3 | Complete |
+| BILL-03 | Phase 3 | Complete |
 | OBS-01 | Phase 4 | Pending |
 | OBS-02 | Phase 4 | Pending |
 
@@ -71,4 +71,4 @@
 
 ---
 *Requirements defined: 2026-04-09*
-*Last updated: 2026-04-10 after Phase 2 completion*
+*Last updated: 2026-04-10 after Phase 3 completion*

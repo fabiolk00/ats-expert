@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 3
-current_phase_name: Billing Settlement Validation
-current_plan: 03-02 blocked
-status: blocked
-stopped_at: Phase 3 blocked before live staging validation
-last_updated: "2026-04-10T05:58:00.000Z"
-last_activity: 2026-04-10 -- 03-01 complete, 03-02 blocked on staging prerequisites
+current_phase: 4
+current_phase_name: Observability and Launch Readiness
+current_plan: 04-01 ready
+status: ready
+stopped_at: Phase 4 ready to start
+last_updated: "2026-04-10T06:05:18.000Z"
+last_activity: 2026-04-10 -- Phase 3 completed with live billing evidence and no open runtime gaps
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 9
-  completed_plans: 7
-  percent: 78
+  completed_phases: 3
+  total_plans: 12
+  completed_plans: 9
+  percent: 75
 ---
 
 # Project State
@@ -24,32 +24,32 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Phase 3 - Billing Settlement Validation
+**Current focus:** Phase 4 - Observability and Launch Readiness
 
 ## Current Position
 
-Current Phase: 3
-Current Phase Name: Billing Settlement Validation
-Current Plan: 03-02 blocked
+Current Phase: 4
+Current Phase Name: Observability and Launch Readiness
+Current Plan: 04-01 ready
 Total Plans in Phase: 3
-Status: Blocked on staging prerequisites
-Last activity: 2026-04-10 -- 03-01 complete, 03-02 blocked on staging prerequisites
-Last Activity Description: Phase 3 execution started, 03-01 completed, live staging blocked by missing Bash, psql, .env.staging, and credentials
+Status: Ready to start next phase
+Last activity: 2026-04-10 -- Phase 3 completed with live billing evidence and no open runtime gaps
+Last Activity Description: Phase 3 is complete after live settlement validation on the approved production target, duplicate and reconcile proof, and a clean no-open-gaps closeout
 
-Phase: 3 (Billing Settlement Validation) - BLOCKED
-Plan: 03-02 blocked
-Status: Waiting for staging prerequisites
-Last activity: 2026-04-10 -- 03-01 complete, staging execution blocked
+Phase: 4 (Observability and Launch Readiness) - READY
+Plan: 04-01 ready
+Status: Waiting to start Phase 4
+Last activity: 2026-04-10 -- Phase 3 completed
 
-Progress: [########--] 78%
+Progress: [########--] 75%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7
-- Average duration: 23.2 min
-- Total execution time: 2.3 hours
+- Total plans completed: 9
+- Average duration: 32.0 min
+- Total execution time: 4.8 hours
 
 **By Phase:**
 
@@ -57,12 +57,12 @@ Progress: [########--] 78%
 |-------|-------|-------|----------|
 | 1 | 3 | 23 min | 7.7 min |
 | 2 | 3 | 116 min | 38.7 min |
-| 3 | 1 | 39 min | 39.0 min |
+| 3 | 3 | 149 min | 49.7 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-03 (6 min), 02-01 (44 min), 02-02 (54 min), 02-03 (18 min), 03-01 (39 min)
-- Trend: Increased with browser scope, then paused on live staging prerequisites
+- Last 5 plans: 02-02 (54 min), 02-03 (18 min), 03-01 (39 min), 03-02 (94 min), 03-03 (16 min)
+- Trend: Live-staging work dominated Phase 3, then closed cleanly without runtime billing remediation
 
 | Phase 1 P1 | 7 min | 2 tasks | 5 files |
 | Phase 1 P2 | 10 min | 2 tasks | 13 files |
@@ -71,6 +71,8 @@ Progress: [########--] 78%
 | Phase 2 P2 | 54 min | 3 tasks | 11 files |
 | Phase 2 P3 | 18 min | 2 tasks | 3 files |
 | Phase 3 P1 | 39 min | 2 tasks | 8 files |
+| Phase 3 P2 | 94 min | 3 tasks | 3 files |
+| Phase 3 P3 | 16 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -90,7 +92,8 @@ Recent decisions affecting current work:
 - [Phase 2]: Use a Chromium-first Playwright lane with a test-only signed auth seam instead of live Clerk flows. - This keeps browser verification deterministic locally and in CI.
 - [Phase 2]: Assert funnel outcomes through stable UI state hooks and same-origin mocked assets. - This makes failures actionable and resilient to copy changes while still proving preview and download behavior.
 - [Phase 3]: Use `npx tsx` in staging-helper docs because bare `tsx` is not reliably available on clean PowerShell PATHs. - This keeps the committed replay and snapshot commands copy-pasteable across local environments.
-- [Phase 3]: Keep both short and user-prefixed v1 `externalReference` shapes available in replay tooling until staging proves the canonical contract. - Docs and runtime still disagree, so Phase 3 must validate the live boundary before tightening implementation docs or checkout code.
+- [Phase 3]: Keep both short and user-prefixed v1 `externalReference` shapes available in replay tooling until live proof validates the contract. - The live matrix validated both shapes without requiring runtime billing changes.
+- [Phase 3]: Accept the Supabase-admin snapshot fallback when `psql` is unavailable. - This preserved the committed preflight and evidence flow on the Windows workstation that executed the live matrix.
 
 ### Pending Todos
 
@@ -98,13 +101,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Live settlement behavior still needs real staging execution in Phase 3.
 - Mocked browser runs still log caught billing metadata fetch failures from dashboard and auth layout server code.
 - Production diagnostics on fragile server routes are still inconsistent and deferred to Phase 4.
-- Phase 3 live staging validation is blocked on a workstation with Bash, psql, .env.staging, and staging credentials.
+- Final launch readiness still depends on Phase 4 observability and error-translation work.
 
 ## Session Continuity
 
-Last session: 2026-04-10T05:58:00.000Z
-Stopped at: Phase 3 blocked after 03-01 toolkit delivery
-Resume file: .planning/phases/03-billing-settlement-validation/03-STAGING-EVIDENCE.md
+Last session: 2026-04-10T06:05:18.000Z
+Stopped at: Phase 4 ready after Phase 3 completion
+Resume file: .planning/ROADMAP.md

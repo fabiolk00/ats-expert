@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Contract Alignment and Fail-Fast Guards** - Remove silent configuration drift and make release prerequisites explicit. (completed 2026-04-10)
 - [x] **Phase 2: Core Funnel Browser Verification** - Add browser-level coverage for the launch-critical user journey. (completed 2026-04-10)
-- [ ] **Phase 3: Billing Settlement Validation** - Prove that staged billing behavior matches the current contract and stays idempotent.
+- [x] **Phase 3: Billing Settlement Validation** - Prove that staged billing behavior matches the current contract and stays idempotent. (completed 2026-04-10)
 - [ ] **Phase 4: Observability and Launch Readiness** - Standardize diagnostics, error handling, and final launch checks.
 
 ## Phase Details
@@ -61,8 +61,8 @@ Plans:
 
 Plans:
 - [x] 03-01: Reconcile staging migrations, fixtures, and billing test setup
-- [ ] 03-02: Execute settlement validation scenarios and capture evidence
-- [ ] 03-03: Fix any billing inconsistencies surfaced during validation
+- [x] 03-02: Execute settlement validation scenarios and capture evidence
+- [x] 03-03: Fix any billing inconsistencies surfaced during validation
 
 ### Phase 4: Observability and Launch Readiness
 **Goal**: Make production failures diagnosable, improve user-safe error handling, and close the milestone with a launch decision.
@@ -88,5 +88,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Contract Alignment and Fail-Fast Guards | 3/3 | Complete    | 2026-04-10 |
 | 2. Core Funnel Browser Verification | 3/3 | Complete    | 2026-04-10 |
-| 3. Billing Settlement Validation | 1/3 | In Progress|  |
+| 3. Billing Settlement Validation | 3/3 | Complete    | 2026-04-10 |
 | 4. Observability and Launch Readiness | 0/3 | Not started | - |

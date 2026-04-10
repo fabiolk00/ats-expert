@@ -2,7 +2,7 @@
 phase: 03-billing-settlement-validation
 plan: "01"
 subsystem: billing-validation
-tags: [asaas, staging, webhook, psql, tooling, docs]
+tags: [asaas, staging, webhook, tooling, docs, supabase]
 requires: []
 provides:
   - Committed staging replay helper for named billing scenarios
@@ -13,7 +13,7 @@ tech-stack:
   added: []
   patterns:
     - Env-file-driven staging replay helper with dry-run support
-    - psql-backed JSON snapshot helper for billing evidence
+    - Snapshot helper with direct psql mode plus a Supabase-admin fallback for billing evidence
 key-files:
   created:
     - scripts/replay-staging-asaas.ts
@@ -26,7 +26,7 @@ key-files:
     - docs/billing/OPS_RUNBOOK.md
 key-decisions:
   - "Used fetch plus an env-file loader for webhook replay so the helper stays repo-local and does not depend on curl semantics outside the bash preflight."
-  - "Used psql-backed JSON snapshots instead of introducing a new database client dependency just for staging evidence capture."
+  - "Started with psql-backed JSON snapshots, then extended the helper with a Supabase-admin fallback so the committed flow still works on Windows workstations without psql."
   - "Kept the externalReference drift explicit in docs and helper flags instead of silently choosing one shape before staging proves it."
 patterns-established:
   - "Phase 3 operator flow starts with bash scripts/verify-staging.sh, then npx tsx helper commands for replay and snapshots."
@@ -51,14 +51,14 @@ completed: 2026-04-10
 ## Accomplishments
 
 - Added a named-scenario replay helper for Asaas webhook validation with dry-run and artifact output support.
-- Added a billing snapshot helper that captures `billing_checkouts`, `credit_accounts`, `user_quotas`, and `processed_events` through `psql`.
+- Added a billing snapshot helper that captures `billing_checkouts`, `credit_accounts`, `user_quotas`, and `processed_events` through either `psql` or the Supabase-admin fallback.
 - Aligned the staging setup guide, validation plan, scripts README, and billing ops runbook around the same Phase 3 operator flow.
 - Hardened `scripts/verify-staging.sh` with explicit shell-tool checks before any live staging attempt.
 
 ## Files Created/Modified
 
 - `scripts/replay-staging-asaas.ts` - Named replay helper for the seven committed Phase 3 scenarios.
-- `scripts/check-staging-billing-state.ts` - `psql`-backed JSON snapshot helper for billing evidence capture.
+- `scripts/check-staging-billing-state.ts` - JSON snapshot helper for billing evidence capture through direct `psql` or the Supabase-admin fallback.
 - `scripts/verify-staging.sh` - Adds required shell-tool checks and points operators to the committed Phase 3 helpers after preflight.
 - `scripts/README.md` - Documents the new replay and snapshot helpers plus their proof commands.
 - `docs/staging/SETUP_GUIDE.md` - Adds workstation prerequisites, helper-command validation, and a concrete evidence workflow.
@@ -69,7 +69,7 @@ completed: 2026-04-10
 
 - Used `npx tsx` in operator-facing docs because direct `tsx` is not reliably present on PowerShell PATH in this environment.
 - Left billing logic unchanged in Wave 1 and treated the checkout `externalReference` mismatch as a staging-validation question, not a speculative code fix.
-- Kept the snapshot helper dependency-free by shelling out to `psql`, which matches the existing staging preflight contract.
+- Kept the snapshot helper operator-friendly by preferring `psql` when available and falling back to the existing Supabase admin credentials when it is not.
 
 ## Deviations from Plan
 
@@ -79,7 +79,7 @@ completed: 2026-04-10
 ## Issues Encountered
 
 - This workstation does not expose `tsx` directly on PATH from PowerShell, so docs and verification commands were normalized to `npx tsx`.
-- Live staging prerequisites are still absent here (`bash`, `.env.staging`, and `psql`), which blocks Wave 2 even though the Wave 1 tooling is complete.
+- The original Wave 1 toolkit assumed `psql` would remain mandatory; it was later extended with a committed Supabase-admin fallback so the live matrix could run from this Windows workstation.
 
 ## Local Proof
 
@@ -93,14 +93,15 @@ completed: 2026-04-10
 External services and staging access are still required before live execution:
 
 - create `.env.staging` from `.env.staging.example`
-- run from Bash (WSL, Git Bash, or similar) with `psql` and a real `curl` binary available
-- provide staging API and database access plus Asaas sandbox credentials
+- run from Bash (WSL, Git Bash, or similar) with a real `curl` binary available
+- provide either `psql` + `STAGING_DB_URL` or `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
+- provide staging API and database access plus Asaas credentials
 
 ## Next Phase Readiness
 
-- Ready for Wave 2 from a machine that has staging access and the required shell tools.
+- Ready for Wave 2 from a machine that has staging access and either direct SQL or Supabase-admin database access.
 - The replay helper and snapshot helper are committed, documented, and locally verifiable.
-- Live validation is still blocked in this environment until `.env.staging`, Bash, and `psql` are available.
+- Live validation was later unblocked on this workstation by using Git Bash plus the committed Supabase-admin fallback.
 
 ---
 *Phase: 03-billing-settlement-validation*
