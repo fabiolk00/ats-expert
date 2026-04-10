@@ -183,4 +183,47 @@ describe('streaming prompt semantics regression', () => {
     expect(promptsBuilt[1]).toContain('Name: John Smith')
     expect(promptsBuilt[1]).toContain('Summary: Resumo')
   })
+
+  it('carries rewrite intent and rewrite focus into concise recovery prompts', async () => {
+    async function* emptyLengthStream() {
+      yield {
+        choices: [{
+          delta: {},
+          finish_reason: 'length',
+        }],
+        usage: null,
+      }
+    }
+
+    mockBuildSystemPrompt.mockReturnValue('system prompt')
+    mockCreateChatCompletionStreamWithRetry
+      .mockResolvedValueOnce(emptyLengthStream() as never)
+      .mockResolvedValueOnce(mockTextStream('Posso reescrever agora seu resumo profissional.') as never)
+
+    for await (const _event of runAgentLoop({
+      session: {
+        ...buildSession(),
+        agentState: {
+          parseStatus: 'parsed' as const,
+          rewriteHistory: {},
+          sourceResumeText: 'John Smith\nResumo\nExperiencia em BI, SQL e ETL.',
+          targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL e ETL.',
+        },
+      },
+      userMessage: 'reescreva meu resumo',
+      appUserId: 'usr_123',
+      requestId: 'req_rewrite_prompt_regression',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      // consume stream
+    }
+
+    const recoveryRequest = mockCreateChatCompletionStreamWithRetry.mock.calls[1]?.[1]
+    const recoveryPrompt = recoveryRequest?.messages?.[1]?.content
+
+    expect(typeof recoveryPrompt).toBe('string')
+    expect(recoveryPrompt).toContain('Latest message asks for rewrite: yes.')
+    expect(recoveryPrompt).toContain('Preferred rewrite focus: summary.')
+  })
 })

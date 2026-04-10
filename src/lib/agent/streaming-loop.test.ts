@@ -1069,6 +1069,57 @@ describe('runAgentLoop streaming', () => {
     )
   })
 
+  it('logs the rewrite-specific fallback kind for terse rewrite requests', async () => {
+    async function* emptyStopStream() {
+      yield {
+        choices: [{
+          delta: {},
+          finish_reason: 'stop',
+        }],
+        usage: null,
+      }
+    }
+
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {} as Record<string, never>,
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL e ETL.',
+      },
+    }
+
+    mockCreateChatCompletionStreamWithRetry
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+
+    for await (const _event of runAgentLoop({
+      session,
+      userMessage: 'reescreva',
+      appUserId: 'usr_123',
+      requestId: 'req_dialog_rewrite_fallback_log',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      // consume stream
+    }
+
+    const fallbackLog = mockLogWarn.mock.calls.find(([event]) => event === 'agent.response.empty_fallback')?.[1]
+
+    expect(fallbackLog).toMatchObject({
+      releaseId: 'rel_test_123',
+      releaseSource: 'vercel_commit',
+      model: 'test-dialog-model',
+      fallbackKind: 'dialog_rewrite_saved_target_summary',
+    })
+    expect(fallbackLog?.finalAssistantTextChars).toEqual(expect.any(Number))
+    expect(fallbackLog?.finalAssistantTextChars).toBeGreaterThan(0)
+  })
+
   it('logs release provenance and fallback kind when the dialog fallback is used', async () => {
     async function* emptyStopStream() {
       yield {
