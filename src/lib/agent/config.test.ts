@@ -82,7 +82,7 @@ describe('AGENT_CONFIG', () => {
       },
       combo_c: {
         agent: 'gpt-5-mini',
-        structured: 'gpt-5-mini',
+        structured: 'gpt-5.4-mini',
         vision: DEFAULT_OPENAI_MODEL,
       },
     })
@@ -176,7 +176,7 @@ describe('AGENT_CONFIG', () => {
     expect(resolveModelCombo(undefined)).toBe('combo_c')
     expect(MODEL_COMBINATIONS.combo_c).toEqual({
       agent: 'gpt-5-mini',
-      structured: 'gpt-5-mini',
+      structured: 'gpt-5.4-mini',
       vision: DEFAULT_OPENAI_MODEL,
     })
   })

@@ -71,6 +71,7 @@ export const MODEL_COMBINATIONS = {
   }),
   combo_c: createModelConfig({
     agent: 'gpt-5-mini',
+    structured: 'gpt-5.4-mini',
   }),
 } as const
 

@@ -10,6 +10,7 @@ import { appendMessage, applyToolPatchWithVersion, getMessages } from '@/lib/db/
 import { createChatCompletionStreamWithRetry } from '@/lib/openai/chat'
 import { openai } from '@/lib/openai/client'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
+import { deriveTargetResumeCvState } from '@/lib/resume-targets/create-target-resume'
 import { getAgentReleaseMetadata, type AgentReleaseMetadata } from '@/lib/runtime/release-metadata'
 import type {
   AgentDoneChunk,

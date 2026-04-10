@@ -1480,9 +1480,8 @@ describe('runAgentLoop streaming', () => {
       'score_ats',
       'analyze_gap',
       'set_phase',
-      'create_target_resume',
     ])
-    expect(mockDispatchToolWithContext.mock.calls.some((call) => call[0] === 'create_target_resume')).toBe(true)
+    expect(mockDeriveTargetResumeCvState).toHaveBeenCalledTimes(1)
     expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
     expect(events.some((event) => event.type === 'toolStart')).toBe(false)
     expect(
