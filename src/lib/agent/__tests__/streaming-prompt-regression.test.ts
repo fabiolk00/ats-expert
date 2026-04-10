@@ -55,9 +55,13 @@ vi.mock('@/lib/agent/config', () => ({
   },
   MODEL_CONFIG: {
     agentModel: 'test-model',
+    dialogModel: 'test-dialog-model',
     structuredModel: 'test-model',
     visionModel: 'test-model',
   },
+  resolveAgentModelForPhase: vi.fn((phase: string) =>
+    phase === 'dialog' || phase === 'confirm' ? 'test-dialog-model' : 'test-model',
+  ),
 }))
 
 vi.mock('@/lib/openai/client', () => ({

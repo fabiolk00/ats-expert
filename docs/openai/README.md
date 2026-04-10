@@ -13,8 +13,11 @@ updated: 2026-04-01
 Use this folder for the canonical OpenAI runtime, quality, and migration documentation.
 
 Current runtime note:
-- the live agent runtime defaults to `gpt-5-nano`
-- `combo_a` / `combo_b` / `combo_c` are the active agent bakeoff labels
+- `OPENAI_MODEL_COMBO` selects the baseline agent combo
+- `OPENAI_AGENT_MODEL` or `OPENAI_MODEL` override the agent turn model directly
+- dialog and confirm turns follow the resolved agent model unless `OPENAI_DIALOG_MODEL` is explicitly set
+- `OPENAI_DIALOG_MODEL` is an override, not a separate default baseline
+- `combo_a` / `combo_b` / `combo_c` remain the active agent bakeoff labels
 - historical quality-gate docs remain in this folder for auditability
 
 - [MODEL_SELECTION_MATRIX.md](./MODEL_SELECTION_MATRIX.md) - evaluation framework and historical matrix

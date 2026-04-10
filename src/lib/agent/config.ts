@@ -106,10 +106,16 @@ export function resolveOpenAIModel(
 
 const ACTIVE_COMBO_CONFIG = MODEL_COMBINATIONS[ACTIVE_MODEL_COMBO]
 
+const ACTIVE_AGENT_MODEL = resolveOpenAIModel(
+  process.env.OPENAI_AGENT_MODEL ?? process.env.OPENAI_MODEL,
+  ACTIVE_COMBO_CONFIG.agent,
+)
+
 export const MODEL_CONFIG = {
-  agentModel: resolveOpenAIModel(
-    process.env.OPENAI_AGENT_MODEL ?? process.env.OPENAI_MODEL,
-    ACTIVE_COMBO_CONFIG.agent,
+  agentModel: ACTIVE_AGENT_MODEL,
+  dialogModel: resolveDialogModel(
+    ACTIVE_AGENT_MODEL,
+    process.env.OPENAI_DIALOG_MODEL,
   ),
   structuredModel: resolveOpenAIModel(
     process.env.OPENAI_STRUCTURED_MODEL,
@@ -122,6 +128,21 @@ export const MODEL_CONFIG = {
 } as const
 
 export const ACTIVE_OPENAI_MODEL = MODEL_CONFIG.agentModel
+
+export function resolveDialogModel(
+  agentModel: OpenAIModelName,
+  value: string | undefined,
+): OpenAIModelName {
+  return resolveOpenAIModel(value, agentModel)
+}
+
+export function resolveAgentModelForPhase(phase: Phase): OpenAIModelName {
+  if (phase === 'dialog' || phase === 'confirm') {
+    return MODEL_CONFIG.dialogModel
+  }
+
+  return MODEL_CONFIG.agentModel
+}
 
 type AgentConfig = typeof AGENT_CONFIG
 type ModelConfig = typeof MODEL_CONFIG

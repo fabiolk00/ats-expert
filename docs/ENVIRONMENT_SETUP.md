@@ -42,10 +42,21 @@ CurrIA treats these names as canonical for local dev, CI, preview, staging, and 
 Optional variables:
 
 - `OPENAI_BASE_URL`
+- `OPENAI_MODEL`
+- `OPENAI_AGENT_MODEL`
+- `OPENAI_MODEL_COMBO`
+- `OPENAI_DIALOG_MODEL`
 - `ASAAS_SANDBOX`
 - `LINKDAPI_API_KEY`
 
 Do not use legacy provider aliases. CI and runtime are intentionally aligned on the canonical names above.
+
+OpenAI model selection works as follows:
+
+- `OPENAI_MODEL_COMBO` selects the baseline agent combo.
+- `OPENAI_MODEL` and `OPENAI_AGENT_MODEL` override the agent turn model directly.
+- `OPENAI_DIALOG_MODEL` is an explicit override for dialog and confirm turns only.
+- When `OPENAI_DIALOG_MODEL` is unset, dialog and confirm turns follow the resolved agent model.
 
 ## Local Setup
 
