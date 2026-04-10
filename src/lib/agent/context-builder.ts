@@ -42,22 +42,21 @@ Goal: receive the user's resume and move into analysis quickly.
 - Ask at most one question.`,
 
   analysis: `## Current phase: ANALYSIS
-Goal: explain the current ATS readiness and, if available, target-job fit.
+Goal: give a short ATS read and move to dialog.
 
-- If an ATS score is already available in context, present it instead of calling \`score_ats\` again.
-- If a target job description and structured gap analysis are already available, use them instead of calling \`analyze_gap\` again.
+- Use any ATS score, fit summary, or gap analysis already in context instead of calling tools again.
 - If the current turn includes a job description and gap analysis is missing, call \`analyze_gap\`.
-- Present the score with one strength and the top 2-3 issues.
-- After presenting the analysis, call \`set_phase\` with "dialog".`,
+- Answer in under 120 words.
+- Give 1 strength, up to 3 issues, and the next step.
+- After that, call \`set_phase\` with "dialog".`,
 
   dialog: `## Current phase: DIALOG
-Goal: improve the resume through targeted, honest iteration.
+Goal: improve the resume through targeted edits.
 
-- If a target job description is available and structured gap analysis already exists, use it instead of re-running the tool.
-- Start by judging fit honestly: strong-fit, partial-fit, or weak-fit, with brief reasons.
-- Ask at most two targeted follow-up questions.
-- After each answer, call \`rewrite_section\` or \`apply_gap_action\` only when needed.
-- Show the rewritten content and ask for feedback.
+- Use existing score, fit, and gap data instead of repeating it.
+- Start with a brief fit judgment.
+- Ask at most one targeted follow-up question.
+- Rewrite only when needed and keep the response concise.
 - When the user says the resume looks good, call \`set_phase\` with "confirm".`,
 
   confirm: `## Current phase: CONFIRM
@@ -93,9 +92,7 @@ type PromptSectionKey =
   | 'cvState'
   | 'sourceResumeText'
   | 'targetJob'
-  | 'atsScore'
-  | 'gapAnalysis'
-  | 'targetFit'
+  | 'analysisSnapshot'
   | 'rewriteHistory'
   | 'generatedOutput'
 
@@ -142,6 +139,74 @@ ${cvStateJson}
 </user_resume_data>`
 }
 
+function formatExperiencePreview(entry: Session['cvState']['experience'][number]): string {
+  const location = entry.location?.trim()
+  const period = [entry.startDate, entry.endDate].filter(Boolean).join(' - ')
+  const bullets = entry.bullets
+    .slice(0, 1)
+    .map((bullet) => `  - ${truncate(bullet.trim(), 140)}`)
+    .join('\n')
+
+  return [
+    `- ${entry.title.trim()} at ${entry.company.trim()}${location ? `, ${location}` : ''}${period ? ` (${period})` : ''}`,
+    bullets,
+  ].filter(Boolean).join('\n')
+}
+
+function buildCompactCvStateContext(session: Session, maxChars: number): string {
+  const lines: string[] = []
+
+  if (session.cvState.fullName.trim()) {
+    lines.push(`Name: ${session.cvState.fullName.trim()}`)
+  }
+
+  const contactLine = [
+    session.cvState.email?.trim(),
+    session.cvState.phone?.trim(),
+    session.cvState.linkedin?.trim(),
+    session.cvState.location?.trim(),
+  ].filter(Boolean).join(' | ')
+
+  if (contactLine) {
+    lines.push(`Contact: ${contactLine}`)
+  }
+
+  if (session.cvState.summary.trim()) {
+    lines.push(`Summary: ${truncate(session.cvState.summary.trim(), 240)}`)
+  }
+
+  if (session.cvState.skills.length > 0) {
+    lines.push(`Skills: ${session.cvState.skills.slice(0, 8).join(', ')}`)
+  }
+
+  if (session.cvState.experience.length > 0) {
+    lines.push('Experience:')
+    for (const experience of session.cvState.experience.slice(0, 3)) {
+      lines.push(formatExperiencePreview(experience))
+    }
+  }
+
+  if (session.cvState.education.length > 0) {
+    lines.push('Education:')
+    for (const education of session.cvState.education.slice(0, 2)) {
+      const gpa = education.gpa?.trim() ? `, GPA ${education.gpa.trim()}` : ''
+      lines.push(`- ${education.degree.trim()} at ${education.institution.trim()} (${education.year.trim()}${gpa})`)
+    }
+  }
+
+  if ((session.cvState.certifications?.length ?? 0) > 0) {
+    lines.push('Certifications:')
+    for (const certification of session.cvState.certifications?.slice(0, 2) ?? []) {
+      const year = certification.year?.trim() ? ` (${certification.year.trim()})` : ''
+      lines.push(`- ${certification.name.trim()} by ${certification.issuer.trim()}${year}`)
+    }
+  }
+
+  return `<user_resume_data>
+${truncate(lines.join('\n'), maxChars)}
+</user_resume_data>`
+}
+
 function shouldIncludeSourceResumeText(session: Session): boolean {
   if (!session.agentState.sourceResumeText?.trim()) {
     return false
@@ -174,54 +239,43 @@ ${truncate(session.agentState.targetJobDescription, maxChars)}
 </target_job_description>`
 }
 
-function buildScoreContext(session: Session): string {
-  if (!session.atsScore) {
-    return ''
+function buildAnalysisSnapshotContext(session: Session): string {
+  const lines: string[] = []
+
+  if (session.atsScore) {
+    const topIssue = session.atsScore.issues[0]
+    const topSuggestion = session.atsScore.suggestions[0]
+
+    lines.push(`ATS score: ${session.atsScore.total}/100.`)
+    lines.push(
+      `Breakdown: format ${session.atsScore.breakdown.format}, structure ${session.atsScore.breakdown.structure}, keywords ${session.atsScore.breakdown.keywords}, contact ${session.atsScore.breakdown.contact}, impact ${session.atsScore.breakdown.impact}.`,
+    )
+
+    if (topIssue) {
+      lines.push(`Top issue: ${topIssue.section} - ${truncate(topIssue.message, 160)}`)
+    }
+
+    if (topSuggestion) {
+      lines.push(`Top suggestion: ${truncate(topSuggestion, 160)}`)
+    }
   }
 
-  const topIssues = session.atsScore.issues
-    .slice(0, 3)
-    .map((issue) => `- ${issue.section}: ${issue.message}`)
-    .join('\n')
-  const topSuggestions = session.atsScore.suggestions
-    .slice(0, 2)
-    .map((item) => `- ${item}`)
-    .join('\n')
+  if (session.agentState.gapAnalysis) {
+    const { result } = session.agentState.gapAnalysis
+    const missingSkills = safeJoin(result.missingSkills, 'none', 3)
+    const weakAreas = safeJoin(result.weakAreas, 'none', 3)
+    const suggestions = safeJoin(result.improvementSuggestions, 'none', 2)
 
-  return [
-    `Overall ATS score: ${session.atsScore.total}/100.`,
-    `Breakdown: format ${session.atsScore.breakdown.format}, structure ${session.atsScore.breakdown.structure}, keywords ${session.atsScore.breakdown.keywords}, contact ${session.atsScore.breakdown.contact}, impact ${session.atsScore.breakdown.impact}.`,
-    topIssues ? `Top issues:\n${topIssues}` : '',
-    topSuggestions ? `Top suggestions:\n${topSuggestions}` : '',
-  ].filter(Boolean).join('\n')
-}
-
-function buildGapAnalysisContext(session: Session): string {
-  if (!session.agentState.gapAnalysis) {
-    return ''
+    lines.push(`Gap match: ${result.matchScore}/100.`)
+    lines.push(`Missing skills: ${missingSkills}.`)
+    lines.push(`Weak areas: ${weakAreas}.`)
+    lines.push(`Next improvements: ${suggestions}.`)
+  } else if (session.agentState.targetFitAssessment) {
+    lines.push(`Fit: ${session.agentState.targetFitAssessment.level}. ${truncate(session.agentState.targetFitAssessment.summary, 220)}`)
+    lines.push(`Reasons: ${safeJoin(session.agentState.targetFitAssessment.reasons, 'none', 2)}.`)
   }
 
-  const { result, analyzedAt } = session.agentState.gapAnalysis
-
-  return [
-    `Match score: ${result.matchScore}/100.`,
-    `Missing skills: ${safeJoin(result.missingSkills, 'none', 4)}.`,
-    `Weak areas: ${safeJoin(result.weakAreas, 'none', 4)}.`,
-    `Improvement suggestions: ${safeJoin(result.improvementSuggestions, 'none', 3)}.`,
-    `Analyzed at: ${analyzedAt}.`,
-  ].join('\n')
-}
-
-function buildTargetFitContext(session: Session): string {
-  if (!session.agentState.targetFitAssessment) {
-    return ''
-  }
-
-  return [
-    `Fit level: ${session.agentState.targetFitAssessment.level}.`,
-    session.agentState.targetFitAssessment.summary,
-    `Reasons: ${safeJoin(session.agentState.targetFitAssessment.reasons, 'none', 3)}.`,
-  ].join('\n')
+  return lines.length > 0 ? lines.join('\n') : ''
 }
 
 function buildRewriteHistoryContext(session: Session): string {
@@ -283,31 +337,25 @@ function getPhaseSections(session: Session): PromptSection[] {
       break
     case 'analysis':
       sections.push(
-        { key: 'cvState', heading: '## Canonical Resume State', body: buildCvStateContext(session, 2_500), minChars: 700 },
-        { key: 'sourceResumeText', heading: '## Extracted Resume Text', body: buildResumeTextContext(session, 1_000), minChars: 250 },
-        { key: 'targetJob', heading: '## Target Job Description', body: buildTargetJobContext(session, 1_400), minChars: 250 },
-        { key: 'atsScore', heading: '## ATS Score Summary', body: buildScoreContext(session), minChars: 120 },
-        { key: 'gapAnalysis', heading: '## Gap Analysis Summary', body: buildGapAnalysisContext(session), minChars: 120 },
-        { key: 'targetFit', heading: '## Target Fit Summary', body: buildTargetFitContext(session), minChars: 100 },
+        { key: 'cvState', heading: '## Canonical Resume State', body: buildCompactCvStateContext(session, 1_700), minChars: 500 },
+        { key: 'sourceResumeText', heading: '## Extracted Resume Text', body: buildResumeTextContext(session, 900), minChars: 180 },
+        { key: 'targetJob', heading: '## Target Job Description', body: buildTargetJobContext(session, 950), minChars: 220 },
+        { key: 'analysisSnapshot', heading: '## Analysis Snapshot', body: buildAnalysisSnapshotContext(session), minChars: 160 },
       )
       break
     case 'dialog':
       sections.push(
-        { key: 'cvState', heading: '## Canonical Resume State', body: buildCvStateContext(session, 2_800), minChars: 900 },
-        { key: 'targetJob', heading: '## Target Job Description', body: buildTargetJobContext(session, 1_100), minChars: 250 },
-        { key: 'atsScore', heading: '## ATS Score Summary', body: buildScoreContext(session), minChars: 120 },
-        { key: 'gapAnalysis', heading: '## Gap Analysis Summary', body: buildGapAnalysisContext(session), minChars: 140 },
-        { key: 'targetFit', heading: '## Target Fit Summary', body: buildTargetFitContext(session), minChars: 100 },
+        { key: 'cvState', heading: '## Canonical Resume State', body: buildCompactCvStateContext(session, 1_900), minChars: 600 },
+        { key: 'targetJob', heading: '## Target Job Description', body: buildTargetJobContext(session, 900), minChars: 220 },
+        { key: 'analysisSnapshot', heading: '## Analysis Snapshot', body: buildAnalysisSnapshotContext(session), minChars: 160 },
         { key: 'rewriteHistory', heading: '## Recent Rewrite History', body: buildRewriteHistoryContext(session), minChars: 100 },
       )
       break
     case 'confirm':
       sections.push(
-        { key: 'cvState', heading: '## Canonical Resume State', body: buildCvStateContext(session, 2_500), minChars: 900 },
+        { key: 'cvState', heading: '## Canonical Resume State', body: buildCompactCvStateContext(session, 1_900), minChars: 600 },
         { key: 'targetJob', heading: '## Target Job Description', body: buildTargetJobContext(session, 850), minChars: 220 },
-        { key: 'atsScore', heading: '## ATS Score Summary', body: buildScoreContext(session), minChars: 120 },
-        { key: 'gapAnalysis', heading: '## Gap Analysis Summary', body: buildGapAnalysisContext(session), minChars: 120 },
-        { key: 'targetFit', heading: '## Target Fit Summary', body: buildTargetFitContext(session), minChars: 100 },
+        { key: 'analysisSnapshot', heading: '## Analysis Snapshot', body: buildAnalysisSnapshotContext(session), minChars: 160 },
         { key: 'rewriteHistory', heading: '## Recent Rewrite History', body: buildRewriteHistoryContext(session), minChars: 100 },
       )
       break
@@ -335,9 +383,7 @@ function fitSectionsToBudget(session: Session, sections: PromptSection[], static
   const orderedKeys: PromptSectionKey[] = [
     'sourceResumeText',
     'rewriteHistory',
-    'targetFit',
-    'gapAnalysis',
-    'atsScore',
+    'analysisSnapshot',
     'targetJob',
     'cvState',
     'preloadedResume',

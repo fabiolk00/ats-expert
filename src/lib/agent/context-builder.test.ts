@@ -128,17 +128,19 @@ describe('buildSystemPrompt', () => {
 
     expect(prompt.length).toBeLessThanOrEqual(AGENT_CONFIG.maxSystemPromptCharsByPhase.analysis)
     expect(prompt).toContain('## Current phase: ANALYSIS')
-    expect(prompt).toContain('Overall ATS score: 80/100.')
-    expect(prompt).toContain('Match score: 76/100.')
-    expect(prompt).toContain('Fit level: partial.')
+    expect(prompt).toContain('## Analysis Snapshot')
+    expect(prompt).toContain('ATS score: 80/100.')
+    expect(prompt).toContain('Gap match: 76/100.')
+    expect(prompt).toContain('Missing skills: PostgreSQL.')
     expect(prompt).toContain('<user_resume_data>')
   })
 
-  it('does not include extracted resume text after structured state already exists', () => {
+  it('does not include raw resume text after structured state already exists', () => {
     const prompt = buildSystemPrompt(buildSession())
 
     expect(prompt).not.toContain('<user_resume_text>')
-    expect(prompt).toContain('"summary": "Backend engineer"')
+    expect(prompt).toContain('Summary: Backend engineer')
+    expect(prompt).toContain('Skills: TypeScript')
   })
 
   it('keeps extracted resume text in intake while the parsed upload is still the best source', () => {
@@ -177,6 +179,7 @@ describe('buildSystemPrompt', () => {
     }))
 
     expect(prompt.length).toBeLessThanOrEqual(AGENT_CONFIG.maxSystemPromptCharsByPhase.dialog)
+    expect(prompt).toContain('## Analysis Snapshot')
     expect(prompt).toContain('## Recent Rewrite History')
     expect(prompt).toContain('summary: keywords: TypeScript, PostgreSQL')
     expect(prompt).not.toContain('<user_resume_text>')

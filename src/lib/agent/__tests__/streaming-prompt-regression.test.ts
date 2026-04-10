@@ -176,6 +176,7 @@ describe('streaming prompt semantics regression', () => {
     expect(promptsBuilt[0]).toContain('Do not ask the user to upload a resume. Do not call parse_file.')
     expect(promptsBuilt[1]).not.toContain('Do not ask the user to upload a resume. Do not call parse_file.')
     expect(promptsBuilt[1]).not.toContain('Freshly parsed resume text')
-    expect(promptsBuilt[1]).toContain('"fullName": "John Smith"')
+    expect(promptsBuilt[1]).toContain('Name: John Smith')
+    expect(promptsBuilt[1]).toContain('Summary: Resumo')
   })
 })
