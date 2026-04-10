@@ -12,3 +12,21 @@ export function getSafeRedirectPath(
 
   return candidate
 }
+
+export function buildClerkContinuationPath(
+  redirectTo: string,
+  status?: string | null,
+): string {
+  const params = new URLSearchParams()
+
+  if (redirectTo) {
+    params.set('redirect_to', redirectTo)
+  }
+
+  if (status) {
+    params.set('status', status)
+  }
+
+  const query = params.toString()
+  return query ? `/login/continue?${query}` : '/login/continue'
+}

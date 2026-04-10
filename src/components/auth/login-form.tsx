@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { getClerkErrorMessage, isSessionAlreadyExistsError } from "@/lib/auth/clerk-errors"
-import { getSafeRedirectPath } from "@/lib/auth/redirects"
+import { buildClerkContinuationPath, getSafeRedirectPath } from "@/lib/auth/redirects"
 import { navigateToUrl } from "@/lib/navigation/external"
 
 const schema = z.object({
@@ -27,12 +27,20 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+const CLERK_CONTINUATION_STATUSES = new Set([
+  "needs_first_factor",
+  "needs_second_factor",
+  "needs_new_password",
+  "needs_identifier",
+  "abandoned",
+])
+
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [authReadySlow, setAuthReadySlow] = useState(false)
   const [authReadyStalled, setAuthReadyStalled] = useState(false)
   const { isSignedIn } = useAuth()
-  const { signIn, isLoaded } = useSignIn()
+  const { signIn, isLoaded, setActive } = useSignIn()
   const searchParams = useSearchParams()
   const redirectTo = getSafeRedirectPath(searchParams.get("redirect_to"))
   const {
@@ -112,8 +120,21 @@ export default function LoginForm() {
     try {
       const result = await signIn.create({ identifier: data.email, password: data.password })
       if (result.status === "complete") {
+        if (result.createdSessionId) {
+          await setActive({ session: result.createdSessionId })
+        }
         navigateToUrl(redirectTo)
+        return
       }
+
+      if (typeof result.status === "string" && CLERK_CONTINUATION_STATUSES.has(result.status)) {
+        navigateToUrl(buildClerkContinuationPath(redirectTo, result.status))
+        return
+      }
+
+      setError("root", {
+        message: "Seu login precisa de uma etapa adicional que nao foi concluida nesta tela. Tente continuar pelo fluxo seguro do Clerk.",
+      })
     } catch (error: unknown) {
       if (isSessionAlreadyExistsError(error)) {
         navigateToUrl(redirectTo)

@@ -6,8 +6,9 @@ import React from "react"
 
 import LoginForm from "./login-form"
 
-const { mockSignIn, mockNavigateToUrl, mockIsSignedIn, mockSearchParamsGet, mockIsLoaded } = vi.hoisted(() => ({
+const { mockSignIn, mockSetActive, mockNavigateToUrl, mockIsSignedIn, mockSearchParamsGet, mockIsLoaded } = vi.hoisted(() => ({
   mockSignIn: vi.fn(),
+  mockSetActive: vi.fn(),
   mockNavigateToUrl: vi.fn(),
   mockIsSignedIn: vi.fn(),
   mockSearchParamsGet: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock("@clerk/nextjs", () => ({
       create: mockSignIn,
       authenticateWithRedirect: vi.fn(),
     },
+    setActive: mockSetActive,
   }),
 }))
 
@@ -47,6 +49,7 @@ describe("LoginForm", () => {
     mockIsSignedIn.mockReturnValue(false)
     mockSearchParamsGet.mockReturnValue(null)
     mockIsLoaded.mockReturnValue(true)
+    mockSetActive.mockResolvedValue(undefined)
   })
 
   it("renders the login form", () => {
@@ -66,7 +69,7 @@ describe("LoginForm", () => {
   })
 
   it("submits form when valid data is entered", async () => {
-    mockSignIn.mockResolvedValue({ status: "complete" })
+    mockSignIn.mockResolvedValue({ status: "complete", createdSessionId: "sess_123" })
     const user = userEvent.setup()
 
     render(<LoginForm />)
@@ -87,6 +90,7 @@ describe("LoginForm", () => {
     })
 
     await waitFor(() => {
+      expect(mockSetActive).toHaveBeenCalledWith({ session: expect.any(String) })
       expect(mockNavigateToUrl).toHaveBeenCalledWith("/dashboard")
     })
   })
@@ -95,7 +99,7 @@ describe("LoginForm", () => {
     mockSearchParamsGet.mockImplementation((key: string) =>
       key === "redirect_to" ? "/pricing?checkoutPlan=monthly" : null,
     )
-    mockSignIn.mockResolvedValue({ status: "complete" })
+    mockSignIn.mockResolvedValue({ status: "complete", createdSessionId: "sess_123" })
     const user = userEvent.setup()
 
     render(<LoginForm />)
@@ -105,7 +109,28 @@ describe("LoginForm", () => {
     await user.click(screen.getByRole("button", { name: /^entrar$/i }))
 
     await waitFor(() => {
+      expect(mockSetActive).toHaveBeenCalledWith({ session: expect.any(String) })
       expect(mockNavigateToUrl).toHaveBeenCalledWith("/pricing?checkoutPlan=monthly")
+    })
+  })
+
+  it("continues in the Clerk hosted flow when the sign in attempt needs another factor", async () => {
+    mockSearchParamsGet.mockImplementation((key: string) =>
+      key === "redirect_to" ? "/pricing?checkoutPlan=monthly" : null,
+    )
+    mockSignIn.mockResolvedValue({ status: "needs_second_factor" })
+    const user = userEvent.setup()
+
+    render(<LoginForm />)
+
+    await user.type(screen.getByLabelText("E-mail"), "test@example.com")
+    await user.type(screen.getByLabelText("Senha"), "password123")
+    await user.click(screen.getByRole("button", { name: /^entrar$/i }))
+
+    await waitFor(() => {
+      expect(mockNavigateToUrl).toHaveBeenCalledWith(
+        "/login/continue?redirect_to=%2Fpricing%3FcheckoutPlan%3Dmonthly&status=needs_second_factor",
+      )
     })
   })
 
