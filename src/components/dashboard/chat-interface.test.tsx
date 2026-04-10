@@ -70,6 +70,7 @@ function sseEvent(data: unknown): string {
       return {
         type: "error",
         error: legacy.error,
+        code: legacy.code,
         action: legacy.action,
         messageCount: legacy.messageCount,
         maxMessages: legacy.maxMessages,
@@ -320,6 +321,47 @@ describe("ChatInterface", () => {
 
     await waitFor(() => {
       expect(textarea).toBeDisabled()
+    })
+  })
+
+  it("does not surface recoverable LLM_INVALID_OUTPUT stream errors in the final assistant bubble", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        return new Response(
+          createSSEStream([
+            { delta: "Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo. " },
+            {
+              error: "Invalid gap analysis payload.",
+              code: "LLM_INVALID_OUTPUT",
+            },
+            {
+              delta: "Pontuacao ATS atual: 51/100. Posso seguir reescrevendo seu resumo ou experiencia com base nesses pontos.",
+            },
+            { done: true, sessionId: "sess_recoverable", phase: "analysis" },
+          ]),
+          { status: 200, headers: { "Content-Type": "text/event-stream" } },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface sessionId="sess_recoverable" userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    await userEvent.type(textarea, "Reescreva meu currÃ­culo para essa vaga")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      const assistantMessages = screen.getAllByTestId("message-assistant")
+      const finalAssistantMessage = assistantMessages[assistantMessages.length - 1]
+      expect(finalAssistantMessage).toHaveTextContent(
+        /Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo/i,
+      )
+      expect(finalAssistantMessage).toHaveTextContent(
+        /Pontuacao ATS atual: 51\/100\. Posso seguir reescrevendo seu resumo ou experiencia com base nesses pontos\./i,
+      )
+      expect(finalAssistantMessage).not.toHaveTextContent(/Aviso:\s*Invalid gap analysis payload\./i)
     })
   })
 

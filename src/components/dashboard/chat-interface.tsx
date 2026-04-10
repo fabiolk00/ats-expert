@@ -96,6 +96,11 @@ function isCreditExhaustedError(message?: string): boolean {
   return Boolean(message && CREDIT_EXHAUSTED_ERROR_PATTERN.test(message))
 }
 
+function isRecoverableStreamError(chunk: { code?: string; error?: string }): boolean {
+  return chunk.code === "LLM_INVALID_OUTPUT"
+    || Boolean(chunk.error && /invalid .*payload/i.test(chunk.error))
+}
+
 interface ChatInterfaceProps {
   sessionId?: string
   userName?: string
@@ -537,7 +542,6 @@ export function ChatInterface({
                   break
 
                 case "error": {
-                  receivedError = true
                   setIsToolExecuting(false)
                   setCurrentToolName(null)
                   const shouldOpenCreditsModal =
@@ -549,16 +553,20 @@ export function ChatInterface({
                   }
 
                   if (shouldOpenCreditsModal) {
+                    receivedError = true
                     onCreditsExhausted?.()
                   }
 
-                  setMessages((previous) =>
-                    previous.map((message) =>
-                      message.id === assistantMessageId
-                        ? { ...message, content: `Aviso: ${chunk.error}` }
-                        : message,
-                    ),
-                  )
+                  if (!isRecoverableStreamError(chunk)) {
+                    receivedError = true
+                    setMessages((previous) =>
+                      previous.map((message) =>
+                        message.id === assistantMessageId
+                          ? { ...message, content: `Aviso: ${chunk.error}` }
+                          : message,
+                      ),
+                    )
+                  }
                   break
                 }
               }
