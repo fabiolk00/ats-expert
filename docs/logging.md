@@ -1,304 +1,224 @@
 ---
 title: CurrIA Logging and Error Queries
 audience: [developers, operations]
-related: [INDEX.md, error-codes.md, billing/MONITORING.md]
+related: [INDEX.md, error-codes.md, billing/MONITORING.md, launch-readiness.md]
 status: current
-updated: 2026-04-01
+updated: 2026-04-10
 ---
 
 # Logging and Error Queries
 
-Back to [Documentation Index](./INDEX.md) | Related guide: [Error Codes](./error-codes.md)
+Back to [Documentation Index](./INDEX.md) | Related guides: [Error Codes](./error-codes.md), [Launch Readiness](./launch-readiness.md)
 
 ## Overview
 
-Tool failures are logged structurally so engineers can query by error code instead of grepping arbitrary text.
+CurrIA now emits flat JSON logs through `src/lib/observability/structured-log.ts`.
 
-Relevant events in `src/lib/agent/tools/index.ts`:
+The logger writes one JSON object per line with:
+
+- `timestamp`
+- `level`
+- `event`
+- zero or more top-level scalar fields such as `appUserId`, `sessionId`, `requestPath`, `errorCode`, or `errorMessage`
+
+There is no nested `metadata` envelope anymore. Query examples should target top-level fields.
+
+## Current Log Shape
+
+Example error log:
+
+```json
+{
+  "timestamp": "2026-04-10T09:15:00.000Z",
+  "level": "error",
+  "event": "api.file.download_urls_failed",
+  "requestMethod": "GET",
+  "requestPath": "/api/file/sess_123",
+  "sessionId": "sess_123",
+  "appUserId": "usr_123",
+  "success": false,
+  "errorMessage": "signing failed"
+}
+```
+
+Example warning log:
+
+```json
+{
+  "timestamp": "2026-04-10T09:16:00.000Z",
+  "level": "warn",
+  "event": "billing.info.load_failed",
+  "appUserId": "usr_123",
+  "surface": "auth_layout",
+  "success": false,
+  "errorMessage": "Failed to load billing metadata: relation does not exist"
+}
+```
+
+## Important Event Families
+
+### Agent and tool loop
+
+- `agent.turn.started`
+- `agent.turn.completed`
+- `agent.request.failed`
 - `agent.tool.started`
 - `agent.tool.completed`
 - `agent.tool.failed`
 - `agent.tool.generated_output.persisted`
 
-Important fields:
-- `toolName`
-- `sessionId`
+### Billing and checkout
+
+- `checkout.request_started`
+- `checkout.created`
+- `checkout.creation_failed`
+- `checkout.subscription_validation_failed`
+- `asaas.webhook.processed`
+- `asaas.webhook.failed`
+- `asaas.webhook.duplicate_skipped`
+- `billing.info.load_failed`
+
+### Auth and webhook bootstrap
+
+- `clerk.webhook.config_missing`
+- `clerk.webhook.headers_missing`
+- `clerk.webhook.signature_invalid`
+- `clerk.webhook.duplicate`
+- `clerk.webhook.handler_failed`
+- `clerk.webhook.processed`
+
+### Session and artifact retrieval
+
+- `api.session.list_failed`
+- `api.session.messages_failed`
+- `api.file.download_urls_failed`
+
+### Profile import
+
+- `[api/profile/extract] Failed to create job`
+- `[api/profile/status] Failed to get job status`
+- `[import-jobs] Job failed`
+
+## Common Fields
+
+Fields vary by event, but the most useful ones are:
+
 - `appUserId`
-- `phase`
-- `stateVersion`
-- `latencyMs`
+- `sessionId`
+- `requestMethod`
+- `requestPath`
+- `surface`
+- `eventType`
 - `errorCode`
 - `errorMessage`
+- `success`
+- `latencyMs`
 
-Use `errorCode` for aggregation and alerting. Use `errorMessage` for debugging context.
+`serializeError(...)` intentionally keeps the output narrow:
 
-See also:
-- [Error Codes](./error-codes.md)
-- [Tool Development Guide](./tool-development.md)
+- `errorName`
+- `errorMessage`
+- `errorCode`
+- `errorStatus`
 
-## Log Shape
+Stacks, raw payloads, and arbitrary nested objects are intentionally excluded.
 
-Example warning log for a handled tool failure:
+## Query Examples
 
-```json
-{
-  "level": "warn",
-  "message": "agent.tool.completed",
-  "timestamp": "2026-03-29T19:30:45.000Z",
-  "metadata": {
-    "sessionId": "sess_abc123",
-    "appUserId": "usr_xyz789",
-    "toolName": "generate_file",
-    "phase": "confirm",
-    "stateVersion": 1,
-    "latencyMs": 45,
-    "success": false,
-    "touchedGeneratedOutput": true,
-    "errorCode": "VALIDATION_ERROR",
-    "errorMessage": "fullName is required."
-  }
-}
-```
+The SQL examples below assume each line is stored as a JSON payload column named `payload`.
 
-Example error log for an unhandled exception:
-
-```json
-{
-  "level": "error",
-  "message": "agent.tool.failed",
-  "timestamp": "2026-03-29T19:31:02.000Z",
-  "metadata": {
-    "sessionId": "sess_abc123",
-    "appUserId": "usr_xyz789",
-    "toolName": "rewrite_section",
-    "errorCode": "INTERNAL_ERROR",
-    "errorMessage": "Tool execution failed."
-  }
-}
-```
-
-## Common Queries
-
-The SQL examples below assume a log sink with a `logs` table and a `metadata jsonb` column.
-
-### Find all validation errors in the last 24 hours
+### Find recent internal errors
 
 ```sql
 SELECT *
 FROM logs
-WHERE timestamp > NOW() - INTERVAL '24 hours'
-  AND metadata->>'errorCode' = 'VALIDATION_ERROR'
-ORDER BY timestamp DESC;
+WHERE payload->>'level' = 'error'
+  AND payload->>'timestamp' > to_char(NOW() - INTERVAL '1 hour', 'YYYY-MM-DD"T"HH24:MI:SS')
+ORDER BY created_at DESC;
 ```
 
-### Find all generation errors
+### Find file retrieval failures
 
 ```sql
 SELECT *
 FROM logs
-WHERE metadata->>'errorCode' = 'GENERATION_ERROR'
-ORDER BY timestamp DESC
+WHERE payload->>'event' = 'api.file.download_urls_failed'
+ORDER BY created_at DESC
 LIMIT 100;
 ```
 
-### Find all errors for a specific app user
+### Find billing metadata degradation
 
 ```sql
 SELECT *
 FROM logs
-WHERE metadata->>'appUserId' = 'usr_123'
-  AND metadata ? 'errorCode'
-ORDER BY timestamp DESC;
-```
-
-### Find all errors for a specific session
-
-```sql
-SELECT *
-FROM logs
-WHERE metadata->>'sessionId' = 'sess_456'
-  AND metadata ? 'errorCode'
-ORDER BY timestamp DESC;
-```
-
-### Count errors by code for the last 7 days
-
-```sql
-SELECT
-  metadata->>'errorCode' AS error_code,
-  COUNT(*) AS count
-FROM logs
-WHERE timestamp > NOW() - INTERVAL '7 days'
-  AND metadata ? 'errorCode'
-GROUP BY metadata->>'errorCode'
-ORDER BY count DESC;
-```
-
-### Find parse errors
-
-```sql
-SELECT *
-FROM logs
-WHERE metadata->>'errorCode' = 'PARSE_ERROR'
-  AND timestamp > NOW() - INTERVAL '24 hours'
-ORDER BY timestamp DESC;
-```
-
-### Find missing-entity errors
-
-```sql
-SELECT *
-FROM logs
-WHERE metadata->>'errorCode' = 'NOT_FOUND'
-ORDER BY timestamp DESC
-LIMIT 50;
-```
-
-### Find rate-limit spikes
-
-```sql
-SELECT
-  metadata->>'appUserId' AS app_user_id,
-  COUNT(*) AS count,
-  MAX(timestamp) AS last_occurrence
-FROM logs
-WHERE metadata->>'errorCode' = 'RATE_LIMITED'
-  AND timestamp > NOW() - INTERVAL '1 hour'
-GROUP BY metadata->>'appUserId'
-ORDER BY count DESC;
-```
-
-### Find invalid model outputs
-
-```sql
-SELECT *
-FROM logs
-WHERE metadata->>'errorCode' = 'LLM_INVALID_OUTPUT'
-ORDER BY timestamp DESC
-LIMIT 50;
-```
-
-### Find internal errors fast
-
-```sql
-SELECT *
-FROM logs
-WHERE metadata->>'errorCode' = 'INTERNAL_ERROR'
-  AND timestamp > NOW() - INTERVAL '1 hour'
-ORDER BY timestamp DESC;
-```
-
-### Find generated output persistence events
-
-```sql
-SELECT *
-FROM logs
-WHERE message = 'agent.tool.generated_output.persisted'
-  AND metadata->>'toolName' = 'generate_file'
-ORDER BY timestamp DESC
+WHERE payload->>'event' = 'billing.info.load_failed'
+ORDER BY created_at DESC
 LIMIT 100;
 ```
 
-## Text Log Grep Patterns
-
-If you only have raw JSON logs on disk:
-
-### Find all validation errors
-
-```bash
-rg '"errorCode":"VALIDATION_ERROR"' ./logs
-```
-
-### Find all generate_file failures
-
-```bash
-rg '"toolName":"generate_file"' ./logs | rg '"errorCode":'
-```
-
-### Find generated output persistence logs
-
-```bash
-rg '"message":"agent.tool.generated_output.persisted"' ./logs
-```
-
-## Debugging Workflows
-
-### "Something is broken. Where do I start?"
-
-1. Query `INTERNAL_ERROR`, `LLM_INVALID_OUTPUT`, and `GENERATION_ERROR` first.
-2. Look at `toolName` to identify the subsystem.
-3. Use `sessionId` to reconstruct the sequence for one user flow.
-4. Use `errorMessage` for the first concrete clue, but aggregate on `errorCode`.
+### Find Clerk webhook failures
 
 ```sql
 SELECT *
 FROM logs
-WHERE metadata->>'errorCode' IN ('INTERNAL_ERROR', 'LLM_INVALID_OUTPUT', 'GENERATION_ERROR')
-  AND timestamp > NOW() - INTERVAL '1 hour'
-ORDER BY timestamp DESC
-LIMIT 50;
+WHERE payload->>'event' IN (
+  'clerk.webhook.config_missing',
+  'clerk.webhook.signature_invalid',
+  'clerk.webhook.handler_failed'
+)
+ORDER BY created_at DESC;
 ```
 
-### "Why are users seeing validation errors?"
+### Count errors by event in the last day
 
 ```sql
 SELECT
-  metadata->>'errorMessage' AS error_message,
+  payload->>'event' AS event_name,
   COUNT(*) AS count
 FROM logs
-WHERE metadata->>'errorCode' = 'VALIDATION_ERROR'
-  AND timestamp > NOW() - INTERVAL '1 day'
-GROUP BY metadata->>'errorMessage'
+WHERE payload->>'level' = 'error'
+  AND created_at > NOW() - INTERVAL '1 day'
+GROUP BY payload->>'event'
 ORDER BY count DESC;
 ```
 
-Interpretation:
-- repeated `fullName is required.` may indicate a form/UX gap
-- repeated `At least one work experience entry is required.` may indicate onboarding friction before generation
+## Grep Patterns
 
-### "Is file generation healthy?"
+If you only have newline-delimited JSON logs on disk:
 
-```sql
-SELECT
-  COUNT(*) FILTER (WHERE metadata->>'errorCode' = 'GENERATION_ERROR') AS generation_errors,
-  COUNT(*) FILTER (WHERE metadata->>'errorCode' = 'VALIDATION_ERROR') AS validation_errors,
-  COUNT(*) FILTER (WHERE message = 'agent.tool.generated_output.persisted') AS persisted_generated_output_events
-FROM logs
-WHERE metadata->>'toolName' = 'generate_file'
-  AND timestamp > NOW() - INTERVAL '1 hour';
+```bash
+rg '"event":"api.file.download_urls_failed"' ./logs
+rg '"event":"billing.info.load_failed"' ./logs
+rg '"event":"clerk.webhook.handler_failed"' ./logs
+rg '"event":"agent.tool.failed"' ./logs
 ```
 
-Interpretation:
-- high `VALIDATION_ERROR` counts suggest invalid resume state reaching generation
-- high `GENERATION_ERROR` counts suggest template, PDF, storage, or signing problems
-- persistence events confirm failure metadata is being written when generation fails
+## Incident Triage
 
-## Metrics To Monitor
+### User cannot download generated files
 
-- `VALIDATION_ERROR` rate
-- `GENERATION_ERROR` rate
-- `PARSE_ERROR` rate
-- `LLM_INVALID_OUTPUT` rate
-- `RATE_LIMITED` rate
-- `INTERNAL_ERROR` count
-- `agent.tool.generated_output.persisted` count for `generate_file`
+1. Search `api.file.download_urls_failed`.
+2. Filter by `sessionId` or `appUserId`.
+3. Check whether the UI showed the retryable document message.
+
+### Billing data disappears from the shell
+
+1. Search `billing.info.load_failed`.
+2. Group by `surface` to see whether the failures are isolated to `auth_layout`, `dashboard_page`, or `settings_page`.
+3. Cross-check recent billing DB and Supabase incidents before treating it as a UI bug.
+
+### Clerk bootstrap or auth sync issues
+
+1. Search `clerk.webhook.config_missing`, `clerk.webhook.signature_invalid`, and `clerk.webhook.handler_failed`.
+2. Filter by `svixId` or `clerkUserId`.
+3. Confirm Upstash and Clerk webhook env values before replaying deliveries.
 
 ## Query Tips
 
-- Prefer `errorCode` over `errorMessage` for dashboards and alerts.
-- Use `toolName + errorCode` for root-cause grouping.
-- Use `sessionId` for one-user incident debugging.
-- Use `appUserId` for repeated-user impact analysis.
-- `success: false` on `agent.tool.completed` means the tool returned a structured failure, not necessarily an unhandled exception.
+- Prefer `event` for grouping and dashboards.
+- Use `errorCode` when a flow already maps to structured tool-error classifications.
+- Use `appUserId` and `sessionId` for one-user incident reconstruction.
+- Treat `success: false` plus `level: warn` as degraded-but-recovered behavior, not necessarily a failed request.
 
-## Field Reference
-
-- `message`: event name such as `agent.tool.completed`
-- `metadata.toolName`: tool being executed
-- `metadata.sessionId`: session context
-- `metadata.appUserId`: authenticated internal app user
-- `metadata.errorCode`: structured classification
-- `metadata.errorMessage`: user-facing error detail
-- `metadata.latencyMs`: duration of the operation
-
-For code selection semantics, see [Error Codes](./error-codes.md).
+For code-selection semantics, see [Error Codes](./error-codes.md).

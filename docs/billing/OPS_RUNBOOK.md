@@ -10,6 +10,28 @@ This runbook covers diagnosis and recovery for the current Asaas billing flow.
 - `SUBSCRIPTION_CREATED` is informational only.
 - Cancellations and inactivations update metadata only and do not revoke credits.
 
+## Phase 3 operator entrypoint
+
+Before ad hoc SQL or manual webhook replay, start with the committed Phase 3 workflow:
+
+```bash
+bash scripts/verify-staging.sh
+npx tsx scripts/replay-staging-asaas.ts --list-scenarios
+npx tsx scripts/check-staging-billing-state.ts --help
+```
+
+Prerequisites:
+
+- Bash from WSL, Git Bash, or another POSIX shell
+- `npx`
+- a real `curl` binary in that shell
+- `.env.staging` copied from `.env.staging.example`
+- one database access path:
+  - `psql` plus `STAGING_DB_URL`
+  - or `NEXT_PUBLIC_SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY`
+
+Phase 3 also needs to validate the live `externalReference` shape. Current webhook docs favor `curria:v1:c:<checkoutReference>`, while checkout creation still emits `curria:v1:u:<appUserId>:c:<checkoutReference>`. Use the replay helper with or without `--app-user` to prove which shape staging currently accepts.
+
 ## Quick health check
 
 ```sql
@@ -237,13 +259,10 @@ If the row is missing or malformed:
 
 ## 9. Manual webhook replay
 
-Use the original webhook payload whenever possible.
+Use the original webhook payload whenever possible. When you are following the committed Phase 3 proof path, prefer the replay helper over hand-crafted curl commands so the evidence stays repeatable.
 
 ```bash
-curl -X POST https://curria.app/api/webhook/asaas \
-  -H "asaas-access-token: $ASAAS_WEBHOOK_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '<original_payload_json>'
+npx tsx scripts/replay-staging-asaas.ts --scenario one_time_settlement --checkout <checkout_reference> --payment <payment_id> [--app-user <user_id>]
 ```
 
 Expected outcomes:
@@ -258,6 +277,12 @@ If you get `400`, compare the payload to:
 - `user_quotas`
 - current trust-anchor rules in [IMPLEMENTATION.md](./IMPLEMENTATION.md)
 - for one-time events with `externalReference = null`, also compare `payment.checkoutSession` to `billing_checkouts.asaas_link`
+
+For evidence capture, pair every replay with:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --checkout <checkout_reference>
+```
 
 ## Escalate to engineering when
 

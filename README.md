@@ -22,10 +22,20 @@ npm install
 
 ### 2. Configure the environment
 
-Copy `.env.example` to `.env` and fill in the required values for Clerk, Supabase, Postgres, OpenAI, Asaas, and Upstash.
+Copy `.env.example` to `.env`, then fill in the required values for:
+
+- `DATABASE_URL` and `DIRECT_URL`
+- `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `CLERK_WEBHOOK_SECRET`
+- `OPENAI_API_KEY`
+- `ASAAS_ACCESS_TOKEN` and `ASAAS_WEBHOOK_TOKEN`
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
+
+Optional entries such as `OPENAI_BASE_URL`, `ASAAS_SANDBOX`, and `LINKDAPI_API_KEY` can stay empty unless you actively use them.
 
 ```bash
 copy .env.example .env
+# or: cp .env.example .env
 ```
 
 ### 3. Prepare the database
@@ -42,6 +52,17 @@ npm run dev
 ```
 
 Then open `http://localhost:3000`.
+
+### 5. Run browser verification
+
+Install Chromium once, then run the committed Playwright lane:
+
+```bash
+npx playwright install chromium
+npm run test:e2e -- --project=chromium
+```
+
+This suite uses mocked API providers plus the test-only `E2E_AUTH_ENABLED` and `E2E_AUTH_BYPASS_SECRET` seam wired by the committed Playwright harness. It does not require live Clerk, Supabase, OpenAI, Asaas, or storage credentials.
 
 ## Documentation Start Here
 
@@ -103,6 +124,7 @@ Current OpenAI routing is controlled in `src/lib/agent/config.ts`. The default r
 - OpenAI
 - Asaas billing
 - Vitest and Testing Library
+- Playwright (Chromium browser verification)
 
 ## Project Structure
 
@@ -160,6 +182,7 @@ npm run start
 npm run typecheck
 npm run lint
 npm test
+npm run test:e2e -- --project=chromium
 npm run db:generate
 npm run db:migrate
 npm run db:push

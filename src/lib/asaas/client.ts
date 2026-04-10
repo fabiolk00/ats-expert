@@ -11,6 +11,16 @@ type AsaasErrorResponse = {
   }>
 }
 
+function getRequiredAsaasAccessToken(envValue = process.env.ASAAS_ACCESS_TOKEN): string {
+  const trimmed = envValue?.trim()
+
+  if (!trimmed) {
+    throw new Error('Missing required environment variable ASAAS_ACCESS_TOKEN for Asaas client.')
+  }
+
+  return trimmed
+}
+
 function summarizeAsaasError(method: string, path: string, status: number, responseText: string): string {
   try {
     const parsed = JSON.parse(responseText) as AsaasErrorResponse
@@ -42,7 +52,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     method,
     headers: {
       'Content-Type': 'application/json',
-      access_token: process.env.ASAAS_ACCESS_TOKEN!,
+      access_token: getRequiredAsaasAccessToken(),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })

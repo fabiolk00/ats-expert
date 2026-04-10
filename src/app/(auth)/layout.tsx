@@ -2,11 +2,12 @@ import React from 'react'
 import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
+import { isE2EAuthEnabled } from '@/lib/auth/e2e-auth'
 import { PreviewPanelProvider } from '@/context/preview-panel-context'
 import { SidebarProvider } from '@/context/sidebar-context'
 import DashboardShell from '@/components/dashboard/dashboard-shell'
 import { formatRenewalCountdown } from '@/lib/asaas/billing-display'
-import { getUserBillingInfo } from '@/lib/asaas/quota'
+import { loadOptionalBillingInfo } from '@/lib/asaas/optional-billing-info'
 
 export const metadata = {
   title: 'Dashboard - CurrIA',
@@ -16,17 +17,15 @@ export const metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  const [appUser, clerkUser] = await Promise.all([getCurrentAppUser(), currentUser()])
+  const [appUser, clerkUser] = await Promise.all([
+    getCurrentAppUser(),
+    isE2EAuthEnabled() ? Promise.resolve(null) : currentUser(),
+  ])
   if (!appUser) {
     redirect('/login')
   }
 
-  let billingInfo = null
-  try {
-    billingInfo = await getUserBillingInfo(appUser.id)
-  } catch (error) {
-    console.error('[auth-layout] failed to load billing info', error)
-  }
+  const { billingInfo, billingNotice } = await loadOptionalBillingInfo(appUser.id, 'auth_layout')
 
   const renewsIn = billingInfo?.hasActiveRecurringSubscription
     ? formatRenewalCountdown(billingInfo.renewsAt)
@@ -49,6 +48,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
     <SidebarProvider>
       <PreviewPanelProvider>
         <DashboardShell
+          billingNotice={billingNotice}
           creditsRemaining={billingInfo?.creditsRemaining}
           maxCredits={billingInfo?.maxCredits}
           renewsIn={renewsIn}

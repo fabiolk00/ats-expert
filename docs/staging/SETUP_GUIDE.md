@@ -1,495 +1,165 @@
 # Staging Environment Setup Guide
 
-This document provides step-by-step instructions for provisioning and configuring a staging environment to run the Asaas billing validation plan.
+This guide prepares the staging environment used by the billing validation scenarios in [VALIDATION_PLAN.md](./VALIDATION_PLAN.md).
 
----
+## 1. Start from the committed template
 
-## Overview
-
-The staging environment must be:
-- **Isolated** from production (separate database, separate credentials)
-- **Deployed** with the latest billing code
-- **Configured** with staging-only credentials
-- **Verified** to be reachable before validation begins
-
----
-
-## Prerequisites
-
-- Access to infrastructure (Supabase, AWS, or equivalent)
-- Ability to create databases and service accounts
-- Access to Asaas sandbox environment
-- Repository with latest billing code merged
-
----
-
-## Step 1: Create Isolated Staging Database
-
-### Option A: Supabase (Recommended for Quick Setup)
+Create the local staging file from the committed example:
 
 ```bash
-# 1. Go to Supabase console (https://supabase.com/dashboard)
-# 2. Create new project:
-#    - Name: curria-staging
-#    - Region: same as production or closest
-#    - Pricing: Free or Pro (based on load)
-
-# 3. Once created, copy credentials from Settings > Database:
-#    - Host: db.xxxxx.supabase.co
-#    - User: postgres
-#    - Password: [generated]
-#    - Database: postgres
-#    - Port: 5432
-
-# 4. Build connection string:
-STAGING_DB_URL="postgresql://postgres:[password]@db.xxxxx.supabase.co:5432/postgres"
+cp .env.staging.example .env.staging
 ```
 
-### Option B: Self-Hosted PostgreSQL
+Required values in `.env.staging`:
+
+- `STAGING_API_URL`
+- `STAGING_ASAAS_WEBHOOK_TOKEN`
+- `STAGING_ASAAS_ACCESS_TOKEN`
+
+Optional diagnostics:
+
+- `STAGING_LOG_LEVEL`
+- `STAGING_ENABLE_DETAILED_LOGGING`
+
+Database access options for Phase 3:
+
+- preferred direct mode: `STAGING_DB_URL` plus `psql`
+- workstation fallback: `NEXT_PUBLIC_SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY`
+
+Runtime deploy variables for the application itself should still come from `.env.example` and the hosting provider dashboard.
+
+## 2. Confirm workstation prerequisites
+
+Phase 3 assumes a workstation that can run the committed staging helpers. Install or confirm:
+
+- Bash from WSL, Git Bash, or another POSIX-compatible shell
+- a real `curl` binary available inside that Bash environment
+- `tsx` via the repo's existing `node_modules`
+
+One of these database access paths must also be available:
+
+- `psql` with `STAGING_DB_URL`
+- or the Supabase admin fallback using `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
+
+PowerShell alone is not sufficient for the full proof path because:
+
+- `bash scripts/verify-staging.sh` is the required first step
+- `Invoke-WebRequest` is not a drop-in replacement for the script's `curl` usage
+- the snapshot helper still needs either `psql` or Supabase admin access
+
+## 3. Apply the current billing migrations
+
+Run these migrations against the staging database in this order:
 
 ```bash
-# Create a new PostgreSQL instance for staging only
-# Example: Docker
-docker run -d \
-  --name curria-staging-db \
-  -e POSTGRES_PASSWORD=staging_password \
-  -e POSTGRES_DB=curria_staging \
-  -p 5433:5432 \
-  postgres:15
-
-# Connection string:
-STAGING_DB_URL="postgresql://postgres:staging_password@localhost:5433/curria_staging"
+npx prisma db execute --file prisma/migrations/billing_webhook_hardening.sql --schema prisma/schema.prisma
+npx prisma db execute --file prisma/migrations/20260406_align_asaas_webhook_contract.sql --schema prisma/schema.prisma
+npx prisma db execute --file prisma/migrations/20260406_fix_billing_checkout_timestamp_defaults.sql --schema prisma/schema.prisma
+npx prisma db execute --file prisma/migrations/20260407_persist_billing_display_totals.sql --schema prisma/schema.prisma
+npx prisma db execute --file prisma/migrations/20260407_harden_text_id_generation.sql --schema prisma/schema.prisma
+npx prisma db execute --file prisma/migrations/20260407_harden_standard_timestamps.sql --schema prisma/schema.prisma
 ```
 
-**Verify connectivity:**
+These migrations are required for the current settlement-based billing contract and the Phase 1 hardening checks.
+
+## 4. Run the preflight script before any billing scenario
+
+The staging readiness script is the first operator step after filling `.env.staging`:
+
 ```bash
-psql "$STAGING_DB_URL" -c "SELECT 1;"
-# Expected: (1 row)
+bash scripts/verify-staging.sh
 ```
 
----
+The script validates:
 
-## Step 2: Deploy Billing Code to Staging
+- `.env.staging` exists and came from `.env.staging.example`
+- required staging vars are populated
+- staging database connectivity works through either `psql` or the Supabase admin fallback
+- current billing tables exist
+- staging API is reachable
+- the staging test user is present
 
-### 2.1: Deploy Application
+Do not start webhook or billing scenario testing until this script exits successfully.
 
-```bash
-# Deploy latest code to staging environment
-# Method depends on your infrastructure (Docker, Vercel, Railway, etc.)
+## 5. Prepare the staging test user
 
-# For Vercel:
-vercel deploy --prod --environment staging
+Use a clean test user before replaying events:
 
-# For Docker:
-docker build -t curria:staging .
-docker push registry.example.com/curria:staging
-# Then update staging k8s/docker-compose to use staging tag
-
-# Verify deployment:
-curl -s "https://staging-curria.example.com/api/health" | jq .
-# Should return healthy status
-```
-
-### 2.2: Apply Database Migration
-
-```bash
-# Run the billing migration on staging database
-psql "$STAGING_DB_URL" -f prisma/migrations/billing_webhook_hardening.sql
-
-# Verify migration applied:
-psql "$STAGING_DB_URL" -c "
-  SELECT tablename FROM pg_tables
-  WHERE tablename IN ('billing_checkouts', 'processed_events', 'credit_accounts')
-  ORDER BY tablename;"
-
-# Expected output (3 rows):
-# billing_checkouts
-# credit_accounts
-# processed_events
-
-# Verify RPC functions exist:
-psql "$STAGING_DB_URL" -c "
-  SELECT routine_name FROM information_schema.routines
-  WHERE routine_schema = 'public'
-  AND routine_name LIKE 'apply_billing_%';"
-
-# Expected output (2 rows):
-# apply_billing_credit_grant_event
-# apply_billing_subscription_metadata_event
-```
-
-**If migration fails:**
-```bash
-# Check for syntax errors
-psql "$STAGING_DB_URL" -f prisma/migrations/billing_webhook_hardening.sql 2>&1 | head -20
-
-# If tables already exist, verify schema matches production
-psql "$STAGING_DB_URL" -c "\d billing_checkouts"
-```
-
----
-
-## Step 3: Configure Staging Credentials
-
-### 3.1: Create `.env.staging` File
-
-```bash
-# Create .env.staging in project root
-cat > .env.staging <<'EOF'
-# Staging Database
-STAGING_DB_URL="postgresql://postgres:[password]@[host]:5432/[database]"
-
-# Staging API (where the webhook endpoint is deployed)
-STAGING_API_URL="https://staging-curria.example.com"
-
-# Asaas Sandbox Credentials
-STAGING_ASAAS_WEBHOOK_TOKEN="[sandbox-webhook-token-only]"
-STAGING_ASAAS_ACCESS_TOKEN="[sandbox-api-token-only]"
-
-# Optional: Staging-specific configuration
-STAGING_LOG_LEVEL="debug"
-STAGING_ENABLE_DETAILED_LOGGING="true"
-EOF
-
-# Protect credentials
-chmod 600 .env.staging
-```
-
-### 3.2: Load Staging Credentials (for Agent Execution)
-
-When running the validation agent, ensure staging credentials are available:
-
-```bash
-# Option 1: Source before running
-export $(cat .env.staging | xargs)
-
-# Option 2: Pass directly to agent invocation
-STAGING_DB_URL="..." STAGING_API_URL="..." STAGING_ASAAS_WEBHOOK_TOKEN="..." \
-  npm run agent:validate-billing
-
-# Option 3: In CI/CD, add staging secrets to environment
-# (GitHub Actions, GitLab CI, etc.)
-```
-
----
-
-## Step 4: Verify Staging Environment
-
-Run these verification checks before proceeding to validation:
-
-### 4.1: Database Connectivity
-
-```bash
-psql "$STAGING_DB_URL" -c "
-  SELECT
-    'Database' as check_type,
-    'OK' as status,
-    NOW() as timestamp;"
-
-# Expected: 1 row with OK status
-```
-
-### 4.2: API Reachability
-
-```bash
-curl -s -I "https://staging-curria.example.com/api/health" | head -1
-
-# Expected: HTTP/2 200 or HTTP/1.1 200
-```
-
-### 4.3: Webhook Token Present
-
-```bash
-echo "STAGING_ASAAS_WEBHOOK_TOKEN: ${STAGING_ASAAS_WEBHOOK_TOKEN:0:10}..."
-
-# Expected: Non-empty token starting shown
-```
-
-### 4.4: Schema Verification
-
-```bash
-psql "$STAGING_DB_URL" -c "
-  SELECT
-    'Schema Check' as check_type,
-    COUNT(*) as table_count
-  FROM information_schema.tables
-  WHERE table_schema = 'public'
-  AND tablename IN ('billing_checkouts', 'credit_accounts', 'user_quotas', 'processed_events');
-  "
-
-# Expected: table_count = 4
-```
-
-### 4.5: RPC Functions Verification
-
-```bash
-psql "$STAGING_DB_URL" -c "
-  \df+ apply_billing*"
-
-# Expected: Both RPC functions listed with their signatures
-```
-
-### Complete Verification Script
-
-```bash
-#!/bin/bash
-
-echo "=== Staging Environment Verification ==="
-
-# Load credentials
-source .env.staging
-
-# Check 1: Database
-echo -n "Database connectivity... "
-if psql "$STAGING_DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
-  echo "✓ OK"
-else
-  echo "✗ FAILED"
-  exit 1
-fi
-
-# Check 2: API
-echo -n "API reachability... "
-if curl -s -o /dev/null -w "%{http_code}" "$STAGING_API_URL/api/health" | grep -q "200"; then
-  echo "✓ OK"
-else
-  echo "✗ FAILED"
-  exit 1
-fi
-
-# Check 3: Token
-echo -n "Webhook token present... "
-if [ -n "$STAGING_ASAAS_WEBHOOK_TOKEN" ]; then
-  echo "✓ OK"
-else
-  echo "✗ FAILED"
-  exit 1
-fi
-
-# Check 4: Schema
-echo -n "Database schema... "
-COUNT=$(psql "$STAGING_DB_URL" -t -c "
-  SELECT COUNT(*) FROM information_schema.tables
-  WHERE table_schema = 'public'
-  AND tablename IN ('billing_checkouts', 'credit_accounts', 'user_quotas', 'processed_events');")
-if [ "$COUNT" = "4" ]; then
-  echo "✓ OK ($COUNT tables)"
-else
-  echo "✗ FAILED (found $COUNT tables, expected 4)"
-  exit 1
-fi
-
-# Check 5: RPC Functions
-echo -n "RPC functions... "
-FUNC_COUNT=$(psql "$STAGING_DB_URL" -t -c "
-  SELECT COUNT(*) FROM information_schema.routines
-  WHERE routine_schema = 'public'
-  AND routine_name LIKE 'apply_billing_%';")
-if [ "$FUNC_COUNT" = "2" ]; then
-  echo "✓ OK ($FUNC_COUNT functions)"
-else
-  echo "✗ FAILED (found $FUNC_COUNT functions, expected 2)"
-  exit 1
-fi
-
-echo ""
-echo "=== All Checks Passed ==="
-echo "Staging environment is ready for validation."
-```
-
-**Save as `scripts/verify-staging.sh` and run:**
-```bash
-chmod +x scripts/verify-staging.sh
-./scripts/verify-staging.sh
-```
-
----
-
-## Step 5: Prepare Test Data
-
-Before running validation, initialize clean test state:
-
-```bash
-# Create or reset test user
-psql "$STAGING_DB_URL" <<'SQL'
--- Delete any existing test data
+```sql
 DELETE FROM billing_checkouts WHERE user_id = 'usr_staging_001';
 DELETE FROM credit_accounts WHERE user_id = 'usr_staging_001';
 DELETE FROM user_quotas WHERE user_id = 'usr_staging_001';
 DELETE FROM users WHERE id = 'usr_staging_001';
 
--- Create fresh test user
 INSERT INTO users (id, email, created_at, updated_at)
 VALUES ('usr_staging_001', 'staging-test@curria.test', NOW(), NOW());
 
--- Create initial credit account
 INSERT INTO credit_accounts (id, user_id, credits_remaining, created_at, updated_at)
 VALUES ('cred_staging_001', 'usr_staging_001', 5, NOW(), NOW());
-
--- Verify
-SELECT 'Test data ready:' as status;
-SELECT * FROM users WHERE id = 'usr_staging_001';
-SELECT * FROM credit_accounts WHERE user_id = 'usr_staging_001';
-SQL
 ```
 
----
+## 6. Confirm the Phase 3 helper commands
 
-## Step 6: Execute Staging Validation
-
-Once all preconditions are met:
+Run the committed helpers locally before a live replay:
 
 ```bash
-# Load staging credentials
-source .env.staging
-
-# Option 1: Via Agent (recommended)
-npm run agent:validate-billing
-
-# Option 2: Manual execution
-# Follow docs/staging/VALIDATION_PLAN.md scenarios manually
-
-# Option 3: CI/CD pipeline
-# Add to GitHub Actions / GitLab CI:
-name: Staging Validation
-on: [workflow_dispatch]
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run staging validation
-        env:
-          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
-          STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
-          STAGING_ASAAS_WEBHOOK_TOKEN: ${{ secrets.STAGING_ASAAS_WEBHOOK_TOKEN }}
-        run: npm run agent:validate-billing
+npx tsx scripts/replay-staging-asaas.ts --list-scenarios
+npx tsx scripts/check-staging-billing-state.ts --help
 ```
 
----
+The replay helper intentionally supports both reference shapes:
+
+- `curria:v1:c:<checkoutReference>`
+- `curria:v1:u:<appUserId>:c:<checkoutReference>`
+
+Pass `--app-user <id>` when you need the current checkout-created shape. Omit it when validating the shorter v1 webhook shape. Phase 3 must confirm which shape is canonical in staging before implementation docs are tightened.
+
+## 7. Execute the validation scenarios
+
+After the preflight passes, follow the scenarios in [VALIDATION_PLAN.md](./VALIDATION_PLAN.md).
+
+Use the staging env file for any local shell session that needs the credentials:
+
+```bash
+set -a
+source .env.staging
+set +a
+```
+
+Typical evidence workflow:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --user usr_staging_001 > baseline-state.json
+npx tsx scripts/replay-staging-asaas.ts --scenario one_time_settlement --checkout chk_live_001 --payment pay_live_001 --dry-run
+npx tsx scripts/replay-staging-asaas.ts --scenario one_time_settlement --checkout chk_live_001 --payment pay_live_001 --output one-time-response.json
+npx tsx scripts/check-staging-billing-state.ts --checkout chk_live_001 > post-one-time-state.json
+```
 
 ## Troubleshooting
 
-### Database Connection Fails
+If `bash scripts/verify-staging.sh` fails:
 
-```bash
-# Check connection string format
-echo "STAGING_DB_URL=$STAGING_DB_URL"
+- confirm Bash, `npx`, and `curl` are installed in the shell you are using
+- confirm `.env.staging` was copied from `.env.staging.example`
+- re-check `STAGING_ASAAS_WEBHOOK_TOKEN` and `STAGING_ASAAS_ACCESS_TOKEN`
+- confirm all six billing migrations above were applied to the staging database
+- verify `STAGING_API_URL` points at the deployed staging environment
+- if `psql` is unavailable, confirm `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are populated for the fallback path
 
-# Verify host is reachable
-psql -h [host] -U postgres -d postgres -c "SELECT 1;"
+If `npx tsx scripts/check-staging-billing-state.ts ...` fails:
 
-# Check firewall rules
-nc -zv [host] 5432
+- if you are using direct mode, confirm `psql` is available on `PATH` and `STAGING_DB_URL` points at the verified database
+- if you are using the fallback path, confirm `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` point at the same project verified by `scripts/verify-staging.sh`
 
-# For Supabase: Ensure IP whitelist includes your machine
-```
+If `npx tsx scripts/replay-staging-asaas.ts ...` fails:
 
-### Migration Fails
+- rerun the same command with `--dry-run`
+- confirm the webhook token matches the staging deployment
+- confirm you chose the expected `externalReference` shape for the scenario under test
+- compare the payload to the current webhook semantics in [../billing/IMPLEMENTATION.md](../billing/IMPLEMENTATION.md)
 
-```bash
-# Check migration syntax
-psql "$STAGING_DB_URL" < prisma/migrations/billing_webhook_hardening.sql 2>&1
+## Related docs
 
-# If tables exist but differ from production, check schema:
-psql "$STAGING_DB_URL" -c "\d billing_checkouts"
-psql "$STAGING_DB_URL" -c "\d credit_accounts"
-
-# Drop and re-create if needed (CAREFUL: staging only!)
-psql "$STAGING_DB_URL" <<'SQL'
-DROP TABLE IF EXISTS processed_events CASCADE;
-DROP TABLE IF EXISTS billing_checkouts CASCADE;
-DROP FUNCTION IF EXISTS apply_billing_credit_grant_event;
-DROP FUNCTION IF EXISTS apply_billing_subscription_metadata_event;
-SQL
-
-# Re-run migration
-psql "$STAGING_DB_URL" -f prisma/migrations/billing_webhook_hardening.sql
-```
-
-### API Not Reachable
-
-```bash
-# Check deployment status
-# (Vercel, Docker, K8s, etc.)
-
-# Test from staging server
-curl -v "https://staging-curria.example.com/api/health"
-
-# Check firewall rules and DNS
-nslookup staging-curria.example.com
-ping staging-curria.example.com
-```
-
-### Webhook Token Missing
-
-```bash
-# Verify Asaas sandbox account
-# Go to: https://sandbox.asaas.com/settings
-
-# Copy webhook token from Asaas dashboard
-# Set in .env.staging:
-STAGING_ASAAS_WEBHOOK_TOKEN="[copied from Asaas]"
-
-# Verify it's loaded
-echo $STAGING_ASAAS_WEBHOOK_TOKEN
-```
-
----
-
-## Cleanup After Validation
-
-After validation completes:
-
-```bash
-# Option 1: Keep test data for future runs
-# (recommended if revalidating)
-
-# Option 2: Clean up test user
-psql "$STAGING_DB_URL" <<'SQL'
-DELETE FROM billing_checkouts WHERE user_id = 'usr_staging_001';
-DELETE FROM credit_accounts WHERE user_id = 'usr_staging_001';
-DELETE FROM user_quotas WHERE user_id = 'usr_staging_001';
-DELETE FROM users WHERE id = 'usr_staging_001';
-SQL
-```
-
----
-
-## Success Criteria
-
-Staging is ready when:
-
-- ✅ Database is isolated from production
-- ✅ Migration applied and verified
-- ✅ All 5 verification checks pass
-- ✅ Test user created with initial credits
-- ✅ Credentials are in `.env.staging`
-- ✅ All team members with access have credentials
-- ✅ CI/CD can access staging environment
-- ✅ Staging validation agent can be executed
-
----
-
-## Next Steps
-
-Once staging is ready:
-
-1. Run verification script: `./scripts/verify-staging.sh`
-2. Execute validation agent: `npm run agent:validate-billing`
-3. Review validation report: `docs/staging-validation-report.md`
-4. If PROCEED: deploy to production
-5. If STOP: fix issues, re-validate
-
----
-
-## Support
-
-For issues during staging setup:
-
-1. Check troubleshooting section above
-2. Review logs from deployment tool (Vercel, Docker, K8s)
-3. Verify all environment variables are set
-4. Re-run verification script to identify blocker
-5. Contact platform team if infrastructure issue
-
+- [VALIDATION_PLAN.md](./VALIDATION_PLAN.md)
+- [../PRODUCTION-READINESS-CHECKLIST.md](../PRODUCTION-READINESS-CHECKLIST.md)
+- [../../.env.staging.example](../../.env.staging.example)

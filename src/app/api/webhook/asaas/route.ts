@@ -30,8 +30,14 @@ export const runtime = 'nodejs'
 type BillingApplyResult = 'processed' | 'duplicate' | 'ignored'
 type HandledAsaasWebhookEvent = AsaasWebhookEvent & { event: HandledAsaasBillingEventType }
 
-function getExpectedWebhookToken(): string | undefined {
-  return process.env.ASAAS_WEBHOOK_TOKEN ?? process.env.ASAAS_ACCESS_TOKEN
+function getExpectedWebhookToken(): string {
+  const trimmed = process.env.ASAAS_WEBHOOK_TOKEN?.trim()
+
+  if (!trimmed) {
+    throw new Error('Missing required environment variable ASAAS_WEBHOOK_TOKEN for Asaas webhook.')
+  }
+
+  return trimmed
 }
 
 async function processAsaasEvent(
@@ -75,9 +81,29 @@ async function reconcileDuplicateEventState(
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const token = req.headers.get('asaas-access-token')
-  const expectedToken = getExpectedWebhookToken()
+  let expectedToken: string
 
-  if (!expectedToken || token !== expectedToken) {
+  try {
+    expectedToken = getExpectedWebhookToken()
+  } catch (error) {
+    const failure = toolFailure(
+      TOOL_ERROR_CODES.INTERNAL_ERROR,
+      getToolErrorMessage(error) ?? 'Missing webhook configuration.',
+    )
+
+    logError('asaas.webhook.config_missing', {
+      success: false,
+      errorCode: failure.code,
+      errorMessage: failure.error,
+      ...serializeError(error),
+    })
+
+    return NextResponse.json(failure, {
+      status: getHttpStatusForToolError(failure.code),
+    })
+  }
+
+  if (token !== expectedToken) {
     const failure = toolFailure(TOOL_ERROR_CODES.UNAUTHORIZED, 'Unauthorized')
 
     logWarn('asaas.webhook.unauthorized', {

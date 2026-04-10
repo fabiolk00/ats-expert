@@ -6,7 +6,7 @@ related:
   - CONCEPTS.md
   - FEATURES.md
 status: current
-updated: 2026-04-07
+updated: 2026-04-10
 ---
 
 # CurrIA Documentation Index
@@ -58,6 +58,7 @@ This index is the main directory for the active documentation set.
 - [staging/VALIDATION_PLAN.md](./staging/VALIDATION_PLAN.md)
 - [staging/VALIDATION_AGENT_PROMPT.md](./staging/VALIDATION_AGENT_PROMPT.md)
 - [PRODUCTION-READINESS-CHECKLIST.md](./PRODUCTION-READINESS-CHECKLIST.md)
+- [launch-readiness.md](./launch-readiness.md)
 
 ## Developer Rules
 

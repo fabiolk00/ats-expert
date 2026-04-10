@@ -2,8 +2,9 @@ import React from "react"
 import { currentUser } from "@clerk/nextjs/server"
 
 import { ResumeWorkspace } from "@/components/dashboard/resume-workspace"
+import { loadOptionalBillingInfo } from "@/lib/asaas/optional-billing-info"
 import { getCurrentAppUser } from "@/lib/auth/app-user"
-import { getUserBillingInfo } from "@/lib/asaas/quota"
+import { isE2EAuthEnabled } from "@/lib/auth/e2e-auth"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -20,14 +21,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     ? rawSessionParam[0]
     : rawSessionParam
 
-  const [appUser, clerkUser] = await Promise.all([getCurrentAppUser(), currentUser()])
+  const [appUser, clerkUser] = await Promise.all([
+    getCurrentAppUser(),
+    isE2EAuthEnabled() ? Promise.resolve(null) : currentUser(),
+  ])
   let billingInfo = null
   if (appUser) {
-    try {
-      billingInfo = await getUserBillingInfo(appUser.id)
-    } catch (error) {
-      console.error("[dashboard-page] failed to load billing info", error)
-    }
+    const result = await loadOptionalBillingInfo(appUser.id, "dashboard_page")
+    billingInfo = result.billingInfo
   }
 
   const currentCredits = appUser?.creditAccount.creditsRemaining ?? 0

@@ -1,0 +1,1295 @@
+﻿{
+    "generatedAt":  "2026-04-10T06:04:22.8403302Z",
+    "status":  "passed",
+    "environment":  {
+                        "envFilePresent":  true,
+                        "bashAvailable":  true,
+                        "psqlAvailable":  false,
+                        "dbTransport":  "supabase_admin",
+                        "apiReachable":  true,
+                        "target":  "approved live production environment",
+                        "fixtureUser":  "usr_phase320260410a"
+                    },
+    "preflight":  {
+                      "verifyScript":  {
+                                           "command":  "bash scripts/verify-staging.sh",
+                                           "result":  "pass",
+                                           "notes":  [
+                                                         "Git Bash was used as the Bash runtime on Windows.",
+                                                         "psql was unavailable, so database verification ran through the committed Supabase admin fallback.",
+                                                         "The illustrative sample user usr_staging_001 did not exist; the live matrix used fixture user usr_phase320260410a instead."
+                                                     ]
+                                       }
+                  },
+    "baseline":  {
+                     "generatedAt":  "2026-04-10T05:57:35.093Z",
+                     "transport":  "supabase_admin",
+                     "filters":  {
+                                     "userId":  "usr_phase320260410a",
+                                     "checkoutReference":  null,
+                                     "subscriptionId":  null
+                                 },
+                     "discovered":  {
+                                        "userIds":  [
+                                                        "usr_phase320260410a"
+                                                    ],
+                                        "checkoutReferences":  [
+                                                                   "chkphase320260410unit",
+                                                                   "chkphase320260410inactive",
+                                                                   "chkphase320260410monthly"
+                                                               ],
+                                        "subscriptionIds":  [
+
+                                                            ]
+                                    },
+                     "billing_checkouts":  [
+                                               {
+                                                   "id":  "36d40f4f-6017-44df-b7aa-debf06f8dbbe",
+                                                   "user_id":  "usr_phase320260410a",
+                                                   "checkout_reference":  "chkphase320260410unit",
+                                                   "plan":  "unit",
+                                                   "amount_minor":  1990,
+                                                   "currency":  "BRL",
+                                                   "status":  "created",
+                                                   "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410unit",
+                                                   "asaas_payment_id":  null,
+                                                   "asaas_subscription_id":  null,
+                                                   "created_at":  "2026-04-10T05:56:32.508",
+                                                   "updated_at":  "2026-04-10T05:56:32.508"
+                                               },
+                                               {
+                                                   "id":  "aed9657d-9ef3-46c0-8bb6-732bd09e793c",
+                                                   "user_id":  "usr_phase320260410a",
+                                                   "checkout_reference":  "chkphase320260410inactive",
+                                                   "plan":  "monthly",
+                                                   "amount_minor":  3990,
+                                                   "currency":  "BRL",
+                                                   "status":  "created",
+                                                   "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410inactive",
+                                                   "asaas_payment_id":  null,
+                                                   "asaas_subscription_id":  null,
+                                                   "created_at":  "2026-04-10T05:56:32.508",
+                                                   "updated_at":  "2026-04-10T05:56:32.508"
+                                               },
+                                               {
+                                                   "id":  "043aecad-29c7-4ed8-8042-c1f0531bb7df",
+                                                   "user_id":  "usr_phase320260410a",
+                                                   "checkout_reference":  "chkphase320260410monthly",
+                                                   "plan":  "monthly",
+                                                   "amount_minor":  3990,
+                                                   "currency":  "BRL",
+                                                   "status":  "created",
+                                                   "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410monthly",
+                                                   "asaas_payment_id":  null,
+                                                   "asaas_subscription_id":  null,
+                                                   "created_at":  "2026-04-10T05:56:32.508",
+                                                   "updated_at":  "2026-04-10T05:56:32.508"
+                                               }
+                                           ],
+                     "credit_accounts":  [
+                                             {
+                                                 "id":  "cred_usr_phase320260410a",
+                                                 "user_id":  "usr_phase320260410a",
+                                                 "credits_remaining":  0,
+                                                 "created_at":  "2026-04-10T05:56:32.508",
+                                                 "updated_at":  "2026-04-10T05:56:32.508"
+                                             }
+                                         ],
+                     "user_quotas":  [
+
+                                     ],
+                     "processed_events":  [
+
+                                          ]
+                 },
+    "scenarios":  {
+                      "one_time_settlement":  {
+                                                  "replay":  {
+                                                                 "generatedAt":  "2026-04-10T05:58:05.866Z",
+                                                                 "scenario":  "one_time_settlement",
+                                                                 "dryRun":  false,
+                                                                 "endpoint":  "https://www.curria.com.br/api/webhook/asaas",
+                                                                 "headerSummary":  {
+                                                                                       "asaas-access-token":  "whse...JAf0",
+                                                                                       "content-type":  "application/json"
+                                                                                   },
+                                                                 "payload":  {
+                                                                                 "event":  "PAYMENT_RECEIVED",
+                                                                                 "payment":  {
+                                                                                                 "id":  "pay_phase320260410unit",
+                                                                                                 "externalReference":  "curria:v1:c:chkphase320260410unit",
+                                                                                                 "subscription":  null,
+                                                                                                 "value":  19.9
+                                                                                             }
+                                                                             },
+                                                                 "response":  {
+                                                                                  "status":  200,
+                                                                                  "body":  {
+                                                                                               "success":  true
+                                                                                           }
+                                                                              }
+                                                             },
+                                                  "postSnapshot":  {
+                                                                       "generatedAt":  "2026-04-10T05:58:18.503Z",
+                                                                       "transport":  "supabase_admin",
+                                                                       "filters":  {
+                                                                                       "userId":  null,
+                                                                                       "checkoutReference":  "chkphase320260410unit",
+                                                                                       "subscriptionId":  null
+                                                                                   },
+                                                                       "discovered":  {
+                                                                                          "userIds":  [
+                                                                                                          "usr_phase320260410a"
+                                                                                                      ],
+                                                                                          "checkoutReferences":  [
+                                                                                                                     "chkphase320260410unit"
+                                                                                                                 ],
+                                                                                          "subscriptionIds":  [
+
+                                                                                                              ]
+                                                                                      },
+                                                                       "billing_checkouts":  [
+                                                                                                 {
+                                                                                                     "id":  "36d40f4f-6017-44df-b7aa-debf06f8dbbe",
+                                                                                                     "user_id":  "usr_phase320260410a",
+                                                                                                     "checkout_reference":  "chkphase320260410unit",
+                                                                                                     "plan":  "unit",
+                                                                                                     "amount_minor":  1990,
+                                                                                                     "currency":  "BRL",
+                                                                                                     "status":  "paid",
+                                                                                                     "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410unit",
+                                                                                                     "asaas_payment_id":  "pay_phase320260410unit",
+                                                                                                     "asaas_subscription_id":  null,
+                                                                                                     "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                     "updated_at":  "2026-04-10T05:58:10.735"
+                                                                                                 }
+                                                                                             ],
+                                                                       "credit_accounts":  [
+                                                                                               {
+                                                                                                   "id":  "cred_usr_phase320260410a",
+                                                                                                   "user_id":  "usr_phase320260410a",
+                                                                                                   "credits_remaining":  3,
+                                                                                                   "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                   "updated_at":  "2026-04-10T05:58:10.53"
+                                                                                               }
+                                                                                           ],
+                                                                       "user_quotas":  [
+                                                                                           {
+                                                                                               "id":  "45ce0a6b-5a8e-47fc-bac7-efd7c7e60ba5",
+                                                                                               "user_id":  "usr_phase320260410a",
+                                                                                               "plan":  "unit",
+                                                                                               "credits_remaining":  3,
+                                                                                               "asaas_customer_id":  null,
+                                                                                               "asaas_subscription_id":  null,
+                                                                                               "renews_at":  null,
+                                                                                               "status":  "active",
+                                                                                               "created_at":  "2026-04-10T05:58:10.53",
+                                                                                               "updated_at":  "2026-04-10T05:58:10.53"
+                                                                                           }
+                                                                                       ],
+                                                                       "processed_events":  [
+                                                                                                {
+                                                                                                    "id":  "55f4667c-54b6-42b4-8a9d-1dcd8aa5edcd",
+                                                                                                    "event_id":  "6bbf12d4150b15936aafd2270ae6df81e143508203dce6d0b65f42bf7c68ae85",
+                                                                                                    "event_type":  "PAYMENT_SETTLED",
+                                                                                                    "event_fingerprint":  "6bbf12d4150b15936aafd2270ae6df81e143508203dce6d0b65f42bf7c68ae85",
+                                                                                                    "processed_at":  "2026-04-10T05:58:10.53",
+                                                                                                    "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                    "event_payload":  {
+                                                                                                                          "event":  "PAYMENT_RECEIVED",
+                                                                                                                          "payment":  {
+                                                                                                                                          "id":  "pay_phase320260410unit",
+                                                                                                                                          "value":  19.9,
+                                                                                                                                          "subscription":  null,
+                                                                                                                                          "externalReference":  "curria:v1:c:chkphase320260410unit"
+                                                                                                                                      }
+                                                                                                                      }
+                                                                                                }
+                                                                                            ]
+                                                                   },
+                                                  "judgments":  {
+                                                                    "BILL-01":  "pass",
+                                                                    "BILL-02":  "supporting",
+                                                                    "BILL-03":  "pass"
+                                                                }
+                                              },
+                      "inactive_subscription_snapshot":  {
+                                                             "replay":  {
+                                                                            "generatedAt":  "2026-04-10T05:58:28.510Z",
+                                                                            "scenario":  "inactive_subscription_snapshot",
+                                                                            "dryRun":  false,
+                                                                            "endpoint":  "https://www.curria.com.br/api/webhook/asaas",
+                                                                            "headerSummary":  {
+                                                                                                  "asaas-access-token":  "whse...JAf0",
+                                                                                                  "content-type":  "application/json"
+                                                                                              },
+                                                                            "payload":  {
+                                                                                            "event":  "SUBSCRIPTION_CREATED",
+                                                                                            "subscription":  {
+                                                                                                                 "id":  "sub_phase320260410inactive",
+                                                                                                                 "externalReference":  "curria:v1:u:usr_phase320260410a:c:chkphase320260410inactive",
+                                                                                                                 "status":  "INACTIVE",
+                                                                                                                 "deleted":  true,
+                                                                                                                 "value":  39
+                                                                                                             }
+                                                                                        },
+                                                                            "response":  {
+                                                                                             "status":  200,
+                                                                                             "body":  {
+                                                                                                          "success":  true,
+                                                                                                          "ignored":  true
+                                                                                                      }
+                                                                                         }
+                                                                        },
+                                                             "postSnapshot":  {
+                                                                                  "generatedAt":  "2026-04-10T05:58:43.520Z",
+                                                                                  "transport":  "supabase_admin",
+                                                                                  "filters":  {
+                                                                                                  "userId":  null,
+                                                                                                  "checkoutReference":  "chkphase320260410inactive",
+                                                                                                  "subscriptionId":  null
+                                                                                              },
+                                                                                  "discovered":  {
+                                                                                                     "userIds":  [
+                                                                                                                     "usr_phase320260410a"
+                                                                                                                 ],
+                                                                                                     "checkoutReferences":  [
+                                                                                                                                "chkphase320260410inactive"
+                                                                                                                            ],
+                                                                                                     "subscriptionIds":  [
+
+                                                                                                                         ]
+                                                                                                 },
+                                                                                  "billing_checkouts":  [
+                                                                                                            {
+                                                                                                                "id":  "aed9657d-9ef3-46c0-8bb6-732bd09e793c",
+                                                                                                                "user_id":  "usr_phase320260410a",
+                                                                                                                "checkout_reference":  "chkphase320260410inactive",
+                                                                                                                "plan":  "monthly",
+                                                                                                                "amount_minor":  3990,
+                                                                                                                "currency":  "BRL",
+                                                                                                                "status":  "canceled",
+                                                                                                                "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410inactive",
+                                                                                                                "asaas_payment_id":  null,
+                                                                                                                "asaas_subscription_id":  null,
+                                                                                                                "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                                "updated_at":  "2026-04-10T05:58:31.65"
+                                                                                                            }
+                                                                                                        ],
+                                                                                  "credit_accounts":  [
+                                                                                                          {
+                                                                                                              "id":  "cred_usr_phase320260410a",
+                                                                                                              "user_id":  "usr_phase320260410a",
+                                                                                                              "credits_remaining":  3,
+                                                                                                              "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                              "updated_at":  "2026-04-10T05:58:10.53"
+                                                                                                          }
+                                                                                                      ],
+                                                                                  "user_quotas":  [
+                                                                                                      {
+                                                                                                          "id":  "45ce0a6b-5a8e-47fc-bac7-efd7c7e60ba5",
+                                                                                                          "user_id":  "usr_phase320260410a",
+                                                                                                          "plan":  "unit",
+                                                                                                          "credits_remaining":  3,
+                                                                                                          "asaas_customer_id":  null,
+                                                                                                          "asaas_subscription_id":  null,
+                                                                                                          "renews_at":  null,
+                                                                                                          "status":  "active",
+                                                                                                          "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                          "updated_at":  "2026-04-10T05:58:10.53"
+                                                                                                      }
+                                                                                                  ],
+                                                                                  "processed_events":  [
+
+                                                                                                       ]
+                                                                              },
+                                                             "judgments":  {
+                                                                               "BILL-01":  "pass",
+                                                                               "BILL-02":  "n/a",
+                                                                               "BILL-03":  "pass"
+                                                                           },
+                                                             "notes":  [
+                                                                           "Validated the long v1 externalReference shape with --app-user."
+                                                                       ]
+                                                         },
+                      "initial_recurring_activation":  {
+                                                           "replay":  {
+                                                                          "generatedAt":  "2026-04-10T05:58:56.398Z",
+                                                                          "scenario":  "initial_recurring_activation",
+                                                                          "dryRun":  false,
+                                                                          "endpoint":  "https://www.curria.com.br/api/webhook/asaas",
+                                                                          "headerSummary":  {
+                                                                                                "asaas-access-token":  "whse...JAf0",
+                                                                                                "content-type":  "application/json"
+                                                                                            },
+                                                                          "payload":  {
+                                                                                          "event":  "PAYMENT_CONFIRMED",
+                                                                                          "payment":  {
+                                                                                                          "id":  "pay_phase320260410start",
+                                                                                                          "externalReference":  "curria:v1:c:chkphase320260410monthly",
+                                                                                                          "subscription":  "sub_phase320260410live",
+                                                                                                          "value":  39.9,
+                                                                                                          "dueDate":  "2099-12-29"
+                                                                                                      }
+                                                                                      },
+                                                                          "response":  {
+                                                                                           "status":  200,
+                                                                                           "body":  {
+                                                                                                        "success":  true
+                                                                                                    }
+                                                                                       }
+                                                                      },
+                                                           "postSnapshot":  {
+                                                                                "generatedAt":  "2026-04-10T05:59:05.032Z",
+                                                                                "transport":  "supabase_admin",
+                                                                                "filters":  {
+                                                                                                "userId":  null,
+                                                                                                "checkoutReference":  "chkphase320260410monthly",
+                                                                                                "subscriptionId":  null
+                                                                                            },
+                                                                                "discovered":  {
+                                                                                                   "userIds":  [
+                                                                                                                   "usr_phase320260410a"
+                                                                                                               ],
+                                                                                                   "checkoutReferences":  [
+                                                                                                                              "chkphase320260410monthly"
+                                                                                                                          ],
+                                                                                                   "subscriptionIds":  [
+                                                                                                                           "sub_phase320260410live"
+                                                                                                                       ]
+                                                                                               },
+                                                                                "billing_checkouts":  [
+                                                                                                          {
+                                                                                                              "id":  "043aecad-29c7-4ed8-8042-c1f0531bb7df",
+                                                                                                              "user_id":  "usr_phase320260410a",
+                                                                                                              "checkout_reference":  "chkphase320260410monthly",
+                                                                                                              "plan":  "monthly",
+                                                                                                              "amount_minor":  3990,
+                                                                                                              "currency":  "BRL",
+                                                                                                              "status":  "subscription_active",
+                                                                                                              "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410monthly",
+                                                                                                              "asaas_payment_id":  null,
+                                                                                                              "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                              "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                              "updated_at":  "2026-04-10T05:58:59.243"
+                                                                                                          }
+                                                                                                      ],
+                                                                                "credit_accounts":  [
+                                                                                                        {
+                                                                                                            "id":  "cred_usr_phase320260410a",
+                                                                                                            "user_id":  "usr_phase320260410a",
+                                                                                                            "credits_remaining":  23,
+                                                                                                            "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                            "updated_at":  "2026-04-10T05:58:59.14"
+                                                                                                        }
+                                                                                                    ],
+                                                                                "user_quotas":  [
+                                                                                                    {
+                                                                                                        "id":  "45ce0a6b-5a8e-47fc-bac7-efd7c7e60ba5",
+                                                                                                        "user_id":  "usr_phase320260410a",
+                                                                                                        "plan":  "monthly",
+                                                                                                        "credits_remaining":  23,
+                                                                                                        "asaas_customer_id":  null,
+                                                                                                        "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                        "renews_at":  "2100-01-29T00:00:00",
+                                                                                                        "status":  "active",
+                                                                                                        "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                        "updated_at":  "2026-04-10T05:58:59.14"
+                                                                                                    }
+                                                                                                ],
+                                                                                "processed_events":  [
+                                                                                                         {
+                                                                                                             "id":  "67c203fc-460b-41a0-9491-d4b4ae317081",
+                                                                                                             "event_id":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                             "event_type":  "SUBSCRIPTION_STARTED",
+                                                                                                             "event_fingerprint":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                             "processed_at":  "2026-04-10T05:58:59.14",
+                                                                                                             "created_at":  "2026-04-10T05:58:59.14",
+                                                                                                             "event_payload":  {
+                                                                                                                                   "event":  "PAYMENT_CONFIRMED",
+                                                                                                                                   "payment":  {
+                                                                                                                                                   "id":  "pay_phase320260410start",
+                                                                                                                                                   "value":  39.9,
+                                                                                                                                                   "dueDate":  "2099-12-29",
+                                                                                                                                                   "subscription":  "sub_phase320260410live",
+                                                                                                                                                   "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                               }
+                                                                                                                               }
+                                                                                                         }
+                                                                                                     ]
+                                                                            },
+                                                           "judgments":  {
+                                                                             "BILL-01":  "pass",
+                                                                             "BILL-02":  "supporting",
+                                                                             "BILL-03":  "pass"
+                                                                         }
+                                                       },
+                      "renewal_replace_balance":  {
+                                                      "preSnapshot":  {
+                                                                          "generatedAt":  "2026-04-10T05:59:31.816Z",
+                                                                          "transport":  "supabase_admin",
+                                                                          "filters":  {
+                                                                                          "userId":  null,
+                                                                                          "checkoutReference":  null,
+                                                                                          "subscriptionId":  "sub_phase320260410live"
+                                                                                      },
+                                                                          "discovered":  {
+                                                                                             "userIds":  [
+                                                                                                             "usr_phase320260410a"
+                                                                                                         ],
+                                                                                             "checkoutReferences":  [
+                                                                                                                        "chkphase320260410monthly"
+                                                                                                                    ],
+                                                                                             "subscriptionIds":  [
+                                                                                                                     "sub_phase320260410live"
+                                                                                                                 ]
+                                                                                         },
+                                                                          "billing_checkouts":  [
+                                                                                                    {
+                                                                                                        "id":  "043aecad-29c7-4ed8-8042-c1f0531bb7df",
+                                                                                                        "user_id":  "usr_phase320260410a",
+                                                                                                        "checkout_reference":  "chkphase320260410monthly",
+                                                                                                        "plan":  "monthly",
+                                                                                                        "amount_minor":  3990,
+                                                                                                        "currency":  "BRL",
+                                                                                                        "status":  "subscription_active",
+                                                                                                        "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410monthly",
+                                                                                                        "asaas_payment_id":  null,
+                                                                                                        "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                        "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                        "updated_at":  "2026-04-10T05:58:59.243"
+                                                                                                    }
+                                                                                                ],
+                                                                          "credit_accounts":  [
+                                                                                                  {
+                                                                                                      "id":  "cred_usr_phase320260410a",
+                                                                                                      "user_id":  "usr_phase320260410a",
+                                                                                                      "credits_remaining":  7,
+                                                                                                      "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                      "updated_at":  "2026-04-10T05:59:25.47"
+                                                                                                  }
+                                                                                              ],
+                                                                          "user_quotas":  [
+                                                                                              {
+                                                                                                  "id":  "45ce0a6b-5a8e-47fc-bac7-efd7c7e60ba5",
+                                                                                                  "user_id":  "usr_phase320260410a",
+                                                                                                  "plan":  "monthly",
+                                                                                                  "credits_remaining":  7,
+                                                                                                  "asaas_customer_id":  null,
+                                                                                                  "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                  "renews_at":  "2100-01-29T00:00:00",
+                                                                                                  "status":  "active",
+                                                                                                  "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                  "updated_at":  "2026-04-10T05:59:25.47"
+                                                                                              }
+                                                                                          ],
+                                                                          "processed_events":  [
+                                                                                                   {
+                                                                                                       "id":  "67c203fc-460b-41a0-9491-d4b4ae317081",
+                                                                                                       "event_id":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                       "event_type":  "SUBSCRIPTION_STARTED",
+                                                                                                       "event_fingerprint":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                       "processed_at":  "2026-04-10T05:58:59.14",
+                                                                                                       "created_at":  "2026-04-10T05:58:59.14",
+                                                                                                       "event_payload":  {
+                                                                                                                             "event":  "PAYMENT_CONFIRMED",
+                                                                                                                             "payment":  {
+                                                                                                                                             "id":  "pay_phase320260410start",
+                                                                                                                                             "value":  39.9,
+                                                                                                                                             "dueDate":  "2099-12-29",
+                                                                                                                                             "subscription":  "sub_phase320260410live",
+                                                                                                                                             "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                         }
+                                                                                                                         }
+                                                                                                   }
+                                                                                               ]
+                                                                      },
+                                                      "replay":  {
+                                                                     "generatedAt":  "2026-04-10T05:59:40.559Z",
+                                                                     "scenario":  "renewal_replace_balance",
+                                                                     "dryRun":  false,
+                                                                     "endpoint":  "https://www.curria.com.br/api/webhook/asaas",
+                                                                     "headerSummary":  {
+                                                                                           "asaas-access-token":  "whse...JAf0",
+                                                                                           "content-type":  "application/json"
+                                                                                       },
+                                                                     "payload":  {
+                                                                                     "event":  "PAYMENT_RECEIVED",
+                                                                                     "payment":  {
+                                                                                                     "id":  "pay_phase320260410renew",
+                                                                                                     "externalReference":  "curria:v1:c:chkphase320260410monthly",
+                                                                                                     "subscription":  "sub_phase320260410live",
+                                                                                                     "value":  39.9,
+                                                                                                     "dueDate":  "2099-12-29"
+                                                                                                 }
+                                                                                 },
+                                                                     "response":  {
+                                                                                      "status":  200,
+                                                                                      "body":  {
+                                                                                                   "success":  true
+                                                                                               }
+                                                                                  }
+                                                                 },
+                                                      "postSnapshot":  {
+                                                                           "generatedAt":  "2026-04-10T05:59:47.450Z",
+                                                                           "transport":  "supabase_admin",
+                                                                           "filters":  {
+                                                                                           "userId":  null,
+                                                                                           "checkoutReference":  null,
+                                                                                           "subscriptionId":  "sub_phase320260410live"
+                                                                                       },
+                                                                           "discovered":  {
+                                                                                              "userIds":  [
+                                                                                                              "usr_phase320260410a"
+                                                                                                          ],
+                                                                                              "checkoutReferences":  [
+                                                                                                                         "chkphase320260410monthly"
+                                                                                                                     ],
+                                                                                              "subscriptionIds":  [
+                                                                                                                      "sub_phase320260410live"
+                                                                                                                  ]
+                                                                                          },
+                                                                           "billing_checkouts":  [
+                                                                                                     {
+                                                                                                         "id":  "043aecad-29c7-4ed8-8042-c1f0531bb7df",
+                                                                                                         "user_id":  "usr_phase320260410a",
+                                                                                                         "checkout_reference":  "chkphase320260410monthly",
+                                                                                                         "plan":  "monthly",
+                                                                                                         "amount_minor":  3990,
+                                                                                                         "currency":  "BRL",
+                                                                                                         "status":  "subscription_active",
+                                                                                                         "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410monthly",
+                                                                                                         "asaas_payment_id":  null,
+                                                                                                         "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                         "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                         "updated_at":  "2026-04-10T05:58:59.243"
+                                                                                                     }
+                                                                                                 ],
+                                                                           "credit_accounts":  [
+                                                                                                   {
+                                                                                                       "id":  "cred_usr_phase320260410a",
+                                                                                                       "user_id":  "usr_phase320260410a",
+                                                                                                       "credits_remaining":  20,
+                                                                                                       "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                       "updated_at":  "2026-04-10T05:59:43.905"
+                                                                                                   }
+                                                                                               ],
+                                                                           "user_quotas":  [
+                                                                                               {
+                                                                                                   "id":  "45ce0a6b-5a8e-47fc-bac7-efd7c7e60ba5",
+                                                                                                   "user_id":  "usr_phase320260410a",
+                                                                                                   "plan":  "monthly",
+                                                                                                   "credits_remaining":  20,
+                                                                                                   "asaas_customer_id":  null,
+                                                                                                   "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                   "renews_at":  "2100-01-29T00:00:00",
+                                                                                                   "status":  "active",
+                                                                                                   "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                   "updated_at":  "2026-04-10T05:59:43.905"
+                                                                                               }
+                                                                                           ],
+                                                                           "processed_events":  [
+                                                                                                    {
+                                                                                                        "id":  "f769dd03-ed7f-4ed8-9230-179c8c75b30a",
+                                                                                                        "event_id":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                        "event_type":  "SUBSCRIPTION_RENEWED",
+                                                                                                        "event_fingerprint":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                        "processed_at":  "2026-04-10T05:59:43.905",
+                                                                                                        "created_at":  "2026-04-10T05:59:43.905",
+                                                                                                        "event_payload":  {
+                                                                                                                              "event":  "PAYMENT_RECEIVED",
+                                                                                                                              "payment":  {
+                                                                                                                                              "id":  "pay_phase320260410renew",
+                                                                                                                                              "value":  39.9,
+                                                                                                                                              "dueDate":  "2099-12-29",
+                                                                                                                                              "subscription":  "sub_phase320260410live",
+                                                                                                                                              "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                          }
+                                                                                                                          }
+                                                                                                    },
+                                                                                                    {
+                                                                                                        "id":  "67c203fc-460b-41a0-9491-d4b4ae317081",
+                                                                                                        "event_id":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                        "event_type":  "SUBSCRIPTION_STARTED",
+                                                                                                        "event_fingerprint":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                        "processed_at":  "2026-04-10T05:58:59.14",
+                                                                                                        "created_at":  "2026-04-10T05:58:59.14",
+                                                                                                        "event_payload":  {
+                                                                                                                              "event":  "PAYMENT_CONFIRMED",
+                                                                                                                              "payment":  {
+                                                                                                                                              "id":  "pay_phase320260410start",
+                                                                                                                                              "value":  39.9,
+                                                                                                                                              "dueDate":  "2099-12-29",
+                                                                                                                                              "subscription":  "sub_phase320260410live",
+                                                                                                                                              "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                          }
+                                                                                                                          }
+                                                                                                    }
+                                                                                                ]
+                                                                       },
+                                                      "fixtureAdjustment":  {
+                                                                                "runtime_balance":  7,
+                                                                                "display_total":  7,
+                                                                                "reason":  "Simulated mid-cycle usage before renewal replay."
+                                                                            },
+                                                      "judgments":  {
+                                                                        "BILL-01":  "pass",
+                                                                        "BILL-02":  "supporting",
+                                                                        "BILL-03":  "pass"
+                                                                    }
+                                                  },
+                      "cancellation_metadata_only":  {
+                                                         "replay":  {
+                                                                        "generatedAt":  "2026-04-10T05:59:59.270Z",
+                                                                        "scenario":  "cancellation_metadata_only",
+                                                                        "dryRun":  false,
+                                                                        "endpoint":  "https://www.curria.com.br/api/webhook/asaas",
+                                                                        "headerSummary":  {
+                                                                                              "asaas-access-token":  "whse...JAf0",
+                                                                                              "content-type":  "application/json"
+                                                                                          },
+                                                                        "payload":  {
+                                                                                        "event":  "SUBSCRIPTION_INACTIVATED",
+                                                                                        "subscription":  {
+                                                                                                             "id":  "sub_phase320260410live",
+                                                                                                             "externalReference":  null
+                                                                                                         }
+                                                                                    },
+                                                                        "response":  {
+                                                                                         "status":  200,
+                                                                                         "body":  {
+                                                                                                      "success":  true
+                                                                                                  }
+                                                                                     }
+                                                                    },
+                                                         "postSnapshot":  {
+                                                                              "generatedAt":  "2026-04-10T06:00:11.808Z",
+                                                                              "transport":  "supabase_admin",
+                                                                              "filters":  {
+                                                                                              "userId":  null,
+                                                                                              "checkoutReference":  null,
+                                                                                              "subscriptionId":  "sub_phase320260410live"
+                                                                                          },
+                                                                              "discovered":  {
+                                                                                                 "userIds":  [
+                                                                                                                 "usr_phase320260410a"
+                                                                                                             ],
+                                                                                                 "checkoutReferences":  [
+                                                                                                                            "chkphase320260410monthly"
+                                                                                                                        ],
+                                                                                                 "subscriptionIds":  [
+                                                                                                                         "sub_phase320260410live"
+                                                                                                                     ]
+                                                                                             },
+                                                                              "billing_checkouts":  [
+                                                                                                        {
+                                                                                                            "id":  "043aecad-29c7-4ed8-8042-c1f0531bb7df",
+                                                                                                            "user_id":  "usr_phase320260410a",
+                                                                                                            "checkout_reference":  "chkphase320260410monthly",
+                                                                                                            "plan":  "monthly",
+                                                                                                            "amount_minor":  3990,
+                                                                                                            "currency":  "BRL",
+                                                                                                            "status":  "canceled",
+                                                                                                            "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410monthly",
+                                                                                                            "asaas_payment_id":  null,
+                                                                                                            "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                            "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                            "updated_at":  "2026-04-10T06:00:02.633"
+                                                                                                        }
+                                                                                                    ],
+                                                                              "credit_accounts":  [
+                                                                                                      {
+                                                                                                          "id":  "cred_usr_phase320260410a",
+                                                                                                          "user_id":  "usr_phase320260410a",
+                                                                                                          "credits_remaining":  20,
+                                                                                                          "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                          "updated_at":  "2026-04-10T05:59:43.905"
+                                                                                                      }
+                                                                                                  ],
+                                                                              "user_quotas":  [
+                                                                                                  {
+                                                                                                      "id":  "45ce0a6b-5a8e-47fc-bac7-efd7c7e60ba5",
+                                                                                                      "user_id":  "usr_phase320260410a",
+                                                                                                      "plan":  "monthly",
+                                                                                                      "credits_remaining":  20,
+                                                                                                      "asaas_customer_id":  null,
+                                                                                                      "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                      "renews_at":  null,
+                                                                                                      "status":  "canceled",
+                                                                                                      "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                      "updated_at":  "2026-04-10T06:00:02.543"
+                                                                                                  }
+                                                                                              ],
+                                                                              "processed_events":  [
+                                                                                                       {
+                                                                                                           "id":  "82ac0f73-3097-4616-b4bb-162395fed6cc",
+                                                                                                           "event_id":  "2f284e852119e08dad5e1ad2d1aa2b70c13597b1cb0821992ada812fa66e5f35",
+                                                                                                           "event_type":  "SUBSCRIPTION_CANCELED",
+                                                                                                           "event_fingerprint":  "2f284e852119e08dad5e1ad2d1aa2b70c13597b1cb0821992ada812fa66e5f35",
+                                                                                                           "processed_at":  "2026-04-10T06:00:02.543",
+                                                                                                           "created_at":  "2026-04-10T06:00:02.543",
+                                                                                                           "event_payload":  {
+                                                                                                                                 "event":  "SUBSCRIPTION_INACTIVATED",
+                                                                                                                                 "subscription":  {
+                                                                                                                                                      "id":  "sub_phase320260410live",
+                                                                                                                                                      "externalReference":  null
+                                                                                                                                                  }
+                                                                                                                             }
+                                                                                                       },
+                                                                                                       {
+                                                                                                           "id":  "f769dd03-ed7f-4ed8-9230-179c8c75b30a",
+                                                                                                           "event_id":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                           "event_type":  "SUBSCRIPTION_RENEWED",
+                                                                                                           "event_fingerprint":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                           "processed_at":  "2026-04-10T05:59:43.905",
+                                                                                                           "created_at":  "2026-04-10T05:59:43.905",
+                                                                                                           "event_payload":  {
+                                                                                                                                 "event":  "PAYMENT_RECEIVED",
+                                                                                                                                 "payment":  {
+                                                                                                                                                 "id":  "pay_phase320260410renew",
+                                                                                                                                                 "value":  39.9,
+                                                                                                                                                 "dueDate":  "2099-12-29",
+                                                                                                                                                 "subscription":  "sub_phase320260410live",
+                                                                                                                                                 "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                             }
+                                                                                                                             }
+                                                                                                       },
+                                                                                                       {
+                                                                                                           "id":  "67c203fc-460b-41a0-9491-d4b4ae317081",
+                                                                                                           "event_id":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                           "event_type":  "SUBSCRIPTION_STARTED",
+                                                                                                           "event_fingerprint":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                           "processed_at":  "2026-04-10T05:58:59.14",
+                                                                                                           "created_at":  "2026-04-10T05:58:59.14",
+                                                                                                           "event_payload":  {
+                                                                                                                                 "event":  "PAYMENT_CONFIRMED",
+                                                                                                                                 "payment":  {
+                                                                                                                                                 "id":  "pay_phase320260410start",
+                                                                                                                                                 "value":  39.9,
+                                                                                                                                                 "dueDate":  "2099-12-29",
+                                                                                                                                                 "subscription":  "sub_phase320260410live",
+                                                                                                                                                 "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                             }
+                                                                                                                             }
+                                                                                                       }
+                                                                                                   ]
+                                                                          },
+                                                         "judgments":  {
+                                                                           "BILL-01":  "pass",
+                                                                           "BILL-02":  "supporting",
+                                                                           "BILL-03":  "pass"
+                                                                       }
+                                                     },
+                      "duplicate_delivery":  {
+                                                 "replays":  [
+                                                                 {
+                                                                     "generatedAt":  "2026-04-10T06:00:34.463Z",
+                                                                     "scenario":  "duplicate_delivery",
+                                                                     "dryRun":  false,
+                                                                     "endpoint":  "https://www.curria.com.br/api/webhook/asaas",
+                                                                     "headerSummary":  {
+                                                                                           "asaas-access-token":  "whse...JAf0",
+                                                                                           "content-type":  "application/json"
+                                                                                       },
+                                                                     "payload":  {
+                                                                                     "event":  "PAYMENT_RECEIVED",
+                                                                                     "payment":  {
+                                                                                                     "id":  "pay_phase320260410unit",
+                                                                                                     "externalReference":  "curria:v1:c:chkphase320260410unit",
+                                                                                                     "subscription":  null,
+                                                                                                     "value":  19.9
+                                                                                                 }
+                                                                                 },
+                                                                     "response":  {
+                                                                                      "status":  200,
+                                                                                      "body":  {
+                                                                                                   "success":  true,
+                                                                                                   "cached":  true
+                                                                                               }
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "generatedAt":  "2026-04-10T06:00:34.455Z",
+                                                                     "scenario":  "duplicate_delivery",
+                                                                     "dryRun":  false,
+                                                                     "endpoint":  "https://www.curria.com.br/api/webhook/asaas",
+                                                                     "headerSummary":  {
+                                                                                           "asaas-access-token":  "whse...JAf0",
+                                                                                           "content-type":  "application/json"
+                                                                                       },
+                                                                     "payload":  {
+                                                                                     "event":  "PAYMENT_CONFIRMED",
+                                                                                     "payment":  {
+                                                                                                     "id":  "pay_phase320260410unit",
+                                                                                                     "externalReference":  "curria:v1:c:chkphase320260410unit",
+                                                                                                     "subscription":  null,
+                                                                                                     "value":  19.9
+                                                                                                 }
+                                                                                 },
+                                                                     "response":  {
+                                                                                      "status":  200,
+                                                                                      "body":  {
+                                                                                                   "success":  true,
+                                                                                                   "cached":  true
+                                                                                               }
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "generatedAt":  "2026-04-10T06:03:06.450Z",
+                                                                     "scenario":  "duplicate_delivery",
+                                                                     "dryRun":  false,
+                                                                     "endpoint":  "https://www.curria.com.br/api/webhook/asaas",
+                                                                     "headerSummary":  {
+                                                                                           "asaas-access-token":  "whse...JAf0",
+                                                                                           "content-type":  "application/json"
+                                                                                       },
+                                                                     "payload":  {
+                                                                                     "event":  "PAYMENT_RECEIVED",
+                                                                                     "payment":  {
+                                                                                                     "id":  "pay_phase320260410unit",
+                                                                                                     "externalReference":  "curria:v1:c:chkphase320260410unit",
+                                                                                                     "subscription":  null,
+                                                                                                     "value":  19.9
+                                                                                                 }
+                                                                                 },
+                                                                     "response":  {
+                                                                                      "status":  200,
+                                                                                      "body":  {
+                                                                                                   "success":  true,
+                                                                                                   "cached":  true
+                                                                                               }
+                                                                                  }
+                                                                 }
+                                                             ],
+                                                 "postSnapshot":  {
+                                                                      "generatedAt":  "2026-04-10T06:00:43.103Z",
+                                                                      "transport":  "supabase_admin",
+                                                                      "filters":  {
+                                                                                      "userId":  null,
+                                                                                      "checkoutReference":  "chkphase320260410unit",
+                                                                                      "subscriptionId":  null
+                                                                                  },
+                                                                      "discovered":  {
+                                                                                         "userIds":  [
+                                                                                                         "usr_phase320260410a"
+                                                                                                     ],
+                                                                                         "checkoutReferences":  [
+                                                                                                                    "chkphase320260410unit"
+                                                                                                                ],
+                                                                                         "subscriptionIds":  [
+                                                                                                                 "sub_phase320260410live"
+                                                                                                             ]
+                                                                                     },
+                                                                      "billing_checkouts":  [
+                                                                                                {
+                                                                                                    "id":  "36d40f4f-6017-44df-b7aa-debf06f8dbbe",
+                                                                                                    "user_id":  "usr_phase320260410a",
+                                                                                                    "checkout_reference":  "chkphase320260410unit",
+                                                                                                    "plan":  "unit",
+                                                                                                    "amount_minor":  1990,
+                                                                                                    "currency":  "BRL",
+                                                                                                    "status":  "paid",
+                                                                                                    "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410unit",
+                                                                                                    "asaas_payment_id":  "pay_phase320260410unit",
+                                                                                                    "asaas_subscription_id":  null,
+                                                                                                    "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                    "updated_at":  "2026-04-10T05:58:10.735"
+                                                                                                }
+                                                                                            ],
+                                                                      "credit_accounts":  [
+                                                                                              {
+                                                                                                  "id":  "cred_usr_phase320260410a",
+                                                                                                  "user_id":  "usr_phase320260410a",
+                                                                                                  "credits_remaining":  20,
+                                                                                                  "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                  "updated_at":  "2026-04-10T05:59:43.905"
+                                                                                              }
+                                                                                          ],
+                                                                      "user_quotas":  [
+                                                                                          {
+                                                                                              "id":  "45ce0a6b-5a8e-47fc-bac7-efd7c7e60ba5",
+                                                                                              "user_id":  "usr_phase320260410a",
+                                                                                              "plan":  "monthly",
+                                                                                              "credits_remaining":  20,
+                                                                                              "asaas_customer_id":  null,
+                                                                                              "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                              "renews_at":  null,
+                                                                                              "status":  "canceled",
+                                                                                              "created_at":  "2026-04-10T05:58:10.53",
+                                                                                              "updated_at":  "2026-04-10T06:00:02.543"
+                                                                                          }
+                                                                                      ],
+                                                                      "processed_events":  [
+                                                                                               {
+                                                                                                   "id":  "82ac0f73-3097-4616-b4bb-162395fed6cc",
+                                                                                                   "event_id":  "2f284e852119e08dad5e1ad2d1aa2b70c13597b1cb0821992ada812fa66e5f35",
+                                                                                                   "event_type":  "SUBSCRIPTION_CANCELED",
+                                                                                                   "event_fingerprint":  "2f284e852119e08dad5e1ad2d1aa2b70c13597b1cb0821992ada812fa66e5f35",
+                                                                                                   "processed_at":  "2026-04-10T06:00:02.543",
+                                                                                                   "created_at":  "2026-04-10T06:00:02.543",
+                                                                                                   "event_payload":  {
+                                                                                                                         "event":  "SUBSCRIPTION_INACTIVATED",
+                                                                                                                         "subscription":  {
+                                                                                                                                              "id":  "sub_phase320260410live",
+                                                                                                                                              "externalReference":  null
+                                                                                                                                          }
+                                                                                                                     }
+                                                                                               },
+                                                                                               {
+                                                                                                   "id":  "f769dd03-ed7f-4ed8-9230-179c8c75b30a",
+                                                                                                   "event_id":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                   "event_type":  "SUBSCRIPTION_RENEWED",
+                                                                                                   "event_fingerprint":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                   "processed_at":  "2026-04-10T05:59:43.905",
+                                                                                                   "created_at":  "2026-04-10T05:59:43.905",
+                                                                                                   "event_payload":  {
+                                                                                                                         "event":  "PAYMENT_RECEIVED",
+                                                                                                                         "payment":  {
+                                                                                                                                         "id":  "pay_phase320260410renew",
+                                                                                                                                         "value":  39.9,
+                                                                                                                                         "dueDate":  "2099-12-29",
+                                                                                                                                         "subscription":  "sub_phase320260410live",
+                                                                                                                                         "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                     }
+                                                                                                                     }
+                                                                                               },
+                                                                                               {
+                                                                                                   "id":  "67c203fc-460b-41a0-9491-d4b4ae317081",
+                                                                                                   "event_id":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                   "event_type":  "SUBSCRIPTION_STARTED",
+                                                                                                   "event_fingerprint":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                   "processed_at":  "2026-04-10T05:58:59.14",
+                                                                                                   "created_at":  "2026-04-10T05:58:59.14",
+                                                                                                   "event_payload":  {
+                                                                                                                         "event":  "PAYMENT_CONFIRMED",
+                                                                                                                         "payment":  {
+                                                                                                                                         "id":  "pay_phase320260410start",
+                                                                                                                                         "value":  39.9,
+                                                                                                                                         "dueDate":  "2099-12-29",
+                                                                                                                                         "subscription":  "sub_phase320260410live",
+                                                                                                                                         "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                     }
+                                                                                                                     }
+                                                                                               },
+                                                                                               {
+                                                                                                   "id":  "55f4667c-54b6-42b4-8a9d-1dcd8aa5edcd",
+                                                                                                   "event_id":  "6bbf12d4150b15936aafd2270ae6df81e143508203dce6d0b65f42bf7c68ae85",
+                                                                                                   "event_type":  "PAYMENT_SETTLED",
+                                                                                                   "event_fingerprint":  "6bbf12d4150b15936aafd2270ae6df81e143508203dce6d0b65f42bf7c68ae85",
+                                                                                                   "processed_at":  "2026-04-10T05:58:10.53",
+                                                                                                   "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                   "event_payload":  {
+                                                                                                                         "event":  "PAYMENT_RECEIVED",
+                                                                                                                         "payment":  {
+                                                                                                                                         "id":  "pay_phase320260410unit",
+                                                                                                                                         "value":  19.9,
+                                                                                                                                         "subscription":  null,
+                                                                                                                                         "externalReference":  "curria:v1:c:chkphase320260410unit"
+                                                                                                                                     }
+                                                                                                                     }
+                                                                                               }
+                                                                                           ]
+                                                                  },
+                                                 "judgments":  {
+                                                                   "BILL-01":  "pass",
+                                                                   "BILL-02":  "pass",
+                                                                   "BILL-03":  "pass"
+                                                               },
+                                                 "notes":  [
+                                                               "The third replay omits --value and proves the committed helper now falls back to the scenario default amount in live mode."
+                                                           ]
+                                             },
+                      "partial_success_reconcile":  {
+                                                        "preSnapshot":  {
+                                                                            "generatedAt":  "2026-04-10T06:01:16.538Z",
+                                                                            "transport":  "supabase_admin",
+                                                                            "filters":  {
+                                                                                            "userId":  null,
+                                                                                            "checkoutReference":  "chkphase320260410unit",
+                                                                                            "subscriptionId":  null
+                                                                                        },
+                                                                            "discovered":  {
+                                                                                               "userIds":  [
+                                                                                                               "usr_phase320260410a"
+                                                                                                           ],
+                                                                                               "checkoutReferences":  [
+                                                                                                                          "chkphase320260410unit"
+                                                                                                                      ],
+                                                                                               "subscriptionIds":  [
+                                                                                                                       "sub_phase320260410live"
+                                                                                                                   ]
+                                                                                           },
+                                                                            "billing_checkouts":  [
+                                                                                                      {
+                                                                                                          "id":  "36d40f4f-6017-44df-b7aa-debf06f8dbbe",
+                                                                                                          "user_id":  "usr_phase320260410a",
+                                                                                                          "checkout_reference":  "chkphase320260410unit",
+                                                                                                          "plan":  "unit",
+                                                                                                          "amount_minor":  1990,
+                                                                                                          "currency":  "BRL",
+                                                                                                          "status":  "created",
+                                                                                                          "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410unit",
+                                                                                                          "asaas_payment_id":  null,
+                                                                                                          "asaas_subscription_id":  null,
+                                                                                                          "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                          "updated_at":  "2026-04-10T06:01:08.864"
+                                                                                                      }
+                                                                                                  ],
+                                                                            "credit_accounts":  [
+                                                                                                    {
+                                                                                                        "id":  "cred_usr_phase320260410a",
+                                                                                                        "user_id":  "usr_phase320260410a",
+                                                                                                        "credits_remaining":  20,
+                                                                                                        "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                        "updated_at":  "2026-04-10T05:59:43.905"
+                                                                                                    }
+                                                                                                ],
+                                                                            "user_quotas":  [
+                                                                                                {
+                                                                                                    "id":  "45ce0a6b-5a8e-47fc-bac7-efd7c7e60ba5",
+                                                                                                    "user_id":  "usr_phase320260410a",
+                                                                                                    "plan":  "monthly",
+                                                                                                    "credits_remaining":  20,
+                                                                                                    "asaas_customer_id":  null,
+                                                                                                    "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                    "renews_at":  null,
+                                                                                                    "status":  "canceled",
+                                                                                                    "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                    "updated_at":  "2026-04-10T06:00:02.543"
+                                                                                                }
+                                                                                            ],
+                                                                            "processed_events":  [
+                                                                                                     {
+                                                                                                         "id":  "82ac0f73-3097-4616-b4bb-162395fed6cc",
+                                                                                                         "event_id":  "2f284e852119e08dad5e1ad2d1aa2b70c13597b1cb0821992ada812fa66e5f35",
+                                                                                                         "event_type":  "SUBSCRIPTION_CANCELED",
+                                                                                                         "event_fingerprint":  "2f284e852119e08dad5e1ad2d1aa2b70c13597b1cb0821992ada812fa66e5f35",
+                                                                                                         "processed_at":  "2026-04-10T06:00:02.543",
+                                                                                                         "created_at":  "2026-04-10T06:00:02.543",
+                                                                                                         "event_payload":  {
+                                                                                                                               "event":  "SUBSCRIPTION_INACTIVATED",
+                                                                                                                               "subscription":  {
+                                                                                                                                                    "id":  "sub_phase320260410live",
+                                                                                                                                                    "externalReference":  null
+                                                                                                                                                }
+                                                                                                                           }
+                                                                                                     },
+                                                                                                     {
+                                                                                                         "id":  "f769dd03-ed7f-4ed8-9230-179c8c75b30a",
+                                                                                                         "event_id":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                         "event_type":  "SUBSCRIPTION_RENEWED",
+                                                                                                         "event_fingerprint":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                         "processed_at":  "2026-04-10T05:59:43.905",
+                                                                                                         "created_at":  "2026-04-10T05:59:43.905",
+                                                                                                         "event_payload":  {
+                                                                                                                               "event":  "PAYMENT_RECEIVED",
+                                                                                                                               "payment":  {
+                                                                                                                                               "id":  "pay_phase320260410renew",
+                                                                                                                                               "value":  39.9,
+                                                                                                                                               "dueDate":  "2099-12-29",
+                                                                                                                                               "subscription":  "sub_phase320260410live",
+                                                                                                                                               "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                           }
+                                                                                                                           }
+                                                                                                     },
+                                                                                                     {
+                                                                                                         "id":  "67c203fc-460b-41a0-9491-d4b4ae317081",
+                                                                                                         "event_id":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                         "event_type":  "SUBSCRIPTION_STARTED",
+                                                                                                         "event_fingerprint":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                         "processed_at":  "2026-04-10T05:58:59.14",
+                                                                                                         "created_at":  "2026-04-10T05:58:59.14",
+                                                                                                         "event_payload":  {
+                                                                                                                               "event":  "PAYMENT_CONFIRMED",
+                                                                                                                               "payment":  {
+                                                                                                                                               "id":  "pay_phase320260410start",
+                                                                                                                                               "value":  39.9,
+                                                                                                                                               "dueDate":  "2099-12-29",
+                                                                                                                                               "subscription":  "sub_phase320260410live",
+                                                                                                                                               "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                           }
+                                                                                                                           }
+                                                                                                     },
+                                                                                                     {
+                                                                                                         "id":  "55f4667c-54b6-42b4-8a9d-1dcd8aa5edcd",
+                                                                                                         "event_id":  "6bbf12d4150b15936aafd2270ae6df81e143508203dce6d0b65f42bf7c68ae85",
+                                                                                                         "event_type":  "PAYMENT_SETTLED",
+                                                                                                         "event_fingerprint":  "6bbf12d4150b15936aafd2270ae6df81e143508203dce6d0b65f42bf7c68ae85",
+                                                                                                         "processed_at":  "2026-04-10T05:58:10.53",
+                                                                                                         "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                         "event_payload":  {
+                                                                                                                               "event":  "PAYMENT_RECEIVED",
+                                                                                                                               "payment":  {
+                                                                                                                                               "id":  "pay_phase320260410unit",
+                                                                                                                                               "value":  19.9,
+                                                                                                                                               "subscription":  null,
+                                                                                                                                               "externalReference":  "curria:v1:c:chkphase320260410unit"
+                                                                                                                                           }
+                                                                                                                           }
+                                                                                                     }
+                                                                                                 ]
+                                                                        },
+                                                        "replay":  {
+                                                                       "generatedAt":  "2026-04-10T06:01:24.169Z",
+                                                                       "scenario":  "partial_success_reconcile",
+                                                                       "dryRun":  false,
+                                                                       "endpoint":  "https://www.curria.com.br/api/webhook/asaas",
+                                                                       "headerSummary":  {
+                                                                                             "asaas-access-token":  "whse...JAf0",
+                                                                                             "content-type":  "application/json"
+                                                                                         },
+                                                                       "payload":  {
+                                                                                       "event":  "PAYMENT_RECEIVED",
+                                                                                       "payment":  {
+                                                                                                       "id":  "pay_phase320260410unit",
+                                                                                                       "externalReference":  "curria:v1:c:chkphase320260410unit",
+                                                                                                       "checkoutSession":  null,
+                                                                                                       "subscription":  null,
+                                                                                                       "value":  19.9
+                                                                                                   }
+                                                                                   },
+                                                                       "response":  {
+                                                                                        "status":  200,
+                                                                                        "body":  {
+                                                                                                     "success":  true,
+                                                                                                     "cached":  true
+                                                                                                 }
+                                                                                    }
+                                                                   },
+                                                        "postSnapshot":  {
+                                                                             "generatedAt":  "2026-04-10T06:01:31.761Z",
+                                                                             "transport":  "supabase_admin",
+                                                                             "filters":  {
+                                                                                             "userId":  null,
+                                                                                             "checkoutReference":  "chkphase320260410unit",
+                                                                                             "subscriptionId":  null
+                                                                                         },
+                                                                             "discovered":  {
+                                                                                                "userIds":  [
+                                                                                                                "usr_phase320260410a"
+                                                                                                            ],
+                                                                                                "checkoutReferences":  [
+                                                                                                                           "chkphase320260410unit"
+                                                                                                                       ],
+                                                                                                "subscriptionIds":  [
+                                                                                                                        "sub_phase320260410live"
+                                                                                                                    ]
+                                                                                            },
+                                                                             "billing_checkouts":  [
+                                                                                                       {
+                                                                                                           "id":  "36d40f4f-6017-44df-b7aa-debf06f8dbbe",
+                                                                                                           "user_id":  "usr_phase320260410a",
+                                                                                                           "checkout_reference":  "chkphase320260410unit",
+                                                                                                           "plan":  "unit",
+                                                                                                           "amount_minor":  1990,
+                                                                                                           "currency":  "BRL",
+                                                                                                           "status":  "paid",
+                                                                                                           "asaas_link":  "https://www.asaas.com/checkoutSession/show?id=sessionphase320260410unit",
+                                                                                                           "asaas_payment_id":  "pay_phase320260410unit",
+                                                                                                           "asaas_subscription_id":  null,
+                                                                                                           "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                           "updated_at":  "2026-04-10T06:01:26.862"
+                                                                                                       }
+                                                                                                   ],
+                                                                             "credit_accounts":  [
+                                                                                                     {
+                                                                                                         "id":  "cred_usr_phase320260410a",
+                                                                                                         "user_id":  "usr_phase320260410a",
+                                                                                                         "credits_remaining":  20,
+                                                                                                         "created_at":  "2026-04-10T05:56:32.508",
+                                                                                                         "updated_at":  "2026-04-10T05:59:43.905"
+                                                                                                     }
+                                                                                                 ],
+                                                                             "user_quotas":  [
+                                                                                                 {
+                                                                                                     "id":  "45ce0a6b-5a8e-47fc-bac7-efd7c7e60ba5",
+                                                                                                     "user_id":  "usr_phase320260410a",
+                                                                                                     "plan":  "monthly",
+                                                                                                     "credits_remaining":  20,
+                                                                                                     "asaas_customer_id":  null,
+                                                                                                     "asaas_subscription_id":  "sub_phase320260410live",
+                                                                                                     "renews_at":  null,
+                                                                                                     "status":  "canceled",
+                                                                                                     "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                     "updated_at":  "2026-04-10T06:00:02.543"
+                                                                                                 }
+                                                                                             ],
+                                                                             "processed_events":  [
+                                                                                                      {
+                                                                                                          "id":  "82ac0f73-3097-4616-b4bb-162395fed6cc",
+                                                                                                          "event_id":  "2f284e852119e08dad5e1ad2d1aa2b70c13597b1cb0821992ada812fa66e5f35",
+                                                                                                          "event_type":  "SUBSCRIPTION_CANCELED",
+                                                                                                          "event_fingerprint":  "2f284e852119e08dad5e1ad2d1aa2b70c13597b1cb0821992ada812fa66e5f35",
+                                                                                                          "processed_at":  "2026-04-10T06:00:02.543",
+                                                                                                          "created_at":  "2026-04-10T06:00:02.543",
+                                                                                                          "event_payload":  {
+                                                                                                                                "event":  "SUBSCRIPTION_INACTIVATED",
+                                                                                                                                "subscription":  {
+                                                                                                                                                     "id":  "sub_phase320260410live",
+                                                                                                                                                     "externalReference":  null
+                                                                                                                                                 }
+                                                                                                                            }
+                                                                                                      },
+                                                                                                      {
+                                                                                                          "id":  "f769dd03-ed7f-4ed8-9230-179c8c75b30a",
+                                                                                                          "event_id":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                          "event_type":  "SUBSCRIPTION_RENEWED",
+                                                                                                          "event_fingerprint":  "9ffd564b9d58813244be5258a51a0974d9d8472cd3ce3974bb69f202758b53dc",
+                                                                                                          "processed_at":  "2026-04-10T05:59:43.905",
+                                                                                                          "created_at":  "2026-04-10T05:59:43.905",
+                                                                                                          "event_payload":  {
+                                                                                                                                "event":  "PAYMENT_RECEIVED",
+                                                                                                                                "payment":  {
+                                                                                                                                                "id":  "pay_phase320260410renew",
+                                                                                                                                                "value":  39.9,
+                                                                                                                                                "dueDate":  "2099-12-29",
+                                                                                                                                                "subscription":  "sub_phase320260410live",
+                                                                                                                                                "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                            }
+                                                                                                                            }
+                                                                                                      },
+                                                                                                      {
+                                                                                                          "id":  "67c203fc-460b-41a0-9491-d4b4ae317081",
+                                                                                                          "event_id":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                          "event_type":  "SUBSCRIPTION_STARTED",
+                                                                                                          "event_fingerprint":  "64d7139a1cc4973e1c14c98f36dd82559ff15a33c6debcc17bf25251b9f8d8ac",
+                                                                                                          "processed_at":  "2026-04-10T05:58:59.14",
+                                                                                                          "created_at":  "2026-04-10T05:58:59.14",
+                                                                                                          "event_payload":  {
+                                                                                                                                "event":  "PAYMENT_CONFIRMED",
+                                                                                                                                "payment":  {
+                                                                                                                                                "id":  "pay_phase320260410start",
+                                                                                                                                                "value":  39.9,
+                                                                                                                                                "dueDate":  "2099-12-29",
+                                                                                                                                                "subscription":  "sub_phase320260410live",
+                                                                                                                                                "externalReference":  "curria:v1:c:chkphase320260410monthly"
+                                                                                                                                            }
+                                                                                                                            }
+                                                                                                      },
+                                                                                                      {
+                                                                                                          "id":  "55f4667c-54b6-42b4-8a9d-1dcd8aa5edcd",
+                                                                                                          "event_id":  "6bbf12d4150b15936aafd2270ae6df81e143508203dce6d0b65f42bf7c68ae85",
+                                                                                                          "event_type":  "PAYMENT_SETTLED",
+                                                                                                          "event_fingerprint":  "6bbf12d4150b15936aafd2270ae6df81e143508203dce6d0b65f42bf7c68ae85",
+                                                                                                          "processed_at":  "2026-04-10T05:58:10.53",
+                                                                                                          "created_at":  "2026-04-10T05:58:10.53",
+                                                                                                          "event_payload":  {
+                                                                                                                                "event":  "PAYMENT_RECEIVED",
+                                                                                                                                "payment":  {
+                                                                                                                                                "id":  "pay_phase320260410unit",
+                                                                                                                                                "value":  19.9,
+                                                                                                                                                "subscription":  null,
+                                                                                                                                                "externalReference":  "curria:v1:c:chkphase320260410unit"
+                                                                                                                                            }
+                                                                                                                            }
+                                                                                                      }
+                                                                                                  ]
+                                                                         },
+                                                        "judgments":  {
+                                                                          "BILL-01":  "pass",
+                                                                          "BILL-02":  "pass",
+                                                                          "BILL-03":  "pass"
+                                                                      }
+                                                    }
+                  }
+}

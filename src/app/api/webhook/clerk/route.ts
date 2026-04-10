@@ -8,16 +8,42 @@ import {
   getOrCreateAppUserByClerkUserId,
   syncClerkUserProfile,
 } from '@/lib/auth/app-user'
+import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 
 export const runtime = 'nodejs'
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-})
+const TOLERANCE_SECONDS = 5 * 60
+const IDEMPOTENCY_TTL = 24 * 60 * 60
 
-const TOLERANCE_SECONDS = 5 * 60 // reject webhooks older than 5 minutes
-const IDEMPOTENCY_TTL = 24 * 60 * 60 // deduplicate within 24 hours
+let redisClient: Redis | null = null
+
+function getRequiredClerkWebhookEnv(
+  name: 'UPSTASH_REDIS_REST_URL' | 'UPSTASH_REDIS_REST_TOKEN' | 'CLERK_WEBHOOK_SECRET',
+): string {
+  const trimmed = process.env[name]?.trim()
+
+  if (!trimmed) {
+    throw new Error(`Missing required environment variable ${name} for Clerk webhook.`)
+  }
+
+  return trimmed
+}
+
+function getRedisClient(): Redis {
+  if (!redisClient) {
+    redisClient = new Redis({
+      url: getRequiredClerkWebhookEnv('UPSTASH_REDIS_REST_URL'),
+      token: getRequiredClerkWebhookEnv('UPSTASH_REDIS_REST_TOKEN'),
+    })
+  }
+
+  return redisClient
+}
+
+function readEventUserId(event: WebhookEvent): string | undefined {
+  const data = event.data as { id?: unknown }
+  return typeof data.id === 'string' ? data.id : undefined
+}
 
 export async function POST(req: Request): Promise<Response> {
   const headerPayload = headers()
@@ -26,23 +52,53 @@ export async function POST(req: Request): Promise<Response> {
   const svixSignature = headerPayload.get('svix-signature')
 
   if (!svixId || !svixTimestamp || !svixSignature) {
+    logWarn('clerk.webhook.headers_missing', {
+      requestMethod: req.method,
+      requestPath: new URL(req.url).pathname,
+      success: false,
+    })
+
     return Response.json({ error: 'Missing svix headers' }, { status: 400 })
   }
 
-  // ── Replay protection: timestamp window ───────────────────────────────────
-  const eventTime = parseInt(svixTimestamp, 10)
-  const now = Math.floor(Date.now() / 1000)
-  if (Math.abs(now - eventTime) > TOLERANCE_SECONDS) {
-    console.warn(
-      `[webhook/clerk] Rejected stale event ${svixId} (age: ${now - eventTime}s)`
-    )
+  let redis: Redis
+  let webhook: Webhook
+
+  try {
+    redis = getRedisClient()
+    webhook = new Webhook(getRequiredClerkWebhookEnv('CLERK_WEBHOOK_SECRET'))
+  } catch (error) {
+    logError('clerk.webhook.config_missing', {
+      requestMethod: req.method,
+      requestPath: new URL(req.url).pathname,
+      svixId,
+      success: false,
+      ...serializeError(error),
+    })
+
     return Response.json(
-      { error: 'Webhook timestamp out of tolerance' },
-      { status: 400 }
+      { error: error instanceof Error ? error.message : 'Missing Clerk webhook configuration.' },
+      { status: 500 },
     )
   }
 
-  // ── Replay protection: idempotency via Redis ──────────────────────────────
+  const eventTime = parseInt(svixTimestamp, 10)
+  const now = Math.floor(Date.now() / 1000)
+  if (Math.abs(now - eventTime) > TOLERANCE_SECONDS) {
+    logWarn('clerk.webhook.timestamp_out_of_tolerance', {
+      requestMethod: req.method,
+      requestPath: new URL(req.url).pathname,
+      svixId,
+      eventAgeSeconds: now - eventTime,
+      success: false,
+    })
+
+    return Response.json(
+      { error: 'Webhook timestamp out of tolerance' },
+      { status: 400 },
+    )
+  }
+
   const idempotencyKey = `clerk:webhook:${svixId}`
   const setResult = await redis.set(idempotencyKey, '1', {
     ex: IDEMPOTENCY_TTL,
@@ -50,27 +106,39 @@ export async function POST(req: Request): Promise<Response> {
   })
 
   if (setResult !== 'OK') {
+    logInfo('clerk.webhook.duplicate', {
+      requestMethod: req.method,
+      requestPath: new URL(req.url).pathname,
+      svixId,
+      success: true,
+      duplicate: true,
+    })
+
     return Response.json({ ok: true, duplicate: true }, { status: 200 })
   }
 
-  // ── Signature verification ────────────────────────────────────────────────
   const body = await req.text()
-  const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET!)
 
   let evt: WebhookEvent
   try {
-    evt = wh.verify(body, {
+    evt = webhook.verify(body, {
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
     }) as WebhookEvent
-  } catch (err) {
-    console.error('[webhook/clerk] Signature verification failed:', err)
+  } catch (error) {
+    logWarn('clerk.webhook.signature_invalid', {
+      requestMethod: req.method,
+      requestPath: new URL(req.url).pathname,
+      svixId,
+      success: false,
+      ...serializeError(error),
+    })
+
     await redis.del(idempotencyKey)
     return Response.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  // ── Event handlers ────────────────────────────────────────────────────────
   try {
     switch (evt.type) {
       case 'user.created': {
@@ -98,7 +166,10 @@ export async function POST(req: Request): Promise<Response> {
 
       case 'user.deleted': {
         const { id } = evt.data
-        if (!id) break
+        if (!id) {
+          break
+        }
+
         await disableAppUserByClerkUserId(id)
         break
       }
@@ -106,11 +177,29 @@ export async function POST(req: Request): Promise<Response> {
       default:
         break
     }
-  } catch (err) {
-    console.error(`[webhook/clerk] Handler error for ${evt.type}:`, err)
+  } catch (error) {
+    logError('clerk.webhook.handler_failed', {
+      requestMethod: req.method,
+      requestPath: new URL(req.url).pathname,
+      svixId,
+      eventType: evt.type,
+      clerkUserId: readEventUserId(evt),
+      success: false,
+      ...serializeError(error),
+    })
+
     await redis.del(idempotencyKey)
     return Response.json({ error: 'Internal server error' }, { status: 500 })
   }
+
+  logInfo('clerk.webhook.processed', {
+    requestMethod: req.method,
+    requestPath: new URL(req.url).pathname,
+    svixId,
+    eventType: evt.type,
+    clerkUserId: readEventUserId(evt),
+    success: true,
+  })
 
   return Response.json({ ok: true }, { status: 200 })
 }
