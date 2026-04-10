@@ -72,9 +72,9 @@ function getChatCopy(firstName?: string): ChatCopy {
 
   return {
     heading: greeting,
-    description: "Cole a descri\u00E7\u00E3o da vaga para eu adaptar seu curr\u00EDculo ATS com base no perfil salvo.",
-    placeholder: "Cole a descri\u00E7\u00E3o da vaga aqui...",
-    helperText: "Quando a vers\u00E3o otimizada estiver pronta, confirme a gera\u00E7\u00E3o digitando \"Aceito\" ou usando o bot\u00E3o.",
+    description: "Cole a descricao da vaga para eu adaptar seu curriculo ATS com base no perfil salvo.",
+    placeholder: "Cole a descricao da vaga aqui...",
+    helperText: "Quando a versao otimizada estiver pronta, confirme a geracao digitando \"Aceito\" ou usando o botao.",
     thinkingText: "Pensando...",
     sessionCounterLabel: "nesta an\u00E1lise",
     sessionExpiredText: "Sess\u00E3o n\u00E3o encontrada. Inicie uma nova an\u00E1lise para continuar.",
@@ -268,6 +268,7 @@ export function ChatInterface({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const isInputDisabled = disabled || isStreaming || sessionLimitReached || sessionExpired
+  const showGenerationApproval = phase === "confirm" || (phase === "dialog" && atsScore !== undefined)
 
   const applySessionState = (nextSessionId: string | undefined): void => {
     setSessionId(nextSessionId)
@@ -803,10 +804,20 @@ export function ChatInterface({
         onDrop={handleDrop}
       >
         <div className="mx-auto max-w-3xl space-y-2">
-          {phase === "confirm" ? (
+          {showGenerationApproval ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-[#fffaf0] px-4 py-3">
               <p className="text-sm text-foreground">
-                Confirme a gera\u00E7\u00E3o do seu curr\u00EDculo otimizado ATS digitando <span className="font-semibold">&quot;Aceito&quot;</span> ou usando o bot\u00E3o.
+                {phase === "confirm"
+                  ? (
+                    <>
+                      Confirme a geracao do seu curriculo otimizado ATS digitando <span className="font-semibold">&quot;Aceito&quot;</span> ou usando o botao.
+                    </>
+                  )
+                  : (
+                    <>
+                      Se a versao atual ja estiver boa para voce, confirme a geracao digitando <span className="font-semibold">&quot;Aceito&quot;</span> ou usando o botao.
+                    </>
+                  )}
               </p>
               <Button
                 data-testid="chat-accept-generate"
@@ -894,7 +905,7 @@ export function ChatInterface({
             </p>
           ) : (
             <p className="text-center text-xs text-muted-foreground">
-              {phase === "confirm"
+              {showGenerationApproval
                 ? 'Para gerar os arquivos finais, responda com "Aceito" ou use o botao acima.'
                 : copy.helperText}
             </p>

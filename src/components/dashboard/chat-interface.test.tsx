@@ -137,7 +137,7 @@ describe("ChatInterface", () => {
 
     expect(container.querySelector('input[type="file"]')).toBeNull()
     expect(
-      screen.getByText(/Quando a versão otimizada estiver pronta, confirme a geração digitando "Aceito" ou usando o botão\./i),
+      screen.getByText(/Quando a versao otimizada estiver pronta, confirme a geracao digitando "Aceito" ou usando o botao\./i),
     ).toBeInTheDocument()
   })
 
@@ -158,7 +158,7 @@ describe("ChatInterface", () => {
 
     render(<ChatInterface sessionId="sess_42" userName="Fabio" />)
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Melhore meu currículo")
     await userEvent.keyboard("{Enter}")
 
@@ -187,7 +187,7 @@ describe("ChatInterface", () => {
 
     render(<ChatInterface sessionId="sess_waiting" userName="Fabio" />)
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Ainda estou pensando")
     await userEvent.keyboard("{Enter}")
 
@@ -243,7 +243,7 @@ describe("ChatInterface", () => {
 
     render(<ChatInterface sessionId="sess_confirm" userName="Fabio" />)
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "gere o arquivo")
     await userEvent.keyboard("{Enter}")
 
@@ -260,6 +260,45 @@ describe("ChatInterface", () => {
     const [, secondInit] = fetchSpy.mock.calls[1] as [string, RequestInit]
     const secondBody = JSON.parse(secondInit.body as string) as Record<string, unknown>
     expect(secondBody.message).toBe("Aceito")
+  })
+
+  it('shows the Aceito button in dialog after ATS context is available', async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        return new Response(
+          createSSEStream([
+            { type: "text", content: "Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo." },
+            { type: "done", sessionId: "sess_dialog_ready", phase: "dialog", atsScore: { total: 47 }, messageCount: 3 },
+          ]),
+          { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_dialog_ready" } },
+        )
+      }
+
+      if (typeof url === "string" && url === "/api/session/sess_dialog_ready") {
+        return new Response(
+          JSON.stringify({
+            session: {
+              phase: "dialog",
+              atsScore: { total: 47 },
+              messageCount: 3,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface sessionId="sess_dialog_ready" userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    await userEvent.type(textarea, "vaga alvo")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-accept-generate")).toBeInTheDocument()
+    })
   })
 
   it("locks the session when API returns 429 with action: new_session", async () => {
@@ -281,7 +320,7 @@ describe("ChatInterface", () => {
 
     render(<ChatInterface sessionId="sess_capped" userName="Fabio" />)
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Mais uma mensagem")
     await userEvent.keyboard("{Enter}")
 
@@ -318,7 +357,7 @@ describe("ChatInterface", () => {
       />,
     )
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Preciso de mais créditos")
     await userEvent.keyboard("{Enter}")
 
@@ -354,7 +393,7 @@ describe("ChatInterface", () => {
       />,
     )
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Streamed credit error")
     await userEvent.keyboard("{Enter}")
 
@@ -385,7 +424,7 @@ describe("ChatInterface", () => {
 
     render(<ChatInterface sessionId="sess_mid" userName="Fabio" />)
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Continuar")
     await userEvent.keyboard("{Enter}")
 
@@ -602,7 +641,7 @@ describe("ChatInterface", () => {
 
     render(<ChatInterface sessionId="stale_id" userName="Fabio" />)
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Oi")
     await userEvent.keyboard("{Enter}")
 
@@ -684,7 +723,7 @@ describe("ChatInterface", () => {
       <ChatInterface userName="Fabio" onSessionChange={onSessionChange} />,
     )
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Nova sessão")
     await userEvent.keyboard("{Enter}")
 
@@ -720,7 +759,7 @@ describe("ChatInterface", () => {
       <ChatInterface userName="Fabio" onSessionChange={onSessionChange} />,
     )
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Fallback test")
     await userEvent.keyboard("{Enter}")
 
@@ -756,7 +795,7 @@ describe("ChatInterface", () => {
 
     render(<ChatInterface userName="Fabio" />)
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Minha primeira mensagem")
     await userEvent.keyboard("{Enter}")
 
@@ -787,7 +826,7 @@ describe("ChatInterface", () => {
 
     render(<ChatInterface userName="Fabio" />)
 
-    const textarea = screen.getByPlaceholderText(/Cole a descrição da vaga aqui/i)
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Teste sem delta")
     await userEvent.keyboard("{Enter}")
 
@@ -810,7 +849,7 @@ describe("ChatInterface", () => {
       />,
     )
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Quero iniciar uma análise")
     await userEvent.keyboard("{Enter}")
 
@@ -848,7 +887,7 @@ describe("ChatInterface", () => {
       />,
     )
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Continuar")
     await userEvent.keyboard("{Enter}")
 
@@ -868,7 +907,7 @@ describe("ChatInterface", () => {
 
     render(<ChatInterface userName="Fabio" />)
 
-    const textarea = screen.getByPlaceholderText("Cole a descrição da vaga aqui...")
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
     await userEvent.type(textarea, "Teste")
     await userEvent.keyboard("{Enter}")
 

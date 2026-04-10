@@ -1150,7 +1150,7 @@ describe('runAgentLoop streaming', () => {
     expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
     expect(finalText).toContain('Aqui esta uma versao reescrita do seu resumo profissional:')
     expect(finalText).toContain('Analista de BI com experiencia em Power BI, SQL e ETL')
-    expect(finalText).toContain('gere o arquivo')
+    expect(finalText).toContain('Aceito')
     expect(mockAppendMessage).toHaveBeenNthCalledWith(
       2,
       'sess_123',
@@ -1430,7 +1430,7 @@ describe('runAgentLoop streaming', () => {
       2,
       'sess_123',
       'assistant',
-      'Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo. Pontuacao ATS atual: 51/100. Posso seguir reescrevendo seu resumo ou experiencia com base nesses pontos.',
+      'Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo. Pontuacao ATS atual: 51/100. Posso seguir reescrevendo seu resumo ou experiencia com base nesses pontos. Se quiser gerar agora a versao otimizada, responda com "Aceito".',
     )
   })
 
@@ -1471,6 +1471,12 @@ describe('runAgentLoop streaming', () => {
     const session = {
       ...buildSession(),
       phase: 'confirm' as const,
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+      },
     }
 
     mockDispatchToolWithContext
@@ -1581,6 +1587,140 @@ describe('runAgentLoop streaming', () => {
       }),
       phase: 'confirm',
     }))
+  })
+
+  it('generates files directly from dialog when Aceito arrives after a saved vacancy is already in context', async () => {
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+      },
+    }
+
+    mockDispatchToolWithContext
+      .mockResolvedValueOnce({
+        output: { success: true, phase: 'generation' },
+        outputJson: JSON.stringify({ success: true, phase: 'generation' }),
+        persistedPatch: {
+          phase: 'generation',
+        },
+      })
+      .mockResolvedValueOnce({
+        output: {
+          success: true,
+          docxUrl: 'https://example.com/resume.docx',
+          pdfUrl: 'https://example.com/resume.pdf',
+        },
+        outputJson: JSON.stringify({
+          success: true,
+          docxUrl: 'https://example.com/resume.docx',
+          pdfUrl: 'https://example.com/resume.pdf',
+        }),
+        persistedPatch: {
+          generatedOutput: {
+            status: 'ready',
+            docxPath: 'usr_123/sess_123/resume.docx',
+            pdfPath: 'usr_123/sess_123/resume.pdf',
+          },
+        },
+      })
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage: 'Aceito',
+      appUserId: 'usr_123',
+      requestId: 'req_dialog_direct_generate',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
+    expect(events.map((event) => event.type)).toEqual([
+      'toolStart',
+      'toolResult',
+      'patch',
+      'toolStart',
+      'toolResult',
+      'patch',
+      'text',
+      'done',
+    ])
+    expect(mockAppendMessage).toHaveBeenNthCalledWith(
+      2,
+      'sess_123',
+      'assistant',
+      'Seus arquivos ATS-otimizados estao prontos. Confira os downloads de DOCX e PDF acima.',
+    )
+  })
+
+  it('surfaces placeholder warnings when generation succeeds with incomplete profile fields', async () => {
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+      },
+    }
+
+    mockDispatchToolWithContext
+      .mockResolvedValueOnce({
+        output: { success: true, phase: 'generation' },
+        outputJson: JSON.stringify({ success: true, phase: 'generation' }),
+        persistedPatch: {
+          phase: 'generation',
+        },
+      })
+      .mockResolvedValueOnce({
+        output: {
+          success: true,
+          docxUrl: 'https://example.com/resume.docx',
+          pdfUrl: 'https://example.com/resume.pdf',
+          warnings: ['email', 'telefone', 'resumo profissional'],
+        },
+        outputJson: JSON.stringify({
+          success: true,
+          docxUrl: 'https://example.com/resume.docx',
+          pdfUrl: 'https://example.com/resume.pdf',
+          warnings: ['email', 'telefone', 'resumo profissional'],
+        }),
+        persistedPatch: {
+          generatedOutput: {
+            status: 'ready',
+            docxPath: 'usr_123/sess_123/resume.docx',
+            pdfPath: 'usr_123/sess_123/resume.pdf',
+          },
+        },
+      })
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage: 'Aceito',
+      appUserId: 'usr_123',
+      requestId: 'req_dialog_generate_warnings',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => event.content)
+      .join('')
+
+    expect(finalText).toContain('campos pendentes do perfil')
+    expect(finalText).toContain('email, telefone, resumo profissional')
   })
 
   it('stops cleanly when the abort signal fires after the first chunk', async () => {

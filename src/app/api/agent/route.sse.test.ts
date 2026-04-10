@@ -354,7 +354,7 @@ describe('/api/agent SSE fallback coverage', () => {
 
     expect(finalText).toContain('Aqui esta uma versao reescrita do seu resumo profissional:')
     expect(finalText).toContain('Analista de BI com experiencia em Power BI, SQL e ETL')
-    expect(finalText).toContain('gere o arquivo')
+    expect(finalText).toContain('Aceito')
     expect(events.at(-1)).toMatchObject({
       type: 'done',
       sessionId: session.id,
@@ -412,6 +412,71 @@ describe('/api/agent SSE fallback coverage', () => {
       phase: 'confirm',
       patch: expect.objectContaining({
         phase: 'confirm',
+      }),
+    }))
+    expect(createChatCompletionStreamWithRetry).not.toHaveBeenCalled()
+  })
+
+  it('generates files directly when Aceito is sent from dialog with vacancy and resume context already loaded', async () => {
+    const session = buildDialogSession({
+      id: 'sess_dialog_direct_generate_real',
+      agentState: {
+        targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+      },
+    })
+
+    vi.mocked(getSession).mockResolvedValue(session)
+    mockDispatchToolWithContext
+      .mockResolvedValueOnce({
+        output: { success: true, phase: 'generation' },
+        outputJson: JSON.stringify({ success: true, phase: 'generation' }),
+        persistedPatch: {
+          phase: 'generation',
+        },
+      })
+      .mockResolvedValueOnce({
+        output: {
+          success: true,
+          docxUrl: 'https://example.com/resume.docx',
+          pdfUrl: 'https://example.com/resume.pdf',
+        },
+        outputJson: JSON.stringify({
+          success: true,
+          docxUrl: 'https://example.com/resume.docx',
+          pdfUrl: 'https://example.com/resume.pdf',
+        }),
+        persistedPatch: {
+          generatedOutput: {
+            status: 'ready',
+            docxPath: 'usr_123/sess_dialog_direct_generate_real/resume.docx',
+            pdfPath: 'usr_123/sess_dialog_direct_generate_real/resume.pdf',
+          },
+        },
+      })
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: session.id,
+        message: 'Aceito',
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+
+    const events = parseSseDataEvents(await response.text())
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => String(event.content ?? ''))
+      .join('')
+
+    expect(finalText).toBe('Seus arquivos ATS-otimizados estao prontos. Confira os downloads de DOCX e PDF acima.')
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'patch',
+      phase: 'dialog',
+      patch: expect.objectContaining({
+        phase: 'generation',
       }),
     }))
     expect(createChatCompletionStreamWithRetry).not.toHaveBeenCalled()

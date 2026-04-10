@@ -182,4 +182,48 @@ describe('rewriteSection', () => {
       },
     })
   })
+
+  it('recovers summary rewrites when the model omits section_data', async () => {
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      rewritten_content: 'Analytics Engineer com foco em dbt, BigQuery e produtos analiticos escalaveis.',
+      keywords_added: ['dbt', 'BigQuery'],
+      changes_made: ['Resumo alinhado a analytics engineering'],
+    })))
+
+    const result = await rewriteSection({
+      section: 'summary',
+      current_content: 'Backend engineer',
+      instructions: 'Rewrite for analytics engineering',
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output).toEqual({
+      success: true,
+      rewritten_content: 'Analytics Engineer com foco em dbt, BigQuery e produtos analiticos escalaveis.',
+      section_data: 'Analytics Engineer com foco em dbt, BigQuery e produtos analiticos escalaveis.',
+      keywords_added: ['dbt', 'BigQuery'],
+      changes_made: ['Resumo alinhado a analytics engineering'],
+    })
+  })
+
+  it('parses summary rewrites wrapped in markdown fences', async () => {
+    createCompletion.mockResolvedValue(buildOpenAIResponse(`\`\`\`json
+{
+  "rewritten_content": "Senior Analytics Engineer com experiencia em dbt, SQL avancado e modelagem analitica escalavel.",
+  "section_data": "Senior Analytics Engineer com experiencia em dbt, SQL avancado e modelagem analitica escalavel.",
+  "keywords_added": ["dbt", "SQL"],
+  "changes_made": ["Resumo alinhado a engenharia analitica"]
+}
+\`\`\``))
+
+    const result = await rewriteSection({
+      section: 'summary',
+      current_content: 'Backend engineer',
+      instructions: 'Rewrite for analytics engineering',
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output.success).toBe(true)
+    expect(result.patch?.cvState).toEqual({
+      summary: 'Senior Analytics Engineer com experiencia em dbt, SQL avancado e modelagem analitica escalavel.',
+    })
+  })
 })

@@ -57,7 +57,7 @@ function createModelConfig(params: {
 }) {
   return {
     agent: params.agent,
-    structured: params.structured ?? DEFAULT_OPENAI_MODEL,
+    structured: params.structured ?? params.agent,
     vision: params.vision ?? DEFAULT_OPENAI_MODEL,
   } as const
 }

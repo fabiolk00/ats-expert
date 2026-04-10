@@ -94,23 +94,82 @@ function getSectionDataDescription(section: RewriteSectionInput['section']): str
   }
 }
 
+function extractJsonLikeObject(rawText: string): unknown {
+  const trimmed = rawText.trim()
+
+  const candidates = [
+    trimmed,
+    trimmed.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, ''),
+  ]
+
+  const firstBraceIndex = trimmed.indexOf('{')
+  const lastBraceIndex = trimmed.lastIndexOf('}')
+  if (firstBraceIndex >= 0 && lastBraceIndex > firstBraceIndex) {
+    candidates.push(trimmed.slice(firstBraceIndex, lastBraceIndex + 1))
+  }
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate)
+    } catch {
+      continue
+    }
+  }
+
+  return null
+}
+
+function normalizeRewritePayload(
+  section: RewriteSectionInput['section'],
+  parsed: unknown,
+): unknown {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return parsed
+  }
+
+  const record = { ...(parsed as Record<string, unknown>) }
+
+  if (!Array.isArray(record.keywords_added)) {
+    record.keywords_added = []
+  }
+
+  if (!Array.isArray(record.changes_made)) {
+    record.changes_made = []
+  }
+
+  if (section === 'summary') {
+    if (typeof record.section_data !== 'string') {
+      if (typeof record.rewritten_content === 'string') {
+        record.section_data = record.rewritten_content
+      } else if (typeof record.summary === 'string') {
+        record.section_data = record.summary
+      }
+    }
+
+    if (typeof record.rewritten_content !== 'string' && typeof record.section_data === 'string') {
+      record.rewritten_content = record.section_data
+    }
+  }
+
+  return record
+}
+
 function validateRewritePayload(
   section: RewriteSectionInput['section'],
   rawText: string,
 ): ValidatedRewritePayload | null {
-  let parsed: unknown
-
-  try {
-    parsed = JSON.parse(rawText)
-  } catch {
+  const parsed = extractJsonLikeObject(rawText)
+  if (parsed === null) {
     return null
   }
+
+  const normalizedPayload = normalizeRewritePayload(section, parsed)
 
   switch (section) {
     case 'summary': {
       const result = RewritePayloadBaseSchema.extend({
         section_data: z.string(),
-      }).safeParse(parsed)
+      }).safeParse(normalizedPayload)
 
       return result.success
         ? { ...result.data, section }
@@ -120,7 +179,7 @@ function validateRewritePayload(
     case 'skills': {
       const result = RewritePayloadBaseSchema.extend({
         section_data: z.array(z.string()),
-      }).safeParse(parsed)
+      }).safeParse(normalizedPayload)
 
       return result.success
         ? { ...result.data, section }
@@ -130,7 +189,7 @@ function validateRewritePayload(
     case 'experience': {
       const result = RewritePayloadBaseSchema.extend({
         section_data: z.array(ExperienceEntrySchema),
-      }).safeParse(parsed)
+      }).safeParse(normalizedPayload)
 
       return result.success
         ? { ...result.data, section }
@@ -140,7 +199,7 @@ function validateRewritePayload(
     case 'education': {
       const result = RewritePayloadBaseSchema.extend({
         section_data: z.array(EducationEntrySchema),
-      }).safeParse(parsed)
+      }).safeParse(normalizedPayload)
 
       return result.success
         ? { ...result.data, section }
@@ -150,7 +209,7 @@ function validateRewritePayload(
     case 'certifications': {
       const result = RewritePayloadBaseSchema.extend({
         section_data: z.array(CertificationEntrySchema),
-      }).safeParse(parsed)
+      }).safeParse(normalizedPayload)
 
       return result.success
         ? { ...result.data, section }
@@ -270,4 +329,3 @@ Rules:
     }
   }
 }
-

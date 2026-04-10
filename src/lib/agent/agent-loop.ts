@@ -487,6 +487,25 @@ function hasResumeContextForDeterministicAnalysis(session: Session): boolean {
   return buildResumeTextForScoring(session).trim().length > 0
 }
 
+function resolveGenerationPrerequisiteMessage(session: Session): string | null {
+  const hasResumeContext = hasResumeContextForDeterministicAnalysis(session)
+  const hasTargetJobContext = Boolean(session.agentState.targetJobDescription?.trim())
+
+  if (!hasResumeContext && hasTargetJobContext) {
+    return MISSING_PROFILE_WITH_TARGET_TEXT
+  }
+
+  if (!hasResumeContext) {
+    return MISSING_PROFILE_TEXT
+  }
+
+  if (!hasTargetJobContext) {
+    return 'Ja tenho seu curriculo salvo. Cole a descricao da vaga antes de gerar o curriculo otimizado ATS.'
+  }
+
+  return null
+}
+
 function normalizeForJobDetection(text: string): string {
   return text
     .normalize('NFD')
@@ -627,12 +646,12 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
       }
     }
 
-    parts.push('Posso seguir reescrevendo seu resumo ou experiencia com base nesses pontos.')
+    parts.push('Posso seguir reescrevendo seu resumo ou experiencia com base nesses pontos. Se quiser gerar agora a versao otimizada, responda com "Aceito".')
     return parts.join(' ')
   }
 
   if (hasTargetJobContext) {
-    return 'Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo. Posso seguir reescrevendo seu resumo ou experiencia com base nela.'
+    return 'Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo. Posso seguir reescrevendo seu resumo ou experiencia com base nela. Se quiser gerar agora a versao otimizada, responda com "Aceito".'
   }
 
   if (hasTargetJobContext) {
@@ -651,7 +670,7 @@ function buildDialogFallback(session: Session, userMessage: string): Determinist
   if (latestMessageLooksLikeVacancy) {
     return {
       kind: 'dialog_latest_target_job_context',
-      text: 'Recebi essa nova vaga e ja tenho seu curriculo em contexto. Posso adaptar agora seu resumo, experiencia ou competencias para essa oportunidade. Se quiser, responda com "reescreva meu resumo".',
+      text: 'Recebi essa nova vaga e ja tenho seu curriculo em contexto. Posso adaptar agora seu resumo, experiencia ou competencias para essa oportunidade. Se quiser, responda com "reescreva meu resumo" ou "Aceito" para gerar a versao otimizada.',
     }
   }
 
@@ -679,7 +698,7 @@ function buildDialogFallback(session: Session, userMessage: string): Determinist
   if (hasTargetJobContext) {
     return {
       kind: 'dialog_saved_target_context',
-      text: 'Ja tenho seu curriculo e a vaga como referencia. Posso reescrever agora seu resumo, experiencia ou competencias para aumentar a aderencia ATS. Se quiser, responda com "reescreva meu resumo".',
+      text: 'Ja tenho seu curriculo e a vaga como referencia. Posso reescrever agora seu resumo, experiencia ou competencias para aumentar a aderencia ATS. Se quiser, responda com "reescreva meu resumo" ou "Aceito" para gerar a versao otimizada.',
     }
   }
 
@@ -1280,6 +1299,21 @@ async function* handleConfirmedGeneration(params: {
   })
 
   if (generationResult.success) {
+    const generationWarnings = (
+      generationResult.output
+      && typeof generationResult.output === 'object'
+      && 'success' in generationResult.output
+      && generationResult.output.success === true
+      && 'warnings' in generationResult.output
+      && Array.isArray(generationResult.output.warnings)
+    )
+      ? generationResult.output.warnings.filter((warning): warning is string => typeof warning === 'string' && warning.trim().length > 0)
+      : []
+
+    if (generationWarnings.length > 0) {
+      return `Seus arquivos ATS-otimizados estao prontos. Mantive avisos claros nos campos pendentes do perfil: ${generationWarnings.join(', ')}. Confira os downloads de DOCX e PDF acima.`
+    }
+
     return 'Seus arquivos ATS-otimizados estao prontos. Confira os downloads de DOCX e PDF acima.'
   }
 
@@ -1370,7 +1404,10 @@ async function* handleDeterministicRewriteRequest(params: {
   })
 
   if (!rewriteResult.success) {
-    return `Nao consegui reescrever essa secao agora. ${rewriteResult.failureMessage ?? 'Tente novamente em alguns instantes.'}`
+    const generationHint = resolveGenerationPrerequisiteMessage(params.session) === null
+      ? ' Se quiser gerar os arquivos com a versao atual do curriculo, responda com "Aceito".'
+      : ''
+    return `Nao consegui reescrever essa secao agora. ${rewriteResult.failureMessage ?? 'Tente novamente em alguns instantes.'}${generationHint}`
   }
 
   const rewriteOutput = rewriteResult.output
@@ -1396,7 +1433,7 @@ async function* handleDeterministicRewriteRequest(params: {
     '',
     rewrittenContent.trim(),
     '',
-    'Se quiser seguir para a geracao, responda com "gere o arquivo".',
+    'Se quiser seguir para a geracao agora, responda com "Aceito".',
   ].join('\n')
 }
 
@@ -1419,12 +1456,14 @@ export async function* runAgentLoop(
   let systemPromptDirty = false
 
   try {
-    if (session.phase === 'confirm' && isGenerationApproval(userMessage)) {
-      const generationAssistantText = yield* handleConfirmedGeneration({
-        session,
-        requestId,
-        signal,
-      })
+    if (isGenerationApproval(userMessage)) {
+      const generationPrerequisiteMessage = resolveGenerationPrerequisiteMessage(session)
+      const generationAssistantText = generationPrerequisiteMessage
+        ?? (yield* handleConfirmedGeneration({
+          session,
+          requestId,
+          signal,
+        }))
 
       yield {
         type: 'text',
@@ -1463,24 +1502,12 @@ export async function* runAgentLoop(
     }
 
     if (isGenerationRequest(userMessage)) {
-      const hasResumeContext = hasResumeContextForDeterministicAnalysis(session)
-      const hasTargetJobContext = Boolean(session.agentState.targetJobDescription?.trim())
-
-      let generationAssistantText: string
-
-      if (!hasResumeContext && hasTargetJobContext) {
-        generationAssistantText = MISSING_PROFILE_WITH_TARGET_TEXT
-      } else if (!hasResumeContext) {
-        generationAssistantText = MISSING_PROFILE_TEXT
-      } else if (!hasTargetJobContext) {
-        generationAssistantText = 'Ja tenho seu curriculo salvo. Cole a descricao da vaga antes de gerar o curriculo otimizado ATS.'
-      } else {
-        generationAssistantText = yield* handleGenerationConfirmationRequest({
+      const generationAssistantText = resolveGenerationPrerequisiteMessage(session)
+        ?? (yield* handleGenerationConfirmationRequest({
           session,
           requestId,
           signal,
-        })
-      }
+        }))
 
       yield {
         type: 'text',

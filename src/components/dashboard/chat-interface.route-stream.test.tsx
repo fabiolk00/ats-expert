@@ -353,7 +353,7 @@ describe("ChatInterface real /api/agent transcript integration", () => {
       const finalAssistantMessage = assistantMessages[assistantMessages.length - 1]
       expect(finalAssistantMessage).toHaveTextContent("Aqui esta uma versao reescrita do seu resumo profissional:")
       expect(finalAssistantMessage).toHaveTextContent("Analista de BI com experiencia em Power BI, SQL e ETL")
-      expect(finalAssistantMessage).toHaveTextContent('gere o arquivo')
+      expect(finalAssistantMessage).toHaveTextContent('Aceito')
     })
   })
 

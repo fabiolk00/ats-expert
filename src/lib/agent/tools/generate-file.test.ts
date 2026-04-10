@@ -220,6 +220,13 @@ describe('generateFile', () => {
   })
 
   it('returns VALIDATION_ERROR when target cvState is invalid', async () => {
+    vi.spyOn(generateFileDeps, 'getSupabase').mockReturnValue(
+      buildSupabase() as unknown as ReturnType<typeof generateFileDeps.getSupabase>,
+    )
+    vi.spyOn(generateFileDeps, 'generateDOCX').mockResolvedValue(Buffer.from('docx'))
+    vi.spyOn(generateFileDeps, 'generatePDF').mockResolvedValue(Buffer.from('pdf'))
+    vi.spyOn(generateFileDeps, 'upload').mockResolvedValue(undefined)
+
     const result = await generateFile({
       cv_state: {
         ...buildCvState(),
@@ -229,17 +236,18 @@ describe('generateFile', () => {
     }, 'usr_123', 'sess_123', { type: 'target', targetId: 'target_123' })
 
     expect(result.output).toEqual({
-      success: false,
-      code: 'VALIDATION_ERROR',
-      error: expect.stringContaining('email'),
+      success: true,
+      docxUrl: 'https://cdn.example.com/usr_123/sess_123/targets/target_123/resume.docx',
+      pdfUrl: 'https://cdn.example.com/usr_123/sess_123/targets/target_123/resume.pdf',
+      warnings: ['email'],
     })
     expect(result.patch).toBeUndefined()
     expect(result.generatedOutput).toEqual({
-      status: 'failed',
-      docxPath: undefined,
-      pdfPath: undefined,
-      generatedAt: undefined,
-      error: expect.stringContaining('email'),
+      status: 'ready',
+      docxPath: 'usr_123/sess_123/targets/target_123/resume.docx',
+      pdfPath: 'usr_123/sess_123/targets/target_123/resume.pdf',
+      generatedAt: expect.any(String),
+      error: undefined,
     })
   })
 
@@ -271,19 +279,59 @@ describe('generateFile', () => {
     const result = await generateFile({
       cv_state: {
         ...buildCvState(),
-        summary: '',
+        experience: [],
       },
     }, 'usr_123', 'sess_123')
 
     expect(result.output).toEqual({
       success: false,
       code: 'VALIDATION_ERROR',
-      error: expect.stringContaining('summary'),
+      error: expect.stringContaining('experience'),
     })
     expect(getSupabase).not.toHaveBeenCalled()
     expect(generateDOCX).not.toHaveBeenCalled()
     expect(generatePDF).not.toHaveBeenCalled()
     expect(upload).not.toHaveBeenCalled()
+  })
+
+  it('fills missing contact and summary fields with explicit placeholders and warnings', async () => {
+    const supabase = buildSupabase()
+    const upload = vi.fn().mockResolvedValue(undefined)
+    const generateDOCX = vi.fn().mockResolvedValue(Buffer.from('docx'))
+    const generatePDF = vi.fn().mockResolvedValue(Buffer.from('pdf'))
+
+    vi.spyOn(generateFileDeps, 'getSupabase').mockReturnValue(
+      supabase as unknown as ReturnType<typeof generateFileDeps.getSupabase>,
+    )
+    vi.spyOn(generateFileDeps, 'upload').mockImplementation(upload)
+    vi.spyOn(generateFileDeps, 'generateDOCX').mockImplementation(generateDOCX)
+    vi.spyOn(generateFileDeps, 'generatePDF').mockImplementation(generatePDF)
+
+    const result = await generateFile({
+      cv_state: {
+        ...buildCvState(),
+        email: '',
+        phone: '',
+        summary: '',
+      },
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output).toEqual({
+      success: true,
+      docxUrl: 'https://cdn.example.com/usr_123/sess_123/resume.docx',
+      pdfUrl: 'https://cdn.example.com/usr_123/sess_123/resume.pdf',
+      warnings: ['email', 'telefone', 'resumo profissional'],
+    })
+    expect(generateDOCX).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'Email nao informado no perfil salvo.',
+      phone: 'Telefone nao informado no perfil salvo.',
+      summary: 'Resumo profissional pendente. O perfil salvo nao traz uma descricao valida para esta secao.',
+    }))
+    expect(generatePDF).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'Email nao informado no perfil salvo.',
+      phone: 'Telefone nao informado no perfil salvo.',
+      summary: 'Resumo profissional pendente. O perfil salvo nao traz uma descricao valida para esta secao.',
+    }))
   })
 
   it('returns VALIDATION_ERROR instead of GENERATION_ERROR on schema failure', async () => {

@@ -58,9 +58,6 @@ const GenerationReadyCVStateSchema = CVStateSchema.superRefine((cvState, ctx) =>
   }
 
   requireNonEmptyString(cvState.fullName, ['fullName'], 'fullName')
-  requireNonEmptyString(cvState.email, ['email'], 'email')
-  requireNonEmptyString(cvState.phone, ['phone'], 'phone')
-  requireNonEmptyString(cvState.summary, ['summary'], 'summary')
 
   if (cvState.experience.length === 0) {
     ctx.addIssue({
@@ -113,11 +110,36 @@ type GenerationValidationResult =
   | {
       success: true
       cvState: CVState
+      warnings: string[]
     }
   | {
       success: false
       errorMessage: string
     }
+
+type GenerationPlaceholderRule = {
+  field: 'email' | 'phone' | 'summary'
+  label: string
+  placeholder: string
+}
+
+const NON_BLOCKING_PLACEHOLDER_RULES: GenerationPlaceholderRule[] = [
+  {
+    field: 'email',
+    label: 'email',
+    placeholder: 'Email nao informado no perfil salvo.',
+  },
+  {
+    field: 'phone',
+    label: 'telefone',
+    placeholder: 'Telefone nao informado no perfil salvo.',
+  },
+  {
+    field: 'summary',
+    label: 'resumo profissional',
+    placeholder: 'Resumo profissional pendente. O perfil salvo nao traz uma descricao valida para esta secao.',
+  },
+]
 
 function capValidationErrorMessage(message: string): string {
   return message.length > MAX_VALIDATION_ERROR_MESSAGE_LENGTH
@@ -162,9 +184,22 @@ function validateGenerationCvState(cvState: GenerateFileInput['cv_state']): Gene
     }
   }
 
+  const normalizedCvState = structuredClone(parsedCvState.data)
+  const warnings: string[] = []
+
+  for (const rule of NON_BLOCKING_PLACEHOLDER_RULES) {
+    if (normalizedCvState[rule.field].trim().length > 0) {
+      continue
+    }
+
+    normalizedCvState[rule.field] = rule.placeholder
+    warnings.push(rule.label)
+  }
+
   return {
     success: true,
-    cvState: parsedCvState.data,
+    cvState: normalizedCvState,
+    warnings,
   }
 }
 
@@ -291,7 +326,12 @@ export async function generateFile(
     const signedUrls = await createSignedResumeArtifactUrls(docxPath, pdfPath, supabase)
 
     return {
-      output: { success: true, docxUrl: signedUrls.docxUrl, pdfUrl: signedUrls.pdfUrl },
+      output: {
+        success: true,
+        docxUrl: signedUrls.docxUrl,
+        pdfUrl: signedUrls.pdfUrl,
+        warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
+      },
       patch: scope.type === 'session' ? createSuccessPatch(docxPath, pdfPath) : undefined,
       generatedOutput: createGeneratedOutput('ready', undefined, docxPath, pdfPath),
     }
@@ -752,5 +792,3 @@ export const generateFileDeps = {
   generatePDF,
   upload,
 }
-
-

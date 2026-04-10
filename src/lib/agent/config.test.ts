@@ -77,12 +77,12 @@ describe('AGENT_CONFIG', () => {
       },
       combo_b: {
         agent: 'gpt-5.4-nano',
-        structured: DEFAULT_OPENAI_MODEL,
+        structured: 'gpt-5.4-nano',
         vision: DEFAULT_OPENAI_MODEL,
       },
       combo_c: {
         agent: 'gpt-5-mini',
-        structured: DEFAULT_OPENAI_MODEL,
+        structured: 'gpt-5-mini',
         vision: DEFAULT_OPENAI_MODEL,
       },
     })
@@ -120,7 +120,7 @@ describe('AGENT_CONFIG', () => {
     expect(loadedConfig.MODEL_CONFIG).toEqual({
       agentModel: 'gpt-5-mini',
       dialogModel: 'gpt-5.4-mini',
-      structuredModel: DEFAULT_OPENAI_MODEL,
+      structuredModel: 'gpt-5.4-nano',
       visionModel: DEFAULT_OPENAI_MODEL,
     })
     expect(loadedConfig.resolveAgentModelForPhase('dialog')).toBe('gpt-5.4-mini')
@@ -176,7 +176,7 @@ describe('AGENT_CONFIG', () => {
     expect(resolveModelCombo(undefined)).toBe('combo_c')
     expect(MODEL_COMBINATIONS.combo_c).toEqual({
       agent: 'gpt-5-mini',
-      structured: DEFAULT_OPENAI_MODEL,
+      structured: 'gpt-5-mini',
       vision: DEFAULT_OPENAI_MODEL,
     })
   })
