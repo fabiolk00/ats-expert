@@ -192,7 +192,7 @@ describe('generateFile', () => {
     }
 
     expect(result.output.code).toBe('VALIDATION_ERROR')
-    expect(result.output.error).toContain('email')
+    expect(result.output.error).toBe('Falta pelo menos uma experiencia profissional no curriculo salvo.')
   })
 
   it('returns VALIDATION_ERROR when base cvState is invalid', async () => {
@@ -206,7 +206,7 @@ describe('generateFile', () => {
     expect(result.output).toEqual({
       success: false,
       code: 'VALIDATION_ERROR',
-      error: expect.stringContaining('fullName'),
+      error: 'Falta o nome completo no perfil salvo.',
     })
     expect(result.patch).toEqual({
       generatedOutput: {
@@ -214,7 +214,7 @@ describe('generateFile', () => {
         docxPath: undefined,
         pdfPath: undefined,
         generatedAt: undefined,
-        error: expect.stringContaining('fullName'),
+        error: 'Falta o nome completo no perfil salvo.',
       },
     })
   })
@@ -265,7 +265,7 @@ describe('generateFile', () => {
         docxPath: undefined,
         pdfPath: undefined,
         generatedAt: undefined,
-        error: expect.stringContaining('experience'),
+        error: 'Falta pelo menos uma experiencia profissional no curriculo salvo.',
       },
     })
   })
@@ -286,7 +286,7 @@ describe('generateFile', () => {
     expect(result.output).toEqual({
       success: false,
       code: 'VALIDATION_ERROR',
-      error: expect.stringContaining('experience'),
+      error: 'Falta pelo menos uma experiencia profissional no curriculo salvo.',
     })
     expect(getSupabase).not.toHaveBeenCalled()
     expect(generateDOCX).not.toHaveBeenCalled()
@@ -334,7 +334,14 @@ describe('generateFile', () => {
     }))
   })
 
-  it('returns VALIDATION_ERROR instead of GENERATION_ERROR on schema failure', async () => {
+  it('coerces non-string optional contact fields into placeholders instead of failing generation', async () => {
+    vi.spyOn(generateFileDeps, 'getSupabase').mockReturnValue(
+      buildSupabase() as unknown as ReturnType<typeof generateFileDeps.getSupabase>,
+    )
+    vi.spyOn(generateFileDeps, 'generateDOCX').mockResolvedValue(Buffer.from('docx'))
+    vi.spyOn(generateFileDeps, 'generatePDF').mockResolvedValue(Buffer.from('pdf'))
+    vi.spyOn(generateFileDeps, 'upload').mockResolvedValue(undefined)
+
     const result = await generateFile({
       cv_state: {
         ...buildCvState(),
@@ -342,12 +349,96 @@ describe('generateFile', () => {
       } as unknown as CVState,
     }, 'usr_123', 'sess_123')
 
-    expect(result.output.success).toBe(false)
-    if (result.output.success) {
-      throw new Error('Expected validation failure.')
-    }
+    expect(result.output).toEqual({
+      success: true,
+      docxUrl: 'https://cdn.example.com/usr_123/sess_123/resume.docx',
+      pdfUrl: 'https://cdn.example.com/usr_123/sess_123/resume.pdf',
+      warnings: ['telefone'],
+    })
+  })
 
-    expect(result.output.code).toBe('VALIDATION_ERROR')
-    expect(result.output.error).toContain('phone')
+  it('autofills the missing end date for the most recent experience during generation', async () => {
+    const supabase = buildSupabase()
+    const upload = vi.fn().mockResolvedValue(undefined)
+    const generateDOCX = vi.fn().mockResolvedValue(Buffer.from('docx'))
+    const generatePDF = vi.fn().mockResolvedValue(Buffer.from('pdf'))
+
+    vi.spyOn(generateFileDeps, 'getSupabase').mockReturnValue(
+      supabase as unknown as ReturnType<typeof generateFileDeps.getSupabase>,
+    )
+    vi.spyOn(generateFileDeps, 'upload').mockImplementation(upload)
+    vi.spyOn(generateFileDeps, 'generateDOCX').mockImplementation(generateDOCX)
+    vi.spyOn(generateFileDeps, 'generatePDF').mockImplementation(generatePDF)
+
+    const result = await generateFile({
+      cv_state: {
+        ...buildCvState(),
+        experience: [
+          {
+            title: 'Senior Analytics Engineer',
+            company: 'Pravaler',
+            startDate: '01/2024',
+            endDate: null as never,
+            bullets: ['Liderou modelagem analitica com dbt'],
+          },
+          {
+            title: 'BI Engineer',
+            company: 'Acme',
+            startDate: '2022',
+            endDate: '2023',
+            bullets: ['Criou dashboards executivos'],
+          },
+        ],
+      },
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output.success).toBe(true)
+    expect(generateDOCX).toHaveBeenCalledWith(expect.objectContaining({
+      experiences: expect.arrayContaining([
+        expect.objectContaining({
+          company: 'Pravaler',
+          period: expect.stringMatching(/01\/2024 .* \d{2}\/\d{4}/),
+        }),
+      ]),
+    }))
+  })
+
+  it('returns a precise human-readable validation message for missing experience details', async () => {
+    const result = await generateFile({
+      cv_state: {
+        ...buildCvState(),
+        experience: [
+          {
+            title: 'BI Analyst',
+            company: 'Grupo Positivo',
+            startDate: '',
+            endDate: '2024',
+            bullets: ['Criou indicadores de desempenho'],
+          },
+          {
+            title: 'Analytics Engineer',
+            company: 'Case New Holland',
+            startDate: '2022',
+            endDate: '2023',
+            bullets: [],
+          },
+        ],
+      },
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'Falta a data de inicio na sua primeira experiencia - BI Analyst - Grupo Positivo.',
+    })
+    expect(result.patch).toEqual({
+      generatedOutput: {
+        status: 'failed',
+        docxPath: undefined,
+        pdfPath: undefined,
+        generatedAt: undefined,
+        error: 'Falta a data de inicio na sua primeira experiencia - BI Analyst - Grupo Positivo.',
+      },
+    })
   })
 })

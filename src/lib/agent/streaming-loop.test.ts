@@ -1723,6 +1723,71 @@ describe('runAgentLoop streaming', () => {
     expect(finalText).toContain('email, telefone, resumo profissional')
   })
 
+  it('surfaces a precise generation validation error with the exact experience reference', async () => {
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {} as Record<string, never>,
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+      },
+    }
+
+    mockDispatchToolWithContext
+      .mockResolvedValueOnce({
+        output: { success: true, phase: 'generation' },
+        outputJson: JSON.stringify({ success: true, phase: 'generation' }),
+        persistedPatch: {
+          phase: 'generation',
+        },
+      })
+      .mockResolvedValueOnce({
+        output: {
+          success: false,
+          code: 'VALIDATION_ERROR',
+          error: 'Falta a descricao da sua segunda experiencia - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.',
+        },
+        outputJson: JSON.stringify({
+          success: false,
+          code: 'VALIDATION_ERROR',
+          error: 'Falta a descricao da sua segunda experiencia - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.',
+        }),
+        outputFailure: {
+          success: false,
+          code: 'VALIDATION_ERROR',
+          error: 'Falta a descricao da sua segunda experiencia - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.',
+        },
+        persistedPatch: {
+          generatedOutput: {
+            status: 'failed',
+            error: 'Falta a descricao da sua segunda experiencia - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.',
+          },
+        },
+      })
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage: 'Aceito',
+      appUserId: 'usr_123',
+      requestId: 'req_dialog_generate_precise_validation',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => event.content)
+      .join('')
+
+    expect(finalText).toContain('Nao consegui gerar os arquivos agora.')
+    expect(finalText).toContain('Falta a descricao da sua segunda experiencia - Case New Holland.')
+  })
+
   it('stops cleanly when the abort signal fires after the first chunk', async () => {
     const controller = new AbortController()
 

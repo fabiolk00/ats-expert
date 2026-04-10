@@ -154,6 +154,11 @@ function formatPartialDate(date?: { year?: number; month?: number }): string {
   return String(date.year)
 }
 
+function getCurrentMonthYear(): string {
+  const now = new Date()
+  return `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
+}
+
 function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
   return values.find((value) => Boolean(value && value.trim()))
 }
@@ -238,22 +243,39 @@ export function mapLinkdAPIToCvState(data: LinkdAPIProfile['data']): CVState {
   }
 
   const profileLocation = data.location?.full ?? data.geo?.full ?? undefined
+  const experienceSource = data.fullPositions
+    ? 'fullPositions'
+    : data.position
+      ? 'position'
+      : data.currentPositions
+        ? 'currentPositions'
+        : 'experience'
   const rawExperience = data.fullPositions ?? data.position ?? data.currentPositions ?? data.experience ?? []
   const experience: ExperienceEntry[] = rawExperience
     .filter((exp) => Boolean(exp.title && (exp.companyName || getNamedValue(exp.company))))
-    .map((exp) => ({
-      title: exp.title ?? '',
-      company: getNamedValue(exp.company) ?? exp.companyName ?? '',
-      location: normalizeExperienceLocation(exp.location, profileLocation),
-      startDate: firstNonEmpty(exp.startDate, formatPartialDate(exp.start)) ?? '',
-      endDate: firstNonEmpty(exp.endDate, formatPartialDate(exp.end)) ?? '',
-      bullets: exp.description
-        ? exp.description
-            .split('\n')
-            .map((b) => b.trim())
-            .filter((b) => b.length > 0)
-        : [],
-    }))
+    .map((exp, index, entries) => {
+      const resolvedEndDate = firstNonEmpty(exp.endDate, formatPartialDate(exp.end))
+      const shouldAssumeCurrentRole = !resolvedEndDate && (
+        experienceSource === 'currentPositions'
+        || experienceSource === 'position'
+        || index === 0
+        || index === entries.length - 1
+      )
+
+      return {
+        title: exp.title ?? '',
+        company: getNamedValue(exp.company) ?? exp.companyName ?? '',
+        location: normalizeExperienceLocation(exp.location, profileLocation),
+        startDate: firstNonEmpty(exp.startDate, formatPartialDate(exp.start)) ?? '',
+        endDate: resolvedEndDate ?? (shouldAssumeCurrentRole ? getCurrentMonthYear() : ''),
+        bullets: exp.description
+          ? exp.description
+              .split('\n')
+              .map((b) => b.trim())
+              .filter((b) => b.length > 0)
+          : [],
+      }
+    })
 
   const rawEducation = data.educations ?? data.education ?? data.currentEducation ?? []
   const education: EducationEntry[] = rawEducation

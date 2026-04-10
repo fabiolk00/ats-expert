@@ -64,6 +64,7 @@ describe('mapLinkdAPIToCvState', () => {
         company: 'CNH',
         location: 'Curitiba, PR',
         startDate: '01/2025',
+        endDate: expect.stringMatching(/\d{2}\/\d{4}/),
         bullets: ['Primeira linha', 'Segunda linha'],
       }),
     ])

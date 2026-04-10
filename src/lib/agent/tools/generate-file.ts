@@ -40,7 +40,8 @@ const PAGE_WIDTH = 595
 const PAGE_HEIGHT = 842
 const USABLE_WIDTH = PAGE_WIDTH - 2 * MARGIN
 const MAX_VALIDATION_ERROR_MESSAGE_LENGTH = 500
-const DEFAULT_VALIDATION_ERROR_MESSAGE = 'Resume state is incomplete. Please ensure all required fields are filled.'
+const DEFAULT_VALIDATION_ERROR_MESSAGE = 'O curriculo salvo ainda tem lacunas que precisam ser corrigidas antes da geracao.'
+const EXPERIENCE_ORDINALS = ['primeira', 'segunda', 'terceira', 'quarta', 'quinta', 'sexta', 'setima', 'oitava']
 
 const GenerationReadyCVStateSchema = CVStateSchema.superRefine((cvState, ctx) => {
   const requireNonEmptyString = (
@@ -141,6 +142,75 @@ const NON_BLOCKING_PLACEHOLDER_RULES: GenerationPlaceholderRule[] = [
   },
 ]
 
+function normalizeNullableString(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function getCurrentMonthYear(): string {
+  const now = new Date()
+  return `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
+}
+
+function isMostRecentExperienceIndex(index: number, totalEntries: number): boolean {
+  return index === 0 || index === totalEntries - 1
+}
+
+function normalizeGenerationCvState(input: GenerateFileInput['cv_state']): CVState {
+  const source = (input && typeof input === 'object' ? input : {}) as Partial<CVState>
+  const rawExperience = Array.isArray(source.experience) ? source.experience : []
+  const currentMonthYear = getCurrentMonthYear()
+
+  return {
+    fullName: normalizeNullableString(source.fullName),
+    email: normalizeNullableString(source.email),
+    phone: normalizeNullableString(source.phone),
+    linkedin: normalizeNullableString(source.linkedin) || undefined,
+    location: normalizeNullableString(source.location) || undefined,
+    summary: normalizeNullableString(source.summary),
+    experience: rawExperience.map((rawEntry, index, entries) => {
+      const entry = (rawEntry && typeof rawEntry === 'object' ? rawEntry : {}) as Record<string, unknown>
+      const normalizedEndDate = normalizeNullableString(entry.endDate).trim()
+
+      return {
+        title: normalizeNullableString(entry.title),
+        company: normalizeNullableString(entry.company),
+        location: normalizeNullableString(entry.location) || undefined,
+        startDate: normalizeNullableString(entry.startDate),
+        endDate: normalizedEndDate.length > 0
+          ? normalizedEndDate
+          : (isMostRecentExperienceIndex(index, entries.length) ? currentMonthYear : ''),
+        bullets: Array.isArray(entry.bullets)
+          ? entry.bullets.map((bullet) => normalizeNullableString(bullet))
+          : [],
+      }
+    }),
+    skills: Array.isArray(source.skills)
+      ? source.skills.map((skill) => normalizeNullableString(skill))
+      : [],
+    education: Array.isArray(source.education)
+      ? source.education.map((rawEntry) => {
+        const entry = (rawEntry && typeof rawEntry === 'object' ? rawEntry : {}) as Record<string, unknown>
+        return {
+          degree: normalizeNullableString(entry.degree),
+          institution: normalizeNullableString(entry.institution),
+          year: normalizeNullableString(entry.year),
+          gpa: normalizeNullableString(entry.gpa) || undefined,
+        }
+      })
+      : [],
+    certifications: Array.isArray(source.certifications)
+      ? source.certifications.map((rawEntry) => {
+        const entry = (rawEntry && typeof rawEntry === 'object' ? rawEntry : {}) as Record<string, unknown>
+        return {
+          name: normalizeNullableString(entry.name),
+          issuer: normalizeNullableString(entry.issuer),
+          year: normalizeNullableString(entry.year) || undefined,
+        }
+      })
+      : undefined,
+  }
+}
+
 function capValidationErrorMessage(message: string): string {
   return message.length > MAX_VALIDATION_ERROR_MESSAGE_LENGTH
     ? `${message.slice(0, MAX_VALIDATION_ERROR_MESSAGE_LENGTH - 3)}...`
@@ -159,46 +229,128 @@ function formatValidationPath(path: ReadonlyArray<string | number>): string {
   }, '')
 }
 
-function getValidationErrorMessage(error: z.ZodError<CVState>): string {
+function getOrdinalLabel(index: number): string {
+  return EXPERIENCE_ORDINALS[index] ?? `${index + 1}a`
+}
+
+function buildExperienceReference(cvState: CVState, index: number): string {
+  const experience = cvState.experience[index]
+  if (!experience) {
+    return `${index + 1}a experiencia`
+  }
+
+  const company = experience.company.trim()
+  const title = experience.title.trim()
+
+  if (company && title) {
+    return `${title} - ${company}`
+  }
+
+  if (company) {
+    return company
+  }
+
+  if (title) {
+    return title
+  }
+
+  return `${index + 1}a experiencia`
+}
+
+function humanizeValidationIssue(issue: z.ZodIssue, cvState: CVState): string {
+  const [root, index, field] = issue.path
+
+  if (root === 'experience' && typeof index === 'number') {
+    const ordinal = getOrdinalLabel(index)
+    const reference = buildExperienceReference(cvState, index)
+
+    if (field === 'title') {
+      return `Falta o cargo na sua ${ordinal} experiencia - ${reference}.`
+    }
+
+    if (field === 'company') {
+      return `Falta a empresa na sua ${ordinal} experiencia - ${reference}.`
+    }
+
+    if (field === 'startDate') {
+      return `Falta a data de inicio na sua ${ordinal} experiencia - ${reference}.`
+    }
+
+    if (field === 'endDate') {
+      return `Falta a data de termino na sua ${ordinal} experiencia - ${reference}. Se voce ainda trabalha nela, marque como atual ou informe uma data aproximada.`
+    }
+
+    if (field === 'bullets') {
+      return `Falta a descricao da sua ${ordinal} experiencia - ${reference}. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.`
+    }
+  }
+
+  if (root === 'fullName') {
+    return 'Falta o nome completo no perfil salvo.'
+  }
+
+  if (root === 'experience') {
+    return 'Falta pelo menos uma experiencia profissional no curriculo salvo.'
+  }
+
+  if (root === 'education' && typeof index === 'number') {
+    if (field === 'degree') {
+      return `Falta o curso na sua formacao ${index + 1}.`
+    }
+
+    if (field === 'institution') {
+      return `Falta a instituicao na sua formacao ${index + 1}.`
+    }
+
+    if (field === 'year') {
+      return `Falta o ano ou data principal na sua formacao ${index + 1}.`
+    }
+  }
+
+  const path = formatValidationPath(issue.path)
+  const baseMessage = issue.code === z.ZodIssueCode.custom || path.length === 0
+    ? issue.message
+    : `${path}: ${issue.message}`
+
+  return baseMessage || DEFAULT_VALIDATION_ERROR_MESSAGE
+}
+
+function getValidationErrorMessage(error: z.ZodError<CVState>, cvState: CVState): string {
   const [firstIssue] = error.issues
 
   if (!firstIssue) {
     return DEFAULT_VALIDATION_ERROR_MESSAGE
   }
 
-  const path = formatValidationPath(firstIssue.path)
-  const baseMessage = firstIssue.code === z.ZodIssueCode.custom || path.length === 0
-    ? firstIssue.message
-    : `${path}: ${firstIssue.message}`
-
-  return capValidationErrorMessage(baseMessage || DEFAULT_VALIDATION_ERROR_MESSAGE)
+  return capValidationErrorMessage(humanizeValidationIssue(firstIssue, cvState))
 }
 
 function validateGenerationCvState(cvState: GenerateFileInput['cv_state']): GenerationValidationResult {
-  const parsedCvState = GenerationReadyCVStateSchema.safeParse(cvState)
+  const normalizedCvState = normalizeGenerationCvState(cvState)
+  const parsedCvState = GenerationReadyCVStateSchema.safeParse(normalizedCvState)
 
   if (!parsedCvState.success) {
     return {
       success: false,
-      errorMessage: getValidationErrorMessage(parsedCvState.error),
+      errorMessage: getValidationErrorMessage(parsedCvState.error, normalizedCvState),
     }
   }
 
-  const normalizedCvState = structuredClone(parsedCvState.data)
+  const generationReadyCvState = structuredClone(parsedCvState.data)
   const warnings: string[] = []
 
   for (const rule of NON_BLOCKING_PLACEHOLDER_RULES) {
-    if (normalizedCvState[rule.field].trim().length > 0) {
+    if (generationReadyCvState[rule.field].trim().length > 0) {
       continue
     }
 
-    normalizedCvState[rule.field] = rule.placeholder
+    generationReadyCvState[rule.field] = rule.placeholder
     warnings.push(rule.label)
   }
 
   return {
     success: true,
-    cvState: normalizedCvState,
+    cvState: generationReadyCvState,
     warnings,
   }
 }
