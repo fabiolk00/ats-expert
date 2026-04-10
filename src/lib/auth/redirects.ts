@@ -13,7 +13,7 @@ export function getSafeRedirectPath(
   return candidate
 }
 
-export function buildClerkContinuationPath(
+export function buildClerkFallbackLoginPath(
   redirectTo: string,
   status?: string | null,
 ): string {
@@ -28,5 +28,5 @@ export function buildClerkContinuationPath(
   }
 
   const query = params.toString()
-  return query ? `/login/continue?${query}` : '/login/continue'
+  return query ? `/login/clerk?${query}` : '/login/clerk'
 }

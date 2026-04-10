@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { getClerkErrorMessage, isSessionAlreadyExistsError } from "@/lib/auth/clerk-errors"
-import { buildClerkContinuationPath, getSafeRedirectPath } from "@/lib/auth/redirects"
+import { buildClerkFallbackLoginPath, getSafeRedirectPath } from "@/lib/auth/redirects"
 import { navigateToUrl } from "@/lib/navigation/external"
 
 const schema = z.object({
@@ -128,7 +128,10 @@ export default function LoginForm() {
       }
 
       if (typeof result.status === "string" && CLERK_CONTINUATION_STATUSES.has(result.status)) {
-        navigateToUrl(buildClerkContinuationPath(redirectTo, result.status))
+        setError("root", {
+          message: "Este login precisa de uma etapa adicional de verificacao. Vamos continuar no fluxo seguro do Clerk.",
+        })
+        navigateToUrl(buildClerkFallbackLoginPath(redirectTo, result.status))
         return
       }
 

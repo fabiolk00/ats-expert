@@ -114,7 +114,7 @@ describe("LoginForm", () => {
     })
   })
 
-  it("continues in the Clerk hosted flow when the sign in attempt needs another factor", async () => {
+  it("falls back to the Clerk login page when the sign in attempt needs another factor", async () => {
     mockSearchParamsGet.mockImplementation((key: string) =>
       key === "redirect_to" ? "/pricing?checkoutPlan=monthly" : null,
     )
@@ -129,7 +129,7 @@ describe("LoginForm", () => {
 
     await waitFor(() => {
       expect(mockNavigateToUrl).toHaveBeenCalledWith(
-        "/login/continue?redirect_to=%2Fpricing%3FcheckoutPlan%3Dmonthly&status=needs_second_factor",
+        "/login/clerk?redirect_to=%2Fpricing%3FcheckoutPlan%3Dmonthly&status=needs_second_factor",
       )
     })
   })

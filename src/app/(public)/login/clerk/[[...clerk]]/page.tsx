@@ -4,11 +4,11 @@ import type { Metadata } from "next"
 import { getSafeRedirectPath } from "@/lib/auth/redirects"
 
 export const metadata: Metadata = {
-  title: "Continuar login - CurrIA",
-  description: "Conclua as etapas adicionais de autenticacao na CurrIA",
+  title: "Entrar - CurrIA",
+  description: "Conclua seu login na CurrIA",
 }
 
-type LoginContinuePageProps = {
+type ClerkLoginPageProps = {
   searchParams?: Record<string, string | string[] | undefined>
 }
 
@@ -24,22 +24,18 @@ function readFirstParam(value: string | string[] | undefined): string | null {
   return null
 }
 
-function getContinuationMessage(status: string | null): string {
+function getHelpText(status: string | null): string {
   switch (status) {
     case "needs_second_factor":
-      return "Seu login precisa de uma verificacao adicional neste navegador. Continue abaixo."
+      return "Seu navegador precisa concluir uma etapa adicional de verificacao."
     case "needs_new_password":
-      return "Sua conta precisa definir uma nova senha antes de concluir o login."
-    case "needs_first_factor":
-    case "needs_identifier":
-    case "abandoned":
-      return "Retomamos seu login no fluxo seguro do Clerk para concluir a autenticacao."
+      return "Sua conta precisa concluir uma etapa adicional antes do acesso."
     default:
       return "Continue seu login no fluxo seguro do Clerk."
   }
 }
 
-export default function LoginContinuePage({ searchParams }: LoginContinuePageProps) {
+export default function ClerkLoginPage({ searchParams }: ClerkLoginPageProps) {
   const redirectTo = getSafeRedirectPath(readFirstParam(searchParams?.redirect_to))
   const status = readFirstParam(searchParams?.status)
 
@@ -50,12 +46,11 @@ export default function LoginContinuePage({ searchParams }: LoginContinuePagePro
       <div className="relative w-full max-w-[440px] space-y-5">
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold tracking-tight">Continuar login</h1>
-          <p className="text-sm text-muted-foreground">{getContinuationMessage(status)}</p>
+          <p className="text-sm text-muted-foreground">{getHelpText(status)}</p>
         </div>
 
         <SignIn
-          routing="path"
-          path="/login/continue"
+          routing="hash"
           forceRedirectUrl={redirectTo}
           signUpUrl="/signup"
         />
