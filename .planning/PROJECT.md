@@ -2,11 +2,20 @@
 
 ## What This Is
 
-CurrIA is an AI-powered resume optimization platform for Brazilian job seekers. It combines profile seeding, conversational resume analysis, job-targeted rewriting, ATS guidance, file generation, and credit-based billing inside a single authenticated workspace. This planning baseline treats the product as a brownfield system and focuses the current milestone on making the existing launch funnel safe to ship.
+CurrIA is an AI-powered resume optimization platform for Brazilian job seekers. It already ships the core funnel for profile seeding, conversational resume analysis, job-targeted rewriting, file generation, and paid usage, and the current milestone focuses on making the agent experience reliable under real dialog pressure after the launch-hardening baseline shipped.
 
 ## Core Value
 
 A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
+
+## Current Milestone: v1.1 Agent Reliability and Response Continuity
+
+**Goal:** Prove what code and model configuration the live `/api/agent` route is serving, then eliminate truncation-driven repetition so rewrite follow-ups stay useful and trustworthy.
+
+**Target features:**
+- Deployment and runtime evidence that identifies the live agent route version, selected model, and recovery path for a real request.
+- Dialog-turn hardening so requests like `reescreva` produce an actual rewrite or a non-repetitive continuation instead of reusing the vacancy bootstrap.
+- End-to-end transcript and SSE verification that proves the user-visible chat output matches the backend recovery behavior.
 
 ## Requirements
 
@@ -26,43 +35,42 @@ A job seeker can reliably turn their real profile and a target role into an hone
 
 ### Active
 
-No active launch-hardening requirements remain in this milestone.
+- [ ] Team can prove which code and config the live `/api/agent` route is serving during a real chat request.
+- [ ] A dialog follow-up like `reescreva` returns a concrete rewrite or a non-repetitive continuation instead of repeating earlier vacancy bootstrap copy.
+- [ ] Streamed chat transcripts preserve one coherent assistant turn per request, even when truncation recovery or fallback paths fire.
+- [ ] Automated verification covers deployment parity, model selection, truncation recovery, and final rendered chat output through the real route seams.
 
 ### Out of Scope
 
-- PDF and DOCX profile upload onboarding - important, but secondary to launch hardening because the current funnel already supports LinkedIn and manual profile setup.
-- New end-user product areas beyond the current funnel - avoid breadth before reliability.
-- Native mobile apps and non-Brazilian localization - not required to validate the current market and launch path.
+- PDF and DOCX profile upload onboarding - still valuable, but secondary to fixing trust-eroding agent continuity in the existing funnel.
+- New premium feature pillars or broad prompt redesign - this milestone is about reliability and debuggability of the current agent, not widening scope.
+- Native mobile apps and non-Brazilian localization - not needed to diagnose or harden the current web agent experience.
 
 ## Context
 
 - The existing codebase is a Next.js 14 App Router monolith with Clerk auth, Supabase/Postgres persistence, Prisma migrations, OpenAI agent orchestration, Asaas billing, and LinkdAPI profile import.
-- README and current docs show the product already covers analysis, rewriting, target resume creation, file generation, and paid plans.
-- The highest-risk gaps are operational rather than breadth: launch confidence now depends most on live billing validation and diagnosable failure handling.
-- Phase 1 closed the env-contract drift and fail-open configuration gaps, Phase 2 closed the browser verification gap with a committed Playwright lane plus CI coverage, and Phase 3 added live billing evidence for settlement, replay, and display-balance correctness.
-- Phase 4 completed the launch-hardening milestone with structured diagnostics on fragile routes, safer user-facing degradation states, and a controlled-launch handoff in repo docs.
-- Billing logic was recently updated to settlement-based processing, and the live Phase 3 proof confirmed the current contract without requiring runtime billing remediation.
-- The agent, billing, and profile import paths are already feature-rich but live in large or sensitive modules, so safer verification and observability are higher leverage than adding more surface area first.
+- v1.0 already hardened launch-critical configuration, browser verification, billing settlement validation, and structured observability around the existing funnel.
+- A live user transcript now shows a different failure mode from the earlier empty-fallback bug: a short follow-up in `dialog` (`reescreva`) still hits repeated `finishReason: "length"` completions and the visible assistant reply repeats the earlier vacancy acknowledgment instead of continuing the rewrite.
+- The affected live logs do not include the newer `model`, `assistantTextChars`, or `fallbackKind` fields now present in the repo's agent loop, which strongly suggests runtime parity between current code and the deployed environment is not yet proven.
+- The highest-leverage next work is therefore not new product breadth, but proving deployment parity, tightening dialog recovery, and verifying the backend and frontend agree on the final rendered transcript.
 
 ## Constraints
 
 - **Tech stack**: Stay within Next.js 14, React 18, TypeScript, Clerk, Supabase/Postgres, Prisma, OpenAI, Asaas, and the existing docs/testing toolchain - minimize architecture churn in a brownfield repo.
-- **Reliability**: Changes must preserve canonical `cvState`, billing idempotency, and target-resume/history behavior - these are already established product contracts.
-- **Security**: Failures around provider credentials, webhooks, and auth cannot be silent - the milestone should reduce misconfiguration and auth risk rather than mask it.
-- **Testing**: Vitest coverage already exists, and launch confidence now depends on keeping the committed Playwright lane green alongside it.
-- **Scope**: The milestone should improve launch readiness of the current product, not reopen product strategy or add large new feature pillars.
+- **Deployment parity**: Any fix must make it obvious which commit, config, and model selection reached the live route - otherwise repeated-chat reports stay ambiguous.
+- **Reliability**: Changes must preserve canonical `cvState`, persisted session history, and existing billing/session contracts while hardening the dialog flow.
+- **Testing**: v1.0 already established Vitest plus Playwright as repo contracts, so agent fixes should land with route-level and transcript-level regression proof instead of local-only reasoning.
+- **Scope**: This milestone should improve confidence in the current agent experience, not reopen launch-hardening work that is already validated or add major new product pillars.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Focus the next milestone on launch hardening for the core funnel | The product already has breadth; the main gaps are verification, deployment safety, and diagnosability | Good |
-| Finish Phase 1 before adding browser coverage | Contract drift and fail-open provider behavior would have made browser failures noisy and misleading | Good |
-| Use a mocked-provider Playwright lane with a signed E2E auth seam and stable UI hooks | The core funnel needed deterministic browser proof that still exercised real product state and artifact delivery | Good |
-| Treat current shipped capabilities as the validated baseline | This is a brownfield repo with working auth, profile, agent, billing, and file-generation flows | Good |
-| Defer PDF profile upload until after core launch hardening | It is a visible onboarding gap, but less leverage than making the current funnel safe to ship | Pending |
-| Prefer additive hardening over architectural rewrites | Large sensitive modules exist today; verification and observability reduce risk faster than broad refactors | Good |
-| End the milestone with a controlled-launch recommendation, not a blanket all-clear | The funnel is launch-ready, but early operator monitoring still matters for billing and third-party import incidents | Good |
+| Focus v1.1 on agent reliability and response continuity before new product breadth | The most visible live issue is user trust erosion from repeated or truncated agent replies, not missing surface area | Pending |
+| Continue phase numbering from 5 | Preserves continuity with the shipped v1.0 roadmap and keeps milestone history easy to follow | Good |
+| Include milestone research before defining requirements | The issue spans deployment parity, model routing, truncation recovery, and transcript rendering, so a small research pass reduces guesswork | Good |
+| Treat v1.0 launch hardening as the validated baseline | The next milestone should build on the shipped reliability work instead of re-planning it | Good |
+| Require end-to-end transcript proof, not only loop-level tests | The user-facing bug is about what appears in chat, so backend correctness alone is not enough | Pending |
 
 ## Evolution
 
@@ -70,7 +78,7 @@ This document evolves at phase transitions and milestone boundaries.
 
 **After each phase transition** (via `/gsd-transition`):
 1. Requirements validated? -> Move to Validated with phase reference
-2. Remaining launch blockers? -> Keep in Active
+2. Remaining blockers? -> Keep in Active
 3. Decisions to log? -> Add to Key Decisions
 4. Context drifted? -> Update What This Is and Context
 
@@ -81,4 +89,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after Phase 4 completion*
+*Last updated: 2026-04-10 after starting milestone v1.1*
