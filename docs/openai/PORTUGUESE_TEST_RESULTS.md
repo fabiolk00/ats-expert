@@ -6,7 +6,7 @@ This document records the human-evaluated results of the Brazilian Portuguese qu
 
 Current runtime note:
 - these results record the historical combo bakeoff
-- the live app is currently pinned to `gpt-5-nano` for the cheapest supported runtime path
+- the live app defaults to `gpt-5-nano` for the agent runtime
 
 Use it together with:
 
@@ -28,9 +28,9 @@ This report is the source of truth for the final model-routing decision:
 - Evaluator is native pt-BR speaker: Yes / No
 - Test date:
 - Compared combinations:
-  - Combo A: `gpt-4o-mini` / `gpt-4o-mini` / `gpt-4o-mini`
-  - Combo B: `gpt-4o` / `gpt-4o-mini` / `gpt-4o-mini`
-  - Combo C: `gpt-4-turbo` / `gpt-4-turbo` / `gpt-4-turbo`
+  - Combo A: `gpt-5-nano` / `gpt-5-nano` / `gpt-5-nano`
+  - Combo B: `gpt-5.4-nano` / `gpt-5-nano` / `gpt-5-nano`
+  - Combo C: `gpt-5-mini` / `gpt-5-nano` / `gpt-5-nano`
 - Prompts/version tested:
 - Branch / commit:
 - Notes:

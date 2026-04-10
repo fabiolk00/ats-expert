@@ -21,9 +21,9 @@ Current default routing from [config.ts](../../src/lib/agent/config.ts):
 
 Supported combinations:
 
-- `combo_a`: all `gpt-5-nano`
-- `combo_b`: all `gpt-5-nano`
-- `combo_c`: all `gpt-5-nano`
+- `combo_a`: `gpt-5-nano` / `gpt-5-nano` / `gpt-5-nano`
+- `combo_b`: `gpt-5.4-nano` / `gpt-5-nano` / `gpt-5-nano`
+- `combo_c`: `gpt-5-mini` / `gpt-5-nano` / `gpt-5-nano`
 
 ## Metric 1 - API usage by model
 

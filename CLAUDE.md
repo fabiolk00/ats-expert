@@ -19,11 +19,10 @@ This file is the project source of truth for system architecture and engineering
 
 - CurrIA currently runs fully on OpenAI.
 - Default model routing is controlled in `src/lib/agent/config.ts`.
-- The runtime now uses one standardized model across `agent`, `structured`, and `vision`.
-- The default standardized runtime model is `gpt-5-nano`.
-- The active runtime model can be overridden with `OPENAI_MODEL`.
-- `OPENAI_MODEL_COMBO` is retained only for backward compatibility and model-selection workflows.
-- Model selection and pt-BR evaluation are documented in:
+- The default runtime model is `gpt-5-nano`.
+- `OPENAI_MODEL` overrides the agent model directly.
+- `OPENAI_MODEL_COMBO` still works for bakeoffs and keeps the non-agent routes on the baseline model unless explicitly overridden.
+- Model selection, monitoring, and pt-BR evaluation are documented in:
   - `docs/openai/MODEL_SELECTION_MATRIX.md`
   - `docs/openai/PORTUGUESE_QUALITY_GATE.md`
   - `docs/openai/PORTUGUESE_TEST_RESULTS.md`

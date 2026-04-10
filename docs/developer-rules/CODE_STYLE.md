@@ -43,7 +43,7 @@ Back to [Developer Rules](./README.md) | [All Docs](../INDEX.md)
 
 ## Error handling
 - Route handlers should return structured JSON errors with proper status codes.
-- Agent tools should return `{ success: false, error: string }` on failure.
+- Agent tools should return structured failures with a stable code and user-facing error message.
 - Reject malformed model output before it reaches canonical state.
 
 ## Comments

@@ -25,8 +25,8 @@ Back to [Documentation Index](./INDEX.md) | Start with [Concepts](./CONCEPTS.md)
 - The runtime is fully on OpenAI.
 - The runtime model is standardized in `src/lib/agent/config.ts`.
 - The current default runtime model is `gpt-5-nano`.
-- `OPENAI_MODEL` is the runtime override knob.
-- `OPENAI_MODEL_COMBO` is retained only for backward compatibility and model-selection workflows.
+- `OPENAI_MODEL` overrides the agent model directly.
+- `OPENAI_MODEL_COMBO` remains available for bakeoffs and for keeping the non-agent routes on the baseline model unless explicitly overridden.
 - The long-term model choice depends on the pt-BR quality and cost bakeoff documented in [Model Selection Matrix](./openai/MODEL_SELECTION_MATRIX.md).
 - The approval gate is documented in [Portuguese Quality Gate](./openai/PORTUGUESE_QUALITY_GATE.md).
 
@@ -78,7 +78,7 @@ After the auth boundary, use app user IDs in domain code.
 6. Persist the session ID early for new sessions through `X-Session-Id` and the initial `sessionCreated` SSE event.
 7. Detect whether the current user message looks like a pasted job description.
 8. Persist target-job context before the model loop when confidence is high enough.
-9. Optionally precompute gap analysis and fit assessment when resume context already exists.
+9. Let the agent loop decide whether the current analysis turn needs ATS scoring, gap analysis, or a deterministic vacancy bootstrap response.
 10. Increment message count.
 11. Persist the user message.
 12. Build prompt context from the session bundle.
@@ -148,13 +148,14 @@ Additional resume persistence rules:
 
 ## Current Route and Feature Realities
 
-- OpenAI tool loop currently uses non-streaming calls and re-streams word chunks over SSE.
+- OpenAI tool loop streams from OpenAI and forwards text deltas over SSE while accumulating tool calls server-side.
 - `/api/agent` now returns `X-Session-Id` for new sessions and emits `sessionCreated` as the first SSE event.
 - `generate_file` returns signed URLs directly.
 - `/api/file/[sessionId]` returns fresh signed URLs from persisted artifact metadata.
 - `/api/file/[sessionId]?targetId=<resumeTargetId>` returns fresh signed URLs for an owned target-derived artifact.
 - Route-level attachment preprocessing can enrich the current user message before the tool loop starts.
-- Route-level target bootstrap can write `targetJobDescription`, `gapAnalysis`, and `targetFitAssessment` before the tool loop starts.
+- Route-level target bootstrap can write `targetJobDescription` before the tool loop starts.
+- The first analysis turn can summarize an ATS score and move the session forward without exposing bootstrap tool noise to the user.
 - `/api/session/[id]/versions` returns immutable history for the owning app user.
 - `/api/session/[id]/targets` lists or creates target-specific variants for the owning app user.
 - `/login` and `/signup` redirect authenticated visitors away from auth pages and resume safe requested destinations when Clerk reports `session_exists`.

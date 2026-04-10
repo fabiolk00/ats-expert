@@ -65,7 +65,7 @@ function dispatchTool(toolName: string, input: unknown, session: Session) {
 ```
 
 ### Growth and refactoring trigger
-**Current status**: 8 tools, dispatch via switch statement ✅
+**Current status**: 8 tools, dispatch via switch statement
 
 **Refactoring trigger**: When tool count reaches **15+**, consider migrating to a **strategy/plugin pattern**:
 

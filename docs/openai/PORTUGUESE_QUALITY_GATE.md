@@ -17,8 +17,8 @@ This document defines the mandatory pt-BR language quality gate before locking t
 CurrIA already runs on OpenAI in code. What remains is selecting the best OpenAI model combination for Brazilian Portuguese resume quality and cost.
 
 Current runtime note:
-- the live app is currently pinned to `gpt-5-nano` for the cheapest supported runtime path
-- the combo matrix below is retained as the historical quality-gate framework
+- the live app defaults to `gpt-5-nano` for the agent runtime
+- the combo matrix below is retained as the historical quality-gate framework and still maps to the active bakeoff labels
 
 Use this document together with:
 
@@ -31,9 +31,9 @@ Which OpenAI model combination produces Brazilian Portuguese resume output that 
 
 The tested combinations are:
 
-- `combo_a`: all `gpt-4o-mini`
-- `combo_b`: `gpt-4o` for agent and `gpt-4o-mini` for structured and vision
-- `combo_c`: all `gpt-4-turbo`
+- `combo_a`: `gpt-5-nano` for agent, structured, and vision
+- `combo_b`: `gpt-5.4-nano` for agent, `gpt-5-nano` for structured and vision
+- `combo_c`: `gpt-5-mini` for agent, `gpt-5-nano` for structured and vision
 
 ## Mandatory decision rule
 
@@ -214,22 +214,23 @@ After all 10 samples, consolidate:
 ### If Combo A wins
 
 - set `OPENAI_MODEL_COMBO=combo_a`
-- update docs to show `gpt-5-mini` across agent, structured, and vision
+- keep the baseline `gpt-5-nano` runtime routing
 - deploy the cheaper routing
 
 ### If Combo B wins
 
 - keep `OPENAI_MODEL_COMBO=combo_b`
 - keep the current routing:
-  - `agent`: `gpt-5.4-mini`
-  - `structured`: `gpt-5-mini`
-  - `vision`: `gpt-5-mini`
+  - `agent`: `gpt-5.4-nano`
+  - `structured`: `gpt-5-nano`
+  - `vision`: `gpt-5-nano`
 - document why the extra quality justified the extra cost
 
 ### If Combo C wins
 
 - set `OPENAI_MODEL_COMBO=combo_c`
-- update docs to show `gpt-5` across agent, structured, and vision
+- keep the structured and vision baseline on `gpt-5-nano`
+- use `gpt-5-mini` for the agent runtime
 - document why only the premium routing met quality expectations
 
 ### If all combinations fail

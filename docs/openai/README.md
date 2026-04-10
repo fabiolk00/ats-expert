@@ -12,6 +12,11 @@ updated: 2026-04-01
 
 Use this folder for the canonical OpenAI runtime, quality, and migration documentation.
 
+Current runtime note:
+- the live agent runtime defaults to `gpt-5-nano`
+- `combo_a` / `combo_b` / `combo_c` are the active agent bakeoff labels
+- historical quality-gate docs remain in this folder for auditability
+
 - [MODEL_SELECTION_MATRIX.md](./MODEL_SELECTION_MATRIX.md) - evaluation framework and historical matrix
 - [PORTUGUESE_QUALITY_GATE.md](./PORTUGUESE_QUALITY_GATE.md) - pt-BR release gate
 - [PORTUGUESE_TEST_RESULTS.md](./PORTUGUESE_TEST_RESULTS.md) - language-quality results

@@ -17,13 +17,14 @@ CurrIA already runs on OpenAI. The remaining question is which OpenAI model comb
 This document defines the bakeoff that compares three routing combinations across the same 10 resume samples.
 
 Current runtime note:
-- the live app is now pinned to `gpt-5-nano` for `agent`, `structured`, and `vision`
-- the `combo_a` / `combo_b` / `combo_c` names are currently retained only for environment compatibility
-- the matrix below is the historical evaluation framework, not the current production routing
+- the live app defaults to `gpt-5-nano` for the agent runtime
+- `combo_a` / `combo_b` / `combo_c` are still the active bakeoff labels for the agent route
+- structured and vision routing stay on `gpt-5-nano` unless explicitly overridden
+- the matrix below documents the current routing options and the historical bakeoff context together
 
 ## Current default
 
-The codebase currently defaults to `combo_a` in [config.ts](../../src/lib/agent/config.ts):
+The codebase currently defaults to the baseline agent runtime in [config.ts](../../src/lib/agent/config.ts):
 
 - `agent`: `gpt-5-nano`
 - `structured`: `gpt-5-nano`
@@ -33,9 +34,9 @@ The codebase currently defaults to `combo_a` in [config.ts](../../src/lib/agent/
 
 | Combination | Agent | Structured | Vision | Estimated cost per sample |
 | --- | --- | --- | --- | --- |
-| `combo_a` | `gpt-4o-mini` | `gpt-4o-mini` | `gpt-4o-mini` | `$0.08-$0.12` |
-| `combo_b` | `gpt-4o` | `gpt-4o-mini` | `gpt-4o-mini` | `$0.15-$0.25` |
-| `combo_c` | `gpt-4-turbo` | `gpt-4-turbo` | `gpt-4-turbo` | `$0.30-$0.60` |
+| `combo_a` | `gpt-5-nano` | `gpt-5-nano` | `gpt-5-nano` | baseline |
+| `combo_b` | `gpt-5.4-nano` | `gpt-5-nano` | `gpt-5-nano` | slightly higher than baseline |
+| `combo_c` | `gpt-5-mini` | `gpt-5-nano` | `gpt-5-nano` | highest of the current agent bakeoff set |
 
 ## Required samples
 

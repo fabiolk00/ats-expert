@@ -51,7 +51,7 @@ What it does: guides the user through resume analysis, targeting, rewriting, and
 Key behaviors:
 - persists the session ID early so refreshes do not silently create a second paid session
 - detects pasted job descriptions before the model loop when the message clearly looks like a vacancy
-- can precompute targeting context for the assistant when the session already has enough resume information
+- can bootstrap ATS scoring and gap analysis on the first analysis turn when the session already has enough resume information
 - keeps the conversation grounded in the user's real background instead of blindly optimizing for any target role
 - when `cvState` is pre-seeded from a saved user profile, skips the ingestion phase entirely and starts working from the first user message
 
@@ -88,7 +88,7 @@ Use cases:
 - keep multiple optimized variants in parallel
 - compare targeted and non-targeted versions
 - preserve the latest active target job description inside the session context
-- carry structured gap analysis and fit judgment through the conversation
+- carry structured gap analysis and fit judgment through the conversation when it has already been computed
 
 Technical reference: `src/lib/resume-targets/create-target-resume.ts`
 

@@ -20,7 +20,7 @@ The canonical structured resume. This is the source of truth used to generate fi
 
 ## agentState
 
-Operational context for the assistant, such as parsed text, targeting context, structured gap analysis, and the latest stored target-fit assessment.
+Operational context for the assistant, such as parsed text, targeting context, structured gap analysis, the latest stored target-fit assessment, and phase-local runtime metadata.
 
 ## generatedOutput
 
@@ -48,7 +48,7 @@ A stored judgment of how aligned the current profile appears with the active tar
 
 ## Gap Analysis
 
-A structured comparison between the canonical resume and a target job description, including match score, missing skills, weak areas, and improvement suggestions.
+A structured comparison between the canonical resume and a target job description, including match score, missing skills, weak areas, and improvement suggestions. In the current runtime, it is treated as operational context and may be bootstrapped on the analysis turn instead of being eagerly precomputed in the route.
 
 ## CV Version
 

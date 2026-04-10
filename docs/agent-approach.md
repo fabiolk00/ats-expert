@@ -52,16 +52,18 @@ Detection is heuristic, but intentionally conservative. It looks for a combinati
 
 This means the targeting flow no longer depends entirely on the model deciding to call `analyze_gap` first.
 
-### 3. Auto-gap bootstrap
+### 3. Deterministic analysis bootstrap
 
-If a high-confidence vacancy is detected and the session already has enough resume context, the route can also precompute:
-- `agentState.gapAnalysis`
-- `agentState.targetFitAssessment`
+If a high-confidence vacancy is detected and the session already has enough resume context, the first analysis turn can bootstrap:
+- ATS scoring
+- structured gap analysis
+- a stored fit judgment
 
-This is done before the assistant replies, so the first answer can already be grounded in:
+This is done server-side, so the first answer can already be grounded in:
 - the target job
 - the gap between resume and role
 - a stored fit judgment
+- without exposing bootstrap tool noise as user-visible chat content
 
 ### 4. Honest fit guidance
 
@@ -122,7 +124,7 @@ before recalculating the new values.
 The route may now do some operational targeting work before the loop:
 - detect the target job
 - persist target context
-- bootstrap gap and fit context
+- bootstrap ATS and gap context deterministically when appropriate
 
 The tool loop remains responsible for:
 - conversational tool use
@@ -140,6 +142,7 @@ Known limitations:
 - vacancy detection is heuristic, not a guaranteed classifier
 - fit is derived from resume-vs-job structure, not from a deeper labor-market model
 - the assistant can still phrase things imperfectly even with better context
+- the first analysis turn can still fail if the source resume is too sparse or the job description is too noisy
 
 That said, the system is now protected at two layers:
 - backend state bootstrap

@@ -188,9 +188,7 @@ Persisted effect:
 ### Route-level target detection
 Persisted effect:
 - high-confidence pasted vacancies can update `agentState.targetJobDescription` before the model loop starts
-- if enough resume context already exists, the route can also persist:
-  - `agentState.gapAnalysis`
-  - `agentState.targetFitAssessment`
+- if enough resume context already exists, the first analysis turn may bootstrap ATS scoring and structured gap analysis deterministically
 
 Rules:
 - these writes are operational context only and do not mutate canonical `cvState`
@@ -223,7 +221,7 @@ The tool dispatcher owns tool-originated state mutation. There are still route-l
 - session creation
 - message count and message persistence
 - attachment preprocessing before the tool loop
-- early target-job detection and optional pre-loop targeting context bootstrap
+- early target-job detection and deterministic analysis bootstrap when appropriate
 
 Those are request-lifecycle writes, not tool patches.
 

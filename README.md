@@ -51,6 +51,8 @@ Then open `http://localhost:3000`.
 - [docs/FEATURES.md](docs/FEATURES.md) - Product capabilities overview.
 - [docs/GLOSSARY.md](docs/GLOSSARY.md) - Shared terminology.
 
+Current OpenAI routing is controlled in `src/lib/agent/config.ts`. The default runtime stays on `gpt-5-nano`, and the bakeoff combos only vary the agent model while keeping structured and vision work on the cheaper baseline unless explicitly overridden.
+
 ## Key Documentation Areas
 
 ### Architecture
@@ -130,6 +132,7 @@ scripts/                Operational validation and engineering helpers
 - `/signup`
 - `/dashboard`
 - `/dashboard/resumes`
+- `/dashboard/sessions`
 - `/settings`
 - `/chat/[sessionId]`
 

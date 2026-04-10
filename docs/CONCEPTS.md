@@ -52,9 +52,9 @@ The assistant improves resumes by calling explicit tools instead of mutating sta
 Why it matters: this makes tool behavior testable, keeps state mutations controlled, and reduces race-condition bugs.
 
 Important runtime nuances:
-- the route can now detect a pasted job description before the model loop starts
+- the route can detect a pasted job description before the model loop starts
 - high-confidence job descriptions can be persisted immediately into `agentState.targetJobDescription`
-- when enough resume context already exists, the route can also precompute `gapAnalysis` and a stored fit judgment before the assistant replies
+- the first analysis turn can bootstrap ATS scoring and gap analysis deterministically without surfacing internal tool noise to the user
 - when `cvState` is pre-seeded from a user profile, the ingestion phase (`parse_file`) is already complete before the conversation starts. The agent should skip asking for a resume upload and proceed directly to the user's stated goal for the session.
 
 Why it matters: the assistant no longer depends entirely on the LLM noticing that the user already pasted a vacancy, and users with a saved profile can skip the resume upload step entirely.
@@ -107,6 +107,8 @@ Why it matters: domain logic stays decoupled from the auth provider.
 CurrIA currently routes the runtime fully through OpenAI.
 
 - Model selection is controlled in `src/lib/agent/config.ts`
+- The default runtime agent model is `gpt-5-nano`
+- `OPENAI_MODEL_COMBO` keeps the current bakeoff combos available for the agent route
 - Current model docs live under [docs/openai](./openai/MODEL_SELECTION_MATRIX.md)
 - The Portuguese quality gate exists because high-quality pt-BR output is a product requirement, not a nice-to-have
 
