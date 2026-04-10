@@ -25,8 +25,8 @@
 
 ### Observability and Failure Handling
 
-- [ ] **OBS-01**: Critical server routes emit structured logs with request or entity context for production debugging.
-- [ ] **OBS-02**: Core funnel failures surface user-safe, actionable errors instead of opaque or silent failure states.
+- [x] **OBS-01**: Critical server routes emit structured logs with request or entity context for production debugging.
+- [x] **OBS-02**: Core funnel failures surface user-safe, actionable errors instead of opaque or silent failure states.
 
 ## v2 Requirements
 
@@ -61,8 +61,8 @@
 | BILL-01 | Phase 3 | Complete |
 | BILL-02 | Phase 3 | Complete |
 | BILL-03 | Phase 3 | Complete |
-| OBS-01 | Phase 4 | Pending |
-| OBS-02 | Phase 4 | Pending |
+| OBS-01 | Phase 4 | Complete |
+| OBS-02 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 11 total
@@ -71,4 +71,4 @@
 
 ---
 *Requirements defined: 2026-04-09*
-*Last updated: 2026-04-10 after Phase 3 completion*
+*Last updated: 2026-04-10 after Phase 4 completion*

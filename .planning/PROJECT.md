@@ -22,10 +22,11 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - [x] Phase 1: Runtime, CI, and operator docs share the same provider contract and fail fast on missing critical configuration.
 - [x] Phase 2: Browser verification covers auth, manual profile setup, session creation, target outcome, preview readiness, artifact delivery, and CI gating for the core funnel.
 - [x] Phase 3: Billing settlement, replay safety, and dashboard credit totals are validated end-to-end with live evidence.
+- [x] Phase 4: Production debugging is fast enough to diagnose agent, billing, session, file, webhook, and profile import failures, and the core funnel now surfaces safer actionable error states.
 
 ### Active
 
-- [ ] Production debugging is fast enough to diagnose failures in agent, billing, and profile import flows.
+No active launch-hardening requirements remain in this milestone.
 
 ### Out of Scope
 
@@ -39,6 +40,7 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - README and current docs show the product already covers analysis, rewriting, target resume creation, file generation, and paid plans.
 - The highest-risk gaps are operational rather than breadth: launch confidence now depends most on live billing validation and diagnosable failure handling.
 - Phase 1 closed the env-contract drift and fail-open configuration gaps, Phase 2 closed the browser verification gap with a committed Playwright lane plus CI coverage, and Phase 3 added live billing evidence for settlement, replay, and display-balance correctness.
+- Phase 4 completed the launch-hardening milestone with structured diagnostics on fragile routes, safer user-facing degradation states, and a controlled-launch handoff in repo docs.
 - Billing logic was recently updated to settlement-based processing, and the live Phase 3 proof confirmed the current contract without requiring runtime billing remediation.
 - The agent, billing, and profile import paths are already feature-rich but live in large or sensitive modules, so safer verification and observability are higher leverage than adding more surface area first.
 
@@ -60,6 +62,7 @@ A job seeker can reliably turn their real profile and a target role into an hone
 | Treat current shipped capabilities as the validated baseline | This is a brownfield repo with working auth, profile, agent, billing, and file-generation flows | Good |
 | Defer PDF profile upload until after core launch hardening | It is a visible onboarding gap, but less leverage than making the current funnel safe to ship | Pending |
 | Prefer additive hardening over architectural rewrites | Large sensitive modules exist today; verification and observability reduce risk faster than broad refactors | Good |
+| End the milestone with a controlled-launch recommendation, not a blanket all-clear | The funnel is launch-ready, but early operator monitoring still matters for billing and third-party import incidents | Good |
 
 ## Evolution
 
@@ -78,4 +81,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after Phase 3 completion*
+*Last updated: 2026-04-10 after Phase 4 completion*

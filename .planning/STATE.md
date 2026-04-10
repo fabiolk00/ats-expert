@@ -4,17 +4,17 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 4
 current_phase_name: Observability and Launch Readiness
-current_plan: 1
-status: executing
-stopped_at: Phase 4 ready after Phase 3 completion
-last_updated: "2026-04-10T11:49:15.238Z"
-last_activity: 2026-04-10 -- Phase 4 execution started
+current_plan: Complete
+status: complete
+stopped_at: Phase 4 complete; milestone ready for closeout
+last_updated: "2026-04-10T12:07:02.807Z"
+last_activity: 2026-04-10 -- Phase 4 completed; milestone ready for closeout
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 12
-  completed_plans: 9
-  percent: 75
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -24,32 +24,32 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Phase 4 — Observability and Launch Readiness
+**Current focus:** Milestone complete - ready for closeout and next-milestone planning
 
 ## Current Position
 
 Current Phase: 4
 Current Phase Name: Observability and Launch Readiness
-Current Plan: 1
+Current Plan: Complete
 Total Plans in Phase: 3
-Status: Executing Phase 4
-Last activity: 2026-04-10 -- Phase 4 execution started
-Last Activity Description: Phase 4 execution started
+Status: Milestone complete
+Last activity: 2026-04-10 -- Phase 4 completed; milestone ready for closeout
+Last Activity Description: Phase 4 complete; ready for milestone closeout
 
-Phase: 4 (Observability and Launch Readiness) — EXECUTING
-Plan: 1 of 3
-Status: Waiting to start Phase 4
-Last activity: 2026-04-10 -- Phase 3 completed
+Phase: 4 (Observability and Launch Readiness) - COMPLETE
+Plan: 3 of 3
+Status: All plans completed and verified
+Last activity: 2026-04-10 -- Phase 4 completed
 
-Progress: [########--] 75%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 9
-- Average duration: 32.0 min
-- Total execution time: 4.8 hours
+- Total plans completed: 12
+- Average duration: 27.5 min
+- Total execution time: 5.5 hours
 
 **By Phase:**
 
@@ -58,11 +58,12 @@ Progress: [########--] 75%
 | 1 | 3 | 23 min | 7.7 min |
 | 2 | 3 | 116 min | 38.7 min |
 | 3 | 3 | 149 min | 49.7 min |
+| 4 | 3 | 42 min | 14.0 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 02-02 (54 min), 02-03 (18 min), 03-01 (39 min), 03-02 (94 min), 03-03 (16 min)
-- Trend: Live-staging work dominated Phase 3, then closed cleanly without runtime billing remediation
+- Last 5 plans: 03-02 (94 min), 03-03 (16 min), 04-01 (18 min), 04-02 (16 min), 04-03 (8 min)
+- Trend: Live billing validation closed first, then Phase 4 finished with lightweight observability hardening and release handoff work
 
 | Phase 1 P1 | 7 min | 2 tasks | 5 files |
 | Phase 1 P2 | 10 min | 2 tasks | 13 files |
@@ -73,6 +74,9 @@ Progress: [########--] 75%
 | Phase 3 P1 | 39 min | 2 tasks | 8 files |
 | Phase 3 P2 | 94 min | 3 tasks | 3 files |
 | Phase 3 P3 | 16 min | 3 tasks | 3 files |
+| Phase 4 P1 | 18 min | 2 tasks | 14 files |
+| Phase 4 P2 | 16 min | 2 tasks | 8 files |
+| Phase 4 P3 | 8 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -94,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 3]: Use `npx tsx` in staging-helper docs because bare `tsx` is not reliably available on clean PowerShell PATHs. - This keeps the committed replay and snapshot commands copy-pasteable across local environments.
 - [Phase 3]: Keep both short and user-prefixed v1 `externalReference` shapes available in replay tooling until live proof validates the contract. - The live matrix validated both shapes without requiring runtime billing changes.
 - [Phase 3]: Accept the Supabase-admin snapshot fallback when `psql` is unavailable. - This preserved the committed preflight and evidence flow on the Windows workstation that executed the live matrix.
+- [Phase 4]: Keep observability hardening targeted to fragile routes and user-facing error seams instead of broad architectural refactors. - This closed the last launch gaps without reopening sensitive modules.
+- [Phase 4]: Recommend a controlled launch instead of a blanket launch-ready claim. - The product is ready to ship, but early operator monitoring still matters for billing and LinkedIn import incidents.
 
 ### Pending Todos
 
@@ -101,12 +107,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Mocked browser runs still log caught billing metadata fetch failures from dashboard and auth layout server code.
-- Production diagnostics on fragile server routes are still inconsistent and deferred to Phase 4.
-- Final launch readiness still depends on Phase 4 observability and error-translation work.
+- No blocking launch-hardening work remains in this milestone.
+- Controlled launch still assumes active operator monitoring for billing, webhook, and LinkedIn import events during the first real traffic window.
+- PDF and DOCX profile upload onboarding remains deferred to a future milestone.
 
 ## Session Continuity
 
-Last session: 2026-04-10T06:05:18.000Z
-Stopped at: Phase 4 ready after Phase 3 completion
-Resume file: .planning/ROADMAP.md
+Last session: 2026-04-10T12:07:02.807Z
+Stopped at: Phase 4 complete; milestone ready for closeout
+Resume file: docs/launch-readiness.md
