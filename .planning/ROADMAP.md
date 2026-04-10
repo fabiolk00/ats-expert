@@ -11,7 +11,7 @@ This roadmap starts milestone `v1.1 Agent Reliability and Response Continuity` a
 - This milestone continues from the previous roadmap, so the first phase here is **Phase 5**.
 - Decimal phases (for urgent insertions) appear between surrounding integers in numeric order.
 
-- [ ] **Phase 5: Deployed Agent Parity and Evidence** - Prove which build, model, and recovery path the live `/api/agent` route is serving.
+- [x] **Phase 5: Deployed Agent Parity and Evidence** - Prove which build, model, and recovery path the live `/api/agent` route is serving. (completed 2026-04-10)
 - [ ] **Phase 6: Dialog Continuity and Model Routing Hardening** - Eliminate truncation-driven repetition and keep dialog or confirm turns on the intended model contract.
 - [ ] **Phase 7: Transcript Integrity and End-to-End Agent Verification** - Prove the final rendered chat transcript matches the backend stream and recovery behavior.
 
@@ -30,7 +30,7 @@ This roadmap starts milestone `v1.1 Agent Reliability and Response Continuity` a
 Plans:
 - [x] 05-01: Add build and request provenance to the live `/api/agent` route and structured logs
 - [x] 05-02: Document and script the post-deploy parity check for operators
-- [ ] 05-03: Add regression coverage for provenance and log-schema guarantees
+- [x] 05-03: Add regression coverage for provenance and log-schema guarantees
 
 ### Phase 6: Dialog Continuity and Model Routing Hardening
 **Goal**: Ensure rewrite follow-ups continue the conversation usefully and that dialog or confirm paths honor the intended model contract.
@@ -69,6 +69,6 @@ Phases execute in numeric order: 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 5. Deployed Agent Parity and Evidence | 2/3 | In Progress|  |
+| 5. Deployed Agent Parity and Evidence | 3/3 | Complete   | 2026-04-10 |
 | 6. Dialog Continuity and Model Routing Hardening | 0/3 | Pending | - |
 | 7. Transcript Integrity and End-to-End Agent Verification | 0/3 | Pending | - |

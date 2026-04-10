@@ -32,10 +32,10 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - [x] Phase 2: Browser verification covers auth, manual profile setup, session creation, target outcome, preview readiness, artifact delivery, and CI gating for the core funnel.
 - [x] Phase 3: Billing settlement, replay safety, and dashboard credit totals are validated end-to-end with live evidence.
 - [x] Phase 4: Production debugging is fast enough to diagnose agent, billing, session, file, webhook, and profile import failures, and the core funnel now surfaces safer actionable error states.
+- [x] Phase 5: `/api/agent` now exposes release provenance, a safe parity CLI and runbook exist, and automated coverage protects the runtime evidence contract.
 
 ### Active
 
-- [ ] Team can prove which code and config the live `/api/agent` route is serving during a real chat request.
 - [ ] A dialog follow-up like `reescreva` returns a concrete rewrite or a non-repetitive continuation instead of repeating earlier vacancy bootstrap copy.
 - [ ] Streamed chat transcripts preserve one coherent assistant turn per request, even when truncation recovery or fallback paths fire.
 - [ ] Automated verification covers deployment parity, model selection, truncation recovery, and final rendered chat output through the real route seams.
@@ -89,4 +89,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after starting milestone v1.1*
+*Last updated: 2026-04-10 after completing Phase 5*
