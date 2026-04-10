@@ -19,9 +19,11 @@ echo "======================================================================"
 echo ""
 
 REQUIRED_COMMANDS=(
-  "psql"
   "curl"
+  "npx"
 )
+
+HAS_PSQL=0
 
 echo "Checking required shell tools..."
 echo ""
@@ -35,6 +37,14 @@ for command_name in "${REQUIRED_COMMANDS[@]}"; do
     exit 1
   fi
 done
+
+if command -v "psql" > /dev/null 2>&1; then
+  echo "Found: psql"
+  HAS_PSQL=1
+else
+  echo "Optional: psql not found"
+  echo "Using the Supabase admin fallback is allowed when NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are populated."
+fi
 
 echo ""
 
@@ -55,7 +65,6 @@ echo "Checking required staging environment variables..."
 echo ""
 
 REQUIRED_VARS=(
-  "STAGING_DB_URL"
   "STAGING_API_URL"
   "STAGING_ASAAS_WEBHOOK_TOKEN"
   "STAGING_ASAAS_ACCESS_TOKEN"
@@ -71,6 +80,20 @@ for var in "${REQUIRED_VARS[@]}"; do
   fi
 done
 
+DB_MODE=""
+if [ -n "${STAGING_DB_URL:-}" ] && [ "$HAS_PSQL" -eq 1 ]; then
+  echo "Set: STAGING_DB_URL"
+  DB_MODE="psql"
+elif [ -n "${NEXT_PUBLIC_SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+  echo "Set: NEXT_PUBLIC_SUPABASE_URL"
+  echo "Set: SUPABASE_SERVICE_ROLE_KEY"
+  DB_MODE="supabase_admin"
+else
+  echo "Missing database access for preflight."
+  echo "Provide STAGING_DB_URL with psql, or populate NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for the Supabase admin fallback."
+  MISSING_VARS=$((MISSING_VARS + 1))
+fi
+
 if [ "$MISSING_VARS" -gt 0 ]; then
   echo ""
   echo "$MISSING_VARS required staging variables are missing."
@@ -84,12 +107,16 @@ echo "  Database Connectivity Check"
 echo "======================================================================"
 echo ""
 
-if psql "$STAGING_DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
-  echo "Database is reachable."
+if [ "$DB_MODE" = "psql" ]; then
+  if psql "$STAGING_DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
+    echo "Database is reachable through psql."
+  else
+    echo "Cannot connect to the staging database."
+    echo "Check STAGING_DB_URL and verify the database is reachable from this machine."
+    exit 1
+  fi
 else
-  echo "Cannot connect to the staging database."
-  echo "Check STAGING_DB_URL and verify the database is reachable from this machine."
-  exit 1
+  echo "psql unavailable; database checks will use the Supabase admin fallback."
 fi
 
 echo ""
@@ -98,35 +125,40 @@ echo "  Database Schema Check"
 echo "======================================================================"
 echo ""
 
-TABLES_FOUND=$(psql "$STAGING_DB_URL" -t -A -c "
-  SELECT COUNT(*) FROM information_schema.tables
-  WHERE table_schema = 'public'
-  AND table_name IN ('billing_checkouts', 'credit_accounts', 'user_quotas', 'processed_events');
-")
+if [ "$DB_MODE" = "psql" ]; then
+  TABLES_FOUND=$(psql "$STAGING_DB_URL" -t -A -c "
+    SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema = 'public'
+    AND table_name IN ('billing_checkouts', 'credit_accounts', 'user_quotas', 'processed_events');
+  ")
 
-if [ "$TABLES_FOUND" = "4" ]; then
-  echo "Billing tables exist (4/4)."
+  if [ "$TABLES_FOUND" = "4" ]; then
+    echo "Billing tables exist (4/4)."
+  else
+    echo "Expected billing tables are missing ($TABLES_FOUND/4 found)."
+    echo "Apply the current billing migrations before retrying:"
+    for migration in "${REQUIRED_MIGRATIONS[@]}"; do
+      echo "  - $migration"
+    done
+    exit 1
+  fi
+
+  RPC_COUNT=$(psql "$STAGING_DB_URL" -t -A -c "
+    SELECT COUNT(*) FROM information_schema.routines
+    WHERE routine_schema = 'public'
+    AND routine_name IN ('apply_billing_credit_grant_event', 'apply_billing_subscription_metadata_event');
+  ")
+
+  if [ "$RPC_COUNT" = "2" ]; then
+    echo "Billing RPC functions exist (2/2)."
+  else
+    echo "Billing RPC functions are missing ($RPC_COUNT/2 found)."
+    echo "Re-apply the migration sequence documented above."
+    exit 1
+  fi
 else
-  echo "Expected billing tables are missing ($TABLES_FOUND/4 found)."
-  echo "Apply the current billing migrations before retrying:"
-  for migration in "${REQUIRED_MIGRATIONS[@]}"; do
-    echo "  - $migration"
-  done
-  exit 1
-fi
-
-RPC_COUNT=$(psql "$STAGING_DB_URL" -t -A -c "
-  SELECT COUNT(*) FROM information_schema.routines
-  WHERE routine_schema = 'public'
-  AND routine_name IN ('apply_billing_credit_grant_event', 'apply_billing_subscription_metadata_event');
-")
-
-if [ "$RPC_COUNT" = "2" ]; then
-  echo "Billing RPC functions exist (2/2)."
-else
-  echo "Billing RPC functions are missing ($RPC_COUNT/2 found)."
-  echo "Re-apply the migration sequence documented above."
-  exit 1
+  echo "Running fallback schema and user checks through Supabase admin..."
+  npx tsx scripts/check-staging-billing-state.ts --healthcheck --preflight-user usr_staging_001 --env-file "$ENV_FILE"
 fi
 
 echo ""
@@ -162,15 +194,19 @@ echo "  Test User Check"
 echo "======================================================================"
 echo ""
 
-TEST_USER_EXISTS=$(psql "$STAGING_DB_URL" -t -A -c "
-  SELECT COUNT(*) FROM users WHERE id = 'usr_staging_001';
-")
+if [ "$DB_MODE" = "psql" ]; then
+  TEST_USER_EXISTS=$(psql "$STAGING_DB_URL" -t -A -c "
+    SELECT COUNT(*) FROM users WHERE id = 'usr_staging_001';
+  ")
 
-if [ "$TEST_USER_EXISTS" = "1" ]; then
-  echo "Test user exists (usr_staging_001)."
+  if [ "$TEST_USER_EXISTS" = "1" ]; then
+    echo "Test user exists (usr_staging_001)."
+  else
+    echo "Test user usr_staging_001 does not exist yet."
+    echo "Create it with the SQL block from docs/staging/SETUP_GUIDE.md before running scenarios."
+  fi
 else
-  echo "Test user usr_staging_001 does not exist yet."
-  echo "Create it with the SQL block from docs/staging/SETUP_GUIDE.md before running scenarios."
+  echo "Test user check was included in the Supabase admin fallback output above."
 fi
 
 echo ""

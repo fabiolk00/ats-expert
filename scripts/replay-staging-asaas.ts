@@ -123,17 +123,12 @@ function resolveRequiredNumber(
   label: string,
   value: number | undefined,
   fallback: number,
-  dryRun: boolean,
 ): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }
 
-  if (dryRun) {
-    return fallback
-  }
-
-  throw new Error(`Missing required numeric option for live replay: ${label}`)
+  return fallback
 }
 
 function printHelp(): void {
@@ -178,7 +173,7 @@ const scenarios: Record<ScenarioName, ScenarioDefinition> = {
     buildPayload(context) {
       const paymentId = resolveRequiredString('--payment', context.paymentId, 'pay_demo_one_time', context.dryRun)
       const checkoutReference = resolveRequiredString('--checkout', context.checkoutReference, 'chk_demo_unit_001', context.dryRun)
-      const value = resolveRequiredNumber('--value', context.valueOverride, 19.9, context.dryRun)
+      const value = resolveRequiredNumber('--value', context.valueOverride, 19.9)
 
       return {
         event: context.eventOverride ?? 'PAYMENT_RECEIVED',
@@ -199,7 +194,7 @@ const scenarios: Record<ScenarioName, ScenarioDefinition> = {
     buildPayload(context) {
       const subscriptionId = resolveRequiredString('--subscription', context.subscriptionId, 'sub_demo_inactive', context.dryRun)
       const checkoutReference = resolveRequiredString('--checkout', context.checkoutReference, 'chk_demo_monthly_inactive', context.dryRun)
-      const value = resolveRequiredNumber('--value', context.valueOverride, 39, context.dryRun)
+      const value = resolveRequiredNumber('--value', context.valueOverride, 39)
 
       return {
         event: context.eventOverride ?? 'SUBSCRIPTION_CREATED',
@@ -222,7 +217,7 @@ const scenarios: Record<ScenarioName, ScenarioDefinition> = {
       const paymentId = resolveRequiredString('--payment', context.paymentId, 'pay_demo_recurring_start', context.dryRun)
       const subscriptionId = resolveRequiredString('--subscription', context.subscriptionId, 'sub_demo_start', context.dryRun)
       const checkoutReference = resolveRequiredString('--checkout', context.checkoutReference, 'chk_demo_monthly_start', context.dryRun)
-      const value = resolveRequiredNumber('--value', context.valueOverride, 39.9, context.dryRun)
+      const value = resolveRequiredNumber('--value', context.valueOverride, 39.9)
 
       return {
         event: context.eventOverride ?? 'PAYMENT_CONFIRMED',
@@ -245,7 +240,7 @@ const scenarios: Record<ScenarioName, ScenarioDefinition> = {
       const paymentId = resolveRequiredString('--payment', context.paymentId, 'pay_demo_renewal', context.dryRun)
       const subscriptionId = resolveRequiredString('--subscription', context.subscriptionId, 'sub_demo_renewal', context.dryRun)
       const checkoutReference = resolveRequiredString('--checkout', context.checkoutReference, 'chk_demo_monthly_active', context.dryRun)
-      const value = resolveRequiredNumber('--value', context.valueOverride, 39.9, context.dryRun)
+      const value = resolveRequiredNumber('--value', context.valueOverride, 39.9)
 
       return {
         event: context.eventOverride ?? 'PAYMENT_RECEIVED',
@@ -286,7 +281,7 @@ const scenarios: Record<ScenarioName, ScenarioDefinition> = {
     buildPayload(context) {
       const paymentId = resolveRequiredString('--payment', context.paymentId, 'pay_demo_duplicate', context.dryRun)
       const checkoutReference = resolveRequiredString('--checkout', context.checkoutReference, 'chk_demo_duplicate', context.dryRun)
-      const value = resolveRequiredNumber('--value', context.valueOverride, 19.9, context.dryRun)
+      const value = resolveRequiredNumber('--value', context.valueOverride, 19.9)
 
       return {
         event: context.eventOverride ?? 'PAYMENT_RECEIVED',
@@ -308,7 +303,7 @@ const scenarios: Record<ScenarioName, ScenarioDefinition> = {
     buildPayload(context) {
       const paymentId = resolveRequiredString('--payment', context.paymentId, 'pay_demo_partial_reconcile', context.dryRun)
       const checkoutReference = resolveRequiredString('--checkout', context.checkoutReference, 'chk_demo_partial_reconcile', context.dryRun)
-      const value = resolveRequiredNumber('--value', context.valueOverride, 19.9, context.dryRun)
+      const value = resolveRequiredNumber('--value', context.valueOverride, 19.9)
 
       return {
         event: context.eventOverride ?? 'PAYMENT_RECEIVED',

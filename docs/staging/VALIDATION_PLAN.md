@@ -8,6 +8,8 @@ Before running scenarios:
 
 1. Deploy the latest billing code.
 2. Fill `.env.staging` from `.env.staging.example`.
+   - Use `STAGING_DB_URL` when `psql` is available.
+   - Use `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` when the workstation needs the Supabase admin fallback.
 3. Apply the current billing migrations:
    - `billing_webhook_hardening.sql`
    - `20260406_align_asaas_webhook_contract.sql`
@@ -27,6 +29,7 @@ bash scripts/verify-staging.sh
 ```bash
 npx tsx scripts/replay-staging-asaas.ts --list-scenarios
 npx tsx scripts/check-staging-billing-state.ts --help
+npx tsx scripts/check-staging-billing-state.ts --healthcheck --preflight-user usr_staging_001
 ```
 
 ## Proof set

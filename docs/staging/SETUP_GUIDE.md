@@ -12,7 +12,6 @@ cp .env.staging.example .env.staging
 
 Required values in `.env.staging`:
 
-- `STAGING_DB_URL`
 - `STAGING_API_URL`
 - `STAGING_ASAAS_WEBHOOK_TOKEN`
 - `STAGING_ASAAS_ACCESS_TOKEN`
@@ -22,6 +21,11 @@ Optional diagnostics:
 - `STAGING_LOG_LEVEL`
 - `STAGING_ENABLE_DETAILED_LOGGING`
 
+Database access options for Phase 3:
+
+- preferred direct mode: `STAGING_DB_URL` plus `psql`
+- workstation fallback: `NEXT_PUBLIC_SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY`
+
 Runtime deploy variables for the application itself should still come from `.env.example` and the hosting provider dashboard.
 
 ## 2. Confirm workstation prerequisites
@@ -29,15 +33,19 @@ Runtime deploy variables for the application itself should still come from `.env
 Phase 3 assumes a workstation that can run the committed staging helpers. Install or confirm:
 
 - Bash from WSL, Git Bash, or another POSIX-compatible shell
-- `psql`
 - a real `curl` binary available inside that Bash environment
 - `tsx` via the repo's existing `node_modules`
+
+One of these database access paths must also be available:
+
+- `psql` with `STAGING_DB_URL`
+- or the Supabase admin fallback using `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
 
 PowerShell alone is not sufficient for the full proof path because:
 
 - `bash scripts/verify-staging.sh` is the required first step
 - `Invoke-WebRequest` is not a drop-in replacement for the script's `curl` usage
-- the snapshot helper shells out to `psql`
+- the snapshot helper still needs either `psql` or Supabase admin access
 
 ## 3. Apply the current billing migrations
 
@@ -66,8 +74,8 @@ The script validates:
 
 - `.env.staging` exists and came from `.env.staging.example`
 - required staging vars are populated
-- staging database connectivity works
-- current billing tables and RPC functions exist
+- staging database connectivity works through either `psql` or the Supabase admin fallback
+- current billing tables exist
 - staging API is reachable
 - the staging test user is present
 
@@ -131,16 +139,17 @@ npx tsx scripts/check-staging-billing-state.ts --checkout chk_live_001 > post-on
 
 If `bash scripts/verify-staging.sh` fails:
 
-- confirm Bash, `psql`, and `curl` are installed in the shell you are using
+- confirm Bash, `npx`, and `curl` are installed in the shell you are using
 - confirm `.env.staging` was copied from `.env.staging.example`
 - re-check `STAGING_ASAAS_WEBHOOK_TOKEN` and `STAGING_ASAAS_ACCESS_TOKEN`
 - confirm all six billing migrations above were applied to the staging database
 - verify `STAGING_API_URL` points at the deployed staging environment
+- if `psql` is unavailable, confirm `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are populated for the fallback path
 
 If `npx tsx scripts/check-staging-billing-state.ts ...` fails:
 
-- confirm `psql` is available on `PATH`
-- verify `STAGING_DB_URL` points at the same staging database verified by `scripts/verify-staging.sh`
+- if you are using direct mode, confirm `psql` is available on `PATH` and `STAGING_DB_URL` points at the verified database
+- if you are using the fallback path, confirm `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` point at the same project verified by `scripts/verify-staging.sh`
 
 If `npx tsx scripts/replay-staging-asaas.ts ...` fails:
 

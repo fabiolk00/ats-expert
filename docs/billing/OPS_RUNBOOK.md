@@ -23,9 +23,12 @@ npx tsx scripts/check-staging-billing-state.ts --help
 Prerequisites:
 
 - Bash from WSL, Git Bash, or another POSIX shell
-- `psql`
+- `npx`
 - a real `curl` binary in that shell
 - `.env.staging` copied from `.env.staging.example`
+- one database access path:
+  - `psql` plus `STAGING_DB_URL`
+  - or `NEXT_PUBLIC_SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY`
 
 Phase 3 also needs to validate the live `externalReference` shape. Current webhook docs favor `curria:v1:c:<checkoutReference>`, while checkout creation still emits `curria:v1:u:<appUserId>:c:<checkoutReference>`. Use the replay helper with or without `--app-user` to prove which shape staging currently accepts.
 

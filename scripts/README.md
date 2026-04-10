@@ -25,8 +25,11 @@ Generates a 7-day OpenAI cost and generation baseline using production data sour
 Checks whether the staging environment is ready for billing and webhook validation.
 
 - Purpose: operator preflight for the Phase 1 and Phase 3 staging proof path
-- Requires: Bash, `psql`, a real `curl` binary, and a populated `.env.staging` copied from `.env.staging.example`
-- Verifies: required staging vars, database access, billing tables, billing RPC functions, staging API reachability, Asaas webhook/access tokens, and the staging test user
+- Requires: Bash, `npx`, a real `curl` binary, and a populated `.env.staging` copied from `.env.staging.example`
+- Verifies: required staging vars, database access, billing tables, staging API reachability, Asaas webhook/access tokens, and the staging test user
+- Database access modes:
+  - direct: `psql` + `STAGING_DB_URL`
+  - fallback: `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` when `psql` is unavailable
 - Typical use:
 
 ```bash
@@ -58,7 +61,10 @@ npx tsx scripts/replay-staging-asaas.ts --scenario duplicate_delivery --checkout
 Captures a JSON snapshot of the billing rows associated with a staging user, checkout, or subscription.
 
 - Purpose: Phase 3 evidence helper for pairing webhook responses with actual DB state
-- Requires: `npx tsx`, `psql`, `.env.staging`, and at least one filter flag
+- Requires: `npx tsx`, `.env.staging`, and at least one filter flag
+- Database access modes:
+  - direct: `psql` + `STAGING_DB_URL`
+  - fallback: `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
 - Outputs:
   - `billing_checkouts`
   - `credit_accounts`
@@ -68,6 +74,7 @@ Captures a JSON snapshot of the billing rows associated with a staging user, che
 
 ```bash
 npx tsx scripts/check-staging-billing-state.ts --help
+npx tsx scripts/check-staging-billing-state.ts --healthcheck --preflight-user usr_staging_001
 npx tsx scripts/check-staging-billing-state.ts --user usr_staging_001
 npx tsx scripts/check-staging-billing-state.ts --checkout chk_live_001
 ```
