@@ -1,6 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { resolveOpenAIBaseUrl } from './client'
+
+const originalOpenAIKey = process.env.OPENAI_API_KEY
+
+afterEach(() => {
+  vi.resetModules()
+
+  if (originalOpenAIKey === undefined) {
+    delete process.env.OPENAI_API_KEY
+  } else {
+    process.env.OPENAI_API_KEY = originalOpenAIKey
+  }
+})
 
 describe('resolveOpenAIBaseUrl', () => {
   it('returns the default base URL when the env is empty', () => {
@@ -19,5 +31,18 @@ describe('resolveOpenAIBaseUrl', () => {
 
   it('strips trailing slashes from valid absolute URLs', () => {
     expect(resolveOpenAIBaseUrl('https://example.com/v1///')).toBe('https://example.com/v1')
+  })
+})
+
+describe('openai client config', () => {
+  it('throws an actionable error when OPENAI_API_KEY is missing', async () => {
+    delete process.env.OPENAI_API_KEY
+    vi.resetModules()
+
+    const { openai } = await import('./client')
+
+    expect(() => Reflect.get(openai, 'chat')).toThrowError(
+      'Missing required environment variable OPENAI_API_KEY for OpenAI client.',
+    )
   })
 })

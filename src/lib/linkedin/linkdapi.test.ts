@@ -1,6 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { mapLinkdAPIToCvState } from './linkdapi'
+
+const originalLinkdApiKey = process.env.LINKDAPI_API_KEY
+
+afterEach(() => {
+  vi.resetModules()
+  vi.restoreAllMocks()
+
+  if (originalLinkdApiKey === undefined) {
+    delete process.env.LINKDAPI_API_KEY
+  } else {
+    process.env.LINKDAPI_API_KEY = originalLinkdApiKey
+  }
+})
 
 describe('mapLinkdAPIToCvState', () => {
   it('maps the current LinkdAPI profile/full response shape into cvState', () => {
@@ -111,5 +124,26 @@ describe('mapLinkdAPIToCvState', () => {
         year: '2022',
       }),
     )
+  })
+
+  it('keeps LinkdAPI optional until the fetch path is used', async () => {
+    delete process.env.LINKDAPI_API_KEY
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const { mapLinkdAPIToCvState: dynamicMapper } = await import('./linkdapi')
+
+    expect(typeof dynamicMapper).toBe('function')
+    expect(warnSpy).toHaveBeenCalledWith('LINKDAPI_API_KEY is not set in environment')
+  })
+
+  it('throws only when fetchLinkedInProfile runs without LINKDAPI_API_KEY', async () => {
+    delete process.env.LINKDAPI_API_KEY
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const { fetchLinkedInProfile } = await import('./linkdapi')
+
+    await expect(
+      fetchLinkedInProfile('https://www.linkedin.com/in/fabio-kroker/'),
+    ).rejects.toThrowError('LINKDAPI_API_KEY is not configured')
   })
 })

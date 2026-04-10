@@ -76,6 +76,23 @@ describe('Asaas webhook route', () => {
     })
   })
 
+  it('returns 500 when ASAAS_WEBHOOK_TOKEN is missing', async () => {
+    delete process.env.ASAAS_WEBHOOK_TOKEN
+
+    const response = await POST(createRequest({
+      event: 'PAYMENT_RECEIVED',
+      payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', value: 19.9 },
+    }))
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'INTERNAL_ERROR',
+      error: 'Missing required environment variable ASAAS_WEBHOOK_TOKEN for Asaas webhook.',
+    })
+    expect(mockWebhookLimiter.limit).not.toHaveBeenCalled()
+  })
+
   it('returns 200 ignored for unsupported official events instead of 400', async () => {
     const response = await POST(createRequest({
       event: 'PAYMENT_CREATED',
