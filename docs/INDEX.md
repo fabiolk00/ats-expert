@@ -26,6 +26,7 @@ This index is the main directory for the active documentation set.
 ## Architecture and Runtime
 
 - [architecture-overview.md](./architecture-overview.md)
+- [agent-runtime-parity.md](./agent-runtime-parity.md)
 - [database-conventions.md](./database-conventions.md)
 - [agent-approach.md](./agent-approach.md)
 - [state-model.md](./state-model.md)

@@ -78,15 +78,16 @@ After the auth boundary, use app user IDs in domain code.
 4. Load or create session.
 5. Consume one credit on new session creation.
 6. Persist the session ID early for new sessions through `X-Session-Id` and the initial `sessionCreated` SSE event.
-7. Detect whether the current user message looks like a pasted job description.
-8. Persist target-job context before the model loop when confidence is high enough.
-9. Let the agent loop decide whether the current analysis turn needs ATS scoring, gap analysis, or a deterministic vacancy bootstrap response.
-10. Increment message count.
-11. Persist the user message.
-12. Build prompt context from the session bundle.
-13. Run the OpenAI tool loop.
-14. Apply tool patches centrally.
-15. Stream SSE deltas and final session metadata.
+7. Expose safe release provenance through `X-Agent-Release`, `X-Agent-Release-Source`, `X-Agent-Resolved-Agent-Model`, and `X-Agent-Resolved-Dialog-Model` on both early JSON responses and SSE responses.
+8. Detect whether the current user message looks like a pasted job description.
+9. Persist target-job context before the model loop when confidence is high enough.
+10. Let the agent loop decide whether the current analysis turn needs ATS scoring, gap analysis, or a deterministic vacancy bootstrap response.
+11. Increment message count.
+12. Persist the user message.
+13. Build prompt context from the session bundle.
+14. Run the OpenAI tool loop.
+15. Apply tool patches centrally.
+16. Stream SSE deltas and final session metadata.
 
 ### `/api/webhook/asaas`
 
@@ -152,6 +153,7 @@ Additional resume persistence rules:
 
 - OpenAI tool loop streams from OpenAI and forwards text deltas over SSE while accumulating tool calls server-side.
 - `/api/agent` now returns `X-Session-Id` for new sessions and emits `sessionCreated` as the first SSE event.
+- `/api/agent` also returns safe agent-runtime provenance headers on both SSE success responses and early JSON failure responses, which is what the `agent:parity` workflow inspects.
 - `generate_file` returns signed URLs directly.
 - `/api/file/[sessionId]` returns fresh signed URLs from persisted artifact metadata.
 - `/api/file/[sessionId]?targetId=<resumeTargetId>` returns fresh signed URLs for an owned target-derived artifact.
@@ -162,6 +164,12 @@ Additional resume persistence rules:
 - `/api/session/[id]/targets` lists or creates target-specific variants for the owning app user.
 - `/login` and `/signup` redirect authenticated visitors away from auth pages and resume safe requested destinations when Clerk reports `session_exists`.
 - The dashboard sidebar shows the current plan label and a dynamic credit denominator derived from billing metadata, while runtime enforcement still reads `credit_accounts`.
+
+### Agent Runtime Parity
+
+- Operators can verify a live deployment with `npm run agent:parity`.
+- The parity check intentionally uses an unauthenticated `POST` to `/api/agent` so the route returns `401` before session creation or credit use.
+- See [Agent Runtime Parity](./agent-runtime-parity.md) for the exact command and expected header contract.
 
 ## System Invariants
 
