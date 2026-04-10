@@ -104,6 +104,9 @@ Current OpenAI routing is controlled in `src/lib/agent/config.ts`. The default r
 - [docs/staging/SETUP_GUIDE.md](docs/staging/SETUP_GUIDE.md)
 - [docs/staging/VALIDATION_PLAN.md](docs/staging/VALIDATION_PLAN.md)
 - [docs/PRODUCTION-READINESS-CHECKLIST.md](docs/PRODUCTION-READINESS-CHECKLIST.md)
+- [docs/agent-runtime-parity.md](docs/agent-runtime-parity.md)
+- [docs/agent-transcript-repro.md](docs/agent-transcript-repro.md)
+- [docs/agent-route-stress.md](docs/agent-route-stress.md)
 
 ### Developer Rules
 
@@ -193,6 +196,9 @@ npm run db:studio
 
 - [scripts/README.md](scripts/README.md)
 - `npm run phase1:model-selection`
+- `npm run agent:parity`
+- `npm run agent:replay-dialog`
+- `npm run agent:stress-route`
 - `bash scripts/verify-staging.sh`
 
 ## Contribution Notes

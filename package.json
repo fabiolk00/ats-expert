@@ -17,6 +17,8 @@
     "agent:baseline": "tsx scripts/report-agent-baseline.ts",
     "agent:parity": "tsx scripts/check-agent-runtime-parity.ts",
     "agent:replay-dialog": "tsx scripts/replay-agent-dialog.ts",
+    "agent:stress-route": "tsx scripts/stress-agent-route.ts",
+    "agent:stress-long-vacancy": "playwright test tests/e2e/long-vacancy-generation.spec.ts --project=chromium",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",

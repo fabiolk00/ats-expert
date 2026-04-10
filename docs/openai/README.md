@@ -19,6 +19,7 @@ Current runtime note:
 - dialog and confirm turns follow the resolved agent model unless `OPENAI_DIALOG_MODEL` is explicitly set
 - `OPENAI_DIALOG_MODEL` is an override, not a separate default baseline
 - `npm run agent:parity` verifies the deployed `/api/agent` headers against the expected resolved agent and dialog model values
+- `npm run agent:stress-route` applies authenticated concurrency or soak pressure to `/api/agent` and records latency plus response-health evidence
 - `combo_a` / `combo_b` / `combo_c` remain the active agent bakeoff labels
 - historical quality-gate docs remain in this folder for auditability
 

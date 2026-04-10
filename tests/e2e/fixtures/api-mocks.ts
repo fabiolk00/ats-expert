@@ -32,6 +32,7 @@ type ProfileResponse = {
 
 type ApiMockOptions = {
   file?: FileResponse
+  onGenerate?: (payload: { scope: 'base' } | { scope: 'target'; targetId: string }) => void | Promise<void>
   messages?: SessionMessage[]
   onProfileSave?: (payload: CVState) => void | Promise<void>
   profile?: ProfileResponse
@@ -43,6 +44,22 @@ type ApiMockOptions = {
 const DEFAULT_ASSET_BASE_URL = 'http://127.0.0.1:3000/__e2e-assets'
 const EMPTY_ASSISTANT_RESPONSE_FALLBACK =
   'Analisei sua mensagem, mas nao consegui concluir a resposta desta vez. Tente enviar novamente.'
+
+function buildDefaultArtifactResponse(isReady: boolean): FileResponse {
+  if (!isReady) {
+    return {
+      available: false,
+      docxUrl: null,
+      pdfUrl: null,
+    }
+  }
+
+  return {
+    available: true,
+    docxUrl: `${DEFAULT_ASSET_BASE_URL}/resume.docx`,
+    pdfUrl: `${DEFAULT_ASSET_BASE_URL}/resume.pdf`,
+  }
+}
 
 function jsonResponse(route: Route, payload: unknown, status = 200): Promise<void> {
   return route.fulfill({
@@ -111,6 +128,35 @@ export function buildMockWorkspace(sessionId = 'sess_e2e_browser'): SessionWorks
   }
 }
 
+function resolveFileResponse(
+  workspace: SessionWorkspace,
+  targetId: string | null,
+  override?: FileResponse,
+): FileResponse {
+  if (override) {
+    return override
+  }
+
+  const generatedOutput = targetId
+    ? workspace.targets.find((entry) => entry.id === targetId)?.generatedOutput
+    : workspace.session.generatedOutput
+
+  const isReady =
+    generatedOutput?.status === 'ready'
+    && Boolean(generatedOutput.docxPath && generatedOutput.pdfPath)
+
+  return buildDefaultArtifactResponse(isReady)
+}
+
+function markGeneratedOutputReady(workspace: SessionWorkspace, sessionId: string): void {
+  workspace.session.generatedOutput = {
+    status: 'ready',
+    docxPath: `${sessionId}/resume.docx`,
+    pdfPath: `${sessionId}/resume.pdf`,
+    generatedAt: '2026-04-10T12:31:00.000Z',
+  }
+}
+
 export async function installCoreFunnelApiMocks(
   page: Page,
   options: ApiMockOptions = {},
@@ -135,11 +181,6 @@ export async function installCoreFunnelApiMocks(
       extractedAt: '2026-04-10T11:00:00.000Z',
       linkedinUrl: workspace.session.cvState.linkedin ?? null,
     },
-  }
-  const file = options.file ?? {
-    available: true,
-    docxUrl: `${DEFAULT_ASSET_BASE_URL}/resume.docx`,
-    pdfUrl: `${DEFAULT_ASSET_BASE_URL}/resume.pdf`,
   }
   const streamChunks = options.streamChunks ?? [
     { type: 'sessionCreated', sessionId },
@@ -186,6 +227,24 @@ export async function installCoreFunnelApiMocks(
   await page.route('**/api/session/*', async (route) => {
     workspace.session.messageCount = messages.length
     await jsonResponse(route, workspace)
+  })
+
+  await page.route('**/api/session/*/generate', async (route) => {
+    const payload = route.request().postDataJSON() as
+      | { scope: 'base' }
+      | { scope: 'target'; targetId: string }
+
+    await options.onGenerate?.(payload)
+
+    if (payload.scope === 'base') {
+      markGeneratedOutputReady(workspace, sessionId)
+    }
+
+    await jsonResponse(route, {
+      success: true,
+      scope: payload.scope,
+      targetId: payload.scope === 'target' ? payload.targetId : undefined,
+    })
   })
 
   await page.route('**/api/agent', async (route) => {
@@ -244,7 +303,9 @@ export async function installCoreFunnelApiMocks(
   })
 
   await page.route('**/api/file/*', async (route) => {
-    await jsonResponse(route, file)
+    const requestUrl = new URL(route.request().url())
+    const targetId = requestUrl.searchParams.get('targetId')
+    await jsonResponse(route, resolveFileResponse(workspace, targetId, options.file))
   })
 
   await page.route('**/__e2e-assets/*.docx', async (route) => {
