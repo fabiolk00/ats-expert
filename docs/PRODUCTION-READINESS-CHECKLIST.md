@@ -1,10 +1,10 @@
 # Production Readiness Checklist
 
-Status: settlement-based billing contract current as of Phase 1 hardening.
+Status: launch hardening complete through Phase 4.
 
 ## Required before deploy
 
-- [ ] Latest billing code is deployed.
+- [ ] Latest application code is deployed.
 - [ ] `prisma/migrations/billing_webhook_hardening.sql` is applied.
 - [ ] `prisma/migrations/20260406_align_asaas_webhook_contract.sql` is applied.
 - [ ] `prisma/migrations/20260406_fix_billing_checkout_timestamp_defaults.sql` is applied.
@@ -26,6 +26,14 @@ Status: settlement-based billing contract current as of Phase 1 hardening.
 - [ ] Renewal replaces the balance once instead of adding to the previous cycle total.
 - [ ] Duplicate `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` deliveries do not double-grant.
 - [ ] Dashboard display totals are never lower than the runtime credit balance.
+
+## Observability to confirm
+
+- [ ] `billing.info.load_failed` appears as a structured warning if billing metadata reads degrade.
+- [ ] `api.file.download_urls_failed` appears when signed artifact URLs cannot be created.
+- [ ] `api.session.list_failed` and `api.session.messages_failed` appear for session retrieval failures.
+- [ ] `clerk.webhook.*` events are queryable for config, signature, duplicate, and handler failures.
+- [ ] LinkedIn import failures emit structured logs without exposing raw backend details to users.
 
 ## Database verification
 
@@ -98,44 +106,6 @@ Expected:
 
 - Mutable tables use `NOW()` defaults for both timestamp columns.
 
-### Billing RPC signatures
-
-```sql
-SELECT
-  p.proname AS routine_name,
-  pg_get_function_identity_arguments(p.oid) AS args
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public'
-  AND p.proname IN (
-    'apply_billing_credit_grant_event',
-    'apply_billing_subscription_metadata_event'
-  )
-ORDER BY p.proname, args;
-```
-
-Expected:
-
-- One `apply_billing_credit_grant_event` signature with `p_is_renewal boolean`
-- One `apply_billing_subscription_metadata_event` signature
-
-### Internal processed event names
-
-```sql
-SELECT event_type, COUNT(*) AS count
-FROM processed_events
-GROUP BY event_type
-ORDER BY event_type;
-```
-
-Expected values include:
-
-- `PAYMENT_SETTLED`
-- `SUBSCRIPTION_STARTED`
-- `SUBSCRIPTION_RENEWED`
-- `SUBSCRIPTION_UPDATED`
-- `SUBSCRIPTION_CANCELED`
-
 ## Proof set
 
 ### Repo-local proof
@@ -145,6 +115,16 @@ Run these in the repository before calling the rollout ready:
 ```bash
 npm run typecheck
 npm test
+npm run test:e2e -- --project=chromium
+```
+
+### Focused hardening reruns
+
+Use these when you touched launch-hardening areas directly:
+
+```bash
+npm test -- src/app/api/session/route.test.ts src/app/api/session/[id]/messages/route.test.ts src/app/api/file/[sessionId]/route.test.ts src/app/api/webhook/clerk/route.test.ts src/app/(auth)/layout.test.tsx
+npm test -- src/components/dashboard/preview-panel.test.tsx src/components/dashboard/session-documents-panel.test.tsx src/components/dashboard/resume-workspace.test.tsx src/app/api/profile/extract/route.test.ts src/app/api/profile/status/[jobId]/route.test.ts
 ```
 
 ### Live staging proof
@@ -155,11 +135,10 @@ Run the staging preflight before executing billing scenarios:
 bash scripts/verify-staging.sh
 ```
 
-## Linked docs
+## Release handoff
 
-- [billing/IMPLEMENTATION.md](./billing/IMPLEMENTATION.md)
-- [billing/MIGRATION_GUIDE.md](./billing/MIGRATION_GUIDE.md)
-- [billing/MONITORING.md](./billing/MONITORING.md)
+- [launch-readiness.md](./launch-readiness.md)
 - [billing/OPS_RUNBOOK.md](./billing/OPS_RUNBOOK.md)
+- [billing/MONITORING.md](./billing/MONITORING.md)
 - [staging/SETUP_GUIDE.md](./staging/SETUP_GUIDE.md)
 - [staging/VALIDATION_PLAN.md](./staging/VALIDATION_PLAN.md)
