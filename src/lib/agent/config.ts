@@ -37,27 +37,6 @@ export const AGENT_CONFIG = {
   } satisfies Record<Phase, readonly AgentToolName[]>,
 } as const
 
-/** Per-tool timeout configuration (in milliseconds) */
-export const TOOL_TIMEOUTS = {
-  parse_file: 20_000,     // File parsing can be slow (OCR, large documents)
-  analyze_gap: 15_000,    // Gap analysis API calls
-  rewrite_section: 12_000, // LLM-based rewriting
-  score_ats: 12_000,      // ATS scoring
-  set_phase: 3_000,       // Quick database operation
-  generate_file: 20_000,  // File generation can be slow (docx/pdf rendering)
-  create_target_resume: 15_000, // Target-specific generation
-  default: 10_000,        // Fallback for any unlisted tool
-} as const
-
-export type ToolName = keyof typeof TOOL_TIMEOUTS
-
-export function getToolTimeout(toolName: string): number {
-  if (toolName in TOOL_TIMEOUTS) {
-    return TOOL_TIMEOUTS[toolName as ToolName]
-  }
-  return TOOL_TIMEOUTS.default
-}
-
 export const DEFAULT_OPENAI_MODEL = 'gpt-5-nano' as const
 
 const SUPPORTED_OPENAI_MODELS = [

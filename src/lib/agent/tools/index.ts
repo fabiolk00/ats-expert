@@ -40,7 +40,7 @@ import { deriveTargetFitAssessment } from '@/lib/agent/target-fit'
 
 type OpenAITool = OpenAI.Chat.Completions.ChatCompletionTool
 
-export const TOOL_DEFINITIONS: OpenAITool[] = [
+const TOOL_DEFINITIONS: OpenAITool[] = [
   {
     type: 'function',
     function: {

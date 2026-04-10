@@ -543,7 +543,7 @@ export async function generateDOCX(source: ResumeTemplateSource): Promise<Buffer
   return Packer.toBuffer(doc)
 }
 
-export async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
+async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
   const templateData = toTemplateData(source)
   const pdfDoc = await PDFDocument.create()
   let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
@@ -752,6 +752,5 @@ export const generateFileDeps = {
   generatePDF,
   upload,
 }
-
 
 

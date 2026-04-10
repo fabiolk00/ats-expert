@@ -6,7 +6,7 @@ import type {
 } from '@/types/agent'
 import type { SessionWorkspace } from '@/types/dashboard'
 
-export class DashboardApiError extends Error {
+class DashboardApiError extends Error {
   status: number
 
   constructor(message: string, status: number) {

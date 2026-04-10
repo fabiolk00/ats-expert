@@ -6,7 +6,7 @@ import { getSessionWorkspace } from '@/lib/dashboard/workspace-client'
 import type { SessionWorkspace } from '@/types/dashboard'
 import type { CVState } from '@/types/cv'
 
-export function selectCvStateFromWorkspace(
+function selectCvStateFromWorkspace(
   workspace: SessionWorkspace,
   targetId?: string | null,
 ): CVState {
