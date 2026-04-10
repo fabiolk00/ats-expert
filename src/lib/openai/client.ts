@@ -4,6 +4,16 @@ let openaiInstance: OpenAI | null = null
 
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1'
 
+function getRequiredOpenAIApiKey(envValue = process.env.OPENAI_API_KEY): string {
+  const trimmed = envValue?.trim()
+
+  if (!trimmed) {
+    throw new Error('Missing required environment variable OPENAI_API_KEY for OpenAI client.')
+  }
+
+  return trimmed
+}
+
 export function resolveOpenAIBaseUrl(envValue = process.env.OPENAI_BASE_URL): string {
   const trimmed = envValue?.trim()
 
@@ -32,7 +42,7 @@ function getOpenAIClient(): OpenAI {
     const baseURL = resolveOpenAIBaseUrl()
 
     openaiInstance = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY ?? 'test-key',
+      apiKey: getRequiredOpenAIApiKey(),
       baseURL,
     })
   }
