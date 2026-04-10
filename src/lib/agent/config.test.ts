@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   ACTIVE_OPENAI_MODEL,
@@ -7,15 +7,62 @@ import {
   DEFAULT_OPENAI_MODEL,
   MODEL_COMBINATIONS,
   MODEL_CONFIG,
+  resolveAgentModelForPhase,
+  resolveDialogModel,
   resolveOpenAIModel,
   resolveModelCombo,
 } from './config'
+
+const CONFIG_ENV_KEYS = [
+  'OPENAI_MODEL_COMBO',
+  'OPENAI_MODEL',
+  'OPENAI_AGENT_MODEL',
+  'OPENAI_DIALOG_MODEL',
+  'OPENAI_STRUCTURED_MODEL',
+  'OPENAI_VISION_MODEL',
+] as const
+
+async function loadFreshConfigModule(env: Partial<Record<(typeof CONFIG_ENV_KEYS)[number], string | undefined>>) {
+  const previousValues = new Map(CONFIG_ENV_KEYS.map((key) => [key, process.env[key]] as const))
+
+  try {
+    for (const key of CONFIG_ENV_KEYS) {
+      const nextValue = env[key]
+
+      if (nextValue === undefined) {
+        delete process.env[key]
+      } else {
+        process.env[key] = nextValue
+      }
+    }
+
+    vi.resetModules()
+
+    return await import('./config')
+  } finally {
+    for (const key of CONFIG_ENV_KEYS) {
+      const previousValue = previousValues.get(key)
+
+      if (previousValue === undefined) {
+        delete process.env[key]
+      } else {
+        process.env[key] = previousValue
+      }
+    }
+
+    vi.resetModules()
+  }
+}
 
 describe('AGENT_CONFIG', () => {
   it('resolves dedicated model knobs from the active combo', () => {
     expect(['combo_a', 'combo_b', 'combo_c']).toContain(ACTIVE_MODEL_COMBO)
     expect(MODEL_CONFIG).toEqual({
       agentModel: ACTIVE_OPENAI_MODEL,
+      dialogModel: resolveDialogModel(
+        ACTIVE_OPENAI_MODEL,
+        process.env.OPENAI_DIALOG_MODEL,
+      ),
       structuredModel: expect.any(String),
       visionModel: expect.any(String),
     })
@@ -52,6 +99,33 @@ describe('AGENT_CONFIG', () => {
     expect(resolveOpenAIModel('gpt-5.4-mini')).toBe('gpt-5.4-mini')
     expect(resolveOpenAIModel('unknown-model')).toBe(DEFAULT_OPENAI_MODEL)
     expect(resolveOpenAIModel('unknown-model', 'gpt-5-mini')).toBe('gpt-5-mini')
+  })
+
+  it('keeps dialog turns aligned with the resolved agent model unless explicitly overridden', () => {
+    expect(resolveDialogModel('gpt-5-mini', undefined)).toBe('gpt-5-mini')
+    expect(resolveDialogModel('gpt-5-mini', 'gpt-5.4-mini')).toBe('gpt-5.4-mini')
+    expect(resolveDialogModel('gpt-5-mini', 'unknown-model')).toBe('gpt-5-mini')
+    expect(resolveAgentModelForPhase('dialog')).toBe(MODEL_CONFIG.dialogModel)
+    expect(resolveAgentModelForPhase('confirm')).toBe(MODEL_CONFIG.dialogModel)
+    expect(resolveAgentModelForPhase('analysis')).toBe(MODEL_CONFIG.agentModel)
+  })
+
+  it('loads a real OPENAI_DIALOG_MODEL override on module import', async () => {
+    const loadedConfig = await loadFreshConfigModule({
+      OPENAI_MODEL_COMBO: 'combo_b',
+      OPENAI_MODEL: 'gpt-5-mini',
+      OPENAI_DIALOG_MODEL: 'gpt-5.4-mini',
+    })
+
+    expect(loadedConfig.MODEL_CONFIG).toEqual({
+      agentModel: 'gpt-5-mini',
+      dialogModel: 'gpt-5.4-mini',
+      structuredModel: DEFAULT_OPENAI_MODEL,
+      visionModel: DEFAULT_OPENAI_MODEL,
+    })
+    expect(loadedConfig.resolveAgentModelForPhase('dialog')).toBe('gpt-5.4-mini')
+    expect(loadedConfig.resolveAgentModelForPhase('confirm')).toBe('gpt-5.4-mini')
+    expect(loadedConfig.resolveAgentModelForPhase('analysis')).toBe('gpt-5-mini')
   })
 
   it('keeps the conversation output budget intentionally short', () => {

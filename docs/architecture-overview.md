@@ -25,7 +25,9 @@ Back to [Documentation Index](./INDEX.md) | Start with [Concepts](./CONCEPTS.md)
 - The runtime is fully on OpenAI.
 - The runtime model is standardized in `src/lib/agent/config.ts`.
 - The current default runtime model is `gpt-5-nano`.
-- `OPENAI_MODEL` overrides the agent model directly.
+- `OPENAI_MODEL_COMBO` selects the baseline agent combo.
+- `OPENAI_MODEL` and `OPENAI_AGENT_MODEL` override the agent model directly.
+- `OPENAI_DIALOG_MODEL` is an explicit override for dialog and confirm turns only; when unset, those turns follow the resolved agent model.
 - `OPENAI_MODEL_COMBO` remains available for bakeoffs and for keeping the non-agent routes on the baseline model unless explicitly overridden.
 - The long-term model choice depends on the pt-BR quality and cost bakeoff documented in [Model Selection Matrix](./openai/MODEL_SELECTION_MATRIX.md).
 - The approval gate is documented in [Portuguese Quality Gate](./openai/PORTUGUESE_QUALITY_GATE.md).

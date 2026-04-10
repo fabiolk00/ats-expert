@@ -2,7 +2,7 @@ import type OpenAI from 'openai'
 import { APIError } from 'openai'
 
 import { buildSystemPrompt, trimMessages } from '@/lib/agent/context-builder'
-import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
+import { AGENT_CONFIG, resolveAgentModelForPhase } from '@/lib/agent/config'
 import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
 import { dispatchToolWithContext, getToolDefinitionsForPhase } from '@/lib/agent/tools'
 import { calculateUsageCostCents, trackApiUsage } from '@/lib/agent/usage-tracker'
@@ -58,6 +58,7 @@ type StreamTurnResult = {
   assistantText: string
   toolCalls: AccumulatedToolCall[]
   finishReason: OpenAI.Chat.Completions.ChatCompletionChunk.Choice['finish_reason'] | null
+  model: string
   usage?: {
     inputTokens: number
     outputTokens: number
@@ -75,6 +76,11 @@ type DeterministicToolOutcome = {
 
 type AnalysisPrimeResult = {
   mutatedPromptState: boolean
+}
+
+type DeterministicFallback = {
+  text: string
+  kind: string
 }
 
 function parseJsonObject(value: string): Record<string, unknown> | null {
@@ -247,6 +253,16 @@ function isGenerationApproval(message: string): boolean {
   }
 
   return /\b(sim|yes|ok|okay|pode gerar|pode seguir|gera|gerar agora|generate now)\b/.test(normalized)
+}
+
+function isDialogContinuationApproval(message: string): boolean {
+  const normalized = normalizeText(message)
+
+  if (!normalized || /\b(nao|not|cancel|depois)\b/.test(normalized)) {
+    return false
+  }
+
+  return /^(sim|ok|okay|pode|pode fazer|pode seguir|segue|continue|continua|vai|manda ver|bora)$/.test(normalized)
 }
 
 function buildResumeTextForScoring(session: Session): string {
@@ -460,6 +476,81 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
   return 'Recebi sua mensagem, mas esta resposta falhou. Tente repetir o pedido em uma frase curta e objetiva que eu continuo daqui.'
 }
 
+function buildDialogFallback(session: Session, userMessage: string): DeterministicFallback {
+  const latestMessageLooksLikeVacancy = looksLikeJobDescription(userMessage)
+  const hasTargetJobContext = Boolean(session.agentState.targetJobDescription?.trim() || latestMessageLooksLikeVacancy)
+
+  if (isDialogContinuationApproval(userMessage)) {
+    return {
+      kind: hasTargetJobContext ? 'dialog_continue_saved_target' : 'dialog_continue_resume_only',
+      text: hasTargetJobContext
+        ? 'Posso seguir, sim. Ja tenho seu curriculo e a vaga como referencia. Vou continuar pelo trecho com maior impacto para essa vaga: seu resumo profissional. Se preferir, diga "resumo", "experiencia" ou "competencias".'
+        : 'Posso seguir, sim. Ja tenho seu curriculo em contexto. Vou continuar pelo trecho com maior impacto: seu resumo profissional. Se preferir, diga "experiencia" ou "competencias".',
+    }
+  }
+
+  if (latestMessageLooksLikeVacancy) {
+    return {
+      kind: 'dialog_latest_target_job_context',
+      text: 'Recebi essa nova vaga e ja tenho seu curriculo em contexto. Posso adaptar agora seu resumo, experiencia ou competencias para essa oportunidade. Se quiser, responda com "reescreva meu resumo".',
+    }
+  }
+
+  if (hasTargetJobContext) {
+    return {
+      kind: 'dialog_saved_target_context',
+      text: 'Ja tenho seu curriculo e a vaga como referencia. Posso reescrever agora seu resumo, experiencia ou competencias para aumentar a aderencia ATS. Se quiser, responda com "reescreva meu resumo".',
+    }
+  }
+
+  return {
+    kind: 'dialog_resume_context_only',
+    text: 'Ja tenho seu curriculo em contexto. Posso reescrever seu resumo, experiencia ou competencias. Diga qual trecho voce quer ajustar primeiro.',
+  }
+}
+
+function resolveDeterministicAssistantFallback(session: Session, userMessage: string): DeterministicFallback {
+  const hasResumeContext = hasResumeContextForDeterministicAnalysis(session)
+  const hasTargetJobContext = Boolean(session.agentState.targetJobDescription?.trim() || looksLikeJobDescription(userMessage))
+  const hasStructuredTargetAnalysis = Boolean(
+    session.atsScore
+    || session.agentState.targetFitAssessment
+    || session.agentState.gapAnalysis
+  )
+
+  if (!hasResumeContext && hasTargetJobContext) {
+    return {
+      kind: 'missing_resume_with_target_job',
+      text: 'Recebi a vaga. Para comparar aderência e adaptar seu currículo a essa oportunidade, envie seu currículo em PDF/DOCX ou cole o texto do currículo aqui.',
+    }
+  }
+
+  if (!hasResumeContext) {
+    return {
+      kind: 'missing_resume',
+      text: 'Preciso do seu currículo para continuar. Envie um PDF/DOCX ou cole o texto do currículo aqui no chat.',
+    }
+  }
+
+  if (session.phase === 'confirm') {
+    return {
+      kind: 'confirm_generation_prompt',
+      text: 'Estou na etapa final. Se quiser gerar os arquivos agora, responda com "sim, pode gerar". Se preferir, peca mais ajustes no curriculo.',
+    }
+  }
+
+  if (session.phase === 'dialog') {
+    return buildDialogFallback(session, userMessage)
+  }
+
+  return {
+    kind: hasTargetJobContext
+      ? (hasStructuredTargetAnalysis ? 'analysis_structured_target_context' : 'analysis_saved_target_context')
+      : 'generic_retry',
+    text: buildDeterministicAssistantFallback(session, userMessage),
+  }
+}
+
 function shouldUseDeterministicVacancyBootstrap(session: Session, userMessage: string): boolean {
   return session.phase === 'analysis'
     && hasResumeContextForDeterministicAnalysis(session)
@@ -482,6 +573,7 @@ function mergeConciseRecoveryTurn(
     ...priorTurn,
     assistantText: shouldPreferConciseText ? conciseTurn.assistantText : priorTurn.assistantText,
     finishReason: shouldPreferConciseText ? conciseTurn.finishReason : priorTurn.finishReason,
+    model: shouldPreferConciseText ? conciseTurn.model : priorTurn.model,
     toolCalls: conciseTurn.toolCalls.length > 0 ? conciseTurn.toolCalls : priorTurn.toolCalls,
     usage: mergeUsage(priorTurn.usage, conciseTurn.usage),
     usedLengthRecovery: Boolean(priorTurn.usedLengthRecovery || conciseTurn.usedLengthRecovery),
@@ -492,9 +584,11 @@ function mergeConciseRecoveryTurn(
 async function trackTurnUsage(params: {
   session: Session
   appUserId: string
+  model: string
   usage: NonNullable<StreamTurnResult['usage']>
   finishReason: StreamTurnResult['finishReason']
   toolCalls: number
+  assistantTextChars: number
   requestId: string
   systemPromptChars: number
   historyChars: number
@@ -503,7 +597,7 @@ async function trackTurnUsage(params: {
   usedConciseRecovery: boolean
 }): Promise<void> {
   const costCents = calculateUsageCostCents(
-    MODEL_CONFIG.agentModel,
+    params.model,
     params.usage.inputTokens,
     params.usage.outputTokens,
   )
@@ -511,7 +605,7 @@ async function trackTurnUsage(params: {
   trackApiUsage({
     userId: params.appUserId,
     sessionId: params.session.id,
-    model: MODEL_CONFIG.agentModel,
+    model: params.model,
     inputTokens: params.usage.inputTokens,
     outputTokens: params.usage.outputTokens,
     endpoint: 'agent',
@@ -523,10 +617,12 @@ async function trackTurnUsage(params: {
     appUserId: params.appUserId,
     phase: params.session.phase,
     stateVersion: params.session.stateVersion,
+    model: params.model,
     systemPromptChars: params.systemPromptChars,
     historyChars: params.historyChars,
     inputTokens: params.usage.inputTokens,
     outputTokens: params.usage.outputTokens,
+    assistantTextChars: params.assistantTextChars,
     finishReason: params.finishReason ?? 'none',
     toolCalls: params.toolCalls,
     allowedToolCount: params.allowedToolCount,
@@ -550,10 +646,11 @@ async function* streamAssistantTurn(params: {
   toolChoice?: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption
 }): AsyncGenerator<AgentTextChunk, StreamTurnResult> {
   const streamStartedAt = Date.now()
+  const selectedModel = resolveAgentModelForPhase(params.session.phase)
 
   // Only include tool_choice if tools are provided. OpenAI API requires tools when tool_choice is set.
   const requestParams: Parameters<typeof createChatCompletionStreamWithRetry>[1] = {
-    model: MODEL_CONFIG.agentModel,
+    model: selectedModel,
     max_completion_tokens: params.maxCompletionTokens,
     messages: [
       { role: 'system', content: params.cachedSystemPrompt },
@@ -660,6 +757,7 @@ async function* streamAssistantTurn(params: {
     assistantText,
     toolCalls: toolCalls.filter(Boolean),
     finishReason,
+    model: selectedModel,
     usage,
   }
 }
@@ -707,6 +805,7 @@ async function* recoverTruncatedTurn(params: {
         assistantText: accumulatedAssistantText,
         toolCalls: continuationTurn.toolCalls,
         finishReason,
+        model: continuationTurn.model,
         usage,
         usedLengthRecovery: true,
       }
@@ -717,6 +816,7 @@ async function* recoverTruncatedTurn(params: {
     assistantText: accumulatedAssistantText,
     toolCalls: [],
     finishReason,
+    model: params.initialTurn.model,
     usage,
     usedLengthRecovery: recoveryAttempts > 0,
   }
@@ -1008,6 +1108,11 @@ export async function* runAgentLoop(
       })
 
       const bootstrapAssistantText = buildDeterministicAssistantFallback(session, userMessage)
+      const bootstrapFallbackKind = session.atsScore
+        || session.agentState.targetFitAssessment
+        || session.agentState.gapAnalysis
+        ? 'analysis_structured_target_context'
+        : 'analysis_saved_target_context'
 
       yield {
         type: 'text',
@@ -1023,6 +1128,7 @@ export async function* runAgentLoop(
         appUserId,
         phase: session.phase,
         stateVersion: session.stateVersion,
+        fallbackKind: bootstrapFallbackKind,
         isNewSession,
         messageCountAfter: session.messageCount + 1,
         toolLoopsUsed: toolIterations,
@@ -1095,6 +1201,7 @@ export async function* runAgentLoop(
         appUserId,
         phase: session.phase,
         stateVersion: session.stateVersion,
+        model: resolveAgentModelForPhase(session.phase),
         toolIteration: toolIterations,
         systemPromptChars: cachedSystemPrompt.length,
         historyChars,
@@ -1150,9 +1257,11 @@ export async function* runAgentLoop(
         await trackTurnUsage({
           session,
           appUserId,
+          model: turn.model,
           usage: turn.usage,
           finishReason: turn.finishReason,
           toolCalls: turn.toolCalls.length,
+          assistantTextChars: turn.assistantText.length,
           requestId,
           systemPromptChars: cachedSystemPrompt.length,
           historyChars,
@@ -1184,6 +1293,8 @@ export async function* runAgentLoop(
           appUserId,
           phase: session.phase,
           stateVersion: session.stateVersion,
+          model: turn.model,
+          assistantTextChars: turn.assistantText.length,
           toolIterations,
           success: true,
         })
@@ -1310,9 +1421,11 @@ export async function* runAgentLoop(
           await trackTurnUsage({
             session,
             appUserId,
+            model: recoveryTurn.model,
             usage: recoveryTurn.usage,
             finishReason: recoveryTurn.finishReason,
             toolCalls: recoveryTurn.toolCalls.length,
+            assistantTextChars: recoveryTurn.assistantText.length,
             requestId,
             systemPromptChars: cachedSystemPrompt.length,
             historyChars: calculateHistoryChars(messages),
@@ -1331,7 +1444,8 @@ export async function* runAgentLoop(
 
       if (!recoverySucceeded) {
         // Final fallback after all recovery attempts failed
-        finalAssistantText = buildDeterministicAssistantFallback(session, userMessage)
+        const fallback = resolveDeterministicAssistantFallback(session, userMessage)
+        finalAssistantText = fallback.text
         yield {
           type: 'text',
           content: finalAssistantText,
@@ -1347,6 +1461,9 @@ export async function* runAgentLoop(
         appUserId,
         phase: session.phase,
         stateVersion: session.stateVersion,
+        model: resolveAgentModelForPhase(session.phase),
+        fallbackKind: recoverySucceeded ? undefined : resolveDeterministicAssistantFallback(session, userMessage).kind,
+        finalAssistantTextChars: finalAssistantText.length,
         toolIterations,
         success: true,
       })

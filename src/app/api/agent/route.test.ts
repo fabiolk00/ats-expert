@@ -986,4 +986,171 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
       toolIterations: 1,
     })
   })
+
+  it('streams a dialog continue fallback through SSE without repeating the bootstrap copy', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_dialog_continue',
+      userId: 'usr_123',
+      stateVersion: 1,
+      phase: 'dialog',
+      cvState: {
+        fullName: 'Test',
+        email: 'test@test.com',
+        phone: '123',
+        summary: 'test',
+        experience: [],
+        skills: [],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL e ETL.',
+      },
+      generatedOutput: { status: 'idle' },
+      creditsUsed: 1,
+      messageCount: 2,
+      creditConsumed: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(incrementMessageCount).mockResolvedValue(true)
+    vi.mocked(runAgentLoop).mockImplementationOnce(async function* () {
+      yield {
+        type: 'text',
+        content: 'Posso seguir, sim. Diga se voce quer ajustar resumo, experiencia ou skills.',
+      }
+      yield {
+        type: 'done',
+        sessionId: 'sess_dialog_continue',
+        phase: 'dialog',
+        requestId: 'req_dialog_continue',
+        messageCount: 3,
+        maxMessages: 15,
+        isNewSession: false,
+        toolIterations: 0,
+      }
+    })
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'sess_dialog_continue',
+        message: 'pode fazer',
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('text/event-stream')
+
+    const events = parseSseDataEvents(await response.text())
+    expect(events.map((event) => event.type)).toEqual(['text', 'done'])
+    expect(events[0]).toEqual({
+      type: 'text',
+      content: 'Posso seguir, sim. Diga se voce quer ajustar resumo, experiencia ou skills.',
+    })
+    expect(events[1]).toEqual({
+      type: 'done',
+      sessionId: 'sess_dialog_continue',
+      phase: 'dialog',
+      requestId: 'req_dialog_continue',
+      messageCount: 3,
+      maxMessages: 15,
+      isNewSession: false,
+      toolIterations: 0,
+    })
+    expect(events.some((event) => JSON.stringify(event).includes('Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.'))).toBe(false)
+    expect(runAgentLoop).toHaveBeenCalledWith(expect.objectContaining({
+      userMessage: 'pode fazer',
+      session: expect.objectContaining({ phase: 'dialog' }),
+    }))
+  })
+
+  it('streams the latest pasted vacancy acknowledgement through SSE when dialog recovery fails', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_dialog_new_vacancy',
+      userId: 'usr_123',
+      stateVersion: 1,
+      phase: 'dialog',
+      cvState: {
+        fullName: 'Test',
+        email: 'test@test.com',
+        phone: '123',
+        summary: 'test',
+        experience: [],
+        skills: [],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+      },
+      generatedOutput: { status: 'idle' },
+      creditsUsed: 1,
+      messageCount: 2,
+      creditConsumed: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(incrementMessageCount).mockResolvedValue(true)
+    vi.mocked(runAgentLoop).mockImplementationOnce(async function* () {
+      yield {
+        type: 'text',
+        content: 'Recebi essa nova vaga. Posso adaptar agora seu resumo para essa oportunidade.',
+      }
+      yield {
+        type: 'done',
+        sessionId: 'sess_dialog_new_vacancy',
+        phase: 'dialog',
+        requestId: 'req_dialog_new_vacancy',
+        messageCount: 3,
+        maxMessages: 15,
+        isNewSession: false,
+        toolIterations: 0,
+      }
+    })
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'sess_dialog_new_vacancy',
+        message: [
+          'Responsabilidades',
+          'Construir dashboards executivos em Power BI e traduzir necessidades do negocio em indicadores.',
+          'Requisitos',
+          'SQL avancado, ETL, comunicacao com areas nao tecnicas e Power BI.',
+          'Diferenciais',
+          'Python, APIs e Microsoft Fabric.',
+        ].join('\n'),
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+
+    const events = parseSseDataEvents(await response.text())
+    expect(events.map((event) => event.type)).toEqual(['text', 'done'])
+    expect(events[0]).toEqual({
+      type: 'text',
+      content: 'Recebi essa nova vaga. Posso adaptar agora seu resumo para essa oportunidade.',
+    })
+    expect(events[1]).toEqual({
+      type: 'done',
+      sessionId: 'sess_dialog_new_vacancy',
+      phase: 'dialog',
+      requestId: 'req_dialog_new_vacancy',
+      messageCount: 3,
+      maxMessages: 15,
+      isNewSession: false,
+      toolIterations: 0,
+    })
+    expect(events.some((event) => JSON.stringify(event).includes('Diga qual trecho voce quer ajustar primeiro'))).toBe(false)
+    expect(runAgentLoop).toHaveBeenCalledWith(expect.objectContaining({
+      userMessage: expect.stringContaining('Responsabilidades'),
+      session: expect.objectContaining({ phase: 'dialog' }),
+    }))
+  })
 })

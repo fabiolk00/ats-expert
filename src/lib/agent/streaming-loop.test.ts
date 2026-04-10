@@ -56,9 +56,13 @@ vi.mock('@/lib/agent/config', () => ({
   },
   MODEL_CONFIG: {
     agentModel: 'test-model',
+    dialogModel: 'test-dialog-model',
     structuredModel: 'test-model',
     visionModel: 'test-model',
   },
+  resolveAgentModelForPhase: vi.fn((phase: string) =>
+    phase === 'dialog' || phase === 'confirm' ? 'test-dialog-model' : 'test-model',
+  ),
 }))
 
 vi.mock('@/lib/openai/client', () => ({
@@ -160,6 +164,25 @@ describe('runAgentLoop streaming', () => {
       'assistant',
       'Aqui está uma resposta final útil.',
     )
+  })
+
+  it('uses the stronger dialog model for conversational turns', async () => {
+    mockCreateChatCompletionStreamWithRetry.mockResolvedValue(
+      mockTextStream('Resposta de dialogo.') as never,
+    )
+
+    for await (const _event of runAgentLoop({
+      session: buildSession(),
+      userMessage: 'Pode continuar',
+      appUserId: 'usr_123',
+      requestId: 'req_dialog_model',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      // consume stream
+    }
+
+    expect(mockCreateChatCompletionStreamWithRetry.mock.calls[0]?.[1]?.model).toBe('test-dialog-model')
   })
 
   it('forwards text before tool dispatch', async () => {
@@ -743,6 +766,138 @@ describe('runAgentLoop streaming', () => {
     expect(finalText).toContain('Aderencia inicial: parcial.')
     expect(finalText).toContain('Principais gaps: ETL, DAX, impacto mensuravel.')
     expect(finalText).not.toContain('Tente novamente com um pedido curto')
+  })
+
+  it('returns a dialog-specific continue fallback instead of repeating the vacancy bootstrap text', async () => {
+    async function* emptyStopStream() {
+      yield {
+        choices: [{
+          delta: {},
+          finish_reason: 'stop',
+        }],
+        usage: null,
+      }
+    }
+
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      atsScore: {
+        total: 44,
+        breakdown: {
+          format: 70,
+          structure: 55,
+          keywords: 41,
+          contact: 95,
+          impact: 30,
+        },
+        issues: [],
+        suggestions: [],
+      },
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL e ETL.',
+      },
+    }
+
+    mockCreateChatCompletionStreamWithRetry
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage: 'pode fazer',
+      appUserId: 'usr_123',
+      requestId: 'req_dialog_continue_fallback',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => event.content)
+      .join('')
+
+    expect(finalText).toContain('Posso seguir, sim.')
+    expect(finalText).toContain('resumo profissional')
+    expect(finalText).not.toContain('Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.')
+    expect(mockAppendMessage).toHaveBeenNthCalledWith(
+      2,
+      'sess_123',
+      'assistant',
+      expect.stringContaining('Posso seguir, sim.'),
+    )
+  })
+
+  it('uses the latest pasted vacancy when a dialog-phase fallback fires', async () => {
+    async function* emptyStopStream() {
+      yield {
+        choices: [{
+          delta: {},
+          finish_reason: 'stop',
+        }],
+        usage: null,
+      }
+    }
+
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+      },
+    }
+
+    const userMessage = [
+      'Responsabilidades',
+      'Construir dashboards executivos em Power BI e traduzir necessidades do negocio em indicadores.',
+      'Requisitos',
+      'SQL avancado, ETL, comunicacao com areas nao tecnicas e Power BI.',
+      'Diferenciais',
+      'Python, APIs e Microsoft Fabric.',
+    ].join('\n')
+
+    mockCreateChatCompletionStreamWithRetry
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage,
+      appUserId: 'usr_123',
+      requestId: 'req_dialog_latest_vacancy_fallback',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => event.content)
+      .join('')
+
+    expect(finalText).toContain('Recebi essa nova vaga')
+    expect(finalText).toContain('adaptar agora seu resumo')
+    expect(finalText).not.toContain('Diga qual trecho voce quer ajustar primeiro')
+    expect(mockAppendMessage).toHaveBeenNthCalledWith(
+      2,
+      'sess_123',
+      'assistant',
+      expect.stringContaining('Recebi essa nova vaga'),
+    )
   })
 
   it('handles the first pasted vacancy turn deterministically without waiting on analyze_gap or the model', async () => {
