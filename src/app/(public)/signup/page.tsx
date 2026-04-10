@@ -12,9 +12,8 @@ export default function SignupPage() {
   return (
     <AuthShell
       mode="signup"
-      eyebrow="Nova conta"
-      title="Crie sua conta e salve cada versao do seu curriculo"
-      description="Cadastre-se para manter vagas-alvo, historico de otimizacoes e o PDF final sempre ligados ao seu perfil."
+      title="Criar conta"
+      description=""
     >
         <SignupForm />
     </AuthShell>

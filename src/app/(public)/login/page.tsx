@@ -12,9 +12,8 @@ export default function LoginPage() {
   return (
     <AuthShell
       mode="login"
-      eyebrow="Conta CurrIA"
-      title="Entre e volte para o seu curriculo alvo"
-      description="Acesse suas sessoes, analises ATS e arquivos gerados com o fluxo nativo do Clerk embutido na interface da CurrIA."
+      title="Entrar na sua conta"
+      description=""
     >
         <LoginForm />
     </AuthShell>
