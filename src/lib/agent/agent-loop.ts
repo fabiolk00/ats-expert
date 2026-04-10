@@ -6,7 +6,7 @@ import { AGENT_CONFIG, resolveAgentModelForPhase } from '@/lib/agent/config'
 import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
 import { dispatchToolWithContext, getToolDefinitionsForPhase } from '@/lib/agent/tools'
 import { calculateUsageCostCents, trackApiUsage } from '@/lib/agent/usage-tracker'
-import { appendMessage, getMessages } from '@/lib/db/sessions'
+import { appendMessage, applyToolPatchWithVersion, getMessages } from '@/lib/db/sessions'
 import { createChatCompletionStreamWithRetry } from '@/lib/openai/chat'
 import { openai } from '@/lib/openai/client'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
@@ -480,11 +480,17 @@ function buildResumeTextFromCvState(cvState: Session['cvState']): string {
 }
 
 function buildResumeTextForScoring(session: Session): string {
+  const canonicalResumeText = buildResumeTextFromCvState(session.cvState)
+
+  if (canonicalResumeText.trim()) {
+    return canonicalResumeText
+  }
+
   if (session.agentState.sourceResumeText?.trim()) {
     return session.agentState.sourceResumeText
   }
 
-  return buildResumeTextFromCvState(session.cvState)
+  return canonicalResumeText
 }
 
 function hasResumeContextForDeterministicAnalysis(session: Session): boolean {
@@ -1346,6 +1352,55 @@ async function* handleConfirmedGeneration(params: {
     requestId: params.requestId,
     signal: params.signal,
   })
+
+  if (params.session.agentState.targetJobDescription?.trim()) {
+    const targetResumeResult = yield* runDeterministicTool({
+      session: params.session,
+      toolName: 'create_target_resume',
+      toolInput: {
+        target_job_description: params.session.agentState.targetJobDescription,
+      },
+      requestId: params.requestId,
+      signal: params.signal,
+      surfaceToolStartToUser: false,
+      surfaceFailureToUser: false,
+    })
+
+    const targetResumeOutput = targetResumeResult.output
+    const derivedCvState = (
+      targetResumeResult.success
+      && targetResumeOutput
+      && typeof targetResumeOutput === 'object'
+      && 'success' in targetResumeOutput
+      && targetResumeOutput.success === true
+      && 'derivedCvState' in targetResumeOutput
+      && targetResumeOutput.derivedCvState
+      && typeof targetResumeOutput.derivedCvState === 'object'
+    )
+      ? targetResumeOutput.derivedCvState as Session['cvState']
+      : null
+
+    if (derivedCvState && JSON.stringify(derivedCvState) !== JSON.stringify(params.session.cvState)) {
+      const targetDerivedPatch = {
+        cvState: derivedCvState,
+        agentState: {
+          sourceResumeText: buildResumeTextFromCvState(derivedCvState),
+        },
+      } satisfies Parameters<typeof applyToolPatchWithVersion>[1]
+
+      await applyToolPatchWithVersion(
+        params.session,
+        targetDerivedPatch,
+        'target-derived',
+      )
+
+      yield {
+        type: 'patch',
+        patch: targetDerivedPatch,
+        phase: params.session.phase,
+      }
+    }
+  }
 
   const generationResult = yield* runDeterministicTool({
     session: params.session,

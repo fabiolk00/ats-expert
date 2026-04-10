@@ -5,6 +5,7 @@ import { POST } from './route'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
   appendMessage,
+  applyToolPatchWithVersion,
   checkUserQuota,
   createSessionWithCredit,
   getMessages,
@@ -48,6 +49,7 @@ vi.mock('@/lib/db/sessions', () => ({
   createSessionWithCredit: vi.fn(),
   getMessages: vi.fn(),
   appendMessage: vi.fn(),
+  applyToolPatchWithVersion: vi.fn(),
   checkUserQuota: vi.fn(),
   incrementMessageCount: vi.fn(),
   updateSession: vi.fn(),
@@ -168,12 +170,13 @@ function buildDialogSession(overrides?: {
       ...overrides?.agentState,
     },
     generatedOutput: { status: 'idle' as const },
+    atsScore: undefined,
     creditsUsed: 1,
     messageCount: 2,
     creditConsumed: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-  }
+  } as any
 }
 
 function buildIntakeSession(overrides?: {
@@ -201,6 +204,7 @@ function buildIntakeSession(overrides?: {
       ...overrides?.agentState,
     },
     generatedOutput: { status: 'idle' as const },
+    atsScore: undefined,
     creditsUsed: 1,
     messageCount: 0,
     creditConsumed: true,
@@ -247,6 +251,21 @@ describe('/api/agent SSE fallback coverage', () => {
       { role: 'user', content: 'Quero uma analise', createdAt: new Date() },
     ])
     vi.mocked(appendMessage).mockResolvedValue(undefined)
+    vi.mocked(applyToolPatchWithVersion).mockImplementation(async (session, patch) => {
+      if (patch?.cvState) {
+        session.cvState = {
+          ...session.cvState,
+          ...patch.cvState,
+        }
+      }
+
+      if (patch?.agentState) {
+        session.agentState = {
+          ...session.agentState,
+          ...patch.agentState,
+        }
+      }
+    })
     vi.mocked(checkUserQuota).mockResolvedValue(true)
     vi.mocked(createSessionWithCredit).mockResolvedValue(null)
     vi.mocked(incrementMessageCount).mockResolvedValue(true)
@@ -424,6 +443,18 @@ describe('/api/agent SSE fallback coverage', () => {
         targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
       },
     })
+    session.atsScore = {
+      total: 43,
+      breakdown: {
+        format: 60,
+        structure: 42,
+        keywords: 38,
+        contact: 95,
+        impact: 30,
+      },
+      issues: [],
+      suggestions: [],
+    }
 
     vi.mocked(getSession).mockResolvedValue(session)
     mockDispatchToolWithContext
@@ -437,18 +468,36 @@ describe('/api/agent SSE fallback coverage', () => {
       .mockResolvedValueOnce({
         output: {
           success: true,
-          docxUrl: 'https://example.com/resume.docx',
+          targetId: 'target_123',
+          targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+          derivedCvState: {
+            ...session.cvState,
+            summary: 'Analytics Engineer com foco em dbt, SQL, BigQuery e governanca de dados.',
+            skills: ['dbt', 'SQL', 'BigQuery', 'DataOps'],
+          },
+        },
+        outputJson: JSON.stringify({
+          success: true,
+          targetId: 'target_123',
+        }),
+        persistedPatch: {
+          agentState: {
+            targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        output: {
+          success: true,
           pdfUrl: 'https://example.com/resume.pdf',
         },
         outputJson: JSON.stringify({
           success: true,
-          docxUrl: 'https://example.com/resume.docx',
           pdfUrl: 'https://example.com/resume.pdf',
         }),
         persistedPatch: {
           generatedOutput: {
             status: 'ready',
-            docxPath: 'usr_123/sess_dialog_direct_generate_real/resume.docx',
             pdfPath: 'usr_123/sess_dialog_direct_generate_real/resume.pdf',
           },
         },
@@ -504,6 +553,7 @@ describe('/api/agent SSE fallback coverage', () => {
       .join('')
 
     expect(finalText).toContain('Seu curriculo ATS-otimizado em PDF esta pronto.')
+    expect(finalText).toContain('ATS Score antes: 43/100. ATS agora: 73/100.')
     expect(events).toContainEqual(expect.objectContaining({
       type: 'patch',
       phase: 'dialog',
@@ -511,6 +561,15 @@ describe('/api/agent SSE fallback coverage', () => {
         phase: 'generation',
       }),
     }))
+    expect(vi.mocked(applyToolPatchWithVersion)).toHaveBeenCalledWith(
+      session,
+      expect.objectContaining({
+        cvState: expect.objectContaining({
+          summary: 'Analytics Engineer com foco em dbt, SQL, BigQuery e governanca de dados.',
+        }),
+      }),
+      'target-derived',
+    )
     expect(createChatCompletionStreamWithRetry).not.toHaveBeenCalled()
   })
 

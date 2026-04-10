@@ -6,6 +6,7 @@ import { runAgentLoop } from './streaming-loop'
 const {
   mockGetMessages,
   mockAppendMessage,
+  mockApplyToolPatchWithVersion,
   mockBuildSystemPrompt,
   mockTrimMessages,
   mockCreateChatCompletionStreamWithRetry,
@@ -17,6 +18,7 @@ const {
 } = vi.hoisted(() => ({
   mockGetMessages: vi.fn(),
   mockAppendMessage: vi.fn(),
+  mockApplyToolPatchWithVersion: vi.fn(),
   mockBuildSystemPrompt: vi.fn(),
   mockTrimMessages: vi.fn(),
   mockCreateChatCompletionStreamWithRetry: vi.fn(),
@@ -35,6 +37,7 @@ vi.mock('@/lib/agent/context-builder', () => ({
 vi.mock('@/lib/db/sessions', () => ({
   getMessages: mockGetMessages,
   appendMessage: mockAppendMessage,
+  applyToolPatchWithVersion: mockApplyToolPatchWithVersion,
 }))
 
 vi.mock('@/lib/agent/config', () => ({
@@ -144,10 +147,26 @@ describe('runAgentLoop streaming', () => {
     mockBuildSystemPrompt.mockReturnValue('system prompt')
     mockTrimMessages.mockImplementation((messages: unknown) => messages)
     mockTrackApiUsage.mockResolvedValue(undefined)
+    mockAppendMessage.mockResolvedValue(undefined)
     mockDispatchToolWithContext.mockResolvedValue({
       output: { success: true },
       outputJson: JSON.stringify({ success: true }),
       persistedPatch: undefined,
+    })
+    mockApplyToolPatchWithVersion.mockImplementation(async (session, patch) => {
+      if (patch?.cvState) {
+        session.cvState = {
+          ...session.cvState,
+          ...patch.cvState,
+        }
+      }
+
+      if (patch?.agentState) {
+        session.agentState = {
+          ...session.agentState,
+          ...patch.agentState,
+        }
+      }
     })
   })
 
@@ -1328,10 +1347,15 @@ describe('runAgentLoop streaming', () => {
     const session = {
       ...buildSession(),
       phase: 'analysis' as const,
+      cvState: {
+        ...buildSession().cvState,
+        summary: 'Resumo canonico com foco em BI, ETL e indicadores de negocio.',
+        skills: ['SQL', 'Power BI', 'ETL'],
+      },
       agentState: {
         parseStatus: 'parsed' as const,
         rewriteHistory: {},
-        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL, ETL e integracao de dados.',
+        sourceResumeText: 'Fabio Silva | Resumo antigo em tabela | SQL | Power BI | ETL',
         targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL, ETL e Python.',
       },
     }
@@ -1412,10 +1436,13 @@ describe('runAgentLoop streaming', () => {
     expect(mockDispatchToolWithContext).toHaveBeenNthCalledWith(
       1,
       'score_ats',
-      expect.any(Object),
+      expect.objectContaining({
+        resume_text: expect.stringContaining('Resumo canonico com foco em BI, ETL e indicadores de negocio.'),
+      }),
       expect.any(Object),
       undefined,
     )
+    expect(mockDispatchToolWithContext.mock.calls[0]?.[1]?.resume_text).not.toContain('Resumo antigo em tabela')
     expect(mockDispatchToolWithContext).toHaveBeenNthCalledWith(
       2,
       'analyze_gap',
@@ -1499,6 +1526,18 @@ describe('runAgentLoop streaming', () => {
     const session = {
       ...buildSession(),
       phase: 'confirm' as const,
+      atsScore: {
+        total: 69,
+        breakdown: {
+          format: 70,
+          structure: 68,
+          keywords: 72,
+          contact: 95,
+          impact: 40,
+        },
+        issues: [],
+        suggestions: [],
+      },
       agentState: {
         parseStatus: 'parsed' as const,
         rewriteHistory: {},
@@ -1518,19 +1557,68 @@ describe('runAgentLoop streaming', () => {
       .mockResolvedValueOnce({
         output: {
           success: true,
-          docxUrl: 'https://example.com/resume.docx',
+          targetId: 'target_123',
+          targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+          derivedCvState: {
+            ...session.cvState,
+            summary: 'Analytics Engineer com foco em dbt, SQL, BigQuery e governanca de dados.',
+          },
+        },
+        outputJson: JSON.stringify({
+          success: true,
+          targetId: 'target_123',
+        }),
+        persistedPatch: {
+          agentState: {
+            targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        output: {
+          success: true,
           pdfUrl: 'https://example.com/resume.pdf',
         },
         outputJson: JSON.stringify({
           success: true,
-          docxUrl: 'https://example.com/resume.docx',
           pdfUrl: 'https://example.com/resume.pdf',
         }),
         persistedPatch: {
           generatedOutput: {
             status: 'ready',
-            docxPath: 'usr_123/sess_123/resume.docx',
             pdfPath: 'usr_123/sess_123/resume.pdf',
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        output: {
+          success: true,
+          result: {
+            total: 73,
+            breakdown: {
+              format: 70,
+              structure: 70,
+              keywords: 80,
+              contact: 95,
+              impact: 50,
+            },
+            issues: [],
+            suggestions: [],
+          },
+        },
+        outputJson: JSON.stringify({ success: true, result: { total: 73 } }),
+        persistedPatch: {
+          atsScore: {
+            total: 73,
+            breakdown: {
+              format: 70,
+              structure: 70,
+              keywords: 80,
+              contact: 95,
+              impact: 50,
+            },
+            issues: [],
+            suggestions: [],
           },
         },
       })
@@ -1552,10 +1640,14 @@ describe('runAgentLoop streaming', () => {
       'toolStart',
       'toolResult',
       'patch',
+      'toolResult',
+      'patch',
+      'patch',
       'toolStart',
       'toolResult',
       'patch',
       'toolResult',
+      'patch',
       'text',
       'done',
     ])
@@ -1622,6 +1714,18 @@ describe('runAgentLoop streaming', () => {
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
+      atsScore: {
+        total: 69,
+        breakdown: {
+          format: 70,
+          structure: 68,
+          keywords: 72,
+          contact: 95,
+          impact: 40,
+        },
+        issues: [],
+        suggestions: [],
+      },
       agentState: {
         parseStatus: 'parsed' as const,
         rewriteHistory: {},
@@ -1637,6 +1741,64 @@ describe('runAgentLoop streaming', () => {
           outputJson: JSON.stringify({ success: true, phase: 'generation' }),
           persistedPatch: {
             phase: 'generation',
+          },
+        }
+      }
+
+      if (toolName === 'create_target_resume') {
+        return {
+          output: {
+            success: true,
+            targetId: 'target_123',
+            targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            derivedCvState: {
+              ...session.cvState,
+              summary: 'Analytics Engineer com foco em dbt, SQL, BigQuery e governanca de dados.',
+              skills: ['dbt', 'SQL', 'BigQuery', 'DataOps'],
+            },
+          },
+          outputJson: JSON.stringify({
+            success: true,
+            targetId: 'target_123',
+          }),
+          persistedPatch: {
+            agentState: {
+              targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            },
+          },
+        }
+      }
+
+      if (toolName === 'create_target_resume') {
+        return {
+          output: {
+            success: true,
+            targetId: 'target_123',
+            targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            derivedCvState: session.cvState,
+          },
+          outputJson: JSON.stringify({ success: true, targetId: 'target_123' }),
+          persistedPatch: {
+            agentState: {
+              targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            },
+          },
+        }
+      }
+
+      if (toolName === 'create_target_resume') {
+        return {
+          output: {
+            success: true,
+            targetId: 'target_123',
+            targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            derivedCvState: session.cvState,
+          },
+          outputJson: JSON.stringify({ success: true, targetId: 'target_123' }),
+          persistedPatch: {
+            agentState: {
+              targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            },
           },
         }
       }
@@ -1697,38 +1859,6 @@ describe('runAgentLoop streaming', () => {
 
       throw new Error(`Unexpected tool call: ${toolName}`)
     })
-      .mockResolvedValueOnce({
-        output: {
-          success: true,
-          result: {
-            total: 69,
-            breakdown: {
-              format: 70,
-              structure: 68,
-              keywords: 72,
-              contact: 95,
-              impact: 40,
-            },
-            issues: [],
-            suggestions: [],
-          },
-        },
-        outputJson: JSON.stringify({ success: true, result: { total: 69 } }),
-        persistedPatch: {
-          atsScore: {
-            total: 69,
-            breakdown: {
-              format: 70,
-              structure: 68,
-              keywords: 72,
-              contact: 95,
-              impact: 40,
-            },
-            issues: [],
-            suggestions: [],
-          },
-        },
-      })
 
     const events = []
     for await (const event of runAgentLoop({
@@ -1747,6 +1877,9 @@ describe('runAgentLoop streaming', () => {
       'toolStart',
       'toolResult',
       'patch',
+      'toolResult',
+      'patch',
+      'patch',
       'toolStart',
       'toolResult',
       'patch',
@@ -1755,11 +1888,21 @@ describe('runAgentLoop streaming', () => {
       'text',
       'done',
     ])
+    expect(mockApplyToolPatchWithVersion).toHaveBeenCalledWith(
+      session,
+      expect.objectContaining({
+        cvState: expect.objectContaining({
+          summary: 'Analytics Engineer com foco em dbt, SQL, BigQuery e governanca de dados.',
+        }),
+      }),
+      'target-derived',
+    )
+    expect(session.cvState.summary).toBe('Analytics Engineer com foco em dbt, SQL, BigQuery e governanca de dados.')
     expect(mockAppendMessage).toHaveBeenNthCalledWith(
       2,
       'sess_123',
       'assistant',
-      expect.stringContaining('Seu curriculo ATS-otimizado em PDF esta pronto.'),
+      expect.stringContaining('ATS Score antes: 69/100. ATS agora: 73/100.'),
     )
   })
 
@@ -1782,6 +1925,23 @@ describe('runAgentLoop streaming', () => {
           outputJson: JSON.stringify({ success: true, phase: 'generation' }),
           persistedPatch: {
             phase: 'generation',
+          },
+        }
+      }
+
+      if (toolName === 'create_target_resume') {
+        return {
+          output: {
+            success: true,
+            targetId: 'target_123',
+            targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            derivedCvState: session.cvState,
+          },
+          outputJson: JSON.stringify({ success: true, targetId: 'target_123' }),
+          persistedPatch: {
+            agentState: {
+              targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            },
           },
         }
       }
@@ -1885,6 +2045,23 @@ describe('runAgentLoop streaming', () => {
           outputJson: JSON.stringify({ success: true, phase: 'generation' }),
           persistedPatch: {
             phase: 'generation',
+          },
+        }
+      }
+
+      if (toolName === 'create_target_resume') {
+        return {
+          output: {
+            success: true,
+            targetId: 'target_123',
+            targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            derivedCvState: session.cvState,
+          },
+          outputJson: JSON.stringify({ success: true, targetId: 'target_123' }),
+          persistedPatch: {
+            agentState: {
+              targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+            },
           },
         }
       }
