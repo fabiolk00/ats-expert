@@ -11,6 +11,9 @@ const {
   mockCreateChatCompletionStreamWithRetry,
   mockTrackApiUsage,
   mockDispatchToolWithContext,
+  mockLogError,
+  mockLogInfo,
+  mockLogWarn,
 } = vi.hoisted(() => ({
   mockGetMessages: vi.fn(),
   mockAppendMessage: vi.fn(),
@@ -19,6 +22,9 @@ const {
   mockCreateChatCompletionStreamWithRetry: vi.fn(),
   mockTrackApiUsage: vi.fn(),
   mockDispatchToolWithContext: vi.fn(),
+  mockLogError: vi.fn(),
+  mockLogInfo: vi.fn(),
+  mockLogWarn: vi.fn(),
 }))
 
 vi.mock('@/lib/agent/context-builder', () => ({
@@ -84,10 +90,21 @@ vi.mock('@/lib/agent/tools', () => ({
 }))
 
 vi.mock('@/lib/observability/structured-log', () => ({
-  logError: vi.fn(),
-  logInfo: vi.fn(),
-  logWarn: vi.fn(),
+  logError: mockLogError,
+  logInfo: mockLogInfo,
+  logWarn: mockLogWarn,
   serializeError: vi.fn(() => ({})),
+}))
+
+vi.mock('@/lib/runtime/release-metadata', () => ({
+  getAgentReleaseMetadata: vi.fn(() => ({
+    releaseId: 'rel_test_123',
+    releaseSource: 'vercel_commit',
+    commitShortSha: 'abc123def456',
+    deploymentEnv: 'preview',
+    resolvedAgentModel: 'test-model',
+    resolvedDialogModel: 'test-dialog-model',
+  })),
 }))
 
 function buildSession() {
@@ -164,6 +181,36 @@ describe('runAgentLoop streaming', () => {
       'assistant',
       'Aqui está uma resposta final útil.',
     )
+  })
+
+  it('logs release provenance on completed turns', async () => {
+    mockCreateChatCompletionStreamWithRetry.mockResolvedValue(
+      mockTextStream('Resposta final com log estruturado.') as never,
+    )
+
+    for await (const _event of runAgentLoop({
+      session: buildSession(),
+      userMessage: 'Cruze meu perfil com a vaga',
+      appUserId: 'usr_123',
+      requestId: 'req_turn_log',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      // consume stream
+    }
+
+    const completedLog = mockLogInfo.mock.calls.find(([event]) => event === 'agent.turn.completed')?.[1]
+
+    expect(completedLog).toMatchObject({
+      releaseId: 'rel_test_123',
+      releaseSource: 'vercel_commit',
+      model: 'test-dialog-model',
+      finishReason: 'stop',
+      usedLengthRecovery: false,
+      usedConciseRecovery: false,
+    })
+    expect(completedLog?.assistantTextChars).toEqual(expect.any(Number))
+    expect(completedLog?.assistantTextChars).toBeGreaterThan(0)
   })
 
   it('uses the stronger dialog model for conversational turns', async () => {
@@ -563,6 +610,45 @@ describe('runAgentLoop streaming', () => {
     })
   })
 
+  it('logs release provenance when a response stays truncated after recovery', async () => {
+    async function* emptyLengthStream() {
+      yield {
+        choices: [{
+          delta: {},
+          finish_reason: 'length',
+        }],
+        usage: null,
+      }
+    }
+
+    mockCreateChatCompletionStreamWithRetry
+      .mockResolvedValueOnce(mockLengthExceededStream() as never)
+      .mockResolvedValueOnce(emptyLengthStream() as never)
+      .mockResolvedValueOnce(emptyLengthStream() as never)
+      .mockResolvedValueOnce(emptyLengthStream() as never)
+
+    for await (const _event of runAgentLoop({
+      session: buildSession(),
+      userMessage: 'Teste',
+      appUserId: 'usr_123',
+      requestId: 'req_truncated_log',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      // consume stream
+    }
+
+    const truncatedLog = mockLogWarn.mock.calls.find(([event]) => event === 'agent.response.truncated_after_recovery')?.[1]
+
+    expect(truncatedLog).toMatchObject({
+      releaseId: 'rel_test_123',
+      releaseSource: 'vercel_commit',
+      model: 'test-dialog-model',
+    })
+    expect(truncatedLog?.assistantTextChars).toEqual(expect.any(Number))
+    expect(truncatedLog?.assistantTextChars).toBeGreaterThan(0)
+  })
+
   it('includes saved resume and saved target context in concise recovery prompts when the latest message is not the vacancy itself', async () => {
     async function* emptyLengthStream() {
       yield {
@@ -834,6 +920,57 @@ describe('runAgentLoop streaming', () => {
       'assistant',
       expect.stringContaining('Posso seguir, sim.'),
     )
+  })
+
+  it('logs release provenance and fallback kind when the dialog fallback is used', async () => {
+    async function* emptyStopStream() {
+      yield {
+        choices: [{
+          delta: {},
+          finish_reason: 'stop',
+        }],
+        usage: null,
+      }
+    }
+
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL e ETL.',
+      },
+    }
+
+    mockCreateChatCompletionStreamWithRetry
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+      .mockResolvedValueOnce(emptyStopStream() as never)
+
+    for await (const _event of runAgentLoop({
+      session,
+      userMessage: 'pode fazer',
+      appUserId: 'usr_123',
+      requestId: 'req_dialog_fallback_log',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      // consume stream
+    }
+
+    const fallbackLog = mockLogWarn.mock.calls.find(([event]) => event === 'agent.response.empty_fallback')?.[1]
+
+    expect(fallbackLog).toMatchObject({
+      releaseId: 'rel_test_123',
+      releaseSource: 'vercel_commit',
+      model: 'test-dialog-model',
+      fallbackKind: 'dialog_continue_saved_target',
+    })
+    expect(fallbackLog?.finalAssistantTextChars).toEqual(expect.any(Number))
+    expect(fallbackLog?.finalAssistantTextChars).toBeGreaterThan(0)
   })
 
   it('uses the latest pasted vacancy when a dialog-phase fallback fires', async () => {

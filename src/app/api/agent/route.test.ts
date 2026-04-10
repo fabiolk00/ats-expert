@@ -9,8 +9,16 @@ import { runAgentLoop } from '@/lib/agent/agent-loop'
 import { dispatchTool } from '@/lib/agent/tools'
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 
-const { createCompletion } = vi.hoisted(() => ({
+const { createCompletion, mockReleaseMetadata } = vi.hoisted(() => ({
   createCompletion: vi.fn(),
+  mockReleaseMetadata: {
+    releaseId: 'rel_abc123',
+    releaseSource: 'vercel_commit',
+    commitShortSha: 'abc123def456',
+    deploymentEnv: 'production',
+    resolvedAgentModel: 'gpt-5-mini',
+    resolvedDialogModel: 'gpt-5-mini',
+  },
 }))
 
 vi.mock('@/lib/openai/client', () => ({
@@ -76,11 +84,23 @@ vi.mock('@/lib/agent/tools/gap-analysis', () => ({
   analyzeGap: vi.fn(),
 }))
 
+vi.mock('@/lib/runtime/release-metadata', () => ({
+  getAgentReleaseMetadata: vi.fn(() => mockReleaseMetadata),
+}))
+
 function parseSseDataEvents(payload: string): Array<Record<string, unknown>> {
   return payload
     .split('\n\n')
     .filter((entry) => entry.startsWith('data: '))
     .map((entry) => JSON.parse(entry.replace('data: ', '')) as Record<string, unknown>)
+}
+
+function expectAgentProvenanceHeaders(response: Response): void {
+  expect(response.headers.get('X-Agent-Release')).toBe(mockReleaseMetadata.releaseId)
+  expect(response.headers.get('X-Agent-Release-Source')).toBe(mockReleaseMetadata.releaseSource)
+  expect(response.headers.get('X-Agent-Resolved-Agent-Model')).toBe(mockReleaseMetadata.resolvedAgentModel)
+  expect(response.headers.get('X-Agent-Resolved-Dialog-Model')).toBe(mockReleaseMetadata.resolvedDialogModel)
+  expect(response.headers.get('X-Agent-Commit-Short-Sha')).toBe(mockReleaseMetadata.commitShortSha)
 }
 
 describe('agent route billing guard', () => {
@@ -119,6 +139,24 @@ describe('agent route billing guard', () => {
     vi.mocked(analyzeGap).mockReset()
   })
 
+  it('returns provenance headers on the safe unauthenticated parity request without creating a session', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(null)
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: '{}',
+    }))
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    expectAgentProvenanceHeaders(response)
+    expect(createSessionWithCredit).not.toHaveBeenCalled()
+    expect(incrementMessageCount).not.toHaveBeenCalled()
+  })
+
   it('returns 402 when trying to create a new session with zero credits', async () => {
     const response = await POST(new NextRequest('http://localhost/api/agent', {
       method: 'POST',
@@ -148,6 +186,7 @@ describe('agent route billing guard', () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({ error: 'Invalid JSON body.' })
+    expectAgentProvenanceHeaders(response)
   })
 
   it('returns 404 when a stale sessionId is provided instead of consuming a credit', async () => {
@@ -584,6 +623,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
 
     expect(response.status).toBe(200)
     expect(response.headers.get('Content-Type')).toBe('text/event-stream')
+    expectAgentProvenanceHeaders(response)
 
     const text = await response.text()
     const events = text.split('\n\n').filter(Boolean)
