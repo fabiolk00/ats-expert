@@ -18,6 +18,26 @@ echo "  Staging Environment Verification"
 echo "======================================================================"
 echo ""
 
+REQUIRED_COMMANDS=(
+  "psql"
+  "curl"
+)
+
+echo "Checking required shell tools..."
+echo ""
+
+for command_name in "${REQUIRED_COMMANDS[@]}"; do
+  if command -v "$command_name" > /dev/null 2>&1; then
+    echo "Found: $command_name"
+  else
+    echo "Missing required command: $command_name"
+    echo "Install it first, then rerun this script from Bash (WSL, Git Bash, or another POSIX shell)."
+    exit 1
+  fi
+done
+
+echo ""
+
 if [ ! -f "$ENV_FILE" ]; then
   echo "FATAL: $ENV_FILE not found."
   echo ""
@@ -159,4 +179,4 @@ echo "  VERIFICATION COMPLETE"
 echo "======================================================================"
 echo ""
 echo "All preflight checks passed."
-echo "Next step: bash scripts/verify-staging.sh completed, so continue with docs/staging/VALIDATION_PLAN.md."
+echo "Next step: use the committed Phase 3 helpers described in scripts/README.md and docs/staging/VALIDATION_PLAN.md."

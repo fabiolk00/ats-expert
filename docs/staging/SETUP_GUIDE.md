@@ -24,7 +24,22 @@ Optional diagnostics:
 
 Runtime deploy variables for the application itself should still come from `.env.example` and the hosting provider dashboard.
 
-## 2. Apply the current billing migrations
+## 2. Confirm workstation prerequisites
+
+Phase 3 assumes a workstation that can run the committed staging helpers. Install or confirm:
+
+- Bash from WSL, Git Bash, or another POSIX-compatible shell
+- `psql`
+- a real `curl` binary available inside that Bash environment
+- `tsx` via the repo's existing `node_modules`
+
+PowerShell alone is not sufficient for the full proof path because:
+
+- `bash scripts/verify-staging.sh` is the required first step
+- `Invoke-WebRequest` is not a drop-in replacement for the script's `curl` usage
+- the snapshot helper shells out to `psql`
+
+## 3. Apply the current billing migrations
 
 Run these migrations against the staging database in this order:
 
@@ -39,7 +54,7 @@ npx prisma db execute --file prisma/migrations/20260407_harden_standard_timestam
 
 These migrations are required for the current settlement-based billing contract and the Phase 1 hardening checks.
 
-## 3. Run the preflight script before any billing scenario
+## 4. Run the preflight script before any billing scenario
 
 The staging readiness script is the first operator step after filling `.env.staging`:
 
@@ -58,7 +73,7 @@ The script validates:
 
 Do not start webhook or billing scenario testing until this script exits successfully.
 
-## 4. Prepare the staging test user
+## 5. Prepare the staging test user
 
 Use a clean test user before replaying events:
 
@@ -75,7 +90,23 @@ INSERT INTO credit_accounts (id, user_id, credits_remaining, created_at, updated
 VALUES ('cred_staging_001', 'usr_staging_001', 5, NOW(), NOW());
 ```
 
-## 5. Execute the validation scenarios
+## 6. Confirm the Phase 3 helper commands
+
+Run the committed helpers locally before a live replay:
+
+```bash
+npx tsx scripts/replay-staging-asaas.ts --list-scenarios
+npx tsx scripts/check-staging-billing-state.ts --help
+```
+
+The replay helper intentionally supports both reference shapes:
+
+- `curria:v1:c:<checkoutReference>`
+- `curria:v1:u:<appUserId>:c:<checkoutReference>`
+
+Pass `--app-user <id>` when you need the current checkout-created shape. Omit it when validating the shorter v1 webhook shape. Phase 3 must confirm which shape is canonical in staging before implementation docs are tightened.
+
+## 7. Execute the validation scenarios
 
 After the preflight passes, follow the scenarios in [VALIDATION_PLAN.md](./VALIDATION_PLAN.md).
 
@@ -87,14 +118,36 @@ source .env.staging
 set +a
 ```
 
+Typical evidence workflow:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --user usr_staging_001 > baseline-state.json
+npx tsx scripts/replay-staging-asaas.ts --scenario one_time_settlement --checkout chk_live_001 --payment pay_live_001 --dry-run
+npx tsx scripts/replay-staging-asaas.ts --scenario one_time_settlement --checkout chk_live_001 --payment pay_live_001 --output one-time-response.json
+npx tsx scripts/check-staging-billing-state.ts --checkout chk_live_001 > post-one-time-state.json
+```
+
 ## Troubleshooting
 
 If `bash scripts/verify-staging.sh` fails:
 
+- confirm Bash, `psql`, and `curl` are installed in the shell you are using
 - confirm `.env.staging` was copied from `.env.staging.example`
 - re-check `STAGING_ASAAS_WEBHOOK_TOKEN` and `STAGING_ASAAS_ACCESS_TOKEN`
 - confirm all six billing migrations above were applied to the staging database
 - verify `STAGING_API_URL` points at the deployed staging environment
+
+If `npx tsx scripts/check-staging-billing-state.ts ...` fails:
+
+- confirm `psql` is available on `PATH`
+- verify `STAGING_DB_URL` points at the same staging database verified by `scripts/verify-staging.sh`
+
+If `npx tsx scripts/replay-staging-asaas.ts ...` fails:
+
+- rerun the same command with `--dry-run`
+- confirm the webhook token matches the staging deployment
+- confirm you chose the expected `externalReference` shape for the scenario under test
+- compare the payload to the current webhook semantics in [../billing/IMPLEMENTATION.md](../billing/IMPLEMENTATION.md)
 
 ## Related docs
 

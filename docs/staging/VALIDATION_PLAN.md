@@ -22,6 +22,12 @@ bash scripts/verify-staging.sh
 ```
 
 5. Confirm the staging test user exists, for example `usr_staging_001`.
+6. Confirm the committed helper commands work locally:
+
+```bash
+npx tsx scripts/replay-staging-asaas.ts --list-scenarios
+npx tsx scripts/check-staging-billing-state.ts --help
+```
 
 ## Proof set
 
@@ -29,7 +35,9 @@ bash scripts/verify-staging.sh
 
 ```bash
 npm run typecheck
-npm test
+npm test -- src/lib/asaas/event-handlers.test.ts src/app/api/webhook/asaas/route.test.ts src/lib/asaas/credit-grants.test.ts src/lib/asaas/quota.test.ts src/app/api/checkout/route.test.ts
+npx tsx scripts/replay-staging-asaas.ts --list-scenarios
+npx tsx scripts/check-staging-billing-state.ts --help
 ```
 
 ### Live staging proof
@@ -37,6 +45,15 @@ npm test
 ```bash
 bash scripts/verify-staging.sh
 ```
+
+## Reference-shape note
+
+Phase 3 still needs to validate the canonical checkout `externalReference` shape in staging.
+
+- Current webhook docs and tests exercise `curria:v1:c:<checkoutReference>`.
+- Current checkout creation code still emits `curria:v1:u:<appUserId>:c:<checkoutReference>`.
+
+Use the replay helper's `--app-user` flag when you need to reproduce the checkout-created shape. Omit `--app-user` when validating the shorter v1 webhook path. Do not silently normalize this difference in staging evidence.
 
 ## Scenario 1: One-time settlement
 
@@ -54,6 +71,14 @@ Expected path:
    - `user_quotas.credits_remaining >= credit_accounts.credits_remaining`
 5. Replay with `payment.externalReference = null` and `payment.checkoutSession = <checkout_session_id>` and verify the same checkout still settles exactly once.
 
+Suggested commands:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --checkout <checkout_reference>
+npx tsx scripts/replay-staging-asaas.ts --scenario one_time_settlement --checkout <checkout_reference> --payment <payment_id> [--app-user <user_id>] --output .planning/phases/03-billing-settlement-validation/03-SCENARIO-RESPONSES.json
+npx tsx scripts/check-staging-billing-state.ts --checkout <checkout_reference>
+```
+
 ## Scenario 2: Invalid subscription snapshot is ignored
 
 Goal: inactive or deleted snapshots never grant credits.
@@ -66,6 +91,12 @@ Verify:
 - response body contains `ignored: true`
 - no credit change occurs
 - any referenced pending recurring checkout may become `canceled`
+
+Suggested command:
+
+```bash
+npx tsx scripts/replay-staging-asaas.ts --scenario inactive_subscription_snapshot --checkout <checkout_reference> --subscription <subscription_id> [--app-user <user_id>]
+```
 
 ## Scenario 3: Initial recurring activation from settlement
 
@@ -82,6 +113,12 @@ Expected path:
    - `processed_events.event_type = 'SUBSCRIPTION_STARTED'`
    - the displayed plan total is at least the runtime balance
 
+Suggested command:
+
+```bash
+npx tsx scripts/replay-staging-asaas.ts --scenario initial_recurring_activation --checkout <checkout_reference> --subscription <subscription_id> --payment <payment_id> [--app-user <user_id>]
+```
+
 ## Scenario 4: Renewal replaces balance
 
 Goal: renewals replace the previous cycle balance once.
@@ -94,6 +131,12 @@ Expected path:
    - the balance becomes exactly the plan allocation
    - the previous cycle remainder is not added on top
    - `processed_events.event_type = 'SUBSCRIPTION_RENEWED'`
+
+Suggested command:
+
+```bash
+npx tsx scripts/replay-staging-asaas.ts --scenario renewal_replace_balance --checkout <checkout_reference> --subscription <subscription_id> --payment <payment_id> [--app-user <user_id>]
+```
 
 ## Scenario 5: Cancellation updates metadata only
 
@@ -112,6 +155,12 @@ Verify:
 - credits stay unchanged
 - `processed_events.event_type = 'SUBSCRIPTION_CANCELED'`
 
+Suggested command:
+
+```bash
+npx tsx scripts/replay-staging-asaas.ts --scenario cancellation_metadata_only --subscription <subscription_id> [--checkout <checkout_reference>] [--app-user <user_id>]
+```
+
 ## Scenario 6: Duplicate delivery
 
 Goal: the same economic event never grants credits twice.
@@ -121,6 +170,13 @@ Verify:
 - replaying the same payment payload twice changes credits once
 - replaying both `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` for the same payment still changes credits once
 
+Suggested command:
+
+```bash
+npx tsx scripts/replay-staging-asaas.ts --scenario duplicate_delivery --checkout <checkout_reference> --payment <payment_id> [--subscription <subscription_id>] [--app-user <user_id>]
+npx tsx scripts/replay-staging-asaas.ts --scenario duplicate_delivery --checkout <checkout_reference> --payment <payment_id> [--subscription <subscription_id>] [--app-user <user_id>]
+```
+
 ## Scenario 7: Partial-success reconciliation
 
 Goal: a duplicate replay can repair stale checkout state without re-granting credits.
@@ -129,6 +185,12 @@ Verify:
 
 - if the economic mutation already exists but checkout status is stale, a replay does not grant credits again
 - checkout status converges after reconciliation
+
+Suggested command:
+
+```bash
+npx tsx scripts/replay-staging-asaas.ts --scenario partial_success_reconcile --checkout <checkout_reference> --payment <payment_id> [--subscription <subscription_id>] [--checkout-session <session_id>] [--app-user <user_id>]
+```
 
 ## Final checks
 
@@ -160,3 +222,14 @@ WHERE status = 'created'
 ```
 
 Expected: zero rows, or only rows currently under investigation.
+
+## Evidence checklist
+
+For every scenario, record:
+
+- command executed
+- whether `--app-user` was used
+- webhook response body
+- pre and post snapshots from `scripts/check-staging-billing-state.ts`
+- `BILL-01`, `BILL-02`, and `BILL-03` pass or fail judgment
+- any warning or open gap with likely owner files
