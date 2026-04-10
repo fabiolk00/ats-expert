@@ -11,9 +11,14 @@ import {
 
 describe('audit-secrets helpers', () => {
   it('catches literal fallback secrets after process.env expressions', () => {
+    const simulatedAssignment = [
+      'OPENAI_API_KEY',
+      ": process.env.OPENAI_API_KEY ?? 'live-secret-value',",
+    ].join('')
+
     const findings = findSecretAssignments(
       'scripts/example.mjs',
-      "OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? 'live-secret-value',",
+      simulatedAssignment,
     )
 
     expect(findings).toEqual([
