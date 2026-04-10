@@ -23,6 +23,21 @@ bash scripts/verify-staging.sh
 
 5. Confirm the staging test user exists, for example `usr_staging_001`.
 
+## Proof set
+
+### Repo-local proof
+
+```bash
+npm run typecheck
+npm test
+```
+
+### Live staging proof
+
+```bash
+bash scripts/verify-staging.sh
+```
+
 ## Scenario 1: One-time settlement
 
 Goal: credits move only after a settled payment event.

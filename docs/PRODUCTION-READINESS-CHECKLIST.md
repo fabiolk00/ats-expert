@@ -136,13 +136,23 @@ Expected values include:
 - `SUBSCRIPTION_UPDATED`
 - `SUBSCRIPTION_CANCELED`
 
-## Verification commands
+## Proof set
 
-Run these before calling the rollout ready:
+### Repo-local proof
+
+Run these in the repository before calling the rollout ready:
 
 ```bash
 npm run typecheck
 npm test
+```
+
+### Live staging proof
+
+Run the staging preflight before executing billing scenarios:
+
+```bash
+bash scripts/verify-staging.sh
 ```
 
 ## Linked docs

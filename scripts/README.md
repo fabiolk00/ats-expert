@@ -37,3 +37,18 @@ bash scripts/verify-staging.sh
 
 - Keep scripts here focused on operator workflows, validation, or one-off engineering support tasks.
 - If a script becomes part of the product runtime, move it under `src/` or wire it through a first-class app command instead.
+
+## Phase 1 proof set
+
+### Repo-local proof
+
+```bash
+npm run typecheck
+npm test
+```
+
+### Live staging proof
+
+```bash
+bash scripts/verify-staging.sh
+```
