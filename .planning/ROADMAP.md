@@ -12,7 +12,7 @@ This roadmap starts milestone `v1.1 Agent Reliability and Response Continuity` a
 - Decimal phases (for urgent insertions) appear between surrounding integers in numeric order.
 
 - [x] **Phase 5: Deployed Agent Parity and Evidence** - Prove which build, model, and recovery path the live `/api/agent` route is serving. (completed 2026-04-10)
-- [ ] **Phase 6: Dialog Continuity and Model Routing Hardening** - Eliminate truncation-driven repetition and keep dialog or confirm turns on the intended model contract.
+- [x] **Phase 6: Dialog Continuity and Model Routing Hardening** - Eliminate truncation-driven repetition and keep dialog or confirm turns on the intended model contract. (completed 2026-04-10)
 - [ ] **Phase 7: Transcript Integrity and End-to-End Agent Verification** - Prove the final rendered chat transcript matches the backend stream and recovery behavior.
 
 ## Phase Details
@@ -43,9 +43,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01: Tighten dialog fallback selection and latest-intent preservation in the agent loop
-- [ ] 06-02: Align per-phase model routing with the documented env contract
-- [ ] 06-03: Add targeted regressions for truncation, empty-response recovery, and repeat-request flows
+- [x] 06-01: Tighten dialog fallback selection and latest-intent preservation in the agent loop
+- [x] 06-02: Align per-phase model routing with the documented env contract
+- [x] 06-03: Add targeted regressions for truncation, empty-response recovery, and repeat-request flows
 
 ### Phase 7: Transcript Integrity and End-to-End Agent Verification
 **Goal**: Verify that the assistant message the user sees matches the backend stream outcome and stays stable under degraded paths.
@@ -70,5 +70,5 @@ Phases execute in numeric order: 5 -> 6 -> 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 5. Deployed Agent Parity and Evidence | 3/3 | Complete   | 2026-04-10 |
-| 6. Dialog Continuity and Model Routing Hardening | 0/3 | Pending | - |
+| 6. Dialog Continuity and Model Routing Hardening | 3/3 | Complete    | 2026-04-10 |
 | 7. Transcript Integrity and End-to-End Agent Verification | 0/3 | Pending | - |

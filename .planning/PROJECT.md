@@ -33,12 +33,13 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - [x] Phase 3: Billing settlement, replay safety, and dashboard credit totals are validated end-to-end with live evidence.
 - [x] Phase 4: Production debugging is fast enough to diagnose agent, billing, session, file, webhook, and profile import failures, and the core funnel now surfaces safer actionable error states.
 - [x] Phase 5: `/api/agent` now exposes release provenance, a safe parity CLI and runbook exist, and automated coverage protects the runtime evidence contract.
+- [x] Phase 6: Dialog follow-ups now preserve rewrite intent, degraded recovery avoids stale vacancy-bootstrap repetition, and `dialog` plus `confirm` share one explicit model-routing contract.
 
 ### Active
 
-- [ ] A dialog follow-up like `reescreva` returns a concrete rewrite or a non-repetitive continuation instead of repeating earlier vacancy bootstrap copy.
 - [ ] Streamed chat transcripts preserve one coherent assistant turn per request, even when truncation recovery or fallback paths fire.
-- [ ] Automated verification covers deployment parity, model selection, truncation recovery, and final rendered chat output through the real route seams.
+- [ ] Automated verification covers deployment parity, model selection, truncation recovery, and final rendered chat output through the real route and visible transcript seams.
+- [ ] The original `reescreva` incident is reproduced and closed with committed evidence that ties the UI transcript to the backend stream.
 
 ### Out of Scope
 
@@ -50,9 +51,9 @@ A job seeker can reliably turn their real profile and a target role into an hone
 
 - The existing codebase is a Next.js 14 App Router monolith with Clerk auth, Supabase/Postgres persistence, Prisma migrations, OpenAI agent orchestration, Asaas billing, and LinkdAPI profile import.
 - v1.0 already hardened launch-critical configuration, browser verification, billing settlement validation, and structured observability around the existing funnel.
-- A live user transcript now shows a different failure mode from the earlier empty-fallback bug: a short follow-up in `dialog` (`reescreva`) still hits repeated `finishReason: "length"` completions and the visible assistant reply repeats the earlier vacancy acknowledgment instead of continuing the rewrite.
-- The affected live logs do not include the newer `model`, `assistantTextChars`, or `fallbackKind` fields now present in the repo's agent loop, which strongly suggests runtime parity between current code and the deployed environment is not yet proven.
-- The highest-leverage next work is therefore not new product breadth, but proving deployment parity, tightening dialog recovery, and verifying the backend and frontend agree on the final rendered transcript.
+- Phase 5 proved the repo can identify the serving `/api/agent` build and model contract, but the committed parity check still needs to be run against the active deployment when investigating live incidents.
+- Phase 6 hardened the backend seam behind the `reescreva` incident: terse rewrite follow-ups now preserve rewrite intent, stale bootstrap fragments can be replaced by better continuity text, and `dialog` plus `confirm` share one explicit resolved-model contract.
+- The remaining milestone risk is now UI-visible transcript integrity. The next work must prove that the assistant turn the user sees in chat matches the stabilized backend stream and recovery behavior under degraded paths.
 
 ## Constraints
 
@@ -71,6 +72,8 @@ A job seeker can reliably turn their real profile and a target role into an hone
 | Include milestone research before defining requirements | The issue spans deployment parity, model routing, truncation recovery, and transcript rendering, so a small research pass reduces guesswork | Good |
 | Treat v1.0 launch hardening as the validated baseline | The next milestone should build on the shipped reliability work instead of re-planning it | Good |
 | Require end-to-end transcript proof, not only loop-level tests | The user-facing bug is about what appears in chat, so backend correctness alone is not enough | Pending |
+| Treat terse rewrite requests as explicit rewrite intent during degraded dialog recovery | Short follow-ups like `reescreva` were the concrete live failure mode and needed a dedicated continuity path | Good |
+| Let `dialog` and `confirm` inherit the resolved agent model unless `OPENAI_DIALOG_MODEL` is explicitly set | Avoids hidden stronger defaults and keeps runtime behavior aligned with the documented env contract | Good |
 
 ## Evolution
 
@@ -89,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after completing Phase 5*
+*Last updated: 2026-04-10 after completing Phase 6*

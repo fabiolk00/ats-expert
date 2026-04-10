@@ -13,9 +13,9 @@
 
 ### Dialog Continuity
 
-- [ ] **AGNT-01**: User can send a follow-up rewrite request in `dialog` and receive a concrete rewrite or a non-repetitive continuation response.
-- [ ] **AGNT-02**: Dialog and confirm turns use the resolved model contract, including explicit `OPENAI_DIALOG_MODEL` overrides when present and agent-model fallback when absent.
-- [ ] **AGNT-03**: Truncation and empty-response recovery preserve the latest rewrite intent and target-job context instead of reverting to stale bootstrap behavior.
+- [x] **AGNT-01**: User can send a follow-up rewrite request in `dialog` and receive a concrete rewrite or a non-repetitive continuation response.
+- [x] **AGNT-02**: Dialog and confirm turns use the resolved model contract, including explicit `OPENAI_DIALOG_MODEL` overrides when present and agent-model fallback when absent.
+- [x] **AGNT-03**: Truncation and empty-response recovery preserve the latest rewrite intent and target-job context instead of reverting to stale bootstrap behavior.
 
 ### Transcript Integrity and Verification
 
@@ -50,9 +50,9 @@
 | OPS-04 | Phase 5 | Complete |
 | OPS-05 | Phase 5 | Complete |
 | OPS-06 | Phase 5 | Complete |
-| AGNT-01 | Phase 6 | Pending |
-| AGNT-02 | Phase 6 | Pending |
-| AGNT-03 | Phase 6 | Pending |
+| AGNT-01 | Phase 6 | Complete |
+| AGNT-02 | Phase 6 | Complete |
+| AGNT-03 | Phase 6 | Complete |
 | UX-01 | Phase 7 | Pending |
 | QA-04 | Phase 7 | Pending |
 | QA-05 | Phase 7 | Pending |
@@ -64,4 +64,4 @@
 
 ---
 *Requirements defined: 2026-04-10*
-*Last updated: 2026-04-10 after roadmap creation*
+*Last updated: 2026-04-10 after completing Phase 6*
