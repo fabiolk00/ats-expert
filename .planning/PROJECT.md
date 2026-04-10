@@ -2,7 +2,7 @@
 
 ## What This Is
 
-CurrIA is an AI-powered resume optimization platform for Brazilian job seekers. It combines profile seeding, conversational resume analysis, job-targeted rewriting, ATS guidance, file generation, and credit-based billing inside a single authenticated workspace. This planning baseline treats the product as a brownfield system and focuses the next milestone on making the core funnel safe to launch.
+CurrIA is an AI-powered resume optimization platform for Brazilian job seekers. It combines profile seeding, conversational resume analysis, job-targeted rewriting, ATS guidance, file generation, and credit-based billing inside a single authenticated workspace. This planning baseline treats the product as a brownfield system and focuses the current milestone on making the existing launch funnel safe to ship.
 
 ## Core Value
 
@@ -20,10 +20,10 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - [x] Paid usage can be enforced through credit-backed session creation and Asaas billing flows.
 - [x] Paid users can track job applications inside the dashboard.
 - [x] Phase 1: Runtime, CI, and operator docs share the same provider contract and fail fast on missing critical configuration.
+- [x] Phase 2: Browser verification covers auth, manual profile setup, session creation, target outcome, preview readiness, artifact delivery, and CI gating for the core funnel.
 
 ### Active
 
-- [ ] Core launch funnel is reliable across auth, profile setup, agent chat, target resume creation, and artifact download.
 - [ ] Billing settlement and credit behavior are validated end-to-end before launch.
 - [ ] Production debugging is fast enough to diagnose failures in agent, billing, and profile import flows.
 
@@ -37,8 +37,8 @@ A job seeker can reliably turn their real profile and a target role into an hone
 
 - The existing codebase is a Next.js 14 App Router monolith with Clerk auth, Supabase/Postgres persistence, Prisma migrations, OpenAI agent orchestration, Asaas billing, and LinkdAPI profile import.
 - README and current docs show the product already covers analysis, rewriting, target resume creation, file generation, and paid plans.
-- The highest-risk gaps are operational rather than breadth: no committed browser E2E suite, incomplete production-readiness checklist, CI/runtime env drift, and some fail-open configuration or logging behavior in fragile routes.
-- Phase 1 closed the env-contract drift and fail-open configuration gaps, so the next bottleneck is proving the core journey in the browser and then validating live billing behavior in staging.
+- The highest-risk gaps are operational rather than breadth: launch confidence now depends most on live billing validation and diagnosable failure handling.
+- Phase 1 closed the env-contract drift and fail-open configuration gaps, and Phase 2 closed the browser verification gap with a committed Playwright lane plus CI coverage.
 - Billing logic was recently updated to settlement-based processing, so launch work must preserve idempotency and credit correctness rather than redesign billing from scratch.
 - The agent, billing, and profile import paths are already feature-rich but live in large or sensitive modules, so safer verification and observability are higher leverage than adding more surface area first.
 
@@ -46,16 +46,17 @@ A job seeker can reliably turn their real profile and a target role into an hone
 
 - **Tech stack**: Stay within Next.js 14, React 18, TypeScript, Clerk, Supabase/Postgres, Prisma, OpenAI, Asaas, and the existing docs/testing toolchain - minimize architecture churn in a brownfield repo.
 - **Reliability**: Changes must preserve canonical `cvState`, billing idempotency, and target-resume/history behavior - these are already established product contracts.
-- **Security**: Failures around provider credentials, webhooks, and auth cannot be silent - the next milestone must reduce misconfiguration risk rather than mask it.
-- **Testing**: Vitest coverage already exists, but launch confidence requires browser-level verification on top of it - do not replace existing tests; extend the stack.
+- **Security**: Failures around provider credentials, webhooks, and auth cannot be silent - the milestone should reduce misconfiguration and auth risk rather than mask it.
+- **Testing**: Vitest coverage already exists, and launch confidence now depends on keeping the committed Playwright lane green alongside it.
 - **Scope**: The milestone should improve launch readiness of the current product, not reopen product strategy or add large new feature pillars.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Focus the next milestone on launch hardening for the core funnel | The product already has breadth; the main gaps are verification, deployment safety, and diagnosability | Pending |
+| Focus the next milestone on launch hardening for the core funnel | The product already has breadth; the main gaps are verification, deployment safety, and diagnosability | Good |
 | Finish Phase 1 before adding browser coverage | Contract drift and fail-open provider behavior would have made browser failures noisy and misleading | Good |
+| Use a mocked-provider Playwright lane with a signed E2E auth seam and stable UI hooks | The core funnel needed deterministic browser proof that still exercised real product state and artifact delivery | Good |
 | Treat current shipped capabilities as the validated baseline | This is a brownfield repo with working auth, profile, agent, billing, and file-generation flows | Good |
 | Defer PDF profile upload until after core launch hardening | It is a visible onboarding gap, but less leverage than making the current funnel safe to ship | Pending |
 | Prefer additive hardening over architectural rewrites | Large sensitive modules exist today; verification and observability reduce risk faster than broad refactors | Good |
@@ -65,11 +66,10 @@ A job seeker can reliably turn their real profile and a target role into an hone
 This document evolves at phase transitions and milestone boundaries.
 
 **After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? -> Move to Out of Scope with reason
-2. Requirements validated? -> Move to Validated with phase reference
-3. New requirements emerged? -> Add to Active
-4. Decisions to log? -> Add to Key Decisions
-5. "What This Is" still accurate? -> Update if drifted
+1. Requirements validated? -> Move to Validated with phase reference
+2. Remaining launch blockers? -> Keep in Active
+3. Decisions to log? -> Add to Key Decisions
+4. Context drifted? -> Update What This Is and Context
 
 **After each milestone** (via `/gsd-complete-milestone`):
 1. Full review of all sections
@@ -78,4 +78,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after Phase 1 completion*
+*Last updated: 2026-04-10 after Phase 2 completion*

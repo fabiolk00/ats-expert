@@ -13,9 +13,9 @@
 
 ### Core Journey Verification
 
-- [ ] **QA-01**: Team can run automated browser tests covering auth, profile setup or edit, and session creation.
-- [ ] **QA-02**: Team can run automated browser tests covering agent interaction, target resume creation, and artifact download.
-- [ ] **QA-03**: CI runs reliable critical-path verification without depending on fragile live-provider behavior.
+- [x] **QA-01**: Team can run automated browser tests covering auth, profile setup or edit, and session creation.
+- [x] **QA-02**: Team can run automated browser tests covering agent interaction, target resume creation, and artifact download.
+- [x] **QA-03**: CI runs reliable critical-path verification without depending on fragile live-provider behavior.
 
 ### Billing Validation
 
@@ -55,9 +55,9 @@
 | OPS-01 | Phase 1 | Complete |
 | OPS-02 | Phase 1 | Complete |
 | OPS-03 | Phase 1 | Complete |
-| QA-01 | Phase 2 | Pending |
-| QA-02 | Phase 2 | Pending |
-| QA-03 | Phase 2 | Pending |
+| QA-01 | Phase 2 | Complete |
+| QA-02 | Phase 2 | Complete |
+| QA-03 | Phase 2 | Complete |
 | BILL-01 | Phase 3 | Pending |
 | BILL-02 | Phase 3 | Pending |
 | BILL-03 | Phase 3 | Pending |
@@ -71,4 +71,4 @@
 
 ---
 *Requirements defined: 2026-04-09*
-*Last updated: 2026-04-10 after Phase 1 completion*
+*Last updated: 2026-04-10 after Phase 2 completion*

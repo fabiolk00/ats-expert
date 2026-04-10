@@ -13,7 +13,7 @@ This roadmap turns an already feature-rich brownfield product into a launch-read
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Contract Alignment and Fail-Fast Guards** - Remove silent configuration drift and make release prerequisites explicit. (completed 2026-04-10)
-- [ ] **Phase 2: Core Funnel Browser Verification** - Add browser-level coverage for the launch-critical user journey.
+- [x] **Phase 2: Core Funnel Browser Verification** - Add browser-level coverage for the launch-critical user journey. (completed 2026-04-10)
 - [ ] **Phase 3: Billing Settlement Validation** - Prove that staged billing behavior matches the current contract and stays idempotent.
 - [ ] **Phase 4: Observability and Launch Readiness** - Standardize diagnostics, error handling, and final launch checks.
 
@@ -45,9 +45,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Set up browser-test infrastructure and reusable fixtures
-- [ ] 02-02: Implement launch-critical journeys with staging-safe provider handling
-- [ ] 02-03: Integrate browser verification into CI and contributor docs
+- [x] 02-01: Set up browser-test infrastructure and reusable fixtures
+- [x] 02-02: Implement launch-critical journeys with staging-safe provider handling
+- [x] 02-03: Integrate browser verification into CI and contributor docs
 
 ### Phase 3: Billing Settlement Validation
 **Goal**: Verify that the settlement-based billing contract behaves correctly in staging and remains credit-safe under replay scenarios.
@@ -87,6 +87,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Contract Alignment and Fail-Fast Guards | 3/3 | Complete    | 2026-04-10 |
-| 2. Core Funnel Browser Verification | 0/3 | Not started | - |
+| 2. Core Funnel Browser Verification | 3/3 | Complete    | 2026-04-10 |
 | 3. Billing Settlement Validation | 0/3 | Not started | - |
 | 4. Observability and Launch Readiness | 0/3 | Not started | - |
