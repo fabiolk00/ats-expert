@@ -7,9 +7,14 @@ import AuthLayout, { dynamic } from './layout'
 
 const mockGetCurrentAppUser = vi.fn()
 const mockGetUserBillingInfo = vi.fn()
+const mockCurrentUser = vi.fn()
 const mockRedirect = vi.fn((path: string) => {
   throw new Error(`redirect:${path}`)
 })
+
+vi.mock('@clerk/nextjs/server', () => ({
+  currentUser: () => mockCurrentUser(),
+}))
 
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: () => mockGetCurrentAppUser(),
@@ -40,6 +45,16 @@ vi.mock('@/components/dashboard/dashboard-shell', () => ({
 describe('AuthLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockCurrentUser.mockResolvedValue({
+      fullName: 'Fabio Kroker',
+      firstName: 'Fabio',
+      username: 'fabiok',
+      imageUrl: null,
+      primaryEmailAddress: {
+        emailAddress: 'fabio@example.com',
+      },
+      emailAddresses: [],
+    })
   })
 
   it('keeps the auth subtree force-dynamic', () => {

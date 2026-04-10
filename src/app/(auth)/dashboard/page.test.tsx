@@ -5,6 +5,16 @@ import '@testing-library/jest-dom'
 
 import DashboardPage, { dynamic, revalidate } from './page'
 
+const mockCurrentUser = vi.fn().mockResolvedValue({
+  fullName: 'Fabio Kroker',
+  firstName: 'Fabio',
+  username: 'fabiok',
+})
+
+vi.mock('@clerk/nextjs/server', () => ({
+  currentUser: () => mockCurrentUser(),
+}))
+
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn().mockResolvedValue(null),
 }))
@@ -47,7 +57,7 @@ describe('DashboardPage', () => {
 
     const workspace = screen.getByTestId('resume-workspace')
     expect(workspace).toHaveAttribute('data-session-id', '')
-    expect(workspace).toHaveAttribute('data-user-name', 'Voc\u00EA')
+    expect(workspace).toHaveAttribute('data-user-name', 'Fabio')
     expect(workspace).toHaveAttribute('data-credits', '0')
   })
 
