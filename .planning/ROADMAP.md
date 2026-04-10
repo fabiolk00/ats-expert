@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Align env contracts in runtime code, CI, and related docs
+- [x] 01-01: Align env contracts in runtime code, CI, and related docs
 - [ ] 01-02: Add or tighten fail-fast guards for critical provider configuration
 - [ ] 01-03: Refresh production-readiness and staging validation instructions
 
@@ -86,7 +86,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Contract Alignment and Fail-Fast Guards | 0/3 | Not started | - |
+| 1. Contract Alignment and Fail-Fast Guards | 1/3 | In Progress | - |
 | 2. Core Funnel Browser Verification | 0/3 | Not started | - |
 | 3. Billing Settlement Validation | 0/3 | Not started | - |
 | 4. Observability and Launch Readiness | 0/3 | Not started | - |
