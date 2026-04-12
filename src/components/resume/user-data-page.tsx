@@ -4,17 +4,28 @@ import { useEffect, useMemo, useState } from "react"
 import {
   ArrowRight,
   BadgeCheck,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
   FileSearch,
   Layers3,
   Linkedin,
   Loader2,
+  Upload,
+  MapPin,
   ShieldCheck,
   Sparkles,
+  Target,
+  TextSelect,
+  ListChecks,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { assessAtsEnhancementReadiness } from "@/lib/profile/ats-enhancement"
 import { cvStateToTemplateData } from "@/lib/templates/cv-state-to-template-data"
 import { cn } from "@/lib/utils"
@@ -37,6 +48,12 @@ type ProfileResponse = {
 
 type UserDataPageProps = {
   currentCredits?: number
+}
+
+type AtsFeature = {
+  id: string
+  label: string
+  icon: typeof FileSearch
 }
 
 function trimOptional(value?: string): string | undefined {
@@ -101,102 +118,36 @@ function sanitizeResumeData(value: CVState): CVState {
   }
 }
 
-const primaryButtonClassName =
-  "rounded-full bg-slate-950 px-5 font-semibold text-white shadow-sm hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+const atsFeatures: AtsFeature[] = [
+  { id: "analysis", label: "analise ATS geral", icon: FileSearch },
+  { id: "keywords", label: "melhoria de palavras-chave", icon: Target },
+  { id: "structure", label: "melhoria de estrutura", icon: ListChecks },
+  { id: "rewrite", label: "rewrite otimizado para ATS", icon: TextSelect },
+]
 
-const secondaryButtonClassName =
-  "rounded-full border border-slate-300 bg-white px-5 font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-transparent dark:text-slate-100 dark:hover:bg-slate-800"
+function formatUpdatedLabel(lastUpdatedAt: string | null): string {
+  if (!lastUpdatedAt) {
+    return "Nenhuma atualizacao salva ainda."
+  }
 
-function AtsTemplatePreview({ value }: { value: CVState }) {
-  const template = cvStateToTemplateData(value)
-  const experiences = template.experiences.length > 0
-    ? template.experiences.slice(0, 2)
-    : [{
-        title: "Experiencia principal",
-        company: "Empresa",
-        location: "",
-        period: "Periodo",
-        techStack: "",
-        bullets: [{ text: "Os bullets reescritos para ATS aparecem aqui." }],
-      }]
+  return `Atualizado em ${new Date(lastUpdatedAt).toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+  })} as ${new Date(lastUpdatedAt).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  })}`
+}
 
-  return (
-    <section className="rounded-[28px] border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur dark:border-border dark:bg-card/90">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-            Template View
-          </p>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            Preview do curriculo base
-          </h2>
-        </div>
-        <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium text-slate-600 dark:border-border dark:bg-background/50 dark:text-slate-300">
-          Mesmo template final
-        </div>
-      </div>
+function buildInitials(fullName: string): string {
+  const initials = fullName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((chunk) => chunk[0])
+    .join("")
 
-      <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-5 dark:border-border dark:bg-background/40">
-        <div className="space-y-2 border-b border-slate-200 pb-4 dark:border-border">
-          <h3 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-            {template.fullName || "Seu nome"}
-          </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {template.jobTitle || "Cargo principal"}
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {[template.email, template.phone, template.linkedin, template.location].filter(Boolean).join(" • ") || "Contato e links aparecem aqui"}
-          </p>
-        </div>
-
-        <div className="mt-4 space-y-4">
-          <section className="space-y-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-              Resumo
-            </p>
-            <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">
-              {template.summary || "Seu resumo profissional aparece aqui no template final."}
-            </p>
-          </section>
-
-          <section className="space-y-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-              Skills
-            </p>
-            <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">
-              {template.skills || "Suas skills priorizadas aparecem aqui."}
-            </p>
-          </section>
-
-          <section className="space-y-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-              Experiencia
-            </p>
-            <div className="space-y-3">
-              {experiences.map((experience, index) => (
-                <div key={`${experience.title}-${index}`} className="space-y-1">
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    {experience.title}{experience.company ? ` - ${experience.company}` : ""}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{experience.period}</p>
-                  <ul className="space-y-1">
-                    {experience.bullets.slice(0, 2).map((bullet, bulletIndex) => (
-                      <li
-                        key={`${experience.title}-${bulletIndex}`}
-                        className="text-sm leading-5 text-slate-700 dark:text-slate-300"
-                      >
-                        • {bullet.text}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-      </div>
-    </section>
-  )
+  return initials || "CV"
 }
 
 export default function UserDataPage({ currentCredits = 0 }: UserDataPageProps) {
@@ -209,6 +160,7 @@ export default function UserDataPage({ currentCredits = 0 }: UserDataPageProps) 
   const [isSaving, setIsSaving] = useState(false)
   const [isRunningAtsEnhancement, setIsRunningAtsEnhancement] = useState(false)
   const [allSectionsClosed, setAllSectionsClosed] = useState(false)
+  const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -370,316 +322,399 @@ export default function UserDataPage({ currentCredits = 0 }: UserDataPageProps) 
     { label: "Skills", value: `${resumeData.skills.length}`, icon: Sparkles },
   ]
 
-  const updatedLabel = lastUpdatedAt
-    ? `Atualizado em ${new Date(lastUpdatedAt).toLocaleDateString("pt-BR", {
-        timeZone: "America/Sao_Paulo",
-      })} as ${new Date(lastUpdatedAt).toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "America/Sao_Paulo",
-      })}`
-    : "Nenhuma atualizacao salva ainda."
-
   const sanitizedResumeData = useMemo(() => sanitizeResumeData(resumeData), [resumeData])
+  const template = useMemo(() => cvStateToTemplateData(sanitizedResumeData), [sanitizedResumeData])
+  const previewExperiences = template.experiences.length > 0
+    ? template.experiences
+    : [{
+        title: "Experiencia principal",
+        company: "",
+        location: "",
+        period: "Periodo",
+        techStack: "",
+        bullets: [{ text: "Os bullets reescritos para ATS aparecem aqui." }],
+      }]
+
   const atsReadiness = useMemo(
     () => assessAtsEnhancementReadiness(sanitizedResumeData),
     [sanitizedResumeData],
   )
-  const atsButtonDisabled = (
-    isLoadingProfile
-    || isSaving
-    || isRunningAtsEnhancement
-    || !atsReadiness.isReady
-    || currentCredits < 1
-  )
+  const updatedLabel = formatUpdatedLabel(lastUpdatedAt)
+  const isBusy = isLoadingProfile || isSaving || isRunningAtsEnhancement
+  const atsButtonDisabled = isBusy || !atsReadiness.isReady || currentCredits < 1
+  const initials = buildInitials(template.fullName)
 
   return (
     <div
       data-testid="user-data-page"
       data-loading={String(isLoadingProfile)}
-      className={cn(
-        "relative overflow-hidden bg-slate-50/70 font-sans dark:bg-background",
-        allSectionsClosed ? "min-h-screen md:h-screen md:overflow-y-hidden" : "min-h-screen",
-      )}
+      className="min-h-screen bg-background text-foreground"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.12),_transparent_24%),linear-gradient(to_bottom,rgba(255,255,255,0.3),transparent_30%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_32%),radial-gradient(circle_at_top_right,_rgba(15,23,42,0.35),_transparent_28%),linear-gradient(to_bottom,rgba(15,23,42,0.16),transparent_36%)]" />
-
-      <main
-        className={cn(
-          "relative mx-auto max-w-7xl space-y-8 px-4 py-8 md:py-12",
-          allSectionsClosed && "space-y-4 py-5 md:gap-3 md:py-3",
-        )}
-      >
-        <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white/90 shadow-sm backdrop-blur dark:border-border dark:bg-card/90">
-          {allSectionsClosed ? (
-            <div className="px-4 py-4 md:px-5 md:py-5">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-200">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Base profissional
-                  </div>
-                  <div className="space-y-1.5">
-                    <h1 className="max-w-2xl text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-2xl">
-                      Revise seu curriculo com uma base limpa e consistente.
-                    </h1>
-                    <p className="max-w-2xl text-xs leading-5 text-slate-500 dark:text-slate-400 md:text-sm">
-                      Importe do LinkedIn, ajuste os campos manualmente e deixe seu perfil pronto para novas sessoes.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 md:min-w-[280px]">
-                  <Button
-                    onClick={() => setIsImportOpen(true)}
-                    className={cn("flex h-10 items-center gap-2 px-4", primaryButtonClassName)}
-                  >
-                    <Linkedin className="h-4 w-4" />
-                    Importar do LinkedIn ou PDF
-                  </Button>
-                  <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-center text-xs text-slate-600 dark:border-border dark:bg-background/60 dark:text-slate-300">
-                    {profileBadgeText}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-3 gap-2.5">
-                {stats.map((stat) => {
-                  const Icon = stat.icon
-
-                  return (
-                    <div
-                      key={stat.label}
-                      className="flex min-h-[122px] flex-col rounded-2xl border border-slate-200 bg-slate-50/70 px-3.5 py-4 dark:border-border dark:bg-background/50 md:min-h-[136px] md:px-4 md:py-4.5"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-900 shadow-sm dark:bg-card dark:text-slate-100 md:h-11 md:w-11">
-                          <Icon className="h-4.5 w-4.5 md:h-5 md:w-5" />
-                        </div>
-                        <p className="text-[10px] leading-4 font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400 md:text-[11px]">
-                          {stat.label}
-                        </p>
-                      </div>
-                      <p className="flex flex-1 items-center justify-center text-center text-[32px] font-semibold leading-none text-slate-900 dark:text-slate-100 md:text-[38px]">
-                        {stat.value}
-                      </p>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-8 px-5 py-7 md:grid-cols-[1.3fr_0.7fr] md:px-8 md:py-8">
-              <div className="space-y-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-200">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Base profissional
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h1 className="max-w-2xl text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 md:text-4xl">
-                    {"Revise seu curr\u00edculo com uma base limpa e consistente."}
-                  </h1>
-                  <p className="max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400 md:text-base">
-                    {"Importe do LinkedIn, ajuste os campos manualmente e deixe seu perfil pronto para novas sess\u00f5es."}
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <Button
-                    onClick={() => setIsImportOpen(true)}
-                    className={cn("flex h-11 items-center gap-2", primaryButtonClassName)}
-                  >
-                    <Linkedin className="h-4 w-4" />
-                    Importar do LinkedIn ou PDF
-                  </Button>
-                  <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600 dark:border-border dark:bg-background/60 dark:text-slate-300">
-                    {profileBadgeText}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3">
-                {stats.map((stat) => {
-                  const Icon = stat.icon
-
-                  return (
-                    <div
-                      key={stat.label}
-                      className="rounded-3xl border border-slate-200 bg-slate-50/70 p-4 dark:border-border dark:bg-background/50"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                            {stat.label}
-                          </p>
-                          <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{stat.value}</p>
-                        </div>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-900 shadow-sm dark:bg-card dark:text-slate-100">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          <div
+      <div className="flex h-screen w-full overflow-hidden bg-background">
+          <aside
             className={cn(
-              "border-t border-slate-100 text-slate-500 dark:border-border dark:text-slate-400",
-              allSectionsClosed ? "px-4 py-2 text-[11px] md:px-5" : "px-5 py-4 text-sm md:px-8",
+              "relative flex min-h-0 flex-col border-r border-border bg-card transition-all duration-300",
+              isPreviewCollapsed ? "w-16" : "w-80",
             )}
           >
-            {updatedLabel}
-          </div>
-        </section>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsPreviewCollapsed((current) => !current)}
+              className="absolute -right-3 top-6 z-10 h-6 w-6 rounded-full border border-border bg-background shadow-sm hover:bg-accent"
+              aria-label={isPreviewCollapsed ? "Expandir preview" : "Recolher preview"}
+            >
+              {isPreviewCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+            </Button>
 
-        {isLoadingProfile ? (
-          <div className="flex min-h-64 items-center justify-center rounded-[28px] border border-slate-200 bg-white/90 shadow-sm backdrop-blur dark:border-border dark:bg-card/90">
-            <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Carregando perfil salvo...
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-              <div
-                className={cn(
-                  "rounded-[28px] border border-slate-200 bg-white/90 shadow-sm backdrop-blur dark:border-border dark:bg-card/90",
-                  allSectionsClosed ? "min-h-0 p-3 md:h-full md:overflow-hidden md:p-3.5" : "p-4 md:p-6",
-                )}
-              >
-                <VisualResumeEditor
-                  value={resumeData}
-                  onChange={setResumeData}
-                  disabled={isSaving || isRunningAtsEnhancement}
-                  onAllSectionsClosedChange={setAllSectionsClosed}
-                  compactMode={allSectionsClosed}
-                />
+            {isPreviewCollapsed ? (
+              <div className="flex flex-col items-center gap-4 p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <span className="text-sm font-semibold text-primary">{initials}</span>
+                </div>
               </div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="p-5">
+                  <div className="mb-1 flex items-center justify-between gap-3 pr-10">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Template View
+                    </p>
+                    <Badge variant="secondary" className="px-2 py-0.5 text-[10px]">
+                      Mesmo template final
+                    </Badge>
+                  </div>
+                  <h2 className="mb-4 text-base font-semibold text-foreground">Preview do curriculo base</h2>
 
-              <aside className="space-y-6 xl:sticky xl:top-6 xl:self-start">
-                <AtsTemplatePreview value={sanitizedResumeData} />
-
-                <section className="rounded-[28px] border border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur dark:border-border dark:bg-card/90">
-                  <div className="space-y-4">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      ATS Enhancement
+                  <div className="mb-5 rounded-lg bg-muted/50 p-4">
+                    <div className="mb-3 flex items-start gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        <span className="text-lg font-semibold text-primary">{initials}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold text-foreground">
+                          {template.fullName || "Seu nome"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {template.jobTitle || "Cargo principal"}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-                        Melhorar meu curriculo para ATS
-                      </h2>
-                      <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-                        Use seu perfil base atual para gerar uma nova versao ATS, sem vaga especifica, com analise geral, melhoria de estrutura, palavras-chave e rewrite otimizado.
-                      </p>
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      {template.linkedin ? (
+                        <div className="flex items-center gap-2">
+                          <Linkedin className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{template.linkedin}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </div>
+                      ) : null}
+                      {template.location ? (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          <span>{template.location}</span>
+                        </div>
+                      ) : null}
+                      {!template.linkedin && !template.location ? (
+                        <p>Seus links e localizacao aparecem aqui.</p>
+                      ) : null}
                     </div>
+                  </div>
 
-                    <div className="grid gap-3">
-                      {[
-                        "analise ATS geral",
-                        "melhoria de palavras-chave",
-                        "melhoria de estrutura",
-                        "rewrite otimizado para ATS",
-                      ].map((item) => (
-                        <div key={item} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-700 dark:border-border dark:bg-background/40 dark:text-slate-300">
-                          <FileSearch className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                          <span>{item}</span>
+                  <div className="mb-5">
+                    <h4 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Resumo
+                    </h4>
+                    <p className="text-xs leading-relaxed text-foreground">
+                      {template.summary || "Seu resumo profissional aparece aqui no template final."}
+                    </p>
+                  </div>
+
+                  <Separator className="my-4" />
+
+                  <div className="mb-5">
+                    <h4 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Skills
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(sanitizedResumeData.skills.length > 0
+                        ? sanitizedResumeData.skills.slice(0, 12)
+                        : ["Suas skills priorizadas aparecem aqui"])
+                        .map((skill, index) => (
+                          <Badge
+                            key={`${skill}-${index}`}
+                            variant="outline"
+                            className="px-2 py-0.5 text-[10px] font-normal"
+                          >
+                            {skill}
+                          </Badge>
+                        ))}
+                      {sanitizedResumeData.skills.length > 12 ? (
+                        <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-normal">
+                          +{sanitizedResumeData.skills.length - 12} mais
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <Separator className="my-4" />
+
+                  <div>
+                    <h4 className="mb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Experiencia
+                    </h4>
+                    <div className="space-y-4">
+                      {previewExperiences.slice(0, 4).map((experience, index) => (
+                        <div key={`${experience.title}-${index}`} className="text-xs">
+                          <p className="leading-tight font-medium text-foreground">
+                            {experience.title || "Experiencia principal"}
+                            {experience.company ? ` - ${experience.company}` : ""}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {experience.period || "Periodo"}
+                          </p>
+                          <div className="mt-1 space-y-1">
+                            {experience.bullets.slice(0, 2).map((bullet, bulletIndex) => (
+                              <p
+                                key={`${experience.title}-${bulletIndex}`}
+                                className="line-clamp-2 leading-relaxed text-muted-foreground"
+                              >
+                                • {bullet.text}
+                              </p>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600 dark:border-border dark:bg-background/40 dark:text-slate-300">
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
-                        O que acontece ao clicar
-                      </p>
-                      <p className="mt-2 leading-6">
-                        Salvo seu snapshot atual, gero uma sessao derivada da base, crio a versao ATS e mantenho a base original preservada para comparacao.
-                      </p>
-                    </div>
-
-                    <Button
-                      type="button"
-                      disabled={atsButtonDisabled}
-                      onClick={() => void handleAtsEnhancement()}
-                      className="h-11 rounded-full bg-emerald-600 px-5 font-semibold text-white hover:bg-emerald-500 disabled:bg-slate-300 disabled:text-slate-600 dark:disabled:bg-slate-800 dark:disabled:text-slate-400"
-                    >
-                      {isRunningAtsEnhancement ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Gerando versao ATS
-                        </>
-                      ) : (
-                        <>
-                          Melhorar para ATS (1 credito)
-                          <ArrowRight className="h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
-
-                    <div className="space-y-2 text-xs text-slate-500 dark:text-slate-400">
-                      <p>Creditos disponiveis: {currentCredits}</p>
-                      {!atsReadiness.isReady ? (
-                        <p>Complete seu curriculo para gerar uma versao ATS.</p>
-                      ) : null}
-                      {atsReadiness.reasons.length > 0 ? (
-                        <ul className="space-y-1">
-                          {atsReadiness.reasons.map((reason) => (
-                            <li key={reason}>• {reason}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      {currentCredits < 1 ? (
-                        <p>Voce precisa de pelo menos 1 credito para gerar essa versao.</p>
-                      ) : null}
-                    </div>
                   </div>
-                </section>
-              </aside>
-            </div>
+                </div>
+              </div>
+            )}
+          </aside>
 
-            <div
-              className={cn(
-                "flex flex-col-reverse gap-3 pb-6 sm:flex-row sm:justify-end",
-                allSectionsClosed && "gap-2 pb-3 md:items-center md:justify-end md:pb-0",
-              )}
-            >
+          <main className="flex min-h-0 flex-1 overflow-hidden">
+            <section className="flex min-h-0 flex-1 flex-col border-r border-border">
+              <header className="shrink-0 border-b border-border bg-card px-6 py-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="mb-2 flex items-center gap-2">
+                      <Badge className="border-0 bg-primary/10 text-primary hover:bg-primary/10">
+                        <Sparkles className="mr-1 h-3 w-3" />
+                        Base profissional
+                      </Badge>
+                    </div>
+                    <h1 className="text-xl font-semibold text-foreground text-balance">
+                      Revise seu curriculo com uma base limpa e consistente.
+                    </h1>
+                    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                      Importe do LinkedIn, ajuste os campos manualmente e deixe seu perfil pronto para novas sessoes.
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => setIsImportOpen(true)}
+                    disabled={isBusy}
+                    className="gap-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Importar do LinkedIn ou PDF
+                  </Button>
+                  <span className="text-xs text-muted-foreground">{profileBadgeText}</span>
+                </div>
+              </div>
+              </header>
+
+              <div className="shrink-0 border-b border-border bg-card px-6 py-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                {stats.map((stat) => {
+                  const Icon = stat.icon
+
+                  return (
+                    <Card key={stat.label} className="border-border py-0 shadow-none">
+                      <CardContent className="p-4">
+                        <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+                          <Icon className="h-4 w-4" />
+                          <span className="text-xs font-medium uppercase tracking-wide">{stat.label}</span>
+                        </div>
+                        <p className="text-2xl font-semibold text-foreground">{stat.value}</p>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+                <p className="mt-3 text-xs text-muted-foreground">{updatedLabel}</p>
+              </div>
+
+            {isLoadingProfile ? (
+                <div className="flex min-h-[380px] flex-1 items-center justify-center px-6 py-10">
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Carregando perfil salvo...
+                </div>
+              </div>
+            ) : (
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  <div className="space-y-3 p-6">
+                    <VisualResumeEditor
+                      value={resumeData}
+                      onChange={setResumeData}
+                      disabled={isSaving || isRunningAtsEnhancement}
+                      onAllSectionsClosedChange={setAllSectionsClosed}
+                      compactMode={allSectionsClosed}
+                    />
+                  </div>
+                </div>
+            )}
+            </section>
+
+            <aside className="flex w-80 shrink-0 flex-col bg-card">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="p-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <Badge className="gap-1 bg-primary text-primary-foreground hover:bg-primary/90">
+                    <ShieldCheck className="h-3 w-3" />
+                    ATS Enhancement
+                  </Badge>
+                </div>
+
+                <Card className="mb-5 border-border py-0 shadow-none">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold">
+                      Melhorar meu curriculo para ATS
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Use seu perfil base atual para gerar uma nova versao ATS, sem vaga especifica, com analise geral, melhoria de estrutura, palavras-chave e rewrite otimizado.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                  {atsFeatures.map((feature) => {
+                    const Icon = feature.icon
+
+                    const checked = feature.id !== "rewrite"
+                    return (
+                      <div
+                        key={feature.id}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg border p-3 text-left",
+                          checked ? "border-primary/50 bg-primary/5" : "border-border",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          readOnly
+                          className="h-4 w-4 rounded border-border accent-primary"
+                        />
+                        <div className="text-muted-foreground">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="flex-1 text-sm font-medium text-foreground">
+                          {feature.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  </CardContent>
+                </Card>
+
+                <Card className="mb-5 border-border py-0 shadow-none">
+                  <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    O que acontece ao clicar
+                  </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    Salvo seu snapshot atual, gero uma sessao derivada da base, crio a versao ATS e mantenho a base original preservada para comparacao.
+                  </p>
+                  </CardContent>
+                </Card>
+
+                <div className="mb-5 px-1 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Creditos disponiveis</span>
+                    <span className="font-semibold text-foreground">{currentCredits}</span>
+                  </div>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Creditos disponiveis: {currentCredits}
+                  </p>
+                  {!atsReadiness.isReady ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Complete seu curriculo para gerar uma versao ATS.
+                    </p>
+                  ) : null}
+                  {atsReadiness.reasons.length > 0 ? (
+                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      {atsReadiness.reasons.map((reason) => (
+                        <p key={reason}>• {reason}</p>
+                      ))}
+                    </div>
+                  ) : null}
+                  {currentCredits < 1 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Voce precisa de pelo menos 1 credito para gerar essa versao.
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-3">
               <Button
                 type="button"
-                variant="outline"
-                disabled={isSaving || isRunningAtsEnhancement}
-                onClick={() => router.push("/dashboard")}
-                className={cn(secondaryButtonClassName, allSectionsClosed && "h-10 px-4")}
+                disabled={atsButtonDisabled}
+                onClick={() => void handleAtsEnhancement()}
+                className="h-11 w-full gap-2"
+                size="lg"
               >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                disabled={isSaving || isRunningAtsEnhancement}
-                onClick={() => void handleSave()}
-                data-testid="profile-save-button"
-                className={cn(primaryButtonClassName, allSectionsClosed && "h-10 px-4")}
-              >
-                {isSaving ? (
+                {isRunningAtsEnhancement ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Salvando
+                    Gerando versao ATS
                   </>
                 ) : (
-                  "Salvar"
-                )}
-              </Button>
+                    <>
+                    Melhorar para ATS (1 credito)
+                    <ArrowRight className="ml-auto h-4 w-4" />
+                  </>
+                  )}
+                </Button>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSaving || isRunningAtsEnhancement}
+                  onClick={() => router.push("/dashboard")}
+                  className="h-10 flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  disabled={isSaving || isRunningAtsEnhancement}
+                  onClick={() => void handleSave()}
+                  data-testid="profile-save-button"
+                  className="h-10 flex-1"
+                  variant="secondary"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Salvando
+                    </>
+                  ) : (
+                    "Salvar"
+                  )}
+                </Button>
+              </div>
             </div>
-          </>
-        )}
-      </main>
+              </div>
+              </div>
+            </aside>
+          </main>
+      </div>
 
       <ImportResumeModal
         isOpen={isImportOpen}

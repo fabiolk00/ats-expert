@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -94,21 +95,21 @@ function SectionCard({
   children: ReactNode
 }) {
   return (
-    <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm transition-colors dark:border-border dark:bg-card">
+    <Card className="gap-0 overflow-hidden rounded-lg border-border py-0 shadow-none">
       <button
         type="button"
         onClick={onToggle}
         className={cn(
-          "flex w-full items-center justify-between gap-4 text-left transition-colors hover:bg-slate-50/80 dark:hover:bg-muted/30",
-          compactMode && !isOpen ? "px-5 py-3.5 md:px-6" : "px-6 py-5 md:px-8",
+          "flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-muted/50",
+          compactMode && !isOpen && "py-3",
         )}
         aria-expanded={isOpen}
       >
         <div className="flex items-start gap-4">
           <div
             className={cn(
-              "flex shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200",
-              compactMode && !isOpen ? "h-9 w-9" : "h-11 w-11",
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground",
+              compactMode && !isOpen && "h-9 w-9",
             )}
           >
             {icon}
@@ -116,16 +117,16 @@ function SectionCard({
           <div className="space-y-1">
             <h2
               className={cn(
-                "font-semibold text-slate-900 dark:text-slate-100",
-                compactMode && !isOpen ? "text-lg" : "text-xl",
+                "font-medium text-foreground",
+                compactMode && !isOpen ? "text-base" : "text-base",
               )}
             >
               {title}
             </h2>
             <p
               className={cn(
-                "text-slate-500 dark:text-slate-400",
-                compactMode && !isOpen ? "text-xs" : "text-sm",
+                "truncate text-sm text-muted-foreground",
+                compactMode && !isOpen && "text-xs",
               )}
             >
               {description}
@@ -135,16 +136,19 @@ function SectionCard({
 
         <div
           className={cn(
-            "flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-border dark:bg-background/60 dark:text-slate-400",
-            compactMode && !isOpen ? "h-9 w-9" : "h-10 w-10",
+            "ml-auto flex h-5 w-5 items-center justify-center text-muted-foreground",
           )}
         >
           <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
         </div>
       </button>
 
-      {isOpen ? <div className="border-t border-slate-100 px-6 pb-6 pt-6 dark:border-border md:px-8">{children}</div> : null}
-    </section>
+      {isOpen ? (
+        <CardContent className="border-t border-border px-4 pb-4 pt-0">
+          <div className="pt-4">{children}</div>
+        </CardContent>
+      ) : null}
+    </Card>
   )
 }
 
@@ -160,9 +164,9 @@ function ItemCard({
   children: ReactNode
 }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-slate-50/60 p-4 dark:border-border dark:bg-background/40">
+    <div className="rounded-lg border border-border bg-muted/30 p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {title}
         </h3>
         <Button
@@ -171,7 +175,7 @@ function ItemCard({
           size="icon-sm"
           disabled={disabled}
           onClick={onDelete}
-          className="rounded-full text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+          className="rounded-full text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-300"
           aria-label={`Excluir ${title.toLowerCase()}`}
         >
           <Trash2 className="h-4 w-4" />
@@ -235,12 +239,12 @@ export function VisualResumeEditor({
   compactMode = false,
 }: VisualResumeEditorProps) {
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
-    personal: true,
-    summary: true,
-    experience: true,
-    skills: true,
-    education: true,
-    certifications: true,
+    personal: false,
+    summary: false,
+    experience: false,
+    skills: false,
+    education: false,
+    certifications: false,
   })
 
   useEffect(() => {
@@ -255,7 +259,7 @@ export function VisualResumeEditor({
   }
 
   return (
-    <div className={cn("space-y-6", compactMode && "space-y-3 md:space-y-2.5")}>
+    <div className={cn("space-y-3", compactMode && "space-y-3")}>
       <SectionCard
         title="Dados pessoais"
         description="Estrutura visual pronta para receber seus dados manuais ou importados."
