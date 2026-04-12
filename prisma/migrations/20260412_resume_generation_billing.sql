@@ -20,8 +20,8 @@ create table if not exists resume_generations (
   output_docx_path text,
   failure_reason text,
   version_number integer not null default 1,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create index if not exists resume_generations_user_created_idx
@@ -39,8 +39,8 @@ create table if not exists credit_consumptions (
   resume_generation_id text not null unique references resume_generations(id) on delete cascade,
   type resume_generation_type not null,
   credits_used integer not null default 1,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create index if not exists credit_consumptions_user_created_idx
@@ -73,13 +73,19 @@ begin
   end if;
 
   insert into credit_consumptions (
+    id,
     user_id,
     resume_generation_id,
-    type
+    type,
+    created_at,
+    updated_at
   ) values (
+    gen_random_uuid()::text,
     p_user_id,
     p_resume_generation_id,
-    p_generation_type
+    p_generation_type,
+    now(),
+    now()
   );
 
   update resume_generations

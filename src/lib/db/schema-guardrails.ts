@@ -99,6 +99,14 @@ const TABLE_CONVENTIONS: Record<string, TableConvention> = {
     id: 'generic',
     timestamps: 'mutable',
   },
+  resume_generations: {
+    id: 'domain',
+    timestamps: 'mutable',
+  },
+  credit_consumptions: {
+    id: 'generic',
+    timestamps: 'mutable',
+  },
   user_profiles: {
     id: 'domain',
     timestamps: 'mutable',
