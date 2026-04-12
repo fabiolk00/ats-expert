@@ -5,6 +5,7 @@ import { generateBillableResume } from './generate-billable-resume'
 const {
   mockGenerateFile,
   mockCreateSignedResumeArtifactUrls,
+  mockValidateGenerationCvState,
   mockCheckUserQuota,
   mockConsumeCreditForGeneration,
   mockGetLatestCvVersionForScope,
@@ -15,6 +16,7 @@ const {
 } = vi.hoisted(() => ({
   mockGenerateFile: vi.fn(),
   mockCreateSignedResumeArtifactUrls: vi.fn(),
+  mockValidateGenerationCvState: vi.fn(),
   mockCheckUserQuota: vi.fn(),
   mockConsumeCreditForGeneration: vi.fn(),
   mockGetLatestCvVersionForScope: vi.fn(),
@@ -27,6 +29,7 @@ const {
 vi.mock('@/lib/agent/tools/generate-file', () => ({
   generateFile: mockGenerateFile,
   createSignedResumeArtifactUrls: mockCreateSignedResumeArtifactUrls,
+  validateGenerationCvState: mockValidateGenerationCvState,
 }))
 
 vi.mock('@/lib/asaas/quota', () => ({
@@ -60,6 +63,11 @@ function buildCvState() {
 describe('generateBillableResume', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockValidateGenerationCvState.mockReturnValue({
+      success: true,
+      cvState: buildCvState(),
+      warnings: [],
+    })
     mockGetLatestCompletedResumeGenerationForScope.mockResolvedValue(null)
     mockGetResumeGenerationByIdempotencyKey.mockResolvedValue(null)
     mockUpdateResumeGeneration.mockResolvedValue(undefined)
