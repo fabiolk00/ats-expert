@@ -30,12 +30,13 @@ type JobStatus = "active" | "completed" | "failed" | "delayed" | "waiting"
 type ImportResumeModalProps = {
   isOpen: boolean
   onClose: () => void
-  onImportSuccess: (data: ResumeData) => void
+  onImportSuccess: (data: ResumeData, profilePhotoUrl?: string | null) => void
 }
 
 type ProfileResponse = {
   profile: {
     cvState: ResumeData
+    profilePhotoUrl: string | null
   } | null
 }
 
@@ -103,7 +104,10 @@ export function ImportResumeModal({
             throw new Error("A importacao terminou sem retornar dados de perfil.")
           }
 
-          onImportSuccess(profileData.profile.cvState)
+          onImportSuccess(
+            profileData.profile.cvState,
+            profileData.profile.profilePhotoUrl ?? null,
+          )
           setLinkedinUrl("")
           setJobId(null)
           setJobStatus(null)

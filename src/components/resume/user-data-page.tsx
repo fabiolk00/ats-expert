@@ -40,6 +40,7 @@ type ProfileResponse = {
     source: string
     cvState: ResumeData
     linkedinUrl: string | null
+    profilePhotoUrl: string | null
     extractedAt: string
     createdAt: string
     updatedAt: string
@@ -159,6 +160,7 @@ export default function UserDataPage({
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [resumeData, setResumeData] = useState<CVState>(() => normalizeResumeData())
   const [profileSource, setProfileSource] = useState<string | null>(null)
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -187,12 +189,14 @@ export default function UserDataPage({
         if (data.profile) {
           setResumeData(normalizeResumeData(data.profile.cvState))
           setProfileSource(data.profile.source)
+          setProfilePhotoUrl(data.profile.profilePhotoUrl)
           setLastUpdatedAt(data.profile.updatedAt)
           return
         }
 
         setResumeData(normalizeResumeData())
         setProfileSource(null)
+        setProfilePhotoUrl(null)
         setLastUpdatedAt(null)
       } catch (error) {
         if (isMounted) {
@@ -212,10 +216,11 @@ export default function UserDataPage({
     }
   }, [])
 
-  const handleImportSuccess = (data: ResumeData) => {
+  const handleImportSuccess = (data: ResumeData, nextProfilePhotoUrl?: string | null) => {
     setIsImportOpen(false)
     setResumeData(normalizeResumeData(data))
     setProfileSource("linkedin")
+    setProfilePhotoUrl(nextProfilePhotoUrl ?? null)
     setLastUpdatedAt(new Date().toISOString())
   }
 
@@ -236,6 +241,7 @@ export default function UserDataPage({
 
     setResumeData(normalizeResumeData(data.profile.cvState))
     setProfileSource(data.profile.source)
+    setProfilePhotoUrl(data.profile.profilePhotoUrl)
     setLastUpdatedAt(data.profile.updatedAt)
   }
 
@@ -347,6 +353,7 @@ export default function UserDataPage({
   const isBusy = isLoadingProfile || isSaving || isRunningAtsEnhancement
   const atsButtonDisabled = isBusy || !atsReadiness.isReady || currentCredits < 1
   const initials = buildInitials(template.fullName)
+  const avatarSrc = profilePhotoUrl ?? userImageUrl ?? undefined
 
   return (
     <div
@@ -375,7 +382,7 @@ export default function UserDataPage({
             {isPreviewCollapsed ? (
               <div className="flex flex-col items-center gap-4 p-4">
                 <Avatar className="h-10 w-10 border border-border/60">
-                  <AvatarImage src={userImageUrl ?? undefined} alt={template.fullName || "Sua foto de perfil"} />
+                  <AvatarImage src={avatarSrc} alt={template.fullName || "Sua foto de perfil"} />
                   <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
                     {initials}
                   </AvatarFallback>
@@ -389,7 +396,7 @@ export default function UserDataPage({
                   <div className="mb-5 rounded-lg bg-muted/50 p-4">
                     <div className="mb-3 flex items-start gap-3">
                       <Avatar className="h-12 w-12 shrink-0 border border-border/60">
-                        <AvatarImage src={userImageUrl ?? undefined} alt={template.fullName || "Sua foto de perfil"} />
+                        <AvatarImage src={avatarSrc} alt={template.fullName || "Sua foto de perfil"} />
                         <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
                           {initials}
                         </AvatarFallback>
