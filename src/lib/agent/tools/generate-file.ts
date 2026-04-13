@@ -623,7 +623,7 @@ function buildDocxDocument(templateData: TemplateData): Document {
   )
 
   if (templateData.experiences.length > 0) {
-    children.push(createDocxHeading('ExperiÃªncia Profissional'))
+    children.push(createDocxHeading('Experi\\u00EAncia Profissional'))
 
     for (const experience of templateData.experiences) {
       children.push(
@@ -650,7 +650,7 @@ function buildDocxDocument(templateData: TemplateData): Document {
   }
 
   if (templateData.education.length > 0) {
-    children.push(createDocxHeading('EducaÃ§Ã£o'))
+    children.push(createDocxHeading('Educa\\u00E7\\u00E3o'))
 
     for (const education of templateData.education) {
       children.push(
@@ -662,7 +662,7 @@ function buildDocxDocument(templateData: TemplateData): Document {
   }
 
   if (templateData.hasCertifications) {
-    children.push(createDocxHeading('CertificaÃ§Ãµes'))
+    children.push(createDocxHeading('Certifica\\u00E7\\u00F5es'))
 
     for (const certification of templateData.certifications) {
       children.push(createDocxBody(certification.name))
@@ -843,7 +843,7 @@ async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
 
   if (templateData.experiences.length > 0) {
     page = checkPageOverflow(currentY)
-    currentY = drawSectionHeading(page, 'Experiência Profissional', currentY)
+    currentY = drawSectionHeading(page, 'Experi\\u00EAncia Profissional', currentY)
 
     for (const experience of templateData.experiences) {
       page = checkPageOverflow(currentY)
@@ -872,7 +872,7 @@ async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
 
   if (templateData.education.length > 0) {
     page = checkPageOverflow(currentY)
-    currentY = drawSectionHeading(page, 'Formação Acadêmica', currentY)
+    currentY = drawSectionHeading(page, 'Forma\\u00E7\\u00E3o Acad\\u00EAmica', currentY)
 
     for (const education of templateData.education) {
       page = checkPageOverflow(currentY)
@@ -884,7 +884,7 @@ async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
 
   if (templateData.hasCertifications) {
     page = checkPageOverflow(currentY)
-    currentY = drawSectionHeading(page, 'Certificações', currentY)
+    currentY = drawSectionHeading(page, 'Certifica\\u00E7\\u00F5es', currentY)
 
     for (const certification of templateData.certifications) {
       page = checkPageOverflow(currentY)

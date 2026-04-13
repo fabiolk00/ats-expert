@@ -53,7 +53,7 @@ function getErrorMessage(error: unknown): string {
     return error.message
   }
 
-  return "NÃ£o foi possÃ­vel concluir a operaÃ§Ã£o."
+  return "N\u00E3o foi poss\u00EDvel concluir a opera\u00E7\u00E3o."
 }
 
 function createClientRequestId(): string {
@@ -236,8 +236,8 @@ export function ResumeWorkspace({
       setManualEditOpen(false)
       setStatusMessage(
         result.changed
-          ? "EdiÃ§Ã£o manual aplicada na base canÃ´nica."
-          : "Nenhuma alteraÃ§Ã£o detectada nesta seÃ§Ã£o.",
+          ? "Edi\u00E7\u00E3o manual aplicada na base can\u00F4nica."
+          : "Nenhuma altera\u00E7\u00E3o detectada nesta se\u00E7\u00E3o.",
       )
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
