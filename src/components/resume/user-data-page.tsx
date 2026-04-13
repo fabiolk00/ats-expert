@@ -648,13 +648,12 @@ export default function UserDataPage({
                       compactMode={allSectionsClosed}
                     />
 
-                    <div className="flex gap-2">
+                    <div className="flex justify-end gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         disabled={isSaving || isRunningAtsEnhancement}
                         onClick={() => router.push("/dashboard")}
-                        className="h-10 flex-1"
                       >
                         Cancelar
                       </Button>
@@ -663,7 +662,7 @@ export default function UserDataPage({
                         disabled={isSaving || isRunningAtsEnhancement}
                         onClick={() => void handleSave()}
                         data-testid="profile-save-button"
-                        className="h-10 flex-1 bg-black text-white hover:bg-black/90"
+                        className="bg-black text-white hover:bg-black/90"
                       >
                         {isSaving ? (
                           <>
