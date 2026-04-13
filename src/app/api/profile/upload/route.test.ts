@@ -33,7 +33,10 @@ vi.mock('@/lib/observability/structured-log', () => ({
   }),
 }))
 
-const appUser = { id: 'usr_123', email: 'ana@example.com' } as Awaited<ReturnType<typeof getCurrentAppUser>>
+const appUser = {
+  id: 'usr_123',
+  email: 'ana@example.com',
+} as unknown as NonNullable<Awaited<ReturnType<typeof getCurrentAppUser>>>
 
 function makeRequest(file?: File): NextRequest {
   const formData = new FormData()
