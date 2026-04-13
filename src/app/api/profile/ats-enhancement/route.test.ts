@@ -255,4 +255,70 @@ describe('POST /api/profile/ats-enhancement', () => {
     expect(createSession).not.toHaveBeenCalled()
     expect(dispatchToolWithContext).not.toHaveBeenCalled()
   })
+
+  it('keeps generating the ATS version when the experience rewrite payload is malformed', async () => {
+    vi.mocked(dispatchToolWithContext).mockReset()
+    vi.mocked(dispatchToolWithContext)
+      .mockResolvedValueOnce({
+        output: { success: true },
+        outputJson: JSON.stringify({ success: true }),
+      } as never)
+      .mockResolvedValueOnce({
+        output: {
+          success: false,
+          code: 'LLM_INVALID_OUTPUT',
+          error: 'Invalid rewrite payload for section "experience".',
+        },
+        outputJson: JSON.stringify({
+          success: false,
+          code: 'LLM_INVALID_OUTPUT',
+          error: 'Invalid rewrite payload for section "experience".',
+        }),
+        outputFailure: {
+          success: false,
+          code: 'LLM_INVALID_OUTPUT',
+          error: 'Invalid rewrite payload for section "experience".',
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        output: { success: true },
+        outputJson: JSON.stringify({ success: true }),
+      } as never)
+      .mockResolvedValueOnce({
+        output: { success: true, result: { total: 71 } },
+        outputJson: JSON.stringify({ success: true, result: { total: 71 } }),
+      } as never)
+      .mockResolvedValueOnce({
+        output: {
+          success: true,
+          pdfUrl: 'https://example.com/resume.pdf',
+          creditsUsed: 1,
+          resumeGenerationId: 'gen_ats_123',
+        },
+        outputJson: JSON.stringify({
+          success: true,
+          pdfUrl: 'https://example.com/resume.pdf',
+          creditsUsed: 1,
+          resumeGenerationId: 'gen_ats_123',
+        }),
+      } as never)
+
+    const response = await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
+      method: 'POST',
+      body: JSON.stringify(buildCvState()),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      success: true,
+      sessionId: 'sess_ats_123',
+      creditsUsed: 1,
+      resumeGenerationId: 'gen_ats_123',
+      generationType: 'ATS_ENHANCEMENT',
+    })
+    expect(dispatchToolWithContext).toHaveBeenNthCalledWith(5, 'generate_file', {
+      cv_state: expect.objectContaining({ fullName: 'Ana Silva' }),
+      idempotency_key: 'profile-ats:sess_ats_123',
+    }, expect.objectContaining({ id: 'sess_ats_123' }))
+  })
 })

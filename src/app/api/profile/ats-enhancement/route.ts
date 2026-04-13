@@ -65,6 +65,22 @@ function isToolFailure(value: unknown): value is ToolFailure {
   )
 }
 
+function shouldSkipRewriteFailure(failure: ToolFailure | undefined): boolean {
+  return failure?.code === 'LLM_INVALID_OUTPUT'
+}
+
+function buildFriendlyRewriteError(failure: ToolFailure | undefined): string {
+  if (!failure) {
+    return 'Nao foi possivel melhorar sua versao ATS agora.'
+  }
+
+  if (failure.code === 'LLM_INVALID_OUTPUT') {
+    return 'Nao foi possivel estruturar uma das secoes reescritas. Tentamos manter seu conteudo original para concluir a geracao.'
+  }
+
+  return 'Nao foi possivel melhorar sua versao ATS agora. Tente novamente em instantes.'
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const appUser = await getCurrentAppUser()
   if (!appUser) {
@@ -120,10 +136,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }, session)
 
   if (summaryResult.outputFailure) {
-    return NextResponse.json({
-      error: summaryResult.outputFailure.error,
-      code: summaryResult.outputFailure.code,
-    }, { status: 500 })
+    if (!shouldSkipRewriteFailure(summaryResult.outputFailure)) {
+      return NextResponse.json({
+        error: buildFriendlyRewriteError(summaryResult.outputFailure),
+        code: summaryResult.outputFailure.code,
+      }, { status: 500 })
+    }
   }
 
   const experienceResult = await dispatchToolWithContext('rewrite_section', {
@@ -134,10 +152,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }, session)
 
   if (experienceResult.outputFailure) {
-    return NextResponse.json({
-      error: experienceResult.outputFailure.error,
-      code: experienceResult.outputFailure.code,
-    }, { status: 500 })
+    if (!shouldSkipRewriteFailure(experienceResult.outputFailure)) {
+      return NextResponse.json({
+        error: buildFriendlyRewriteError(experienceResult.outputFailure),
+        code: experienceResult.outputFailure.code,
+      }, { status: 500 })
+    }
   }
 
   const skillsResult = await dispatchToolWithContext('rewrite_section', {
@@ -148,10 +168,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }, session)
 
   if (skillsResult.outputFailure) {
-    return NextResponse.json({
-      error: skillsResult.outputFailure.error,
-      code: skillsResult.outputFailure.code,
-    }, { status: 500 })
+    if (!shouldSkipRewriteFailure(skillsResult.outputFailure)) {
+      return NextResponse.json({
+        error: buildFriendlyRewriteError(skillsResult.outputFailure),
+        code: skillsResult.outputFailure.code,
+      }, { status: 500 })
+    }
   }
 
   await dispatchToolWithContext('score_ats', {

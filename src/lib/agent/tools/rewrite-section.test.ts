@@ -226,4 +226,60 @@ describe('rewriteSection', () => {
       summary: 'Senior Analytics Engineer com experiencia em dbt, SQL avancado e modelagem analitica escalavel.',
     })
   })
+
+  it('normalizes common experience payload variants instead of failing the rewrite', async () => {
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      rewritten_content: 'Experiencia profissional reestruturada.',
+      experiences: [
+        {
+          role: 'Senior Analytics Engineer',
+          employer: 'Pravaler',
+          city: 'Sao Paulo',
+          start: '01/2024',
+          current: true,
+          achievements: [
+            { text: 'Liderou a modelagem analitica com dbt.' },
+            'Otimizou pipelines de dados para reporting executivo.',
+          ],
+        },
+      ],
+      keywords_added: ['dbt'],
+      changes_made: ['Bullets fortalecidos com verbos de impacto'],
+    })))
+
+    const result = await rewriteSection({
+      section: 'experience',
+      current_content: JSON.stringify([
+        {
+          title: 'Analytics Engineer',
+          company: 'Pravaler',
+          location: 'Sao Paulo',
+          startDate: '01/2024',
+          endDate: 'present',
+          bullets: ['Criou dashboards executivos.'],
+        },
+      ]),
+      instructions: 'Rewrite experience',
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output).toEqual({
+      success: true,
+      rewritten_content: 'Experiencia profissional reestruturada.',
+      section_data: [
+        {
+          title: 'Senior Analytics Engineer',
+          company: 'Pravaler',
+          location: 'Sao Paulo',
+          startDate: '01/2024',
+          endDate: 'present',
+          bullets: [
+            'Liderou a modelagem analitica com dbt.',
+            'Otimizou pipelines de dados para reporting executivo.',
+          ],
+        },
+      ],
+      keywords_added: ['dbt'],
+      changes_made: ['Bullets fortalecidos com verbos de impacto'],
+    })
+  })
 })

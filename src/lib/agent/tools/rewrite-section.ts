@@ -63,6 +63,112 @@ const CertificationEntrySchema = z.object({
   year: z.string().optional(),
 })
 
+function normalizeStringValue(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function normalizeBullets(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return value
+      .split('\n')
+      .map((line) => line.replace(/^[\-\u2022]\s*/, '').trim())
+      .filter(Boolean)
+  }
+
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .flatMap((item) => {
+      if (typeof item === 'string') {
+        return item
+      }
+
+      if (item && typeof item === 'object') {
+        const record = item as Record<string, unknown>
+        const candidate = [
+          record.text,
+          record.description,
+          record.content,
+          record.bullet,
+        ].find((entry) => typeof entry === 'string')
+
+        return typeof candidate === 'string' ? candidate : []
+      }
+
+      return []
+    })
+    .map((bullet) => bullet.trim())
+    .filter(Boolean)
+}
+
+function parseCurrentExperienceEntries(rawContent: string): ExperienceEntry[] {
+  const parsed = extractJsonLikeObject(rawContent)
+  return Array.isArray(parsed)
+    ? parsed.filter((entry): entry is ExperienceEntry => Boolean(entry && typeof entry === 'object'))
+    : []
+}
+
+function normalizeExperienceEntry(
+  entry: unknown,
+  fallback?: Partial<ExperienceEntry>,
+): ExperienceEntry | null {
+  if (!entry || typeof entry !== 'object') {
+    return null
+  }
+
+  const record = entry as Record<string, unknown>
+  const currentValue = Boolean(record.current) || record.endDate === 'Atual'
+
+  return {
+    title: normalizeStringValue(record.title ?? record.role ?? record.position ?? record.jobTitle ?? fallback?.title),
+    company: normalizeStringValue(record.company ?? record.employer ?? record.companyName ?? record.organization ?? fallback?.company),
+    location: normalizeStringValue(record.location ?? record.city ?? fallback?.location) || undefined,
+    startDate: normalizeStringValue(record.startDate ?? record.start ?? record.start_date ?? fallback?.startDate),
+    endDate: normalizeStringValue(
+      record.endDate
+      ?? record.end
+      ?? record.end_date
+      ?? (currentValue ? 'present' : fallback?.endDate),
+    ) || (currentValue ? 'present' : ''),
+    bullets: normalizeBullets(
+      record.bullets
+      ?? record.achievements
+      ?? record.highlights
+      ?? record.responsibilities
+      ?? record.description
+      ?? fallback?.bullets,
+    ),
+  }
+}
+
+function normalizeExperienceSectionData(
+  value: unknown,
+  currentContent: string,
+): ExperienceEntry[] | unknown {
+  const fallbackEntries = parseCurrentExperienceEntries(currentContent)
+
+  if (Array.isArray(value)) {
+    return value
+      .map((entry, index) => normalizeExperienceEntry(entry, fallbackEntries[index]))
+      .filter((entry): entry is ExperienceEntry => entry !== null)
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const nestedEntries = record.experience ?? record.experiences ?? record.items ?? record.entries
+
+    if (Array.isArray(nestedEntries)) {
+      return nestedEntries
+        .map((entry, index) => normalizeExperienceEntry(entry, fallbackEntries[index]))
+        .filter((entry): entry is ExperienceEntry => entry !== null)
+    }
+  }
+
+  return value
+}
+
 function getSectionDataDescription(section: RewriteSectionInput['section']): string {
   switch (section) {
     case 'summary':
@@ -122,6 +228,7 @@ function extractJsonLikeObject(rawText: string): unknown {
 function normalizeRewritePayload(
   section: RewriteSectionInput['section'],
   parsed: unknown,
+  currentContent: string,
 ): unknown {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return parsed
@@ -151,19 +258,43 @@ function normalizeRewritePayload(
     }
   }
 
+  if (section === 'experience') {
+    if (record.section_data === undefined) {
+      record.section_data = record.experience ?? record.experiences ?? record.items ?? record.entries
+    }
+
+    record.section_data = normalizeExperienceSectionData(record.section_data, currentContent)
+
+    if (typeof record.rewritten_content !== 'string' && Array.isArray(record.section_data)) {
+      record.rewritten_content = record.section_data
+        .map((entry) => {
+          const title = entry?.title?.trim()
+          const company = entry?.company?.trim()
+          const bullets = Array.isArray(entry?.bullets) ? entry.bullets.filter(Boolean) : []
+          return [
+            [title, company].filter(Boolean).join(' - '),
+            ...bullets.map((bullet) => `- ${bullet}`),
+          ].filter(Boolean).join('\n')
+        })
+        .filter(Boolean)
+        .join('\n\n')
+    }
+  }
+
   return record
 }
 
 function validateRewritePayload(
   section: RewriteSectionInput['section'],
   rawText: string,
+  currentContent: string,
 ): ValidatedRewritePayload | null {
   const parsed = extractJsonLikeObject(rawText)
   if (parsed === null) {
     return null
   }
 
-  const normalizedPayload = normalizeRewritePayload(section, parsed)
+  const normalizedPayload = normalizeRewritePayload(section, parsed, currentContent)
 
   switch (section) {
     case 'summary': {
@@ -305,7 +436,7 @@ Rules:
     }).catch(() => {})
 
     const text = getChatCompletionText(response)
-    const validatedPayload = validateRewritePayload(input.section, text)
+    const validatedPayload = validateRewritePayload(input.section, text, input.current_content)
 
     if (!validatedPayload) {
       return {
