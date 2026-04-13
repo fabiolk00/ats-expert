@@ -25,8 +25,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import { assessAtsEnhancementReadiness } from "@/lib/profile/ats-enhancement"
+import { assessAtsEnhancementReadiness, getAtsEnhancementBlockingItems } from "@/lib/profile/ats-enhancement"
 import { cvStateToTemplateData } from "@/lib/templates/cv-state-to-template-data"
 import { cn } from "@/lib/utils"
 import type { CVState } from "@/types/cv"
@@ -167,6 +175,8 @@ export default function UserDataPage({
   const [isRunningAtsEnhancement, setIsRunningAtsEnhancement] = useState(false)
   const [allSectionsClosed, setAllSectionsClosed] = useState(false)
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false)
+  const [isAtsRequirementsOpen, setIsAtsRequirementsOpen] = useState(false)
+  const [atsMissingItems, setAtsMissingItems] = useState<string[]>([])
 
   useEffect(() => {
     let isMounted = true
@@ -264,6 +274,13 @@ export default function UserDataPage({
   }
 
   const handleAtsEnhancement = async (): Promise<void> => {
+    const missingItems = getAtsEnhancementBlockingItems(sanitizeResumeData(resumeData))
+    if (missingItems.length > 0) {
+      setAtsMissingItems(missingItems)
+      setIsAtsRequirementsOpen(true)
+      return
+    }
+
     setIsRunningAtsEnhancement(true)
 
     try {
@@ -282,6 +299,14 @@ export default function UserDataPage({
         success?: boolean
         sessionId?: string
         error?: string
+        reasons?: string[]
+        missingItems?: string[]
+      }
+
+      if (response.status === 400 && (data.missingItems?.length || data.reasons?.length)) {
+        setAtsMissingItems(data.missingItems ?? data.reasons ?? [])
+        setIsAtsRequirementsOpen(true)
+        return
       }
 
       if (!response.ok || !data.success || !data.sessionId) {
@@ -369,7 +394,7 @@ export default function UserDataPage({
   )
   const updatedLabel = formatUpdatedLabel(lastUpdatedAt)
   const isBusy = isLoadingProfile || isSaving || isRunningAtsEnhancement
-  const atsButtonDisabled = isBusy || !atsReadiness.isReady || currentCredits < 1
+  const atsButtonDisabled = isBusy || currentCredits < 1
   const initials = buildInitials(template.fullName)
   const avatarSrc = profilePhotoUrl ?? userImageUrl ?? undefined
 
@@ -784,6 +809,29 @@ export default function UserDataPage({
         onImportSuccess={handleImportSuccess}
         currentProfileSource={profileSource}
       />
+
+      <Dialog open={isAtsRequirementsOpen} onOpenChange={setIsAtsRequirementsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete seu perfil antes de melhorar para ATS</DialogTitle>
+            <DialogDescription>
+              Faltam alguns pontos importantes para gerar uma versao ATS com qualidade. Preencha estes itens no formulario e tente novamente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 text-sm text-foreground">
+            {atsMissingItems.map((item) => (
+              <p key={item}>• {item}</p>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" onClick={() => setIsAtsRequirementsOpen(false)}>
+              Entendi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

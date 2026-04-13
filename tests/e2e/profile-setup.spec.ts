@@ -283,6 +283,32 @@ test.describe('manual profile setup', () => {
     await expect(page.getByText(/Voce precisa de pelo menos 1 credito/i)).toBeVisible()
   })
 
+  test('shows a friendly ATS modal when profile details are still missing', async ({ page }) => {
+    await bootstrapProfileSetupPage(page, {
+      creditsRemaining: 2,
+      profile: {
+        profile: {
+          ...buildReadyProfileResponse().profile,
+          cvState: {
+            ...buildReadyProfileResponse().profile.cvState,
+            education: [{
+              degree: 'Bacharel em Ciencia da Computacao',
+              institution: '',
+              year: '2020',
+            }],
+          },
+        },
+      },
+    })
+
+    await page.getByRole('button', { name: /Melhorar para ATS/i }).click()
+
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(page.getByText('Complete seu perfil antes de melhorar para ATS')).toBeVisible()
+    await expect(page.getByText('• Formacao 1: adicione a instituicao.')).toBeVisible()
+    await expect(page).toHaveURL(/\/dashboard\/resumes\/new(?:\?.*)?$/)
+  })
+
   test('starts ATS enhancement from a ready base profile and lands on the generated session', async ({ page }) => {
     const sessionId = 'sess_ats_profile_setup'
     let atsPayload: Record<string, unknown> | null = null

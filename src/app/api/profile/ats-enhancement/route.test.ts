@@ -169,6 +169,30 @@ describe('POST /api/profile/ats-enhancement', () => {
     expect(await response.json()).toEqual({
       error: 'Complete seu curriculo para gerar uma versao ATS.',
       reasons: expect.any(Array),
+      missingItems: expect.any(Array),
+    })
+    expect(createSession).not.toHaveBeenCalled()
+    expect(dispatchToolWithContext).not.toHaveBeenCalled()
+  })
+
+  it('rejects partially filled education entries with user-friendly missing items', async () => {
+    const response = await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...buildCvState(),
+        education: [{
+          degree: 'Bacharel em Sistemas de Informacao',
+          institution: '',
+          year: '2023',
+        }],
+      }),
+    }))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: 'Complete seu curriculo para gerar uma versao ATS.',
+      reasons: ['Formacao 1: adicione a instituicao.'],
+      missingItems: ['Formacao 1: adicione a instituicao.'],
     })
     expect(createSession).not.toHaveBeenCalled()
     expect(dispatchToolWithContext).not.toHaveBeenCalled()

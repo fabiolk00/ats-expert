@@ -4,7 +4,11 @@ import { dispatchToolWithContext } from '@/lib/agent/tools'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { CVStateSchema } from '@/lib/cv/schema'
 import { checkUserQuota } from '@/lib/db/sessions'
-import { assessAtsEnhancementReadiness, buildResumeTextFromCvState } from '@/lib/profile/ats-enhancement'
+import {
+  assessAtsEnhancementReadiness,
+  buildResumeTextFromCvState,
+  getAtsEnhancementBlockingItems,
+} from '@/lib/profile/ats-enhancement'
 import { createSession, applyToolPatchWithVersion } from '@/lib/db/sessions'
 import type { ToolFailure } from '@/types/agent'
 
@@ -55,10 +59,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const readiness = assessAtsEnhancementReadiness(parsed.data)
-  if (!readiness.isReady) {
+  const missingItems = getAtsEnhancementBlockingItems(parsed.data)
+  if (!readiness.isReady || missingItems.length > 0) {
     return NextResponse.json({
       error: 'Complete seu curriculo para gerar uma versao ATS.',
-      reasons: readiness.reasons,
+      reasons: missingItems.length > 0 ? missingItems : readiness.reasons,
+      missingItems,
     }, { status: 400 })
   }
 
