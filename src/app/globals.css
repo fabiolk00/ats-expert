@@ -138,7 +138,7 @@ body .cl-formFieldInput.cl-input {
   border: 0 !important;
   border-radius: 12px !important;
   background: oklch(var(--background)) !important;
-  box-shadow: inset 0 0 0 1px oklch(var(--input)) !important;
+  box-shadow: inset 0 0 0 1.5px oklch(0.86 0 0) !important;
   -webkit-appearance: none !important;
   appearance: none !important;
 }
@@ -155,7 +155,7 @@ body .cl-formField__password .cl-formFieldInputGroup {
   border: 0 !important;
   border-radius: 12px !important;
   background: oklch(var(--background)) !important;
-  box-shadow: inset 0 0 0 1px oklch(var(--input)) !important;
+  box-shadow: inset 0 0 0 1.5px oklch(0.86 0 0) !important;
   overflow: hidden;
 }
 
