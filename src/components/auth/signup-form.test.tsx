@@ -16,6 +16,7 @@ const {
   mockSignUpAuthenticateWithRedirect,
   mockPrepareEmailAddressVerification,
   mockAttemptEmailAddressVerification,
+  mockValidatePassword,
   mockSetActive,
 } = vi.hoisted(() => ({
   mockSearchParamsGet: vi.fn(),
@@ -26,6 +27,7 @@ const {
   mockSignUpAuthenticateWithRedirect: vi.fn(),
   mockPrepareEmailAddressVerification: vi.fn(),
   mockAttemptEmailAddressVerification: vi.fn(),
+  mockValidatePassword: vi.fn(),
   mockSetActive: vi.fn(),
 }))
 
@@ -41,8 +43,17 @@ vi.mock("@clerk/nextjs", () => ({
       authenticateWithRedirect: mockSignUpAuthenticateWithRedirect,
       prepareEmailAddressVerification: mockPrepareEmailAddressVerification,
       attemptEmailAddressVerification: mockAttemptEmailAddressVerification,
+      validatePassword: mockValidatePassword,
     },
     setActive: mockSetActive,
+  }),
+  useClerk: () => ({
+    client: {
+      passwordSettings: {
+        min_length: 8,
+        require_special_char: true,
+      },
+    },
   }),
 }))
 
@@ -72,6 +83,16 @@ describe("SignupForm", () => {
       status: "complete",
       createdSessionId: "sess_verified",
     })
+    mockValidatePassword.mockImplementation(
+      (password: string, callbacks?: { onValidation?: (value: { complexity?: Record<string, boolean> }) => void }) => {
+        callbacks?.onValidation?.({
+          complexity: {
+            min_length: password.length < 8,
+            require_special_char: !/[^A-Za-z0-9]/.test(password),
+          },
+        })
+      },
+    )
     mockSetActive.mockResolvedValue(undefined)
   })
 
@@ -82,6 +103,8 @@ describe("SignupForm", () => {
     expect(screen.getByLabelText("Sobrenome")).toBeInTheDocument()
     expect(screen.getByLabelText("E-mail")).toBeInTheDocument()
     expect(screen.getByLabelText("Senha")).toBeInTheDocument()
+    expect(screen.getByText("Minimo de 8 caracteres")).toBeInTheDocument()
+    expect(screen.getByText("Pelo menos 1 caractere especial")).toBeInTheDocument()
   })
 
   it("submits signup data and redirects to onboarding by default", async () => {

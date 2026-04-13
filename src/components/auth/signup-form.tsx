@@ -1,7 +1,7 @@
 "use client"
 
-import { useAuth, useSignUp } from "@clerk/nextjs"
-import { Eye, EyeOff } from "lucide-react"
+import { useAuth, useClerk, useSignUp } from "@clerk/nextjs"
+import { CheckCircle2, Eye, EyeOff } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import { useEffect, useState, type FormEvent } from "react"
 
@@ -20,6 +20,7 @@ import { navigateToUrl } from "@/lib/navigation/external"
 
 export default function SignupForm() {
   const { isLoaded, isSignedIn } = useAuth()
+  const { client } = useClerk()
   const { isLoaded: isSignUpLoaded, signUp, setActive } = useSignUp()
   const searchParams = useSearchParams()
   const requestedRedirectTo = searchParams.get("redirect_to")
@@ -39,6 +40,22 @@ export default function SignupForm() {
   const [isGooglePending, setIsGooglePending] = useState(false)
   const [needsVerification, setNeedsVerification] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [passwordComplexity, setPasswordComplexity] = useState<Record<string, boolean>>({})
+
+  const minimumLength = client?.passwordSettings.min_length ?? 8
+  const requiresSpecialCharacter = client?.passwordSettings.require_special_char ?? false
+
+  useEffect(() => {
+    if (!isSignUpLoaded || !signUp) {
+      return
+    }
+
+    signUp.validatePassword(password, {
+      onValidation: (result) => {
+        setPasswordComplexity(result.complexity ?? {})
+      },
+    })
+  }, [isSignUpLoaded, password])
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
@@ -173,6 +190,21 @@ export default function SignupForm() {
     }
   }
 
+  const passwordRequirements = [
+    {
+      id: "min-length",
+      label: `Minimo de ${minimumLength} caracteres`,
+      met: password.length >= minimumLength && !passwordComplexity.min_length,
+    },
+    {
+      id: "special-char",
+      label: "Pelo menos 1 caractere especial",
+      met:
+        !requiresSpecialCharacter ||
+        (!passwordComplexity.require_special_char && /[^A-Za-z0-9]/.test(password)),
+    },
+  ]
+
   if (needsVerification) {
     return (
       <div className="space-y-6">
@@ -291,6 +323,31 @@ export default function SignupForm() {
             </Button>
           }
         />
+        <div className="space-y-2 rounded-xl bg-muted/40 px-4 py-3">
+          {passwordRequirements.map((requirement) => (
+            <div
+              key={requirement.id}
+              className="flex items-center gap-2 text-sm"
+            >
+              <CheckCircle2
+                className={
+                  requirement.met
+                    ? "h-4 w-4 text-green-600"
+                    : "h-4 w-4 text-muted-foreground/50"
+                }
+              />
+              <span
+                className={
+                  requirement.met
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+                }
+              >
+                {requirement.label}
+              </span>
+            </div>
+          ))}
+        </div>
 
         <AuthSubmitButton
           label="Continuar"
