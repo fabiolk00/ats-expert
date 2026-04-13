@@ -37,8 +37,16 @@ function buildCvState() {
       bullets: ['Criei dashboards executivos.', 'Automatizei relatorios.'],
     }],
     skills: ['SQL', 'Power BI', 'ETL', 'Excel'],
-    education: [],
-    certifications: [],
+    education: [{
+      degree: 'Bacharel em Sistemas de Informacao',
+      institution: 'USP',
+      year: '2020',
+    }],
+    certifications: [{
+      name: 'AWS Cloud Practitioner',
+      issuer: 'Amazon',
+      year: '2024',
+    }],
   }
 }
 
@@ -193,6 +201,33 @@ describe('POST /api/profile/ats-enhancement', () => {
       error: 'Complete seu curriculo para gerar uma versao ATS.',
       reasons: ['Formacao 1: adicione a instituicao.'],
       missingItems: ['Formacao 1: adicione a instituicao.'],
+    })
+    expect(createSession).not.toHaveBeenCalled()
+    expect(dispatchToolWithContext).not.toHaveBeenCalled()
+  })
+
+  it('rejects profiles that leave required ATS sections empty', async () => {
+    const response = await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...buildCvState(),
+        summary: '',
+        education: [],
+        certifications: [],
+      }),
+    }))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: 'Complete seu curriculo para gerar uma versao ATS.',
+      reasons: [
+        'Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.',
+        'Educacao: adicione pelo menos uma formacao academica.',
+      ],
+      missingItems: [
+        'Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.',
+        'Educacao: adicione pelo menos uma formacao academica.',
+      ],
     })
     expect(createSession).not.toHaveBeenCalled()
     expect(dispatchToolWithContext).not.toHaveBeenCalled()

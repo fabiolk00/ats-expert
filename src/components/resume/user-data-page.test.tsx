@@ -97,7 +97,13 @@ describe("UserDataPage", () => {
 
     expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
     expect(screen.getByText("• Dados pessoais: adicione seu nome completo.")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "• Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.",
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByText("• Experiencia: inclua pelo menos uma experiencia profissional.")).toBeInTheDocument()
+    expect(screen.getByText("• Educacao: adicione pelo menos uma formacao academica.")).toBeInTheDocument()
   })
 
   it("enables the ATS enhancement button when the base profile is ready", async () => {
@@ -123,8 +129,16 @@ describe("UserDataPage", () => {
               bullets: ["Criei dashboards executivos."],
             }],
             skills: ["SQL", "Power BI", "ETL", "Excel"],
-            education: [],
-            certifications: [],
+            education: [{
+              degree: "Bacharel em Sistemas de Informacao",
+              institution: "USP",
+              year: "2020",
+            }],
+            certifications: [{
+              name: "AWS Cloud Practitioner",
+              issuer: "Amazon",
+              year: "2024",
+            }],
           },
           linkedinUrl: null,
           extractedAt: new Date().toISOString(),
@@ -169,8 +183,16 @@ describe("UserDataPage", () => {
                 bullets: ["Criei dashboards executivos."],
               }],
               skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [],
-              certifications: [],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
             },
             linkedinUrl: null,
             extractedAt: new Date().toISOString(),
@@ -201,8 +223,16 @@ describe("UserDataPage", () => {
                 bullets: ["Criei dashboards executivos."],
               }],
               skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [],
-              certifications: [],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
             },
             linkedinUrl: null,
             extractedAt: new Date().toISOString(),
@@ -260,7 +290,11 @@ describe("UserDataPage", () => {
               institution: "",
               year: "2023",
             }],
-            certifications: [],
+            certifications: [{
+              name: "AWS Cloud Practitioner",
+              issuer: "Amazon",
+              year: "2024",
+            }],
           },
           linkedinUrl: null,
           extractedAt: new Date().toISOString(),
@@ -306,8 +340,16 @@ describe("UserDataPage", () => {
               bullets: [],
             }],
             skills: ["SQL", "Power BI", "ETL", "Excel"],
-            education: [],
-            certifications: [],
+            education: [{
+              degree: "Bacharel em Sistemas de Informacao",
+              institution: "USP",
+              year: "2020",
+            }],
+            certifications: [{
+              name: "AWS Cloud Practitioner",
+              issuer: "Amazon",
+              year: "2024",
+            }],
           },
           linkedinUrl: null,
           extractedAt: new Date().toISOString(),
@@ -327,6 +369,58 @@ describe("UserDataPage", () => {
     expect(screen.getByText("• Experiencia 1: adicione o cargo.")).toBeInTheDocument()
     expect(screen.getByText("• Experiencia 1: adicione a empresa.")).toBeInTheDocument()
     expect(screen.getByText("• Experiencia 1: adicione pelo menos um resultado ou responsabilidade.")).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it("shows a friendly ATS modal when required ATS sections are still empty", async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        profile: {
+          id: "profile_123",
+          source: "manual",
+          cvState: {
+            fullName: "Ana Silva",
+            email: "ana@example.com",
+            phone: "555-0100",
+            linkedin: "https://linkedin.com/in/ana",
+            location: "Sao Paulo",
+            summary: "",
+            experience: [{
+              title: "Analista de Dados",
+              company: "Acme",
+              location: "Sao Paulo",
+              startDate: "2022",
+              endDate: "2024",
+              bullets: ["Criei dashboards executivos."],
+            }],
+            skills: ["SQL", "Power BI", "ETL", "Excel"],
+            education: [],
+            certifications: [],
+          },
+          linkedinUrl: null,
+          extractedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    }))
+
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await user.click(await screen.findByText("Melhorar para ATS (1 credito)"))
+
+    expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        "• Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText("• Educacao: adicione pelo menos uma formacao academica.")).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(mockPush).not.toHaveBeenCalled()
   })
@@ -356,8 +450,16 @@ describe("UserDataPage", () => {
                 bullets: ["Criei dashboards executivos."],
               }],
               skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [],
-              certifications: [],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
             },
             linkedinUrl: null,
             extractedAt: new Date().toISOString(),
@@ -388,8 +490,16 @@ describe("UserDataPage", () => {
                 bullets: ["Criei dashboards executivos."],
               }],
               skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [],
-              certifications: [],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
             },
             linkedinUrl: null,
             profilePhotoUrl: null,

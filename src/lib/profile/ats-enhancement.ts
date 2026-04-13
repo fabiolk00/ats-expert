@@ -5,12 +5,6 @@ export type AtsBaseReadiness = {
   reasons: string[]
 }
 
-function hasAnyExperienceContent(cvState: CVState): boolean {
-  return cvState.experience.some((entry) =>
-    Boolean(entry.title.trim() || entry.company.trim() || entry.bullets.some((bullet) => bullet.trim())),
-  )
-}
-
 function hasAnyExperienceEntryData(entry: CVState['experience'][number]): boolean {
   return Boolean(
     entry.title.trim()
@@ -22,17 +16,44 @@ function hasAnyExperienceEntryData(entry: CVState['experience'][number]): boolea
   )
 }
 
+function hasAnyEducationEntryData(entry: CVState['education'][number]): boolean {
+  return Boolean(
+    entry.degree.trim()
+    || entry.institution.trim()
+    || entry.year.trim()
+    || entry.gpa?.trim(),
+  )
+}
+
+function hasAnyCertificationEntryData(entry: NonNullable<CVState['certifications']>[number]): boolean {
+  return Boolean(
+    entry.name.trim()
+    || entry.issuer.trim()
+    || entry.year?.trim(),
+  )
+}
+
+function getExperienceEntries(cvState: CVState): CVState['experience'] {
+  return cvState.experience.filter(hasAnyExperienceEntryData)
+}
+
+function getEducationEntries(cvState: CVState): CVState['education'] {
+  return cvState.education.filter(hasAnyEducationEntryData)
+}
+
+function getCertificationEntries(cvState: CVState): NonNullable<CVState['certifications']> {
+  return (cvState.certifications ?? []).filter(hasAnyCertificationEntryData)
+}
+
 export function assessAtsEnhancementReadiness(cvState: CVState): AtsBaseReadiness {
   const hasPersonalData = Boolean(
     cvState.fullName.trim()
     && (cvState.email.trim() || cvState.phone.trim() || cvState.linkedin?.trim() || cvState.location?.trim()),
   )
-  const hasSummaryOrExperience = Boolean(
-    cvState.summary.trim()
-    || hasAnyExperienceContent(cvState),
-  )
-  const hasExperience = hasAnyExperienceContent(cvState)
+  const hasSummary = Boolean(cvState.summary.trim())
+  const hasExperience = getExperienceEntries(cvState).length > 0
   const hasSkills = cvState.skills.filter((skill) => skill.trim().length > 0).length >= 3
+  const hasEducation = getEducationEntries(cvState).length > 0
 
   const reasons: string[] = []
 
@@ -40,8 +61,8 @@ export function assessAtsEnhancementReadiness(cvState: CVState): AtsBaseReadines
     reasons.push('Adicione seus dados pessoais basicos.')
   }
 
-  if (!hasSummaryOrExperience) {
-    reasons.push('Preencha o resumo ou a experiencia profissional.')
+  if (!hasSummary) {
+    reasons.push('Preencha o resumo profissional.')
   }
 
   if (!hasExperience) {
@@ -50,6 +71,10 @@ export function assessAtsEnhancementReadiness(cvState: CVState): AtsBaseReadines
 
   if (!hasSkills) {
     reasons.push('Adicione pelo menos algumas skills relevantes.')
+  }
+
+  if (!hasEducation) {
+    reasons.push('Adicione pelo menos uma formacao.')
   }
 
   return {
@@ -69,11 +94,11 @@ export function getAtsEnhancementBlockingItems(cvState: CVState): string[] {
     items.push('Dados pessoais: informe pelo menos email, telefone, LinkedIn ou localizacao.')
   }
 
-  if (!cvState.summary.trim() && !hasAnyExperienceContent(cvState)) {
-    items.push('Resumo ou experiencia: preencha pelo menos uma dessas secoes.')
+  if (!cvState.summary.trim()) {
+    items.push('Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.')
   }
 
-  const experienceEntries = cvState.experience.filter(hasAnyExperienceEntryData)
+  const experienceEntries = getExperienceEntries(cvState)
 
   if (experienceEntries.length === 0) {
     items.push('Experiencia: inclua pelo menos uma experiencia profissional.')
@@ -107,9 +132,11 @@ export function getAtsEnhancementBlockingItems(cvState: CVState): string[] {
     items.push('Skills: adicione pelo menos 3 skills relevantes.')
   }
 
-  const educationEntries = cvState.education.filter((entry) =>
-    Boolean(entry.degree.trim() || entry.institution.trim() || entry.year.trim() || entry.gpa?.trim()),
-  )
+  const educationEntries = getEducationEntries(cvState)
+
+  if (educationEntries.length === 0) {
+    items.push('Educacao: adicione pelo menos uma formacao academica.')
+  }
 
   for (const [index, entry] of educationEntries.entries()) {
     const itemNumber = index + 1
@@ -127,9 +154,7 @@ export function getAtsEnhancementBlockingItems(cvState: CVState): string[] {
     }
   }
 
-  const certificationEntries = (cvState.certifications ?? []).filter((entry) =>
-    Boolean(entry.name.trim() || entry.issuer.trim() || entry.year?.trim()),
-  )
+  const certificationEntries = getCertificationEntries(cvState)
 
   for (const [index, entry] of certificationEntries.entries()) {
     const itemNumber = index + 1
@@ -190,6 +215,18 @@ export function buildResumeTextFromCvState(cvState: CVState): string {
     lines.push('Educacao')
     for (const education of cvState.education) {
       lines.push(`${education.degree} - ${education.institution} (${education.year})`)
+    }
+  }
+
+  const certifications = cvState.certifications ?? []
+  if (certifications.length > 0) {
+    lines.push('Certificacoes')
+    for (const certification of certifications) {
+      lines.push(
+        certification.year?.trim()
+          ? `${certification.name} - ${certification.issuer} (${certification.year})`
+          : `${certification.name} - ${certification.issuer}`,
+      )
     }
   }
 

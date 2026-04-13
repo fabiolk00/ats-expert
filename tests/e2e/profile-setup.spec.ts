@@ -309,6 +309,33 @@ test.describe('manual profile setup', () => {
     await expect(page).toHaveURL(/\/dashboard\/resumes\/new(?:\?.*)?$/)
   })
 
+  test('shows a friendly ATS modal when required ATS sections are empty', async ({ page }) => {
+    await bootstrapProfileSetupPage(page, {
+      creditsRemaining: 2,
+      profile: {
+        profile: {
+          ...buildReadyProfileResponse().profile,
+          cvState: {
+            ...buildReadyProfileResponse().profile.cvState,
+            summary: '',
+            certifications: [],
+          },
+        },
+      },
+    })
+
+    await page.getByRole('button', { name: /Melhorar para ATS/i }).click()
+
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(page.getByText('Complete seu perfil antes de melhorar para ATS')).toBeVisible()
+    await expect(
+      page.getByText(
+        '• Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.',
+      ),
+    ).toBeVisible()
+    await expect(page).toHaveURL(/\/dashboard\/resumes\/new(?:\?.*)?$/)
+  })
+
   test('starts ATS enhancement from a ready base profile and lands on the generated session', async ({ page }) => {
     const sessionId = 'sess_ats_profile_setup'
     let atsPayload: Record<string, unknown> | null = null
