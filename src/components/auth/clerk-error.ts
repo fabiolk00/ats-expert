@@ -10,14 +10,16 @@ export function getClerkErrorMessage(
   error: unknown,
   fallback: string,
 ): string {
-  if (
+  const clerkErrors =
     error &&
     typeof error === "object" &&
     "errors" in error &&
-    Array.isArray((error as ClerkErrorShape).errors) &&
-    (error as ClerkErrorShape).errors.length > 0
-  ) {
-    const firstError = (error as ClerkErrorShape).errors?.[0]
+    Array.isArray((error as ClerkErrorShape).errors)
+      ? (error as ClerkErrorShape).errors
+      : null
+
+  if (clerkErrors && clerkErrors.length > 0) {
+    const firstError = clerkErrors[0]
 
     return firstError?.longMessage || firstError?.message || fallback
   }
