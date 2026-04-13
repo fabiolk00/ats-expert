@@ -67,6 +67,14 @@ function decodeBase64Url(value: string): Uint8Array {
   return base64Decode(normalized)
 }
 
+function isCanonicalBase64UrlSegment(value: string): boolean {
+  try {
+    return encodeBase64Url(decodeBase64Url(value)) === value
+  } catch {
+    return false
+  }
+}
+
 function normalizeIssuedAt(value?: string): string {
   if (!value) {
     return new Date().toISOString()
@@ -212,6 +220,13 @@ export async function verifySignedE2EAuthCookie(
 
   const [payloadSegment, signatureSegment, extraSegment] = cookieValue.split('.')
   if (!payloadSegment || !signatureSegment || extraSegment) {
+    return null
+  }
+
+  if (
+    !isCanonicalBase64UrlSegment(payloadSegment)
+    || !isCanonicalBase64UrlSegment(signatureSegment)
+  ) {
     return null
   }
 
