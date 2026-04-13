@@ -213,14 +213,18 @@ export default function SignupForm() {
     {
       id: "min-length",
       label: `Minimo de ${minimumLength} caracteres`,
-      met: password.length >= minimumLength && !passwordComplexity.min_length,
+      met:
+        password.length > 0 &&
+        password.length >= minimumLength &&
+        !passwordComplexity.min_length,
     },
     {
       id: "special-char",
       label: "Pelo menos 1 caractere especial",
       met:
-        !requiresSpecialCharacter ||
-        (!passwordComplexity.require_special_char && /[^A-Za-z0-9]/.test(password)),
+        password.length > 0 &&
+        (!requiresSpecialCharacter ||
+          (!passwordComplexity.require_special_char && /[^A-Za-z0-9]/.test(password))),
     },
   ]
 
