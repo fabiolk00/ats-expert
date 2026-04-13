@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState, type ChangeEvent, type ReactNode } from "react"
 import {
   BadgeCheck,
   BriefcaseBusiness,
@@ -231,6 +231,17 @@ function removeCertificationEntry(value: CVState, index: number): CertificationE
   return nextEntries.length > 0 ? nextEntries : [emptyCertification()]
 }
 
+function buildSkillsDraft(skills: string[]): string {
+  return skills.join("\n")
+}
+
+function parseSkillsDraft(draft: string): string[] {
+  return draft
+    .split("\n")
+    .map((skill) => skill.trim())
+    .filter(Boolean)
+}
+
 export function VisualResumeEditor({
   value,
   onChange,
@@ -246,16 +257,38 @@ export function VisualResumeEditor({
     education: false,
     certifications: false,
   })
+  const [skillsDraft, setSkillsDraft] = useState(() => buildSkillsDraft(value.skills))
+  const [isEditingSkills, setIsEditingSkills] = useState(false)
 
   useEffect(() => {
     onAllSectionsClosedChange?.(Object.values(openSections).every((isOpen) => !isOpen))
   }, [onAllSectionsClosedChange, openSections])
+
+  useEffect(() => {
+    if (!isEditingSkills) {
+      setSkillsDraft(buildSkillsDraft(value.skills))
+    }
+  }, [isEditingSkills, value.skills])
 
   const toggleSection = (section: SectionId) => {
     setOpenSections((current) => ({
       ...current,
       [section]: !current[section],
     }))
+  }
+
+  const handleSkillsChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    const nextDraft = event.target.value
+    setSkillsDraft(nextDraft)
+    onChange({
+      ...value,
+      skills: parseSkillsDraft(nextDraft),
+    })
+  }
+
+  const handleSkillsBlur = () => {
+    setIsEditingSkills(false)
+    setSkillsDraft(buildSkillsDraft(parseSkillsDraft(skillsDraft)))
   }
 
   return (
@@ -329,19 +362,13 @@ export function VisualResumeEditor({
         compactMode={compactMode}
       >
         <Textarea
-          value={value.skills.join("\n")}
+          value={skillsDraft}
           rows={6}
           disabled={disabled}
           placeholder={"Uma skill por linha\nEx.: TypeScript\nReact\nProduct Design"}
-          onChange={(event) =>
-            onChange({
-              ...value,
-              skills: event.target.value
-                .split("\n")
-                .map((skill) => skill.trim())
-                .filter(Boolean),
-            })
-          }
+          onFocus={() => setIsEditingSkills(true)}
+          onBlur={handleSkillsBlur}
+          onChange={handleSkillsChange}
         />
       </SectionCard>
 
