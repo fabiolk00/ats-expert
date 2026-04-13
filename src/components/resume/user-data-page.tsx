@@ -352,6 +352,16 @@ export default function UserDataPage({
         techStack: "",
         bullets: [{ text: "Os bullets reescritos para ATS aparecem aqui." }],
       }]
+  const previewEducation = template.education.length > 0
+    ? template.education
+    : [{
+        degree: "Sua formacao aparece aqui",
+        institution: "",
+        period: "",
+      }]
+  const previewCertifications = template.certifications.length > 0
+    ? template.certifications
+    : [{ name: "Suas certificacoes aparecem aqui" }]
 
   const atsReadiness = useMemo(
     () => assessAtsEnhancementReadiness(sanitizedResumeData),
@@ -400,6 +410,12 @@ export default function UserDataPage({
               <div className="flex-1 min-h-0 overflow-y-auto">
                 <div className="p-5">
                   <h2 className="mb-4 text-base font-semibold text-foreground">Preview do curriculo base</h2>
+
+                  <div className="mb-3">
+                    <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Dados pessoais
+                    </h4>
+                  </div>
 
                   <div className="mb-5 rounded-lg bg-muted/50 p-4">
                     <div className="mb-3 flex items-start gap-3">
@@ -503,6 +519,61 @@ export default function UserDataPage({
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  <Separator className="my-4" />
+
+                  <div>
+                    <h4 className="mb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Educacao
+                    </h4>
+                    <div className="space-y-3">
+                      {previewEducation.slice(0, 3).map((entry, index) => (
+                        <div key={`${entry.degree}-${index}`} className="text-xs">
+                          <p className="leading-tight font-medium text-foreground">
+                            {entry.degree}
+                          </p>
+                          {entry.institution ? (
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              {entry.institution}
+                              {entry.period ? ` - ${entry.period}` : ""}
+                            </p>
+                          ) : entry.period ? (
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              {entry.period}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                      {template.education.length > 3 ? (
+                        <p className="text-[10px] text-muted-foreground">
+                          +{template.education.length - 3} formacoes
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <Separator className="my-4" />
+
+                  <div>
+                    <h4 className="mb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Certificacoes
+                    </h4>
+                    <div className="space-y-2">
+                      {previewCertifications.slice(0, 4).map((certification, index) => (
+                        <p
+                          key={`${certification.name}-${index}`}
+                          className="text-xs leading-relaxed text-foreground"
+                        >
+                          • {certification.name}
+                        </p>
+                      ))}
+                      {template.certifications.length > 4 ? (
+                        <p className="text-[10px] text-muted-foreground">
+                          +{template.certifications.length - 4} certificacoes
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </div>

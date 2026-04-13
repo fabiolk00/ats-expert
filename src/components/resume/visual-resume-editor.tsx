@@ -321,6 +321,31 @@ export function VisualResumeEditor({
       </SectionCard>
 
       <SectionCard
+        title="Skills"
+        description="Liste habilidades, ferramentas e tecnologias relevantes."
+        icon={<Wrench className="h-5 w-5" />}
+        isOpen={openSections.skills}
+        onToggle={() => toggleSection("skills")}
+        compactMode={compactMode}
+      >
+        <Textarea
+          value={value.skills.join("\n")}
+          rows={6}
+          disabled={disabled}
+          placeholder={"Uma skill por linha\nEx.: TypeScript\nReact\nProduct Design"}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              skills: event.target.value
+                .split("\n")
+                .map((skill) => skill.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+      </SectionCard>
+
+      <SectionCard
         title="Experiência"
         description="Cada bloco representa uma experiência profissional."
         icon={<BriefcaseBusiness className="h-5 w-5" />}
@@ -447,31 +472,6 @@ export function VisualResumeEditor({
             Adicionar experiência
           </Button>
         </div>
-      </SectionCard>
-
-      <SectionCard
-        title="Skills"
-        description="Liste habilidades, ferramentas e tecnologias relevantes."
-        icon={<Wrench className="h-5 w-5" />}
-        isOpen={openSections.skills}
-        onToggle={() => toggleSection("skills")}
-        compactMode={compactMode}
-      >
-        <Textarea
-          value={value.skills.join("\n")}
-          rows={6}
-          disabled={disabled}
-          placeholder={"Uma skill por linha\nEx.: TypeScript\nReact\nProduct Design"}
-          onChange={(event) =>
-            onChange({
-              ...value,
-              skills: event.target.value
-                .split("\n")
-                .map((skill) => skill.trim())
-                .filter(Boolean),
-            })
-          }
-        />
       </SectionCard>
 
       <SectionCard

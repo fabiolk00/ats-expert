@@ -242,4 +242,76 @@ describe("UserDataPage", () => {
 
     expect(screen.getByText("Base salva a partir de curriculo importado")).toBeInTheDocument()
   })
+
+  it("renders the base preview sections in the requested order", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        profile: {
+          id: "profile_123",
+          source: "manual",
+          cvState: {
+            fullName: "Ana Silva",
+            email: "ana@example.com",
+            phone: "555-0100",
+            linkedin: "",
+            location: "Sao Paulo",
+            summary: "Analista de dados com foco em BI.",
+            experience: [],
+            skills: ["SQL"],
+            education: [
+              {
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2023",
+              },
+            ],
+            certifications: [
+              {
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              },
+            ],
+          },
+          linkedinUrl: null,
+          extractedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    })) as unknown as typeof fetch)
+
+    render(<UserDataPage currentCredits={2} />)
+
+    const personalHeading = await screen.findByText("Dados pessoais")
+    const summaryHeading = screen.getByText("Resumo")
+    const skillsHeading = screen.getAllByText("Skills").find((element) => element.tagName === "H4")
+    const experienceHeading = screen.getByText("Experiencia")
+    const educationHeading = screen.getByText("Educacao")
+    const certificationsHeading = screen.getByText("Certificacoes")
+
+    expect(skillsHeading).toBeDefined()
+
+    expect(
+      personalHeading.compareDocumentPosition(summaryHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      summaryHeading.compareDocumentPosition(skillsHeading as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      skillsHeading?.compareDocumentPosition(experienceHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      experienceHeading.compareDocumentPosition(educationHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      educationHeading.compareDocumentPosition(certificationsHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    expect(await screen.findByText("Educacao")).toBeInTheDocument()
+    expect(screen.getByText("Bacharel em Sistemas de Informacao")).toBeInTheDocument()
+    expect(screen.getByText("USP - 2023")).toBeInTheDocument()
+    expect(screen.getByText("• AWS Cloud Practitioner")).toBeInTheDocument()
+  })
 })
