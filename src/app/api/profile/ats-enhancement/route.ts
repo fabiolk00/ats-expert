@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { dispatchToolWithContext } from '@/lib/agent/tools'
+import { validateGenerationCvState } from '@/lib/agent/tools/generate-file'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { CVStateSchema } from '@/lib/cv/schema'
 import { checkUserQuota } from '@/lib/db/sessions'
@@ -73,6 +74,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       error: 'Seus creditos acabaram. Recarregue seu saldo para gerar uma versao ATS.',
     }, { status: 402 })
+  }
+
+  const generationValidation = validateGenerationCvState(parsed.data)
+  if (!generationValidation.success) {
+    return NextResponse.json({
+      error: 'Complete seu curriculo para gerar uma versao ATS.',
+      reasons: [generationValidation.errorMessage],
+      missingItems: [generationValidation.errorMessage],
+    }, { status: 400 })
   }
 
   const session = await createSession(appUser.id)
