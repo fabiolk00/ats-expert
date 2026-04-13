@@ -1,6 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs"
 import type { Metadata } from "next"
 
+import { embeddedClerkLocalizationPtBr } from "@/components/auth/clerk-localization"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
@@ -58,7 +59,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider localization={embeddedClerkLocalizationPtBr}>
       <html lang="pt-BR" suppressHydrationWarning>
         <head />
         <body>

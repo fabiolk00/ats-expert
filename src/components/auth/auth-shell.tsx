@@ -32,7 +32,7 @@ export default function AuthShell({
               linkTo="/"
               className="items-center gap-2"
               iconClassName="h-10 w-10"
-              textClassName="text-xl"
+              textClassName="text-xl text-white"
             />
           </div>
 
