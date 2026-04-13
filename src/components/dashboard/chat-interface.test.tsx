@@ -111,6 +111,22 @@ function createPendingSSEStream(events: unknown[]): ReadableStream<Uint8Array> {
   })
 }
 
+function createDeferredResponse() {
+  let resolve: (value: Response) => void
+  let reject: (reason?: unknown) => void
+
+  const promise = new Promise<Response>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+
+  return {
+    promise,
+    resolve: resolve!,
+    reject: reject!,
+  }
+}
+
 describe("ChatInterface", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -130,6 +146,181 @@ describe("ChatInterface", () => {
     render(<ChatInterface userName="Fabio" />)
 
     expect(screen.getByRole("heading", { name: "Olá, Fabio!" })).toBeInTheDocument()
+  })
+
+  it("revalidates missing contact info from the live profile and suppresses a stale phone warning", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url === "/api/profile") {
+        return new Response(JSON.stringify({
+          profile: {
+            profilePhotoUrl: null,
+            cvState: {
+              email: "fabio@example.com",
+              phone: "(11) 99999-9999",
+            },
+          },
+        }), { status: 200 })
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(
+      <ChatInterface
+        userName="Fabio"
+        missingContactInfo={{ missingEmail: false, missingPhone: true }}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith("/api/profile", expect.objectContaining({
+        cache: "no-store",
+        credentials: "include",
+      }))
+    })
+
+    expect(
+      screen.queryByText(/telefone nao esta preenchido no perfil/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it("shows the phone warning when the live profile is actually missing that field", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url === "/api/profile") {
+        return new Response(JSON.stringify({
+          profile: {
+            profilePhotoUrl: null,
+            cvState: {
+              email: "fabio@example.com",
+              phone: "",
+            },
+          },
+        }), { status: 200 })
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface userName="Fabio" />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/telefone nao esta preenchido no perfil/i),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it("preserves the optimistic conversation when the first message is sent before /api/profile resolves", async () => {
+    const profileRequest = createDeferredResponse()
+    let profileResolved = false
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (typeof url === "string" && url === "/api/profile") {
+        return profileRequest.promise
+      }
+
+      if (typeof url === "string" && url === "/api/agent") {
+        return Promise.resolve(new Response(createPendingSSEStream([]), {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }))
+      }
+
+      return Promise.resolve(new Response(JSON.stringify({ messages: [] }), { status: 200 }))
+    })
+
+    render(
+      <ChatInterface
+        userName="Fabio"
+        missingContactInfo={{ missingEmail: false, missingPhone: false }}
+      />,
+    )
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    await userEvent.type(textarea, "Primeira mensagem antes do perfil")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(screen.getByText("Primeira mensagem antes do perfil")).toBeInTheDocument()
+    })
+
+    profileRequest.resolve(new Response(JSON.stringify({
+      profile: {
+        profilePhotoUrl: null,
+        cvState: {
+          email: "fabio@example.com",
+          phone: "",
+        },
+      },
+    }), { status: 200 }))
+    profileResolved = true
+
+    await waitFor(() => {
+      expect(profileResolved).toBe(true)
+    })
+
+    expect(screen.getByText("Primeira mensagem antes do perfil")).toBeInTheDocument()
+    expect(
+      screen.getByText(/Quer que eu adapte o curriculo para uma vaga especifica/i),
+    ).toBeInTheDocument()
+
+    const assistantMessages = screen.getAllByTestId("message-assistant")
+    expect(assistantMessages[assistantMessages.length - 1]).toHaveTextContent("Pensando...")
+  })
+
+  it.each([
+    {
+      name: "when /api/profile returns profile: null",
+      profileResponse: () => Promise.resolve(new Response(JSON.stringify({ profile: null }), { status: 200 })),
+    },
+    {
+      name: "when /api/profile fails",
+      profileResponse: () => Promise.reject(new Error("profile unavailable")),
+    },
+  ])("keeps prop-based missingContactInfo as fallback $name", async ({ profileResponse }) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (typeof url === "string" && url === "/api/profile") {
+        return profileResponse()
+      }
+
+      return Promise.resolve(new Response(JSON.stringify({ messages: [] }), { status: 200 }))
+    })
+
+    render(
+      <ChatInterface
+        userName="Fabio"
+        missingContactInfo={{ missingEmail: true, missingPhone: false }}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/e-mail nao esta preenchido no perfil/i),
+      ).toBeInTheDocument()
+    })
+  })
+
+  it("keeps prop-based missingContactInfo when /api/profile returns a non-OK response", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (typeof url === "string" && url === "/api/profile") {
+        return Promise.resolve(new Response(JSON.stringify({ error: "profile failed" }), { status: 500 }))
+      }
+
+      return Promise.resolve(new Response(JSON.stringify({ messages: [] }), { status: 200 }))
+    })
+
+    render(
+      <ChatInterface
+        userName="Fabio"
+        missingContactInfo={{ missingEmail: false, missingPhone: true }}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/telefone nao esta preenchido no perfil/i),
+      ).toBeInTheDocument()
+    })
   })
 
   it("runs in vacancy-only mode without rendering a file upload control", () => {
@@ -693,7 +884,7 @@ describe("ChatInterface", () => {
     })
 
     expect(screen.queryByText(/atingiu o limite de mensagens/i)).not.toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: /olá,\s+fabio!/i })).toBeInTheDocument()
+    expect(screen.getByText(/Tenho seu curriculo salvo aqui/i)).toBeInTheDocument()
   })
 
   it("reads X-Session-Id header and fires onSessionChange before SSE parsing", async () => {

@@ -34,6 +34,10 @@ interface Message {
 type ProfileResponse = {
   profile: {
     profilePhotoUrl: string | null
+    cvState?: {
+      email?: string
+      phone?: string
+    }
   } | null
 }
 
@@ -317,9 +321,10 @@ export function ChatInterface({
     () => getChatCopy(preferredName),
     [preferredName],
   )
+  const [liveMissingContactInfo, setLiveMissingContactInfo] = useState<MissingContactInfo | undefined>(undefined)
   const welcomeMessages = useMemo(
-    () => createWelcomeMessages(preferredName, missingContactInfo),
-    [missingContactInfo, preferredName],
+    () => createWelcomeMessages(preferredName, liveMissingContactInfo),
+    [liveMissingContactInfo, preferredName],
   )
   const [sessionId, setSessionId] = useState<string | undefined>(initialSessionId)
   const [messages, setMessages] = useState<Message[]>(welcomeMessages)
@@ -412,7 +417,7 @@ export function ChatInterface({
       setAtsScore(undefined)
       setMessageCount(0)
       setUploadedFile(null)
-      setMessages(welcomeMessages)
+      setMessages((previous) => (hasConversationMessages(previous) ? previous : welcomeMessages))
     }
   }, [initialSessionId, welcomeMessages])
 
@@ -423,13 +428,18 @@ export function ChatInterface({
   useEffect(() => {
     let isMounted = true
 
-    const loadProfilePhoto = async (): Promise<void> => {
+    const loadProfileState = async (): Promise<void> => {
       try {
         const response = await fetch("/api/profile", {
+          cache: "no-store",
           credentials: "include",
         })
 
         if (!response.ok) {
+          if (isMounted) {
+            setProfilePhotoUrl(null)
+            setLiveMissingContactInfo(missingContactInfo)
+          }
           return
         }
 
@@ -439,19 +449,29 @@ export function ChatInterface({
         }
 
         setProfilePhotoUrl(data.profile?.profilePhotoUrl ?? null)
+        if (!data.profile?.cvState) {
+          setLiveMissingContactInfo(missingContactInfo)
+          return
+        }
+
+        setLiveMissingContactInfo({
+          missingEmail: !data.profile.cvState.email?.trim(),
+          missingPhone: !data.profile.cvState.phone?.trim(),
+        })
       } catch {
         if (isMounted) {
           setProfilePhotoUrl(null)
+          setLiveMissingContactInfo(missingContactInfo)
         }
       }
     }
 
-    void loadProfilePhoto()
+    void loadProfileState()
 
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [missingContactInfo])
 
   useEffect(() => {
     if (!sessionId) {
