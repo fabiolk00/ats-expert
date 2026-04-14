@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
+import { BrandText } from "@/components/brand-wordmark"
 import { BeforeAfterComparison } from "@/components/shared/before-after-comparison"
 import { Button } from "@/components/ui/button"
 
@@ -19,7 +20,7 @@ export default function HeroSection() {
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground text-pretty md:text-xl lg:mx-0">
-              CurrIA usa IA para decodificar exatamente o que recrutadores e softwares de triagem procuram e reescreve seu currículo para corresponder.
+              <BrandText text="CurrIA usa IA para decodificar exatamente o que recrutadores e softwares de triagem procuram e reescreve seu currículo para corresponder." />
             </p>
             <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
               <Button asChild size="lg" className="gap-2 text-base font-semibold">

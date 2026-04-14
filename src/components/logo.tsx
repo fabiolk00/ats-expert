@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Bot } from "lucide-react"
 
+import BrandWordmark from "@/components/brand-wordmark"
 import { cn } from "@/lib/utils"
 
 export default function Logo({
@@ -29,17 +30,10 @@ export default function Logo({
       >
         <Bot className={size === "sm" ? "w-4 h-4" : "w-5 h-5"} />
       </div>
-      <span className={cn("font-bold tracking-tight", size === "sm" ? "text-lg" : "text-xl", textClassName)}>
-        Curr
-        <span
-          className={cn(
-            "bg-gradient-to-r from-purple-600 to-indigo-500 bg-clip-text text-transparent dark:from-purple-400 dark:to-indigo-400",
-            accentClassName,
-          )}
-        >
-          IA
-        </span>
-      </span>
+      <BrandWordmark
+        className={cn("font-bold tracking-tight", size === "sm" ? "text-lg" : "text-xl", textClassName)}
+        accentClassName={accentClassName}
+      />
     </Link>
   )
 }

@@ -1,5 +1,6 @@
 import Link from "next/link"
 
+import BrandWordmark from "@/components/brand-wordmark"
 import Logo from "@/components/logo"
 
 const links = [
@@ -28,8 +29,7 @@ export default function Footer() {
           </nav>
 
           <p className="text-sm text-muted-foreground">
-            Curr<span className="text-purple-600 dark:text-purple-400">IA</span> &copy;{" "}
-            {new Date().getFullYear()}
+            <BrandWordmark className="font-medium" /> &copy; {new Date().getFullYear()}
           </p>
         </div>
       </div>

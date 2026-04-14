@@ -1,6 +1,8 @@
 "use client"
 
 import { motion } from "motion/react"
+
+import { BrandText } from "@/components/brand-wordmark"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Star, TrendingUp, Users, Briefcase, Quote } from "lucide-react"
@@ -115,7 +117,7 @@ export default function SocialProof() {
                     &ldquo;{testimonial.result}&rdquo;
                   </h4>
                   <p className="text-muted-foreground text-sm leading-relaxed mb-8 flex-grow">
-                    {testimonial.content}
+                    <BrandText text={testimonial.content} className="font-medium text-foreground" />
                   </p>
 
                   <div className="flex items-center gap-4 mt-auto">

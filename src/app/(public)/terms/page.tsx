@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 
+import { BrandText } from '@/components/brand-wordmark'
+
 export const metadata: Metadata = {
   title: 'Termos de Serviço — CurrIA',
   description: 'Termos de serviço e condições de uso da plataforma CurrIA',
@@ -21,14 +23,20 @@ export default function TermsPage() {
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold">1. Aceitação dos Termos</h2>
               <p className="text-muted-foreground">
-                Ao acessar e usar a plataforma CurrIA, você concorda em aceitar estes termos de serviço e todas as leis e regulamentações aplicáveis. Se você não concordar com qualquer um destes termos, está proibido de usar ou acessar este site.
+                <BrandText
+                  text="Ao acessar e usar a plataforma CurrIA, você concorda em aceitar estes termos de serviço e todas as leis e regulamentações aplicáveis. Se você não concordar com qualquer um destes termos, está proibido de usar ou acessar este site."
+                  className="font-medium text-foreground"
+                />
               </p>
             </section>
 
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold">2. Uso Apropriado da Licença</h2>
               <p className="text-muted-foreground">
-                É concedida a você uma licença limitada para acessar a plataforma CurrIA apenas para fins legítimos. Você não pode:
+                <BrandText
+                  text="É concedida a você uma licença limitada para acessar a plataforma CurrIA apenas para fins legítimos. Você não pode:"
+                  className="font-medium text-foreground"
+                />
               </p>
               <ul className="space-y-2 text-muted-foreground list-disc list-inside">
                 <li>Tentar obter acesso não autorizado aos sistemas</li>
@@ -41,21 +49,30 @@ export default function TermsPage() {
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold">3. Isenção de Responsabilidade</h2>
               <p className="text-muted-foreground">
-                A plataforma CurrIA é fornecida &ldquo;no estado em que se encontra&rdquo;. CurrIA não oferece garantias de qualquer tipo, expressas ou implícitas. CurrIA renuncia a todas as garantias, expressas ou implícitas, incluindo, mas não limitado a, garantias de comercialização, adequação a um fim específico e não-violação.
+                <BrandText
+                  text='A plataforma CurrIA é fornecida "no estado em que se encontra". CurrIA não oferece garantias de qualquer tipo, expressas ou implícitas. CurrIA renuncia a todas as garantias, expressas ou implícitas, incluindo, mas não limitado a, garantias de comercialização, adequação a um fim específico e não-violação.'
+                  className="font-medium text-foreground"
+                />
               </p>
             </section>
 
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold">4. Limitação de Responsabilidade</h2>
               <p className="text-muted-foreground">
-                Em nenhum caso CurrIA será responsável por qualquer dano direto, indireto, incidental, especial ou consequencial resultante de seu acesso ou uso da plataforma, mesmo que CurrIA tenha sido informado da possibilidade de tais danos.
+                <BrandText
+                  text="Em nenhum caso CurrIA será responsável por qualquer dano direto, indireto, incidental, especial ou consequencial resultante de seu acesso ou uso da plataforma, mesmo que CurrIA tenha sido informado da possibilidade de tais danos."
+                  className="font-medium text-foreground"
+                />
               </p>
             </section>
 
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold">5. Alterações aos Termos</h2>
               <p className="text-muted-foreground">
-                CurrIA se reserva o direito de modificar estes termos de serviço a qualquer momento. As alterações entram em vigor imediatamente após a publicação na plataforma. Seu uso contínuo da plataforma após tais alterações constitui sua aceitação dos novos termos.
+                <BrandText
+                  text="CurrIA se reserva o direito de modificar estes termos de serviço a qualquer momento. As alterações entram em vigor imediatamente após a publicação na plataforma. Seu uso contínuo da plataforma após tais alterações constitui sua aceitação dos novos termos."
+                  className="font-medium text-foreground"
+                />
               </p>
             </section>
 

@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react"
 
+import { BrandText } from "@/components/brand-wordmark"
 import { landingFaqs } from "@/components/landing/faq-content"
 import {
   Accordion,
@@ -23,7 +24,10 @@ export default function FaqSection() {
         >
           <h2 className="mb-6 text-3xl font-bold tracking-tight md:text-5xl">Perguntas Frequentes</h2>
           <p className="text-lg leading-relaxed text-muted-foreground md:text-xl">
-            Tudo o que você precisa saber sobre a otimização de currículos e o CurrIA.
+            <BrandText
+              text="Tudo o que você precisa saber sobre a otimização de currículos e o CurrIA."
+              className="font-medium text-foreground"
+            />
           </p>
         </motion.div>
 
@@ -41,7 +45,7 @@ export default function FaqSection() {
                   {faq.question}
                 </AccordionTrigger>
                 <AccordionContent className="pb-6 text-base leading-relaxed text-muted-foreground">
-                  {faq.answer}
+                  <BrandText text={faq.answer} className="font-medium text-foreground" />
                 </AccordionContent>
               </AccordionItem>
             ))}

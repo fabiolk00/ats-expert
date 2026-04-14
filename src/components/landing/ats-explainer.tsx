@@ -11,6 +11,8 @@ import {
 } from "lucide-react"
 import { motion } from "motion/react"
 
+import BrandWordmark from "@/components/brand-wordmark"
+
 const steps = [
   {
     icon: FileUp,
@@ -127,7 +129,7 @@ export default function AtsExplainer() {
 
               <div className="relative z-10">
                 <h3 className="text-2xl md:text-3xl font-bold mb-4 tracking-tight">
-                  O CurrIA foi feito para vencer o ATS
+                  O <BrandWordmark /> foi feito para vencer o ATS
                 </h3>
                 <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
                   Nós fazemos a engenharia reversa desse processo. Nossa inteligência artificial otimiza seu currículo com as palavras-chave certas para que você sempre caia na pilha do recrutador.

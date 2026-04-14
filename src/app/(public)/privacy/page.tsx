@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 
+import { BrandText } from '@/components/brand-wordmark'
+
 export const metadata: Metadata = {
   title: 'Política de Privacidade — CurrIA',
   description: 'Política de privacidade e proteção de dados pessoais da plataforma CurrIA',
@@ -21,7 +23,10 @@ export default function PrivacyPage() {
             <section className="space-y-3">
               <h2 className="text-2xl font-semibold">1. Introdução</h2>
               <p className="text-muted-foreground">
-                CurrIA (&ldquo;nós&rdquo;, &ldquo;nosso&rdquo; ou &ldquo;empresa&rdquo;) opera a plataforma CurrIA (o &ldquo;Serviço&rdquo;). Esta página informa você de nossas políticas em relação à coleta, uso e divulgação de dados pessoais quando você usa nosso Serviço e as opções que você tem associadas a esses dados.
+                <BrandText
+                  text='CurrIA ("nós", "nosso" ou "empresa") opera a plataforma CurrIA (o "Serviço"). Esta página informa você de nossas políticas em relação à coleta, uso e divulgação de dados pessoais quando você usa nosso Serviço e as opções que você tem associadas a esses dados.'
+                  className="font-medium text-foreground"
+                />
               </p>
             </section>
 

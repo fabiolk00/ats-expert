@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 
+import BrandWordmark from "@/components/brand-wordmark"
 import Footer from "@/components/landing/footer"
 import Header from "@/components/landing/header"
 import PricingCards from "@/components/pricing/pricing-cards"
@@ -21,7 +22,9 @@ export default function PricingPage() {
             <div className="inline-flex rounded-full border border-border/60 bg-background/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Escolha seu plano
             </div>
-            <h1 className="mt-6 text-4xl font-black tracking-tight md:text-5xl">Planos CurrIA</h1>
+            <h1 className="mt-6 text-4xl font-black tracking-tight md:text-5xl">
+              Planos <BrandWordmark />
+            </h1>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
               Escolha o plano ideal para suas necessidades
             </p>
