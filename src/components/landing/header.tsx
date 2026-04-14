@@ -28,13 +28,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
           <nav className="hidden md:flex items-center gap-6">
             <Link
               href="/what-is-ats"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm font-medium text-black hover:text-black transition-colors"
             >
               O que é o ATS?
             </Link>
             <a
               href="/#pricing"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm font-medium text-black hover:text-black transition-colors"
             >
               Preços
             </a>

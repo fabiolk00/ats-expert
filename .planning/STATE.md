@@ -107,3 +107,4 @@ Resume file: None
 | 2026-04-10 | 260410-pis | Replace custom login/signup forms with embedded Clerk auth components | Complete |
 | 2026-04-12 | 260412-o24 | migrate credits from session billing to resume generation billing | Complete |
 | 2026-04-13 | 260413-dh7 | fix broken login and signup input box layout | Complete |
+| 2026-04-13 | 260413-u8s | set navbar font color to black for 'O que é o ATS?' and 'Preços' links | Complete |
