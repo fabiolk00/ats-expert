@@ -23,6 +23,12 @@
 - **REL-02**: Broken user-facing encoding artifacts are removed from the product surface and protected from easy reintroduction.
 - **REL-03**: CI blocks merges when critical workspace, preview, generation-state, or release-stability regressions are detected.
 
+### Test Runtime and CI Feedback
+
+- **PERF-01**: The non-E2E test suite defaults to the lightest safe runtime environment and removes artificial delay sources that do not contribute to behavioral coverage.
+- **PERF-02**: The slowest non-E2E suites are profiled and optimized with test-safe interaction patterns or timing controls so runtime drops materially without weakening assertions.
+- **PERF-03**: The repo exposes a repeatable profiling or budgeted verification path for test runtime so regressions become visible before milestone closure or CI drift.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -53,10 +59,13 @@
 | REL-01 | Phase 31 | Planned |
 | REL-02 | Phase 31 | Planned |
 | REL-03 | Phase 31 | Planned |
+| PERF-01 | Phase 31.1 | Complete |
+| PERF-02 | Phase 31.1 | Complete |
+| PERF-03 | Phase 31.1 | Complete |
 
 **Coverage:**
-- v1.4 requirements: 9 total
-- Mapped to phases: 9
+- v1.4 requirements: 12 total
+- Mapped to phases: 12
 - Unmapped: 0
 
 ---

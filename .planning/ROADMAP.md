@@ -79,6 +79,21 @@ Plans:
 - [ ] 31-01: Fix long vacancy generation and encoding regressions with focused browser or route-level proof
 - [ ] 31-02: Strengthen CI and release gates for workspace, preview, and generation-state stability
 
+### Phase 31.1: Reduce Test Suite Runtime and Add CI-Friendly Performance Proof (INSERTED)
+**Goal**: Reduce the non-E2E test suite runtime to a stable CI-friendly budget, remove artificial test overhead, and leave measurable proof so regressions are visible before release.
+**Depends on**: Phase 31
+**Requirements**: [PERF-01, PERF-02, PERF-03]
+**Success Criteria** (what must be TRUE):
+  1. The largest non-E2E runtime outliers are identified with committed evidence and either fixed or isolated behind explicit follow-up decisions.
+  2. Artificial latency in tests, setup, or environment bootstrapping is removed where safe without weakening behavioral coverage.
+  3. CI or local verification exposes a repeatable runtime budget or profiling path so the suite cannot silently drift back into unacceptable duration.
+**Plans**: 3 plans
+
+Plans:
+- [x] 31.1-01: Lock the non-E2E runtime baseline and test-environment budget path
+- [x] 31.1-02: Remove artificial delay from the slowest profiled non-E2E suites without weakening coverage
+- [x] 31.1-03: Add repeatable runtime proof and closure criteria for remaining outliers
+
 ## Autonomous Execution Instruction
 
 The intended operating mode for this milestone is:
@@ -94,7 +109,7 @@ Recommended entrypoint:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 28 -> 29 -> 30 -> 31
+Phases execute in numeric order: 28 -> 29 -> 30 -> 31 -> 31.1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -102,6 +117,7 @@ Phases execute in numeric order: 28 -> 29 -> 30 -> 31
 | 29. Agent Recovery, Streaming, and Persistence Decomposition | 0/3 | Not started | - |
 | 30. Authenticated Route and Billing Boundary Hardening | 0/2 | Not started | - |
 | 31. Long Vacancy Stability and Release Hygiene Gates | 0/2 | Not started | - |
+| 31.1. Reduce Test Suite Runtime and Add CI-Friendly Performance Proof | 3/3 | Complete | 2026-04-15 |
 
 ## Archived Milestones
 

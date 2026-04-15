@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: milestone
-current_phase: 31
-current_phase_name: Long Vacancy Stability and Release Hygiene Gates
-current_plan: 2
+current_phase: 31.1
+current_phase_name: Reduce Test Suite Runtime and Add CI-Friendly Performance Proof
+current_plan: 3
 status: completed
-stopped_at: Phase 31 execution complete; milestone implementation finished
-last_updated: "2026-04-15T16:00:00.000Z"
-last_activity: 2026-04-15 -- Phase 31 completed
+stopped_at: Phase 31.1 execution complete; milestone ready for audit or closure
+last_updated: "2026-04-15T17:05:00.000Z"
+last_activity: 2026-04-15 -- Phase 31.1 completed
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 13
+  completed_plans: 13
   percent: 100
 ---
 
@@ -24,22 +24,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Milestone implementation complete pending next workflow step
+**Current focus:** Milestone implementation complete pending audit or closure
 
 ## Current Position
 
-Current Phase: 31
-Current Phase Name: Long Vacancy Stability and Release Hygiene Gates
-Current Plan: 2
-Total Plans in Phase: 2
-Status: Phase 31 completed
-Last activity: 2026-04-15 -- Phase 31 completed
-Last Activity Description: Phase 31 completed with long-vacancy stabilization, encoding cleanup, and explicit release-critical CI gates
+Current Phase: 31.1
+Current Phase Name: Reduce Test Suite Runtime and Add CI-Friendly Performance Proof
+Current Plan: 3
+Total Plans in Phase: 3
+Status: Phase 31.1 completed
+Last activity: 2026-04-15 -- Phase 31.1 completed
+Last Activity Description: Phase 31.1 completed with node-first Vitest runtime, reduced UI suite overhead, canonical runtime profiling command, and CI-visible non-E2E timing proof
 
-Phase: 31 (Long Vacancy Stability and Release Hygiene Gates) - COMPLETED
-Plan: 2 of 2
+Phase: 31.1 (Reduce Test Suite Runtime and Add CI-Friendly Performance Proof) - COMPLETED
+Plan: 3 of 3
 Status: Execution complete
-Last activity: 2026-04-15 -- Phase 31 completed
+Last activity: 2026-04-15 -- Phase 31.1 completed
 
 Progress: [##########] 100%
 
@@ -47,7 +47,7 @@ Progress: [##########] 100%
 
 Baseline carried forward from earlier shipped milestones:
 
-- Total plans completed: 55
+- Total plans completed: 58
 - Milestones archived: 3
 
 ## Accumulated Context
@@ -63,6 +63,9 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 26 completed: runtime intent extraction, deterministic dialog fast paths, and phase-specific runtime budgets
 - Phase 27 completed: adjacent-route latency logs, before or after proof, and milestone closure artifacts
 - v1.4 started: Agent Core Modularization, Security Hardening, and Release Stability
+- Phase 31.1 inserted after Phase 31: Reduce test suite runtime and add CI-friendly performance proof (URGENT)
+- Phase 31.1 planned: 3 execution plans added for runtime baseline, suite optimization, and CI-friendly proof
+- Phase 31.1 completed: runtime baseline fixes shipped, hot UI suites reduced, and non-E2E profiling is now exposed in CI with explicit residual timing evidence
 
 ### Decisions
 
@@ -79,6 +82,7 @@ Recent decisions affecting the next cycle:
 - Release confidence should come from committed regression gates around workspace, preview, generation, and encoding-sensitive user surfaces.
 - Shared authenticated-mutation trust validation now gates canonical profile edits, session edits, resume generation, and checkout, while webhook billing callbacks remain explicitly token-authenticated server-to-server flows.
 - Repeated long-vacancy generation now has committed browser proof, the remaining mojibake expectations were cleaned, and CI exposes the repaired workspace flow as an explicit release-critical gate.
+- Non-E2E tests now default to `node` unless they explicitly need `jsdom`, recovery tests can bypass production backoff safely, and CI uses the same named profiling command as local runtime proof.
 
 ### Pending Todos
 
@@ -86,13 +90,13 @@ Recent decisions affecting the next cycle:
 
 ### Blockers or Concerns
 
-- No active implementation blocker is currently known for v1.4.
-- Milestone v1.4 implementation is complete; the next workflow step is milestone audit, verification, or closure.
+- No product implementation blocker is currently known for v1.4.
+- The full non-E2E suite still exceeded a local 2-minute ceiling in final profiling, but the residual cost is now narrowed and documented rather than hidden behind structural waste.
 
 ## Session Continuity
 
 Last session: 2026-04-15T23:30:00.0000000-03:00
-Stopped at: Phase 31 execution complete; milestone implementation finished
+Stopped at: Phase 31.1 execution complete; milestone ready for audit or closure
 Resume file: None
 
 ## Quick Tasks Completed
@@ -106,4 +110,3 @@ Resume file: None
 | 2026-04-13 | 260413-up5 | Standardize CurrIA brand pattern across landing page and public pages | Complete |
 | 2026-04-15 | 260414-u6l | Fix pnpm frozen lockfile drift and classify pdf_import_jobs in database convention audit | Complete |
 | 2026-04-15 | 260414-u9d | Make package scripts package-manager agnostic so lint works when CI invokes npm scripts without pnpm on PATH | Complete |
-
