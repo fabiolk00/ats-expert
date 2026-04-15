@@ -1217,21 +1217,21 @@ describe('runAgentLoop streaming', () => {
     mockDispatchToolWithContext.mockResolvedValueOnce({
       output: {
         success: true,
-        rewritten_content: 'Resumo final reescrito a partir da versao otimizada.',
-        section_data: 'Resumo final reescrito a partir da versao otimizada.',
+        rewritten_content: 'Resumo final reescrito a partir da versão otimizada.',
+        section_data: 'Resumo final reescrito a partir da versão otimizada.',
         keywords_added: ['Power BI'],
         changes_made: ['Resumo atualizado'],
       },
       outputJson: JSON.stringify({
         success: true,
-        rewritten_content: 'Resumo final reescrito a partir da versao otimizada.',
-        section_data: 'Resumo final reescrito a partir da versao otimizada.',
+        rewritten_content: 'Resumo final reescrito a partir da versão otimizada.',
+        section_data: 'Resumo final reescrito a partir da versão otimizada.',
         keywords_added: ['Power BI'],
         changes_made: ['Resumo atualizado'],
       }),
       persistedPatch: {
         cvState: {
-          summary: 'Resumo final reescrito a partir da versao otimizada.',
+          summary: 'Resumo final reescrito a partir da versão otimizada.',
         },
       },
     })
@@ -1274,14 +1274,14 @@ describe('runAgentLoop streaming', () => {
         experience: [
           {
             ...baseSession.cvState.experience[0],
-            bullets: ['Experiencia base antiga.'],
+            bullets: ['Experiência base antiga.'],
           },
         ],
       },
       agentState: {
         parseStatus: 'parsed' as const,
         rewriteHistory: {} as Record<string, never>,
-        sourceResumeText: 'Fabio Silva\nExperiencia antiga.',
+        sourceResumeText: 'Fabio Silva\nExperiência antiga.',
         targetJobDescription: 'Engenheiro de Dados com foco em Databricks, ETL e Power BI.',
         optimizedCvState: {
           ...baseSession.cvState,
@@ -1293,17 +1293,17 @@ describe('runAgentLoop streaming', () => {
     mockDispatchToolWithContext.mockResolvedValueOnce({
       output: {
         success: true,
-        rewritten_content: 'Experiencia reescrita a partir da versao otimizada.',
+        rewritten_content: 'Experiência reescrita a partir da versão otimizada.',
         section_data: optimizedExperience,
         keywords_added: ['Databricks'],
-        changes_made: ['Experiencia atualizada'],
+        changes_made: ['Experiência atualizada'],
       },
       outputJson: JSON.stringify({
         success: true,
-        rewritten_content: 'Experiencia reescrita a partir da versao otimizada.',
+        rewritten_content: 'Experiência reescrita a partir da versão otimizada.',
         section_data: optimizedExperience,
         keywords_added: ['Databricks'],
-        changes_made: ['Experiencia atualizada'],
+        changes_made: ['Experiência atualizada'],
       }),
       persistedPatch: {
         cvState: {
@@ -1314,7 +1314,7 @@ describe('runAgentLoop streaming', () => {
 
     for await (const _event of runAgentLoop({
       session,
-      userMessage: 'reescreva minha experiencia',
+      userMessage: 'reescreva minha experiência',
       appUserId: 'usr_123',
       requestId: 'req_dialog_rewrite_uses_optimized_experience',
       isNewSession: false,
