@@ -402,7 +402,7 @@ describe('/api/agent SSE fallback coverage', () => {
       phase: 'dialog',
       isNewSession: false,
     })
-    expect(createChatCompletionStreamWithRetry).toHaveBeenCalledTimes(5)
+    expect(createChatCompletionStreamWithRetry).not.toHaveBeenCalled()
     expect(vi.mocked(appendMessage).mock.calls.at(-1)).toEqual([
       session.id,
       'assistant',

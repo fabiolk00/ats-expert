@@ -62,6 +62,10 @@ vi.mock('@/lib/agent/config', () => ({
   resolveAgentModelForPhase: vi.fn((phase: string) =>
     phase === 'dialog' || phase === 'confirm' ? 'test-dialog-model' : 'test-model',
   ),
+  resolveConversationMaxOutputTokens: vi.fn(() => 1100),
+  resolveConciseFallbackMaxTokens: vi.fn(() => 380),
+  resolveMaxToolIterations: vi.fn(() => 5),
+  resolveMaxHistoryMessages: vi.fn(() => 16),
 }))
 
 vi.mock('@/lib/openai/client', () => ({

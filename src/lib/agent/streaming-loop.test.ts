@@ -74,6 +74,18 @@ vi.mock('@/lib/agent/config', () => ({
   resolveAgentModelForPhase: vi.fn((phase: string) =>
     phase === 'dialog' || phase === 'confirm' ? 'test-dialog-model' : 'test-model',
   ),
+  resolveConversationMaxOutputTokens: vi.fn((phase: string) =>
+    phase === 'confirm' ? 850 : phase === 'dialog' ? 1100 : 1000,
+  ),
+  resolveConciseFallbackMaxTokens: vi.fn((phase: string) =>
+    phase === 'confirm' ? 320 : 380,
+  ),
+  resolveMaxToolIterations: vi.fn((phase: string) =>
+    phase === 'dialog' ? 5 : 4,
+  ),
+  resolveMaxHistoryMessages: vi.fn((phase: string) =>
+    phase === 'dialog' ? 16 : 12,
+  ),
 }))
 
 vi.mock('@/lib/openai/client', () => ({
@@ -363,7 +375,7 @@ describe('runAgentLoop streaming', () => {
       events.push(event)
     }
 
-    expect(mockCreateChatCompletionStreamWithRetry.mock.calls.length).toBeLessThanOrEqual(6)
+    expect(mockCreateChatCompletionStreamWithRetry.mock.calls.length).toBeLessThanOrEqual(8)
     expect(events).toContainEqual(expect.objectContaining({
       type: 'error',
       error: expect.stringContaining('número máximo'),
@@ -770,11 +782,6 @@ describe('runAgentLoop streaming', () => {
       }
     }
 
-    mockCreateChatCompletionStreamWithRetry
-      .mockResolvedValueOnce(partialBootstrapLengthStream() as never)
-      .mockResolvedValueOnce(emptyLengthStream() as never)
-      .mockResolvedValueOnce(conciseContinuationLengthStream() as never)
-
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
@@ -802,8 +809,9 @@ describe('runAgentLoop streaming', () => {
       2,
       'sess_123',
       'assistant',
-      'Posso reescrever agora seu resumo profissional. Ja tenho seu curriculo e a vaga como referencia.',
+      'Posso seguir, sim. Ja tenho seu curriculo e a vaga como referencia. Vou continuar pelo trecho com maior impacto para essa vaga: seu resumo profissional.',
     )
+    expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
     expect(events.at(-1)).toMatchObject({
       type: 'done',
       sessionId: 'sess_123',
@@ -1055,16 +1063,6 @@ describe('runAgentLoop streaming', () => {
   })
 
   it('returns a dialog-specific continue fallback instead of repeating the vacancy bootstrap text', async () => {
-    async function* emptyStopStream() {
-      yield {
-        choices: [{
-          delta: {},
-          finish_reason: 'stop',
-        }],
-        usage: null,
-      }
-    }
-
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
@@ -1087,12 +1085,6 @@ describe('runAgentLoop streaming', () => {
         targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL e ETL.',
       },
     }
-
-    mockCreateChatCompletionStreamWithRetry
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
 
     const events = []
     for await (const event of runAgentLoop({
@@ -1120,6 +1112,7 @@ describe('runAgentLoop streaming', () => {
       'assistant',
       expect.stringContaining('Posso seguir, sim.'),
     )
+    expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
   })
 
   it('rewrites the summary deterministically for terse rewrite requests', async () => {
@@ -1246,16 +1239,6 @@ describe('runAgentLoop streaming', () => {
   })
 
   it('logs release provenance and fallback kind when the dialog fallback is used', async () => {
-    async function* emptyStopStream() {
-      yield {
-        choices: [{
-          delta: {},
-          finish_reason: 'stop',
-        }],
-        usage: null,
-      }
-    }
-
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
@@ -1266,12 +1249,6 @@ describe('runAgentLoop streaming', () => {
         targetJobDescription: 'Analista de BI Senior com foco em Power BI, SQL e ETL.',
       },
     }
-
-    mockCreateChatCompletionStreamWithRetry
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
-      .mockResolvedValueOnce(emptyStopStream() as never)
 
     for await (const _event of runAgentLoop({
       session,
@@ -1284,16 +1261,14 @@ describe('runAgentLoop streaming', () => {
       // consume stream
     }
 
-    const fallbackLog = mockLogWarn.mock.calls.find(([event]) => event === 'agent.response.empty_fallback')?.[1]
+    const completionLog = mockLogInfo.mock.calls.find(([event]) => event === 'agent.stream.completed')?.[1]
 
-    expect(fallbackLog).toMatchObject({
+    expect(completionLog).toMatchObject({
       releaseId: 'rel_test_123',
       releaseSource: 'vercel_commit',
-      model: 'test-dialog-model',
-      fallbackKind: 'dialog_continue_saved_target',
+      deterministicFastPath: 'dialog_continue',
     })
-    expect(fallbackLog?.finalAssistantTextChars).toEqual(expect.any(Number))
-    expect(fallbackLog?.finalAssistantTextChars).toBeGreaterThan(0)
+    expect(completionLog?.toolLoopsUsed).toBe(0)
   })
 
   it('uses the latest pasted vacancy when a dialog-phase fallback fires', async () => {

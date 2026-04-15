@@ -477,7 +477,7 @@ export function buildSystemPrompt(session: Session): string {
   ].filter(Boolean).join('\n\n')
 }
 
-export function trimMessages<T extends { role: string; content: string }>(messages: T[], maxTurns = AGENT_CONFIG.maxHistoryMessages): T[] {
+export function trimMessages<T extends { role: string; content: string }>(messages: T[], maxTurns: number = AGENT_CONFIG.maxHistoryMessages): T[] {
   if (messages.length <= maxTurns) return messages
   return [messages[0], ...messages.slice(-(maxTurns - 1))]
 }

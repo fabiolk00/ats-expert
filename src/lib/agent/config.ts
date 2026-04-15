@@ -35,6 +35,34 @@ export const AGENT_CONFIG = {
     confirm: ['generate_file', 'create_target_resume', 'set_phase'],
     generation: ['generate_file', 'create_target_resume', 'set_phase'],
   } satisfies Record<Phase, readonly AgentToolName[]>,
+  conversationMaxOutputTokensByPhase: {
+    intake: 1_000,
+    analysis: 1_050,
+    dialog: 1_100,
+    confirm: 850,
+    generation: 900,
+  } satisfies Record<Phase, number>,
+  conciseFallbackMaxTokensByPhase: {
+    intake: 350,
+    analysis: 380,
+    dialog: 380,
+    confirm: 320,
+    generation: 320,
+  } satisfies Record<Phase, number>,
+  maxToolIterationsByPhase: {
+    intake: 4,
+    analysis: 4,
+    dialog: 5,
+    confirm: 3,
+    generation: 3,
+  } satisfies Record<Phase, number>,
+  maxHistoryMessagesByPhase: {
+    intake: 12,
+    analysis: 14,
+    dialog: 16,
+    confirm: 12,
+    generation: 10,
+  } satisfies Record<Phase, number>,
 } as const
 
 export const DEFAULT_OPENAI_MODEL = 'gpt-5-nano' as const
@@ -147,6 +175,22 @@ export function resolveAgentModelForPhase(phase: Phase): OpenAIModelName {
   }
 
   return MODEL_CONFIG.agentModel
+}
+
+export function resolveConversationMaxOutputTokens(phase: Phase): number {
+  return AGENT_CONFIG.conversationMaxOutputTokensByPhase[phase]
+}
+
+export function resolveConciseFallbackMaxTokens(phase: Phase): number {
+  return AGENT_CONFIG.conciseFallbackMaxTokensByPhase[phase]
+}
+
+export function resolveMaxToolIterations(phase: Phase): number {
+  return AGENT_CONFIG.maxToolIterationsByPhase[phase]
+}
+
+export function resolveMaxHistoryMessages(phase: Phase): number {
+  return AGENT_CONFIG.maxHistoryMessagesByPhase[phase]
 }
 
 type AgentConfig = typeof AGENT_CONFIG

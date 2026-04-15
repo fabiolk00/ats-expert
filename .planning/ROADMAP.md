@@ -61,9 +61,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 26-01: Break down the core agent runtime into latency-oriented responsibility slices
-- [ ] 26-02: Reduce prompt, history, and tool-loop cost by phase
-- [ ] 26-03: Add regression proof for behavior-preserving runtime optimization
+- [x] 26-01: Break down the core agent runtime into latency-oriented responsibility slices
+- [x] 26-02: Reduce prompt, history, and tool-loop cost by phase
+- [x] 26-03: Add regression proof for behavior-preserving runtime optimization
 
 ### Phase 27: Performance Proof and Critical Route Hardening
 **Goal**: Lock in the speed improvements with route-level proof, operational documentation, and focused hardening of adjacent routes that influence perceived agent performance.
@@ -103,7 +103,7 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27
 |-------|----------------|--------|-----------|
 | 24. Agent Response Baseline and Chat/ATS Latency Instrumentation | 1/1 | Complete | 2026-04-14 |
 | 25. Chat and ATS Enhancement Request-Path Reduction | 3/3 | Complete | 2026-04-15 |
-| 26. Agent Runtime Simplification and Budget Optimization | 0/3 | Not Started | |
+| 26. Agent Runtime Simplification and Budget Optimization | 3/3 | Complete | 2026-04-15 |
 | 27. Performance Proof and Critical Route Hardening | 0/3 | Not Started | |
 
 ## Archived Milestones

@@ -8,7 +8,11 @@ import {
   MODEL_COMBINATIONS,
   MODEL_CONFIG,
   resolveAgentModelForPhase,
+  resolveConciseFallbackMaxTokens,
+  resolveConversationMaxOutputTokens,
   resolveDialogModel,
+  resolveMaxHistoryMessages,
+  resolveMaxToolIterations,
   resolveOpenAIModel,
   resolveModelCombo,
 } from './config'
@@ -179,6 +183,16 @@ describe('AGENT_CONFIG', () => {
       structured: 'gpt-5.4-mini',
       vision: DEFAULT_OPENAI_MODEL,
     })
+  })
+
+  it('resolves tighter runtime budgets by phase', () => {
+    expect(resolveConversationMaxOutputTokens('dialog')).toBe(1100)
+    expect(resolveConversationMaxOutputTokens('confirm')).toBe(850)
+    expect(resolveConciseFallbackMaxTokens('dialog')).toBe(380)
+    expect(resolveMaxToolIterations('dialog')).toBe(5)
+    expect(resolveMaxToolIterations('confirm')).toBe(3)
+    expect(resolveMaxHistoryMessages('dialog')).toBe(16)
+    expect(resolveMaxHistoryMessages('generation')).toBe(10)
   })
 
   it('has maxMessagesPerSession set to 30', () => {

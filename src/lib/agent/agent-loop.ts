@@ -2,6 +2,17 @@ import type OpenAI from 'openai'
 import { APIError } from 'openai'
 import { createHash } from 'crypto'
 
+import {
+  type RewriteFocus,
+  isCareerFitOverrideConfirmation,
+  isDialogContinuationApproval,
+  isDialogRewriteRequest,
+  isGenerationApproval,
+  isGenerationRequest,
+  looksLikeJobDescription,
+  normalizeText,
+  resolveRewriteFocus,
+} from '@/lib/agent/agent-intents'
 import { buildSystemPrompt, trimMessages } from '@/lib/agent/context-builder'
 import {
   buildCareerFitWarningText,
@@ -10,7 +21,14 @@ import {
   hasConfirmedCareerFitOverride,
   requiresCareerFitWarning,
 } from '@/lib/agent/profile-review'
-import { AGENT_CONFIG, resolveAgentModelForPhase } from '@/lib/agent/config'
+import {
+  AGENT_CONFIG,
+  resolveAgentModelForPhase,
+  resolveConciseFallbackMaxTokens,
+  resolveConversationMaxOutputTokens,
+  resolveMaxHistoryMessages,
+  resolveMaxToolIterations,
+} from '@/lib/agent/config'
 import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
 import { dispatchToolWithContext, getToolDefinitionsForPhase } from '@/lib/agent/tools'
 import { calculateUsageCostCents, trackApiUsage } from '@/lib/agent/usage-tracker'
@@ -252,88 +270,6 @@ function calculateHistoryChars(messages: OpenAI.Chat.Completions.ChatCompletionM
   }, 0)
 }
 
-function normalizeText(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-}
-
-function isGenerationApproval(message: string): boolean {
-  const normalized = normalizeText(message)
-
-  if (!normalized || /\b(nao|not|cancel|depois)\b/.test(normalized)) {
-    return false
-  }
-
-  return /\b(aceito|aceito gerar|aceito a geracao|confirmo a geracao)\b/.test(normalized)
-}
-
-function isGenerationRequest(message: string): boolean {
-  const normalized = normalizeText(message)
-
-  if (!normalized || /\b(nao|not|cancel|depois)\b/.test(normalized)) {
-    return false
-  }
-
-  return (
-    /\b(pode gerar|gerar agora|gere o arquivo|gere os arquivos|gere o curriculo|gere meu curriculo)\b/.test(normalized)
-    || (
-      /\b(gere|gerar|gera|exporte|exportar|baixar|baixe|download)\b/.test(normalized)
-      && /\b(arquivo|arquivos|curriculo|pdf|docx|versao final)\b/.test(normalized)
-    )
-  )
-}
-
-function isDialogContinuationApproval(message: string): boolean {
-  const normalized = normalizeText(message)
-
-  if (!normalized || /\b(nao|not|cancel|depois)\b/.test(normalized)) {
-    return false
-  }
-
-  return /^(sim|ok|okay|pode|pode fazer|pode seguir|segue|continue|continua|vai|manda ver|bora)$/.test(normalized)
-}
-
-type RewriteFocus = 'summary' | 'experience' | 'skills'
-
-function resolveRewriteFocus(message: string): RewriteFocus | null {
-  const normalized = normalizeText(message)
-
-  if (!normalized) {
-    return null
-  }
-
-  if (/\b(resumo|summary|perfil profissional)\b/.test(normalized)) {
-    return 'summary'
-  }
-
-  if (/\b(experiencia|experience|historico)\b/.test(normalized)) {
-    return 'experience'
-  }
-
-  if (/\b(competencia|competencias|skills|habilidades)\b/.test(normalized)) {
-    return 'skills'
-  }
-
-  return null
-}
-
-function isDialogRewriteRequest(message: string): boolean {
-  const normalized = normalizeText(message)
-
-  if (!normalized || looksLikeJobDescription(message)) {
-    return false
-  }
-
-  if (resolveRewriteFocus(message)) {
-    return true
-  }
-
-  return /\b(reescreva|reescrever|reescreve|rewrite|adapte|adaptar|ajuste|ajustar|melhore|melhorar|refaca|refazer)\b/.test(normalized)
-}
-
 function formatRewriteFocusLabel(focus: RewriteFocus): string {
   switch (focus) {
     case 'summary':
@@ -573,19 +509,6 @@ function resolveGenerationPrerequisiteMessage(session: Session): string | null {
   return null
 }
 
-function isCareerFitOverrideConfirmation(message: string): boolean {
-  const normalized = normalizeText(message)
-
-  if (!normalized) {
-    return false
-  }
-
-  return (
-    /\b(entendo|compreendo|eu entendo)\b/.test(normalized)
-    && /\b(quero continuar|quero prosseguir|mesmo assim quero continuar|ainda assim quero continuar|prosseguir mesmo assim|continuar mesmo assim)\b/.test(normalized)
-  )
-}
-
 function shouldShowCareerFitWarning(session: Session): boolean {
   return requiresCareerFitWarning(session) && !hasActiveCareerFitWarning(session)
 }
@@ -676,51 +599,6 @@ async function* maybeIssueCareerFitWarning(params: {
   }
 
   return buildCareerFitWarningText(params.session)
-}
-
-function normalizeForJobDetection(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-}
-
-function looksLikeJobDescription(text: string): boolean {
-  const trimmed = text.trim()
-  if (trimmed.length < 140) {
-    return false
-  }
-
-  const normalized = normalizeForJobDetection(trimmed)
-  const sectionSignals = [
-    'responsabilidades',
-    'responsibility',
-    'responsibilities',
-    'requisitos',
-    'requirements',
-    'resumo dos requisitos',
-    'requisitos desejaveis',
-    'qualificacoes',
-    'qualifications',
-    'diferenciais',
-    'nice to have',
-    'o que oferecemos',
-    'o que procuramos',
-    'we are looking for',
-    'job description',
-  ]
-
-  const sectionHits = sectionSignals.filter((signal) => normalized.includes(signal)).length
-  const roleHit = /\b(analista|engenheiro|developer|desenvolvedor|cientista|gerente|coordenador|consultor|product|designer|arquiteto|devops|sre|qa|bi|dados|data)\b/.test(normalized)
-  const hiringIntentHit = /\b(vaga|cargo|posicao|position|role|opportunity|buscamos|contratando)\b/.test(normalized)
-  const summarizedRequirementsHit = normalized.includes('resumo dos requisitos') || normalized.includes('requisitos desejaveis')
-  const keywordListHit = /(?:sql|python|r|looker|bigquery|google analytics|google tag manager|appsflyer|github|machine learning|etl|power bi|tableau|dbt|airflow|google sheets|sql server).*(?:,|\n).*(?:sql|python|r|looker|bigquery|google analytics|google tag manager|appsflyer|github|machine learning|etl|power bi|tableau|dbt|airflow|google sheets|sql server).*(?:,|\n).*(?:sql|python|r|looker|bigquery|google analytics|google tag manager|appsflyer|github|machine learning|etl|power bi|tableau|dbt|airflow|google sheets|sql server)/.test(normalized)
-
-  return (
-    sectionHits >= 2
-    || (roleHit && hiringIntentHit && trimmed.length >= 220)
-    || (summarizedRequirementsHit && keywordListHit && trimmed.length >= 180)
-  )
 }
 
 function truncateForRecovery(text: string, maxChars: number): string {
@@ -1956,12 +1834,13 @@ export async function* runAgentLoop(
 ): AsyncGenerator<AgentLoopEvent> {
   const { session, userMessage, appUserId, requestId, isNewSession, requestStartedAt, signal } = params
   const releaseMetadata = getAgentReleaseMetadata()
+  const initialHistoryLimit = resolveMaxHistoryMessages(session.phase)
 
   await appendMessage(session.id, 'user', userMessage)
 
-  const history = await getMessages(session.id, AGENT_CONFIG.maxHistoryMessages)
+  const history = await getMessages(session.id, initialHistoryLimit)
   const messages = toOpenAIHistory(
-    trimMessages(history.map((message) => ({ role: message.role, content: message.content }))),
+    trimMessages(history.map((message) => ({ role: message.role, content: message.content })), initialHistoryLimit),
   )
 
   let toolIterations = 0
@@ -2231,6 +2110,46 @@ export async function* runAgentLoop(
       return
     }
 
+    if (session.phase === 'dialog' && isDialogContinuationApproval(userMessage)) {
+      const continuationAssistantText = buildDialogFallback(session, userMessage).text
+
+      yield {
+        type: 'text',
+        content: continuationAssistantText,
+      }
+
+      assistantResponded = true
+      await appendMessage(session.id, 'assistant', continuationAssistantText)
+
+      logInfo('agent.stream.completed', {
+        ...releaseMetadata,
+        requestId,
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        isNewSession,
+        messageCountAfter: session.messageCount + 1,
+        toolLoopsUsed: toolIterations,
+        success: true,
+        latencyMs: Date.now() - requestStartedAt,
+        deterministicFastPath: 'dialog_continue',
+      })
+
+      yield {
+        type: 'done',
+        requestId,
+        sessionId: session.id,
+        phase: session.phase,
+        atsScore: session.atsScore,
+        messageCount: session.messageCount + 1,
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        isNewSession,
+        toolIterations,
+      }
+      return
+    }
+
     const analysisPrimed = yield* primeAnalysisState({
       session,
       userMessage,
@@ -2313,6 +2232,9 @@ export async function* runAgentLoop(
     }
 
     while (true) {
+      const phaseToolIterationLimit = resolveMaxToolIterations(session.phase)
+      const phaseOutputBudget = resolveConversationMaxOutputTokens(session.phase)
+
       if (signal?.aborted) {
         logInfo('agent.request.cancelled', {
           ...releaseMetadata,
@@ -2329,7 +2251,7 @@ export async function* runAgentLoop(
 
       toolIterations++
 
-      if (toolIterations > AGENT_CONFIG.maxToolIterations) {
+      if (toolIterations > phaseToolIterationLimit) {
         logError('agent.tool_loop.exceeded', {
           requestId,
           sessionId: session.id,
@@ -2337,7 +2259,7 @@ export async function* runAgentLoop(
           phase: session.phase,
           stateVersion: session.stateVersion,
           toolIterations,
-          maxToolIterations: AGENT_CONFIG.maxToolIterations,
+          maxToolIterations: phaseToolIterationLimit,
           success: false,
         })
 
@@ -2371,7 +2293,8 @@ export async function* runAgentLoop(
         historyChars,
         historyMessages: messages.length,
         allowedToolCount: toolsForPhase.length,
-        maxOutputTokens: AGENT_CONFIG.conversationMaxOutputTokens,
+        maxOutputTokens: phaseOutputBudget,
+        maxToolIterations: phaseToolIterationLimit,
         success: true,
       })
 
@@ -2383,7 +2306,7 @@ export async function* runAgentLoop(
         appUserId,
         requestStartedAt,
         signal,
-        maxCompletionTokens: AGENT_CONFIG.conversationMaxOutputTokens,
+        maxCompletionTokens: phaseOutputBudget,
         tools: toolsForPhase,
       })
 
@@ -2398,7 +2321,7 @@ export async function* runAgentLoop(
             appUserId,
             requestStartedAt,
             signal,
-            maxCompletionTokens: AGENT_CONFIG.conversationMaxOutputTokens,
+            maxCompletionTokens: phaseOutputBudget,
           })
         } else {
           turn = yield* recoverZeroTextTurn({
@@ -2409,7 +2332,7 @@ export async function* runAgentLoop(
             appUserId,
             requestStartedAt,
             signal,
-            maxCompletionTokens: AGENT_CONFIG.conversationMaxOutputTokens,
+            maxCompletionTokens: phaseOutputBudget,
           })
         }
       }
@@ -2594,7 +2517,7 @@ export async function* runAgentLoop(
           appUserId,
           requestStartedAt,
           signal,
-          maxCompletionTokens: AGENT_CONFIG.conciseFallbackMaxTokens,
+          maxCompletionTokens: resolveConciseFallbackMaxTokens(session.phase),
           // No tools in recovery mode, so no tool_choice needed
         })
 

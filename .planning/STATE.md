@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Agent Response Time and Runtime Performance
 current_phase: 26
-current_phase_name: Agent Runtime Simplification and Budget Optimization
-current_plan: 26-01
+current_phase_name: Performance Proof and Critical Route Hardening
+current_plan: 27-01
 status: ready_for_planning
-stopped_at: Phase 25 complete; ready to plan Phase 26
-last_updated: "2026-04-15T01:56:00.0000000-03:00"
-last_activity: 2026-04-15 -- Completed Phase 25 with chat request-path reduction, ATS deferral boundaries, and focused verification proof
+stopped_at: Phase 26 complete; ready to plan Phase 27
+last_updated: "2026-04-15T23:07:00.0000000-03:00"
+last_activity: 2026-04-15 -- Completed Phase 26 with runtime intent extraction, deterministic dialog fast paths, and phase-specific runtime budgets
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 10
-  completed_plans: 4
-  percent: 50
+  completed_plans: 7
+  percent: 75
 ---
 
 # Project State
@@ -28,20 +28,20 @@ See: .planning/PROJECT.md (updated 2026-04-15)
 
 ## Current Position
 
-Current Phase: 26
-Current Phase Name: Agent Runtime Simplification and Budget Optimization
-Current Plan: 26-01
+Current Phase: 27
+Current Phase Name: Performance Proof and Critical Route Hardening
+Current Plan: 27-01
 Total Plans in Phase: 3
 Status: Ready for planning
-Last activity: 2026-04-15 -- Completed Phase 25 with chat request-path reduction, ATS deferral boundaries, and focused verification proof
-Last Activity Description: Phase 25 is fully closed with committed summaries and verification. Existing-session chat setup now streams earlier, ordinary ATS chat no longer blocks on inline rewrite work, and Phase 26 should focus on runtime simplification plus prompt/tool budget reduction.
+Last activity: 2026-04-15 -- Completed Phase 26 with runtime intent extraction, deterministic dialog fast paths, and phase-specific runtime budgets
+Last Activity Description: Phase 26 is fully closed with committed regression proof. The runtime now shortcuts simple dialog continuation turns, uses tighter phase-specific budgets, and leaves Phase 27 to consolidate route hardening plus before/after performance proof.
 
-Phase: 26 (Agent Runtime Simplification and Budget Optimization)
+Phase: 27 (Performance Proof and Critical Route Hardening)
 Plan: 0 of 3
 Status: Ready for planning
-Last activity: 2026-04-15 -- Phase 25 completed and Phase 26 is next
+Last activity: 2026-04-15 -- Phase 26 completed and Phase 27 is next
 
-Progress: [#####-----] 50%
+Progress: [########--] 75%
 
 ## Performance Metrics
 
@@ -65,6 +65,8 @@ Baseline carried forward from earlier shipped milestones:
 - v1.3 started: Agent Response Time and Runtime Performance
 - Phase 24 initialized: Agent Response Baseline and Chat/ATS Latency Instrumentation
 - Phase 24 completed: baseline request timing and first-response SSE observability
+- Phase 25 completed: earlier visible chat progress and ATS request-path reduction
+- Phase 26 completed: runtime intent extraction, deterministic dialog fast paths, and phase-specific runtime budgets
 
 ### Decisions
 
@@ -80,6 +82,8 @@ Recent decisions affecting the next cycle:
 - Phase 24 proved where latency is spent in the main agent route, so Phase 25 can focus on shrinking the synchronous path instead of adding more instrumentation first.
 - Phase 25-01 moved existing-session turn setup into the SSE lifecycle and added an early preparation progress chunk for heavier chat/ATS turns, so visible response can start before ATS/job-targeting setup fully completes.
 - Phase 25-02 now defers ordinary ATS enhancement rewrite work out of the general chat path and only keeps it inline for confirmation or generation-sensitive turns.
+- Phase 26-01 extracted runtime intent detection into `src/lib/agent/agent-intents.ts` and added a deterministic fast path for simple dialog continuation turns.
+- Phase 26-02 now resolves history, tool-loop, and output-token budgets per phase instead of using one broad runtime budget for every turn.
 - The approved Phase 21 cleanup slices currently produce no import or low-risk local cleanup diff under the staged lint baseline.
 - Raw `ts-prune` and `madge` output must be classified before deletion because App Router pages, tests, and middleware appear as expected false positives.
 - The reviewed inventory proves only a small subset of current dead-code findings are safe deletion candidates; most remaining output is framework or test noise.
@@ -93,13 +97,13 @@ Recent decisions affecting the next cycle:
 ### Blockers/Concerns
 
 - No active implementation blocker is currently known for v1.3 setup.
-- Phase 26 still needs planning and execution to reduce runtime complexity, prompt weight, and tool-loop cost after the request-path reduction landed.
-- Runtime optimization must avoid regressing billing, auth, ownership, and canonical state guarantees.
+- Phase 27 still needs route-level proof and adjacent-route hardening so the milestone can close with operator-facing latency evidence.
+- Final performance proof must avoid overstating measured wins beyond the focused runtime and route coverage already committed.
 
 ## Session Continuity
 
-Last session: 2026-04-14T22:35:00.0000000-03:00
-Stopped at: Phase 25 complete; ready to plan Phase 26
+Last session: 2026-04-15T23:07:00.0000000-03:00
+Stopped at: Phase 26 complete; ready to plan Phase 27
 Resume file: None
 
 ## Quick Tasks Completed
