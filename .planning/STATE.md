@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: milestone
-current_phase: 29
-current_phase_name: Agent Recovery, Streaming, and Persistence Decomposition
-current_plan: 3
-status: completed
+current_phase: 30
+current_phase_name: Authenticated Route and Billing Boundary Hardening
+current_plan: 0
+status: planned
 stopped_at: Milestone v1.4 started; requirements and roadmap initialized
-last_updated: "2026-04-15T13:20:00.000Z"
-last_activity: 2026-04-15 -- Phase 29 executed and verified
+last_updated: "2026-04-15T15:14:57.483Z"
+last_activity: 2026-04-15 -- Phase 30 planning complete
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 6
+  total_plans: 8
   completed_plans: 6
-  percent: 100
+  percent: 75
 ---
 
 # Project State
@@ -24,24 +24,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Phase 29 — Agent Recovery, Streaming, and Persistence Decomposition
+**Current focus:** Phase 30 - Authenticated Route and Billing Boundary Hardening
 
 ## Current Position
 
-Current Phase: 29
-Current Phase Name: Agent Recovery, Streaming, and Persistence Decomposition
-Current Plan: 3
-Total Plans in Phase: 3
-Status: Phase 29 completed
-Last activity: 2026-04-15 -- Phase 29 executed and verified
-Last Activity Description: Extracted recovery, streaming, and persistence services and closed the phase with direct seam regression coverage
+Current Phase: 30
+Current Phase Name: Authenticated Route and Billing Boundary Hardening
+Current Plan: 0
+Total Plans in Phase: 2
+Status: Phase 30 planned
+Last activity: 2026-04-15 -- Phase 30 planning complete
+Last Activity Description: Phase 30 planning complete — 2 plans ready
 
-Phase: 29 (Agent Recovery, Streaming, and Persistence Decomposition) - COMPLETED
-Plan: 3 of 3
-Status: Completed and verified
-Last activity: 2026-04-15 -- Phase 29 executed and verified
+Phase: 30 (Authenticated Route and Billing Boundary Hardening) - PLANNED
+Plan: 0 of 2
+Status: Ready to execute
+Last activity: 2026-04-15 -- Phase 30 planning complete
 
-Progress: [##########] 100%
+Progress: [----------] 0%
 
 ## Performance Metrics
 
@@ -105,5 +105,4 @@ Resume file: None
 | 2026-04-13 | 260413-up5 | Standardize CurrIA brand pattern across landing page and public pages | Complete |
 | 2026-04-15 | 260414-u6l | Fix pnpm frozen lockfile drift and classify pdf_import_jobs in database convention audit | Complete |
 | 2026-04-15 | 260414-u9d | Make package scripts package-manager agnostic so lint works when CI invokes npm scripts without pnpm on PATH | Complete |
-
 
