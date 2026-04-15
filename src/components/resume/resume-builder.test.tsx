@@ -183,6 +183,7 @@ describe("ImportResumeModal", () => {
         isOpen
         onClose={vi.fn()}
         onImportSuccess={onImportSuccess}
+        pdfImportPollMs={10}
       />,
     )
 
@@ -237,6 +238,7 @@ describe("ImportResumeModal", () => {
         isOpen
         onClose={vi.fn()}
         onImportSuccess={vi.fn()}
+        pdfImportPollMs={10}
       />,
     )
 
