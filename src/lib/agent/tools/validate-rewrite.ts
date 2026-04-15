@@ -5,6 +5,20 @@ function normalize(value: string | undefined): string {
   return (value ?? '').trim().toLowerCase()
 }
 
+function isLikelySectionHeading(value: string): boolean {
+  const normalized = normalize(value).replace(/[:\-]+$/g, '').trim()
+
+  return /^(requisitos(?:\s+obrigatorios)?|responsabilidades|qualificacoes|desejavel|diferenciais|beneficios|sobre\s+a?\s*vaga|sobre\s+o\s+time|descricao|resumo|atividades)$/i.test(normalized)
+}
+
+function isUsableTargetRole(value: string): boolean {
+  if (!value || isLikelySectionHeading(value)) {
+    return false
+  }
+
+  return /\b(analista|engenheir[oa]|developer|desenvolvedor(?:a)?|cientista|gerente|coordenador(?:a)?|consultor(?:a)?|product manager|designer|arquiteto(?:a)?|devops|sre|qa|analytics engineer|data engineer|data analyst|business intelligence|bi)\b/i.test(value)
+}
+
 function extractNumbers(text: string): string[] {
   return Array.from(text.match(/\d+(?:[.,]\d+)?%?/g) ?? [])
 }
@@ -148,7 +162,7 @@ export function validateRewrite(
     const targetRole = normalize(context.targetingPlan?.targetRole)
 
     if (
-      targetRole
+      isUsableTargetRole(targetRole)
       && optimizedSummary.includes(targetRole)
       && !originalTitlesAndSummary.some((value) => value.includes(targetRole) || targetRole.includes(value))
     ) {

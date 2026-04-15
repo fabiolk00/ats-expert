@@ -14,6 +14,19 @@ function toTitleCase(value: string): string {
     .join(' ')
 }
 
+function cleanExtractedRole(value: string): string {
+  return value
+    .replace(/\s+(para\s+atuar|para\s+liderar|para\s+trabalhar|com\s+foco|atuando\s+em|working\s+on|to\s+work).*/i, '')
+    .replace(/[|:;-]+$/g, '')
+    .trim()
+}
+
+function isSectionHeading(line: string): boolean {
+  const normalized = normalize(line).replace(/[:\-]+$/g, '').trim()
+
+  return /^(requisitos(?:\s+obrigatorios)?|responsabilidades|qualificacoes|desejavel|diferenciais|beneficios|sobre\s+a?\s*vaga|sobre\s+o\s+time|descricao|resumo|atividades)$/i.test(normalized)
+}
+
 function extractTargetRole(targetJobDescription: string): string {
   const shapedTargetJob = shapeTargetJobDescription(targetJobDescription).content
   const lines = shapedTargetJob
@@ -28,12 +41,17 @@ function extractTargetRole(targetJobDescription: string): string {
     return explicitRoleLine.replace(/^[^:]+:\s*/i, '').trim()
   }
 
-  const firstSentence = lines[0] ?? ''
-  const roleMatch = firstSentence.match(
-    /\b(analista|engenheiro|developer|desenvolvedor|cientista|gerente|coordenador|consultor|product manager|designer|arquiteto|devops|sre|qa|analytics engineer|data engineer|data analyst|business intelligence|bi)\b[^,\n]*/i,
-  )
+  const rolePattern = /\b(analista|engenheir[oa]|developer|desenvolvedor(?:a)?|cientista|gerente|coordenador(?:a)?|consultor(?:a)?|product manager|designer|arquiteto(?:a)?|devops|sre|qa|analytics engineer|data engineer|data analyst|business intelligence|bi)\b[^,\n|]*/i
+  const candidateLines = lines.filter((line) => !isSectionHeading(line))
 
-  return roleMatch?.[0]?.trim() || firstSentence || 'Target role'
+  for (const line of candidateLines) {
+    const roleMatch = line.match(rolePattern)
+    if (roleMatch?.[0]) {
+      return cleanExtractedRole(roleMatch[0])
+    }
+  }
+
+  return cleanExtractedRole(candidateLines[0] || lines[0] || 'Target role')
 }
 
 function extractJobKeywords(targetJobDescription: string): string[] {
@@ -74,7 +92,6 @@ export function buildTargetingPlan(params: {
 
   const missingButCannotInvent = takeRelevant([
     ...gapAnalysis.missingSkills,
-    ...gapAnalysis.weakAreas,
   ])
 
   return {
