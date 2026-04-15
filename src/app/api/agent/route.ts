@@ -19,6 +19,7 @@ import { agentLimiter } from '@/lib/rate-limit'
 import { AGENT_CONFIG } from '@/lib/agent/config'
 import { extractUrl } from '@/lib/agent/url-extractor'
 import { scrapeJobPosting } from '@/lib/agent/scraper'
+import { createRequestTimingTracker } from '@/lib/observability/request-timing'
 import { logInfo, logWarn } from '@/lib/observability/structured-log'
 import { getAgentReleaseMetadata, type AgentReleaseMetadata } from '@/lib/runtime/release-metadata'
 import type { AgentSessionCreatedChunk, Session, WorkflowMode } from '@/types/agent'
@@ -627,9 +628,10 @@ export async function POST(req: NextRequest) {
   const requestStartedAt = Date.now()
   const requestId = crypto.randomUUID()
   const releaseMetadata = getAgentReleaseMetadata()
+  const timing = createRequestTimingTracker(requestStartedAt)
 
   // ── Auth ────────────────────────────────────────────────────────────
-  const appUser = await getCurrentAppUser(req)
+  const appUser = await timing.runStage('auth', () => getCurrentAppUser(req))
   if (!appUser) {
     logWarn('agent.request.unauthorized', {
       ...releaseMetadata,
@@ -645,14 +647,17 @@ export async function POST(req: NextRequest) {
   const appUserId = appUser.id
 
   // ── Rate limit ──────────────────────────────────────────────────────
-  const { success } = await agentLimiter.limit(appUserId)
+  const { success } = await timing.runStage(
+    'rate_limit',
+    () => agentLimiter.limit(appUserId),
+  )
   if (!success) {
     logWarn('agent.request.rate_limited', {
       ...releaseMetadata,
       requestId,
       appUserId,
       success: false,
-      latencyMs: Date.now() - requestStartedAt,
+      ...timing.snapshot(),
     })
     const response = createAgentJsonResponse(
       { error: 'Too many requests. Please wait a moment.' },
@@ -666,14 +671,14 @@ export async function POST(req: NextRequest) {
   // ── Body validation ─────────────────────────────────────────────────
   let rawBody: unknown
   try {
-    rawBody = await req.json()
+    rawBody = await timing.runStage('body_parse', () => req.json())
   } catch {
     logWarn('agent.request.invalid_json', {
       ...releaseMetadata,
       requestId,
       appUserId,
       success: false,
-      latencyMs: Date.now() - requestStartedAt,
+      ...timing.snapshot(),
     })
     return createAgentJsonResponse({ error: 'Invalid JSON body.' }, { status: 400 }, releaseMetadata)
   }
@@ -685,14 +690,17 @@ export async function POST(req: NextRequest) {
       requestId,
       appUserId,
       success: false,
-      latencyMs: Date.now() - requestStartedAt,
+      ...timing.snapshot(),
     })
     return createAgentJsonResponse({ error: raw.error.flatten() }, { status: 400 }, releaseMetadata)
   }
   const { sessionId, file, fileMime } = raw.data
 
   // ── Prepare message (scrape URLs, sanitize) ─────────────────────────
-  let message = await prepareUserMessage(raw.data.message, appUserId, requestId)
+  let message = await timing.runStage(
+    'prepare_message',
+    () => prepareUserMessage(raw.data.message, appUserId, requestId),
+  )
 
   logInfo('agent.request.received', {
     ...releaseMetadata,
@@ -706,9 +714,11 @@ export async function POST(req: NextRequest) {
   })
 
   // ── Session resolution ──────────────────────────────────────────────
-  let session = sessionId
-    ? await getSession(sessionId, appUserId)
-    : null
+  let session = await timing.runStage('session_resolution', async () => (
+    sessionId
+      ? getSession(sessionId, appUserId)
+      : Promise.resolve(null)
+  ))
 
   let isNewSession = false
 
@@ -719,7 +729,7 @@ export async function POST(req: NextRequest) {
       appUserId,
       requestedSessionId: sessionId,
       success: false,
-      latencyMs: Date.now() - requestStartedAt,
+      ...timing.snapshot(),
     })
     return createAgentJsonResponse(
       {
@@ -745,7 +755,7 @@ export async function POST(req: NextRequest) {
     })
 
   } else {
-    session = await createSession(appUserId)
+    session = await timing.runStage('session_create', () => createSession(appUserId))
     isNewSession = true
     logInfo('agent.session.created', {
       ...releaseMetadata,
@@ -757,7 +767,7 @@ export async function POST(req: NextRequest) {
       isNewSession: true,
       creditConsumed: 0,
       success: true,
-      latencyMs: Date.now() - requestStartedAt,
+      ...timing.snapshot(),
     })
   }
 
@@ -766,37 +776,53 @@ export async function POST(req: NextRequest) {
   // stream so failures can return proper HTTP status codes (e.g. 429).
   // For new sessions, we still persist a detected target job immediately,
   // but defer any expensive auto-gap analysis until after sessionCreated.
-  const detectedTargetJob = await persistDetectedTargetJobDescriptionBase(
-    session!,
-    message,
-    appUserId,
-    requestId,
+  const detectedTargetJob = await timing.runStage(
+    'target_detection',
+    () => persistDetectedTargetJobDescriptionBase(
+      session!,
+      message,
+      appUserId,
+      requestId,
+    ),
   )
 
   if (!isNewSession) {
     try {
       if (file && fileMime) {
-        message = await handleFileAttachment(message, file, fileMime, session!, appUserId, requestId, req.signal)
+        message = await timing.runStage(
+          'file_attachment_existing',
+          () => handleFileAttachment(message, file, fileMime, session!, appUserId, requestId, req.signal),
+        )
       }
 
-      await persistWorkflowMode(session!)
+      await timing.runStage('workflow_mode_existing', () => persistWorkflowMode(session!))
       if (
         session!.agentState.workflowMode === 'ats_enhancement'
         && hasResumeContextForAutoGap(session!)
         && (!session!.agentState.optimizedCvState || session!.agentState.rewriteStatus !== 'completed')
       ) {
-        await runAtsEnhancementPipeline(session!)
+        await timing.runStage('ats_pipeline_existing', () => runAtsEnhancementPipeline(session!))
       }
       if (shouldRunJobTargetingPipeline(session!)) {
-        await runJobTargetingPipeline(session!)
+        await timing.runStage('job_targeting_pipeline_existing', () => runJobTargetingPipeline(session!))
       }
 
-      await incrementMessageCount(session!.id)
+      await timing.runStage('increment_message_existing', () => incrementMessageCount(session!.id))
     } catch (err) {
       const isAbort = (err instanceof Error || err instanceof DOMException) && err.name === 'AbortError'
       const errorMessage = isAbort
         ? 'A requisição demorou muito. Por favor, tente novamente.'
         : 'Algo deu errado. Por favor, tente novamente.'
+      logWarn('agent.request.pre_stream_failed', {
+        ...releaseMetadata,
+        requestId,
+        appUserId,
+        sessionId: session!.id,
+        isNewSession,
+        success: false,
+        ...timing.snapshot(),
+        errorMessage,
+      })
       return createAgentJsonResponse({ error: errorMessage }, { status: 500 }, releaseMetadata)
     }
   }
@@ -807,6 +833,16 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       const send = (chunk: unknown) => {
+        timing.markFirstSseChunk()
+        if (typeof chunk === 'object' && chunk !== null && 'type' in chunk) {
+          if (chunk.type === 'sessionCreated') {
+            timing.markFirstStatusChunk()
+          }
+
+          if (chunk.type === 'text') {
+            timing.markFirstAssistantText()
+          }
+        }
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
       }
 
@@ -818,6 +854,18 @@ export async function POST(req: NextRequest) {
         if (heartbeatInterval) {
           clearInterval(heartbeatInterval)
         }
+        logWarn('agent.request.stream_failed', {
+          ...releaseMetadata,
+          requestId,
+          appUserId,
+          sessionId: session?.id,
+          phase: session?.phase,
+          isNewSession,
+          success: false,
+          ...timing.snapshot(),
+          errorCode: code,
+          errorMessage,
+        })
         send({ type: 'error', error: errorMessage, code, requestId })
         controller.close()
       }
@@ -843,22 +891,25 @@ export async function POST(req: NextRequest) {
           // For brand-new sessions with attachments, avoid consuming the first
           // message count until attachment preprocessing has succeeded.
           if (file && fileMime) {
-            message = await handleFileAttachment(message, file, fileMime, session!, appUserId, requestId, req.signal)
+            message = await timing.runStage(
+              'file_attachment_new',
+              () => handleFileAttachment(message, file, fileMime, session!, appUserId, requestId, req.signal),
+            )
           }
 
-          await persistWorkflowMode(session!)
+          await timing.runStage('workflow_mode_new', () => persistWorkflowMode(session!))
           if (
             session!.agentState.workflowMode === 'ats_enhancement'
             && hasResumeContextForAutoGap(session!)
             && (!session!.agentState.optimizedCvState || session!.agentState.rewriteStatus !== 'completed')
           ) {
-            await runAtsEnhancementPipeline(session!)
+            await timing.runStage('ats_pipeline_new', () => runAtsEnhancementPipeline(session!))
           }
           if (shouldRunJobTargetingPipeline(session!)) {
-            await runJobTargetingPipeline(session!)
+            await timing.runStage('job_targeting_pipeline_new', () => runJobTargetingPipeline(session!))
           }
 
-          await incrementMessageCount(session!.id)
+          await timing.runStage('increment_message_new', () => incrementMessageCount(session!.id))
 
         } catch (err) {
           const isAbort = (err instanceof Error || err instanceof DOMException) && err.name === 'AbortError'
@@ -890,6 +941,17 @@ export async function POST(req: NextRequest) {
         }
       } finally {
         clearInterval(heartbeat)
+        logInfo('agent.request.stream_completed', {
+          ...releaseMetadata,
+          requestId,
+          appUserId,
+          sessionId: session?.id,
+          phase: session?.phase,
+          isNewSession,
+          detectedTargetJobConfidence: detectedTargetJob?.confidence,
+          success: true,
+          ...timing.snapshot(),
+        })
         controller.close()
       }
     },

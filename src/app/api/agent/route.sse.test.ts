@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 
 import { POST } from './route'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
+import { logInfo } from '@/lib/observability/structured-log'
 import {
   appendMessage,
   applyToolPatchWithVersion,
@@ -965,5 +966,42 @@ describe('/api/agent SSE fallback coverage', () => {
     )
     expect(mockRunJobTargetingPipeline).toHaveBeenCalledWith(session)
     expect(mockRunAtsEnhancementPipeline).not.toHaveBeenCalled()
+  })
+
+  it('logs first-response timing data after the SSE stream completes', async () => {
+    const session = buildDialogSession({
+      id: 'sess_timing_log',
+    })
+
+    vi.mocked(getSession).mockResolvedValue(session)
+    vi.mocked(createChatCompletionStreamWithRetry).mockImplementation(
+      async () => textStopStream('Resposta curta e util.') as never,
+    )
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: session.id,
+        message: 'oi',
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+    await response.text()
+
+    expect(vi.mocked(logInfo)).toHaveBeenCalledWith(
+      'agent.request.stream_completed',
+      expect.objectContaining({
+        requestId: expect.any(String),
+        appUserId: 'usr_123',
+        sessionId: session.id,
+        phase: 'dialog',
+        isNewSession: false,
+        totalLatencyMs: expect.any(Number),
+        firstSseChunkMs: expect.any(Number),
+        firstAssistantTextMs: expect.any(Number),
+      }),
+    )
   })
 })

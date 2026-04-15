@@ -33,7 +33,7 @@ Any optional improvement that does not directly improve ATS enhancement latency,
 **Plans**: 1 plan
 
 Plans:
-- [ ] 24-01: Create the performance baseline, autonomous execution contract, and first-response optimization plan
+- [x] 24-01: Create the performance baseline, autonomous execution contract, and first-response optimization plan
 
 ### Phase 25: Chat and ATS Enhancement Request-Path Reduction
 **Goal**: Remove or defer non-essential synchronous work that delays visible chat and ATS enhancement responses.
@@ -101,7 +101,7 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 24. Agent Response Baseline and Chat/ATS Latency Instrumentation | 0/1 | Ready | |
+| 24. Agent Response Baseline and Chat/ATS Latency Instrumentation | 1/1 | Complete | 2026-04-14 |
 | 25. Chat and ATS Enhancement Request-Path Reduction | 0/3 | Not Started | |
 | 26. Agent Runtime Simplification and Budget Optimization | 0/3 | Not Started | |
 | 27. Performance Proof and Critical Route Hardening | 0/3 | Not Started | |
