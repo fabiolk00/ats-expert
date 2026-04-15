@@ -117,6 +117,7 @@ export default function PreviewComparisonPage() {
       originalCvState={mockOriginalCvState}
       optimizedCvState={mockOptimizedCvState}
       generationType="ATS_ENHANCEMENT"
+      sessionId="mock-session-id"
       onContinue={handleContinue}
     />
   )

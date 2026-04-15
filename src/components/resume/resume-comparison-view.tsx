@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowRight, Check } from "lucide-react"
+import { ArrowRight, Check, Download, Loader2, Pencil } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { ResumeEditorModal } from "@/components/dashboard/resume-editor-modal"
 import { cn } from "@/lib/utils"
 import type { CVState } from "@/types/cv"
 
@@ -11,7 +12,9 @@ type ResumeComparisonViewProps = {
   originalCvState: CVState
   optimizedCvState: CVState
   generationType: "ATS_ENHANCEMENT" | "JOB_TARGETING"
+  sessionId: string
   onContinue: () => void
+  onCvStateUpdate?: (cvState: CVState) => void
   className?: string
 }
 
@@ -34,10 +37,16 @@ function ResumeDocument({
   cvState,
   variant,
   originalCvState,
+  onEdit,
+  onDownload,
+  isDownloading,
 }: {
   cvState: CVState
   variant: "original" | "optimized"
   originalCvState?: CVState
+  onEdit?: () => void
+  onDownload?: () => void
+  isDownloading?: boolean
 }) {
   const isOptimized = variant === "optimized"
   const compare = originalCvState || cvState
@@ -45,12 +54,43 @@ function ResumeDocument({
   return (
     <div
       className={cn(
-        "h-full rounded-lg border bg-white p-8 shadow-sm dark:bg-zinc-950",
+        "relative h-full rounded-lg border bg-white p-8 shadow-sm dark:bg-zinc-950",
         isOptimized
           ? "border-emerald-200 dark:border-emerald-900/50"
           : "border-zinc-200 dark:border-zinc-800"
       )}
     >
+      {/* Action buttons */}
+      {isOptimized && (onEdit || onDownload) && (
+        <div className="absolute right-4 top-4 flex gap-1">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              title="Editar curriculo"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
+          {onDownload && (
+            <button
+              type="button"
+              onClick={onDownload}
+              disabled={isDownloading}
+              className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              title="Download PDF"
+            >
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6 border-b border-zinc-100 pb-6 dark:border-zinc-800">
         <h2 className="flex items-center text-xl font-bold text-zinc-900 dark:text-zinc-100">
@@ -228,10 +268,15 @@ export function ResumeComparisonView({
   originalCvState,
   optimizedCvState,
   generationType,
+  sessionId,
   onContinue,
+  onCvStateUpdate,
   className,
 }: ResumeComparisonViewProps) {
   const [isVisible, setIsVisible] = useState(false)
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [currentOptimizedCvState, setCurrentOptimizedCvState] = useState(optimizedCvState)
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 50)
@@ -242,6 +287,45 @@ export function ResumeComparisonView({
     generationType === "JOB_TARGETING"
       ? "Curriculo adaptado para a vaga"
       : "Curriculo otimizado para ATS"
+
+  const handleDownload = async () => {
+    try {
+      setIsDownloading(true)
+      
+      // Import dynamically to avoid SSR issues
+      const { getDownloadUrls } = await import("@/lib/dashboard/workspace-client")
+      const urls = await getDownloadUrls(sessionId)
+      
+      if (!urls.pdfUrl) {
+        throw new Error("PDF not available")
+      }
+
+      const response = await fetch(urls.pdfUrl)
+      if (!response.ok) {
+        throw new Error(`Failed to download PDF (${response.status})`)
+      }
+
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = objectUrl
+      anchor.download = `curriculo-otimizado.pdf`
+      anchor.rel = "noopener noreferrer"
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch (error) {
+      console.error("[v0] Failed to download PDF:", error)
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  const handleEditorSaved = () => {
+    // Refresh the optimized CV state after editing
+    onCvStateUpdate?.(currentOptimizedCvState)
+  }
 
   return (
     <div
@@ -310,9 +394,12 @@ export function ResumeComparisonView({
               </span>
             </div>
             <ResumeDocument
-              cvState={optimizedCvState}
+              cvState={currentOptimizedCvState}
               variant="optimized"
               originalCvState={originalCvState}
+              onEdit={() => setIsEditorOpen(true)}
+              onDownload={handleDownload}
+              isDownloading={isDownloading}
             />
           </div>
         </div>
@@ -328,6 +415,15 @@ export function ResumeComparisonView({
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Editor Modal */}
+      <ResumeEditorModal
+        sessionId={sessionId}
+        targetId={null}
+        open={isEditorOpen}
+        onOpenChange={setIsEditorOpen}
+        onSaved={handleEditorSaved}
+      />
     </div>
   )
 }

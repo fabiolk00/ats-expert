@@ -434,13 +434,7 @@ export default function UserDataPage({
       }
 
       // Se temos os dados para comparacao, mostrar a tela de comparacao
-      console.log("[v0] API response data:", {
-        hasOriginal: !!data.originalCvState,
-        hasOptimized: !!data.optimizedCvState,
-        sessionId: data.sessionId,
-      })
       if (data.originalCvState && data.optimizedCvState) {
-        console.log("[v0] Setting comparison data and showing comparison view")
         setComparisonData({
           originalCvState: data.originalCvState,
           optimizedCvState: data.optimizedCvState,
@@ -560,6 +554,7 @@ export default function UserDataPage({
         originalCvState={comparisonData.originalCvState}
         optimizedCvState={comparisonData.optimizedCvState}
         generationType={comparisonData.generationType}
+        sessionId={comparisonData.sessionId}
         onContinue={handleContinueToDashboard}
       />
     )
