@@ -6,13 +6,13 @@ import { createImportJob } from '@/lib/linkedin/import-jobs'
 import { logError, logInfo, serializeError } from '@/lib/observability/structured-log'
 
 const BodySchema = z.object({
-  linkedinUrl: z.string().url('Informe um link valido do LinkedIn.'),
+  linkedinUrl: z.string().url('Informe um link válido do LinkedIn.'),
 })
 
-const AUTH_REQUIRED_MESSAGE = 'Voce precisa estar autenticado para importar um perfil do LinkedIn.'
-const INVALID_REQUEST_MESSAGE = 'Nao foi possivel ler sua solicitacao. Revise o link do LinkedIn e tente novamente.'
-const INVALID_LINKEDIN_URL_MESSAGE = 'Informe um link publico de perfil do LinkedIn no formato https://www.linkedin.com/in/seu-perfil/.'
-const START_IMPORT_FAILURE_MESSAGE = 'Nao foi possivel iniciar a importacao do LinkedIn agora. Tente novamente em instantes.'
+const AUTH_REQUIRED_MESSAGE = 'Você precisa estar autenticado para importar um perfil do LinkedIn.'
+const INVALID_REQUEST_MESSAGE = 'Não foi possível ler sua solicitação. Revise o link do LinkedIn e tente novamente.'
+const INVALID_LINKEDIN_URL_MESSAGE = 'Informe um link público de perfil do LinkedIn no formato https://www.linkedin.com/in/seu-perfil/.'
+const START_IMPORT_FAILURE_MESSAGE = 'Não foi possível iniciar a importação do LinkedIn agora. Tente novamente em instantes.'
 
 export async function POST(req: NextRequest) {
   const appUser = await getCurrentAppUser(req)

@@ -35,18 +35,18 @@ function buildGenerationCopy(mode: WorkflowMode): {
 } {
   if (mode === 'job_targeting') {
     return {
-      incompleteError: 'Complete seu curriculo para adaptar sua versao para a vaga.',
-      creditsError: 'Seus creditos acabaram. Recarregue seu saldo para adaptar seu curriculo para a vaga.',
-      pipelineError: 'Nao foi possivel adaptar seu curriculo para a vaga agora.',
+      incompleteError: 'Complete seu currículo para adaptar sua versão para a vaga.',
+      creditsError: 'Seus créditos acabaram. Recarregue seu saldo para adaptar seu currículo para a vaga.',
+      pipelineError: 'Não foi possível adaptar seu currículo para a vaga agora.',
       generationType: 'JOB_TARGETING',
       idempotencyKeyPrefix: 'profile-target',
     }
   }
 
   return {
-    incompleteError: 'Complete seu curriculo para gerar uma versao ATS.',
-    creditsError: 'Seus creditos acabaram. Recarregue seu saldo para gerar uma versao ATS.',
-    pipelineError: 'Nao foi possivel melhorar sua versao ATS agora.',
+    incompleteError: 'Complete seu currículo para gerar uma versão ATS.',
+    creditsError: 'Seus créditos acabaram. Recarregue seu saldo para gerar uma versão ATS.',
+    pipelineError: 'Não foi possível melhorar sua versão ATS agora.',
     generationType: 'ATS_ENHANCEMENT',
     idempotencyKeyPrefix: 'profile-ats',
   }

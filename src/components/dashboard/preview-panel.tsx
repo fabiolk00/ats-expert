@@ -104,7 +104,7 @@ function PreviewPanelContent({
       const urls = await getDownloadUrls(file.sessionId, file.targetId ?? undefined)
 
       if (!urls.pdfUrl) {
-        setError('Nao foi possivel carregar a pre-visualizacao do PDF.')
+        setError('Não foi possível carregar a pré-visualização do PDF.')
         return
       }
 

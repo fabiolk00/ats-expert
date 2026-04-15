@@ -63,8 +63,8 @@ Python, APIs e Microsoft Fabric.`
   it('does not classify resume-only text as a vacancy', () => {
     const resumeSummary = [
       'Sou analista de dados com foco em BI, SQL e automacao.',
-      'Tenho experiencia com Power BI, ETL e apresentacao de indicadores.',
-      'Procuro melhorar meu curriculo para vagas em analytics.',
+      'Tenho experiência com Power BI, ETL e apresentação de indicadores.',
+      'Procuro melhorar meu currículo para vagas em analytics.',
     ].join(' ')
 
     expect(detectTargetJobDescription(resumeSummary)).toBeUndefined()

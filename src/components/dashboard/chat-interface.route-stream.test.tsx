@@ -266,21 +266,21 @@ describe("ChatInterface real /api/agent transcript integration", () => {
     mockDispatchToolWithContext.mockResolvedValueOnce({
       output: {
         success: true,
-        rewritten_content: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
-        section_data: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
+        rewritten_content: "Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.",
+        section_data: "Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.",
         keywords_added: ["Power BI", "SQL", "ETL"],
         changes_made: ["Resumo alinhado a BI senior"],
       },
       outputJson: JSON.stringify({
         success: true,
-        rewritten_content: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
-        section_data: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
+        rewritten_content: "Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.",
+        section_data: "Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.",
         keywords_added: ["Power BI", "SQL", "ETL"],
         changes_made: ["Resumo alinhado a BI senior"],
       }),
       persistedPatch: {
         cvState: {
-          summary: "Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.",
+          summary: "Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.",
         },
       },
     })
@@ -350,8 +350,8 @@ describe("ChatInterface real /api/agent transcript integration", () => {
       expect(assistantMessages).toHaveLength(2)
 
       const finalAssistantMessage = assistantMessages[assistantMessages.length - 1]
-      expect(finalAssistantMessage).toHaveTextContent("Aqui esta uma versao reescrita do seu resumo profissional:")
-      expect(finalAssistantMessage).toHaveTextContent("Analista de BI com experiencia em Power BI, SQL e ETL")
+      expect(finalAssistantMessage).toHaveTextContent("Aqui está uma versão reescrita do seu resumo profissional:")
+      expect(finalAssistantMessage).toHaveTextContent("Analista de BI com experiência em Power BI, SQL e ETL")
       expect(finalAssistantMessage).toHaveTextContent('Aceito')
     })
   })
@@ -366,7 +366,7 @@ describe("ChatInterface real /api/agent transcript integration", () => {
       "Responsabilidades",
       "Construir dashboards executivos em Power BI e traduzir necessidades do negocio em indicadores.",
       "Requisitos",
-      "SQL avancado, ETL, comunicacao com areas nao tecnicas e Power BI.",
+      "SQL avançado, ETL, comunicação com áreas não técnicas e Power BI.",
       "Diferenciais",
       "Python, APIs e Microsoft Fabric.",
     ].join("\n")
@@ -444,7 +444,7 @@ describe("ChatInterface real /api/agent transcript integration", () => {
       expect(finalAssistantMessage).toHaveTextContent("Recebi essa nova vaga")
       expect(finalAssistantMessage).toHaveTextContent("adaptar agora seu resumo")
       expect(finalAssistantMessage).not.toHaveTextContent(
-        "Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.",
+        "Recebi a vaga e ela já ficou salva como referência para o seu currículo.",
       )
     })
   }, 10000)

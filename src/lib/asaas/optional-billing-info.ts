@@ -2,7 +2,7 @@ import { getUserBillingInfo } from '@/lib/asaas/quota'
 import { logWarn, serializeError } from '@/lib/observability/structured-log'
 
 export const OPTIONAL_BILLING_INFO_NOTICE =
-  'Nao foi possivel carregar seus creditos e plano agora. Atualize a pagina em instantes. O restante do workspace continua disponivel.'
+  'Não foi possível carregar seus créditos e plano agora. Atualize a página em instantes. O restante do workspace continua disponível.'
 
 type BillingInfoSurface = 'auth_layout' | 'dashboard_page' | 'settings_page'
 

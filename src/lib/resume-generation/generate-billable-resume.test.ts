@@ -91,7 +91,7 @@ describe('generateBillableResume', () => {
     expect(result.output).toEqual({
       success: false,
       code: 'VALIDATION_ERROR',
-      error: 'Gere uma nova versao otimizada pela IA antes de exportar este curriculo.',
+      error: 'Gere uma nova versão otimizada pela IA antes de exportar este currículo.',
     })
     expect(mockCheckUserQuota).not.toHaveBeenCalled()
     expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()

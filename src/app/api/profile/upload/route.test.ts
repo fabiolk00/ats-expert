@@ -144,7 +144,7 @@ describe('POST /api/profile/upload', () => {
     expect(res.status).toBe(409)
     expect(json.requiresConfirmation).toBe(true)
     expect(json.error).toBe(
-      'Voce ja importou seu perfil pelo LinkedIn. Confirme se deseja substituir essas informacoes pelo PDF.',
+      'Você já importou seu perfil pelo LinkedIn. Confirme se deseja substituir essas informações pelo PDF.',
     )
     expect(importPdfProfile).not.toHaveBeenCalled()
   })
@@ -155,7 +155,7 @@ describe('POST /api/profile/upload', () => {
     vi.mocked(importPdfProfile).mockResolvedValueOnce({
       success: false,
       code: 'SCANNED_PDF',
-      error: 'Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.',
+      error: 'Não conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionável ou preencha manualmente.',
     })
 
     const res = await POST(
@@ -165,7 +165,7 @@ describe('POST /api/profile/upload', () => {
 
     expect(res.status).toBe(400)
     expect(json.error).toBe(
-      'Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.',
+      'Não conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionável ou preencha manualmente.',
     )
   })
 
@@ -203,7 +203,7 @@ describe('POST /api/profile/upload', () => {
     vi.mocked(importPdfProfile).mockResolvedValueOnce({
       success: false,
       code: 'NO_PROFILE_CHANGES',
-      error: 'Esse arquivo nao trouxe novas informacoes para o seu perfil atual.',
+      error: 'Esse arquivo não trouxe novas informações para o seu perfil atual.',
     })
 
     const res = await POST(
@@ -212,7 +212,7 @@ describe('POST /api/profile/upload', () => {
     const json = await res.json()
 
     expect(res.status).toBe(409)
-    expect(json.error).toBe('Esse arquivo nao trouxe novas informacoes para o seu perfil atual.')
+    expect(json.error).toBe('Esse arquivo não trouxe novas informações para o seu perfil atual.')
   })
 
   it('queues larger PDFs for async processing instead of parsing inline', async () => {

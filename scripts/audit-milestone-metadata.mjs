@@ -17,6 +17,12 @@ function assertExcludes(haystack, needle, message) {
   }
 }
 
+function assertOneOf(haystack, needles, message) {
+  if (!needles.some((needle) => haystack.includes(needle))) {
+    throw new Error(message)
+  }
+}
+
 const milestones = read('.planning/MILESTONES.md')
 const project = read('.planning/PROJECT.md')
 const roadmap = read('.planning/ROADMAP.md')
@@ -60,10 +66,13 @@ assertIncludes(
   '[x] Phase 33: Milestone closeout metadata',
   'PROJECT.md must reflect Phase 33 as validated once archive-integrity work lands.'
 )
-assertIncludes(
+assertOneOf(
   project,
-  '[ ] The remaining non-E2E runtime outliers',
-  'PROJECT.md must keep the residual runtime work active after Phase 33.'
+  [
+    '[ ] The remaining non-E2E runtime outliers',
+    '[x] Phase 34: The dominant residual non-E2E bottleneck is reduced and protected by an explicit resume-builder runtime budget gate.'
+  ],
+  'PROJECT.md must either keep the residual runtime work active or mark the shipped Phase 34 runtime-budget outcome as validated.'
 )
 
 assertIncludes(
@@ -71,11 +80,19 @@ assertIncludes(
   '| 33. Milestone Archive and Traceability Integrity | 2/2 | Complete |',
   'ROADMAP.md must mark Phase 33 complete.'
 )
-assertIncludes(roadmap, '`/gsd-plan-phase 34`', 'ROADMAP.md must point to the next logical phase entrypoint.')
+assertOneOf(
+  roadmap,
+  ['`/gsd-plan-phase 34`', '`/gsd-audit-milestone v1.5`'],
+  'ROADMAP.md must point to the correct next logical workflow step for the current milestone state.'
+)
 assertIncludes(requirements, '| DOC-01 | Phase 33 | Complete |', 'REQUIREMENTS.md must mark DOC-01 complete after Phase 33.')
 assertIncludes(requirements, '| DOC-02 | Phase 33 | Complete |', 'REQUIREMENTS.md must mark DOC-02 complete after Phase 33.')
 assertIncludes(state, 'current_phase: 34', 'STATE.md must advance to Phase 34 after Phase 33 completion.')
 assertIncludes(state, 'milestone: v1.5', 'STATE.md must stay pointed at active milestone v1.5.')
-assertIncludes(state, 'Status: Ready to plan', 'STATE.md must leave the next phase in a plannable state.')
+assertOneOf(
+  state,
+  ['Status: Ready to plan', 'Status: Ready for audit'],
+  'STATE.md must reflect a coherent post-Phase-33 milestone state.'
+)
 
 console.log('Milestone metadata audit passed.')

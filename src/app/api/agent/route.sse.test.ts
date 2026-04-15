@@ -400,7 +400,7 @@ describe('/api/agent SSE fallback coverage', () => {
 
     expect(finalText).toContain('Posso seguir, sim.')
     expect(finalText).toContain('resumo profissional')
-    expect(finalText).not.toContain('Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.')
+    expect(finalText).not.toContain('Recebi a vaga e ela já ficou salva como referência para o seu currículo.')
     expect(events.at(-1)).toMatchObject({
       type: 'done',
       sessionId: session.id,
@@ -427,21 +427,21 @@ describe('/api/agent SSE fallback coverage', () => {
     mockDispatchToolWithContext.mockResolvedValueOnce({
       output: {
         success: true,
-        rewritten_content: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
-        section_data: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
+        rewritten_content: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.',
+        section_data: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.',
         keywords_added: ['Power BI', 'SQL', 'ETL'],
         changes_made: ['Resumo alinhado a BI senior'],
       },
       outputJson: JSON.stringify({
         success: true,
-        rewritten_content: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
-        section_data: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
+        rewritten_content: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.',
+        section_data: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.',
         keywords_added: ['Power BI', 'SQL', 'ETL'],
         changes_made: ['Resumo alinhado a BI senior'],
       }),
       persistedPatch: {
         cvState: {
-          summary: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos e traducao de indicadores para o negocio.',
+          summary: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos e tradução de indicadores para o negócio.',
         },
       },
     })
@@ -464,8 +464,8 @@ describe('/api/agent SSE fallback coverage', () => {
       .map((event) => String(event.content ?? ''))
       .join('')
 
-    expect(finalText).toContain('Aqui esta uma versao reescrita do seu resumo profissional:')
-    expect(finalText).toContain('Analista de BI com experiencia em Power BI, SQL e ETL')
+    expect(finalText).toContain('Aqui está uma versão reescrita do seu resumo profissional:')
+    expect(finalText).toContain('Analista de BI com experiência em Power BI, SQL e ETL')
     expect(finalText).toContain('Aceito')
     expect(events.at(-1)).toMatchObject({
       type: 'done',
@@ -477,7 +477,7 @@ describe('/api/agent SSE fallback coverage', () => {
     expect(vi.mocked(appendMessage).mock.calls.at(-1)).toEqual([
       session.id,
       'assistant',
-      expect.stringContaining('Aqui esta uma versao reescrita do seu resumo profissional:'),
+      expect.stringContaining('Aqui está uma versão reescrita do seu resumo profissional:'),
     ])
   })
 
@@ -518,7 +518,7 @@ describe('/api/agent SSE fallback coverage', () => {
       .map((event) => String(event.content ?? ''))
       .join('')
 
-    expect(finalText).toBe('Quando fizer sentido, clique em "Aceito" para gerar seu curriculo.')
+    expect(finalText).toBe('Quando fizer sentido, clique em "Aceito" para gerar seu currículo.')
     expect(events).toContainEqual(expect.objectContaining({
       type: 'patch',
       phase: 'confirm',
@@ -645,7 +645,7 @@ describe('/api/agent SSE fallback coverage', () => {
       .map((event) => String(event.content ?? ''))
       .join('')
 
-    expect(finalText).toContain('Seu curriculo ATS-otimizado em PDF esta pronto.')
+    expect(finalText).toContain('Seu currículo ATS-otimizado em PDF está pronto.')
     expect(finalText).toContain('ATS Score antes: 43/100. ATS agora: 73/100.')
     expect(events).toContainEqual(expect.objectContaining({
       type: 'patch',
@@ -686,7 +686,7 @@ describe('/api/agent SSE fallback coverage', () => {
       'Responsabilidades',
       'Construir dashboards executivos em Power BI e traduzir necessidades do negocio em indicadores.',
       'Requisitos',
-      'SQL avancado, ETL, comunicacao com areas nao tecnicas e Power BI.',
+      'SQL avançado, ETL, comunicação com áreas não técnicas e Power BI.',
       'Diferenciais',
       'Python, APIs e Microsoft Fabric.',
     ].join('\n')
@@ -715,7 +715,7 @@ describe('/api/agent SSE fallback coverage', () => {
 
     expect(finalText).toContain('Recebi essa nova vaga')
     expect(finalText).toContain('adaptar agora seu resumo')
-    expect(finalText).not.toContain('Diga qual trecho voce quer ajustar primeiro')
+    expect(finalText).not.toContain('Diga qual trecho você quer ajustar primeiro')
     expect(events.at(-1)).toMatchObject({
       type: 'done',
       sessionId: session.id,
@@ -744,7 +744,7 @@ describe('/api/agent SSE fallback coverage', () => {
     vi.mocked(getSession).mockResolvedValue(session)
     vi.mocked(createChatCompletionStreamWithRetry)
       .mockImplementationOnce(async () => emptyLengthStream() as never)
-      .mockImplementation(async () => textStopStream('Bom dia! Otimo iniciar. Pode me dizer qual vaga voce esta mirando?') as never)
+      .mockImplementation(async () => textStopStream('Bom dia! Ótimo iniciar. Pode me dizer qual vaga você está mirando?') as never)
 
     const response = await POST(new NextRequest('http://localhost/api/agent', {
       method: 'POST',
@@ -775,7 +775,7 @@ describe('/api/agent SSE fallback coverage', () => {
     expect(vi.mocked(appendMessage).mock.calls.at(-1)).toEqual([
       session.id,
       'assistant',
-      'Bom dia! Otimo iniciar. Pode me dizer qual vaga voce esta mirando?',
+      'Bom dia! Ótimo iniciar. Pode me dizer qual vaga você está mirando?',
     ])
   })
 
@@ -790,7 +790,7 @@ describe('/api/agent SSE fallback coverage', () => {
     const requirementSummary = [
       'Requisitos Desejaveis',
       '',
-      'Experiencia em analises que envolvem multiplas areas de negocio. Vivencia em GitHub, Looker ou outras ferramentas de data visualization. Capacidade de resolver problemas com foco em resultados para o negocio. Experiencia em digital analytics com ferramentas como Google Analytics, Google Tag Manager e Appsflyer. Conhecimento em tecnicas avancadas de ETL e transformacao de dados.',
+      'Experiência em análises que envolvem múltiplas áreas de negócio. Vivência em GitHub, Looker ou outras ferramentas de data visualization. Capacidade de resolver problemas com foco em resultados para o negócio. Experiência em digital analytics com ferramentas como Google Analytics, Google Tag Manager e Appsflyer. Conhecimento em técnicas avançadas de ETL e transformação de dados.',
       '',
       'Resumo dos requisitos: SQL, Google Sheets, Looker Platform, Machine Learning, GitHub, R, BigQuery, SQL Server, Google Analytics, Google Tag Manager, Appsflyer.',
     ].join('\n')

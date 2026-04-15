@@ -106,7 +106,7 @@ export function assessProfileAuditFindings(cvState: CVState): ProfileAuditFindin
   const missingContactFields = [
     !cvState.email.trim() ? 'email' : null,
     !cvState.phone.trim() ? 'telefone' : null,
-    !cvState.location?.trim() ? 'localizacao' : null,
+    !cvState.location?.trim() ? 'localização' : null,
     !cvState.linkedin?.trim() ? 'LinkedIn' : null,
   ].filter((value): value is string => Boolean(value))
 
@@ -121,8 +121,8 @@ export function assessProfileAuditFindings(cvState: CVState): ProfileAuditFindin
   if (missingContactFields.length > 0) {
     findings.push({
       key: 'contact',
-      item: `informacoes de contato (${missingContactFields.join(', ')})`,
-      reason: 'Contato incompleto reduz alcance com recrutadores e pode atrapalhar filtros basicos de ATS ou o retorno para entrevistas.',
+      item: `informações de contato (${missingContactFields.join(', ')})`,
+      reason: 'Contato incompleto reduz alcance com recrutadores e pode atrapalhar filtros básicos de ATS ou o retorno para entrevistas.',
     })
   }
 
@@ -137,38 +137,38 @@ export function assessProfileAuditFindings(cvState: CVState): ProfileAuditFindin
   if (experienceEntries.length === 0 || totalBullets < Math.max(2, experienceEntries.length * 2)) {
     findings.push({
       key: 'experience',
-      item: 'secao de experiencia',
-      reason: 'Experiencias rasas ou incompletas enfraquecem a leitura de impacto real e reduzem a aderencia em vagas filtradas por historico.',
+      item: 'seção de experiência',
+      reason: 'Experiências rasas ou incompletas enfraquecem a leitura de impacto real e reduzem a aderência em vagas filtradas por histórico.',
     })
   } else if (metricBullets === 0) {
     findings.push({
       key: 'experience',
-      item: 'resultados mensuraveis na experiencia',
-      reason: 'Sem metricas ou resultados concretos, o curriculo perde forca para recrutadores e parece mais generico para o ATS.',
+      item: 'resultados mensuráveis na experiência',
+      reason: 'Sem métricas ou resultados concretos, o currículo perde força para recrutadores e parece mais genérico para o ATS.',
     })
   }
 
   if (skillCount < 6) {
     findings.push({
       key: 'skills',
-      item: 'secao de habilidades',
-      reason: 'Poucas skills limitam correspondencia por palavra-chave e dificultam mostrar amplitude tecnica para a vaga certa.',
+      item: 'seção de habilidades',
+      reason: 'Poucas skills limitam correspondência por palavra-chave e dificultam mostrar amplitude técnica para a vaga certa.',
     })
   }
 
   if (cvState.education.length === 0) {
     findings.push({
       key: 'education',
-      item: 'educacao',
-      reason: 'Ausencia de formacao declarada pode derrubar confianca do recrutador e prejudicar filtros que exigem escolaridade minima.',
+      item: 'educação',
+      reason: 'Ausência de formação declarada pode derrubar confiança do recrutador e prejudicar filtros que exigem escolaridade mínima.',
     })
   }
 
   if (experienceEntries.length < 2 && (cvState.certifications?.length ?? 0) === 0) {
     findings.push({
       key: 'proof',
-      item: 'projetos ou certificacoes',
-      reason: 'Quando a experiencia ainda e curta, projetos e certificacoes ajudam a provar profundidade, consistencia e intencao de carreira.',
+      item: 'projetos ou certificações',
+      reason: 'Quando a experiência ainda é curta, projetos e certificações ajudam a provar profundidade, consistência e intenção de carreira.',
     })
   }
 
@@ -268,7 +268,7 @@ export function buildCareerFitWarningText(session: Pick<Session, 'agentState' | 
 
   const gapSummary = gaps.length > 0
     ? `Principais gaps hoje: ${gaps.join(', ')}.`
-    : 'Ainda existem lacunas importantes entre seu historico atual e o que a vaga pede.'
+    : 'Ainda existem lacunas importantes entre seu histórico atual e o que a vaga pede.'
 
   const profileText = inferProfileText(session.cvState)
   const profileFamily = inferRoleFamily(profileText)
@@ -285,13 +285,13 @@ export function buildCareerFitWarningText(session: Pick<Session, 'agentState' | 
 
   const fitSummary = targetFit?.summary
     ?? (gapAnalysis
-      ? `A aderencia estimada para esta vaga esta em ${gapAnalysis.matchScore}/100.`
-      : 'Mesmo sem uma analise completa, ja existe um desalinhamento estrutural relevante para essa vaga.')
+      ? `A aderência estimada para esta vaga está em ${gapAnalysis.matchScore}/100.`
+      : 'Mesmo sem uma análise completa, já existe um desalinhamento estrutural relevante para essa vaga.')
 
   const mismatchNote = familyMismatch
-    ? `Seu historico atual parece mais alinhado a ${profileFamily}, enquanto esta vaga pede um foco mais claro em ${targetFamily}.`
+    ? `Seu histórico atual parece mais alinhado a ${profileFamily}, enquanto esta vaga pede um foco mais claro em ${targetFamily}.`
     : seniorityMismatch
-      ? 'A senioridade pedida pela vaga parece acima do que seu historico recente demonstra hoje.'
+      ? 'A senioridade pedida pela vaga parece acima do que seu histórico recente demonstra hoje.'
       : null
 
   return [
@@ -299,9 +299,9 @@ export function buildCareerFitWarningText(session: Pick<Session, 'agentState' | 
     fitSummary,
     mismatchNote,
     gapSummary,
-    'Seguir com a candidatura assim pode gastar seu tempo e reduzir a chance de retorno, porque reescrever o curriculo sozinho nao fecha lacunas estruturais.',
-    'Minha recomendacao seria priorizar vagas mais proximas do seu nivel atual ou fortalecer esses pontos com estudo, projetos e pratica antes de insistir nessa trilha.',
-    'Se mesmo assim voce quiser prosseguir, responda com "Aceito" ou diga "Entendo, mas quero continuar". Depois disso eu sigo com a otimizacao normalmente.',
+    'Seguir com a candidatura assim pode gastar seu tempo e reduzir a chance de retorno, porque reescrever o currículo sozinho não fecha lacunas estruturais.',
+    'Minha recomendação seria priorizar vagas mais próximas do seu nível atual ou fortalecer esses pontos com estudo, projetos e prática antes de insistir nessa trilha.',
+    'Se mesmo assim você quiser prosseguir, responda com "Aceito" ou diga "Entendo, mas quero continuar". Depois disso eu sigo com a otimização normalmente.',
   ].filter(Boolean).join(' ')
 }
 

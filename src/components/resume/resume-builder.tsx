@@ -90,7 +90,7 @@ function statusLabel(status: JobStatus): string {
     case "active":
       return "Processando"
     case "completed":
-      return "Concluida"
+      return "Concluída"
     case "failed":
       return "Falhou"
     case "delayed":
@@ -109,9 +109,9 @@ function fileImportLabel(stage: FileImportStage): string {
     case "extracting":
       return "Extraindo e organizando dados"
     case "completed":
-      return "Importacao concluida"
+      return "Importação concluída"
     case "failed":
-      return "Importacao falhou"
+      return "Importação falhou"
   }
 }
 
@@ -180,7 +180,7 @@ export function ImportResumeModal({
         })
         if (!response.ok) {
           const failure = (await response.json().catch(() => null)) as { error?: string } | null
-          throw new Error(failure?.error ?? "Nao foi possivel acompanhar a importacao.")
+          throw new Error(failure?.error ?? "Não foi possível acompanhar a importação.")
         }
 
         const data = (await response.json()) as ImportStatusResponse
@@ -193,12 +193,12 @@ export function ImportResumeModal({
             credentials: "include",
           })
           if (!profileResponse.ok) {
-            throw new Error("A importacao terminou, mas o perfil nao pode ser carregado.")
+            throw new Error("A importação terminou, mas o perfil não pode ser carregado.")
           }
 
           const profileData = (await profileResponse.json()) as ProfileResponse
           if (!profileData.profile) {
-            throw new Error("A importacao terminou sem retornar dados de perfil.")
+            throw new Error("A importação terminou sem retornar dados de perfil.")
           }
 
           onImportSuccess(
@@ -216,13 +216,13 @@ export function ImportResumeModal({
           window.clearInterval(interval)
           setJobId(null)
           setJobStatus("failed")
-          toast.error(data.errorMessage ?? "Nao foi possivel importar seu perfil do LinkedIn.")
+          toast.error(data.errorMessage ?? "Não foi possível importar seu perfil do LinkedIn.")
         }
       } catch (error) {
         window.clearInterval(interval)
         setJobId(null)
         setJobStatus(null)
-        toast.error(error instanceof Error ? error.message : "Erro ao acompanhar a importacao do LinkedIn.")
+        toast.error(error instanceof Error ? error.message : "Erro ao acompanhar a importação do LinkedIn.")
       }
     }, linkedinPollMs)
 
@@ -241,7 +241,7 @@ export function ImportResumeModal({
         })
         if (!response.ok) {
           const failure = (await response.json().catch(() => null)) as { error?: string } | null
-          throw new Error(failure?.error ?? "Nao foi possivel acompanhar a importacao do curriculo.")
+          throw new Error(failure?.error ?? "Não foi possível acompanhar a importação do currículo.")
         }
 
         const data = (await response.json()) as PdfImportStatusResponse
@@ -254,7 +254,7 @@ export function ImportResumeModal({
 
         if (data.status === "processing") {
           setFileImportStage("extracting")
-          setFileImportMessage("Extraindo o texto e preenchendo as secoes automaticamente.")
+          setFileImportMessage("Extraindo o texto e preenchendo as seções automaticamente.")
           return
         }
 
@@ -265,12 +265,12 @@ export function ImportResumeModal({
             credentials: "include",
           })
           if (!profileResponse.ok) {
-            throw new Error("A importacao terminou, mas o perfil nao pode ser carregado.")
+            throw new Error("A importação terminou, mas o perfil não pode ser carregado.")
           }
 
           const profileData = (await profileResponse.json()) as ProfileResponse
           if (!profileData.profile) {
-            throw new Error("A importacao terminou sem retornar dados de perfil.")
+            throw new Error("A importação terminou sem retornar dados de perfil.")
           }
 
           onImportSuccess(
@@ -280,11 +280,11 @@ export function ImportResumeModal({
           )
           resetFileImportState()
           setFileImportStage("completed")
-          setFileImportMessage("Os dados importados ja foram aplicados ao formulario.")
+          setFileImportMessage("Os dados importados já foram aplicados ao formulário.")
           if (data.warningMessage) {
             toast.warning(data.warningMessage)
           }
-          toast.success("Curriculo importado com sucesso.")
+          toast.success("Currículo importado com sucesso.")
           return
         }
 
@@ -293,14 +293,14 @@ export function ImportResumeModal({
           setPdfImportJobId(null)
           setFileImportStage("failed")
           setFileImportMessage(null)
-          toast.error(data.errorMessage ?? "Nao foi possivel importar seu curriculo.")
+          toast.error(data.errorMessage ?? "Não foi possível importar seu currículo.")
         }
       } catch (error) {
         window.clearInterval(interval)
         setPdfImportJobId(null)
         setFileImportStage("failed")
         setFileImportMessage(null)
-        toast.error(error instanceof Error ? error.message : "Erro ao acompanhar a importacao do curriculo.")
+        toast.error(error instanceof Error ? error.message : "Erro ao acompanhar a importação do currículo.")
       }
     }, pdfImportPollMs)
 
@@ -322,14 +322,14 @@ export function ImportResumeModal({
 
       const data = (await response.json()) as { error?: string; jobId?: string }
       if (!response.ok || !data.jobId) {
-        throw new Error(data.error ?? "Nao foi possivel iniciar a importacao.")
+        throw new Error(data.error ?? "Não foi possível iniciar a importação.")
       }
 
       setJobId(data.jobId)
       setJobStatus("waiting")
-      toast.info("Importacao iniciada. Estamos buscando seus dados no LinkedIn.")
+      toast.info("Importação iniciada. Estamos buscando seus dados no LinkedIn.")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao iniciar a importacao do LinkedIn.")
+      toast.error(error instanceof Error ? error.message : "Erro ao iniciar a importação do LinkedIn.")
     } finally {
       setIsLinkedinSubmitting(false)
     }
@@ -350,7 +350,7 @@ export function ImportResumeModal({
     activeFileImportIdRef.current = importId
     setActiveFileImportId(importId)
     setFileImportStage("uploading")
-    setFileImportMessage("Estamos enviando seu curriculo para leitura segura.")
+    setFileImportMessage("Estamos enviando seu currículo para leitura segura.")
 
     try {
       const formData = new FormData()
@@ -358,7 +358,7 @@ export function ImportResumeModal({
       formData.append("replaceLinkedinImport", String(replaceLinkedinImport))
 
       setFileImportStage("extracting")
-      setFileImportMessage("Extraindo o texto e preenchendo as secoes automaticamente.")
+      setFileImportMessage("Extraindo o texto e preenchendo as seções automaticamente.")
 
       const response = await fetch("/api/profile/upload", {
         method: "POST",
@@ -381,14 +381,14 @@ export function ImportResumeModal({
         setFileImportStage(data.status === "processing" ? "extracting" : "queued")
         setFileImportMessage(
           data.status === "processing"
-            ? "Extraindo o texto e preenchendo as secoes automaticamente."
+            ? "Extraindo o texto e preenchendo as seções automaticamente."
             : "Seu PDF entrou na fila segura de processamento.",
         )
         return
       }
 
       if (!response.ok || !data.profile) {
-        throw new Error(data.error ?? "Nao foi possivel importar seu curriculo.")
+        throw new Error(data.error ?? "Não foi possível importar seu currículo.")
       }
 
       if (activeFileImportIdRef.current !== importId || !isOpen) {
@@ -402,11 +402,11 @@ export function ImportResumeModal({
       )
       resetFileImportState()
       setFileImportStage("completed")
-      setFileImportMessage("Os dados importados ja foram aplicados ao formulario.")
+      setFileImportMessage("Os dados importados já foram aplicados ao formulário.")
       if (data.warning) {
         toast.warning(data.warning)
       }
-      toast.success("Curriculo importado com sucesso.")
+      toast.success("Currículo importado com sucesso.")
     } catch (error) {
       if (activeFileImportIdRef.current !== importId || !isOpen) {
         return
@@ -414,7 +414,7 @@ export function ImportResumeModal({
 
       setFileImportStage("failed")
       setFileImportMessage(null)
-      toast.error(error instanceof Error ? error.message : "Erro ao importar seu curriculo.")
+      toast.error(error instanceof Error ? error.message : "Erro ao importar seu currículo.")
     } finally {
       if (activeFileImportIdRef.current === importId) {
         isFileImportInFlightRef.current = false
@@ -443,12 +443,12 @@ export function ImportResumeModal({
         <DialogHeader className="space-y-4 pt-3">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-200 bg-blue-50/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300">
             <Sparkles className="h-3.5 w-3.5" />
-            Importacao guiada
+            Importação guiada
           </div>
           <div className="space-y-2">
             <DialogTitle className="text-2xl">Importar perfil profissional</DialogTitle>
             <DialogDescription>
-              Use o LinkedIn ou um curriculo em PDF para preencher sua base profissional e revisar tudo antes de salvar.
+              Use o LinkedIn ou um currículo em PDF para preencher sua base profissional e revisar tudo antes de salvar.
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -462,7 +462,7 @@ export function ImportResumeModal({
               <div>
                 <h3 className="font-semibold text-foreground">LinkedIn</h3>
                 <p className="text-sm text-muted-foreground">
-                  Cole o link do seu perfil publico e acompanhe a importacao em tempo real.
+                  Cole o link do seu perfil público e acompanhe a importação em tempo real.
                 </p>
               </div>
             </div>
@@ -498,10 +498,10 @@ export function ImportResumeModal({
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100">
                   <div className="flex items-center gap-2 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Status da importacao: {statusLabel(jobStatus)}
+                    Status da importação: {statusLabel(jobStatus)}
                   </div>
                   <p className="mt-2 text-blue-800 dark:text-blue-200">
-                    Assim que terminar, os dados importados aparecem automaticamente no formulario.
+                    Assim que terminar, os dados importados aparecem automaticamente no formulário.
                   </p>
                 </div>
               )}
@@ -516,7 +516,7 @@ export function ImportResumeModal({
               <div>
                 <h3 className="font-semibold text-foreground">PDF</h3>
                 <p className="text-sm text-muted-foreground">
-                  Envie seu curriculo para preencher a base profissional usando a mesma estrutura do editor.
+                  Envie seu currículo para preencher a base profissional usando a mesma estrutura do editor.
                 </p>
               </div>
             </div>
@@ -530,7 +530,7 @@ export function ImportResumeModal({
                   <Upload className="mx-auto h-5 w-5" />
                   <p>{selectedFile ? selectedFile.name : "Clique para selecionar um PDF."}</p>
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/80">
-                    Ate 5 MB
+                    Até 5 MB
                   </p>
                 </div>
               </label>
@@ -554,7 +554,7 @@ export function ImportResumeModal({
                 {activeFileImportId !== null ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Importando curriculo
+                    Importando currículo
                   </>
                 ) : (
                   <>
@@ -572,7 +572,7 @@ export function ImportResumeModal({
                     ) : (
                       <Loader2 className={`h-4 w-4 ${fileImportStage === "failed" ? "" : "animate-spin"}`} />
                     )}
-                    Status da importacao: {fileImportLabel(fileImportStage)}
+                    Status da importação: {fileImportLabel(fileImportStage)}
                   </div>
                   {fileImportMessage ? (
                     <p className="mt-2 text-slate-700 dark:text-slate-300">{fileImportMessage}</p>
@@ -583,7 +583,7 @@ export function ImportResumeModal({
               <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <p>
-                  PDFs escaneados podem nao ter texto suficiente para leitura automatica. Se isso acontecer, use um PDF com texto selecionavel ou preencha manualmente.
+                  PDFs escaneados podem não ter texto suficiente para leitura automática. Se isso acontecer, use um PDF com texto selecionável ou preencha manualmente.
                 </p>
               </div>
             </div>
@@ -611,7 +611,7 @@ export function ImportResumeModal({
           <AlertDialogHeader>
             <AlertDialogTitle>Substituir perfil importado do LinkedIn?</AlertDialogTitle>
             <AlertDialogDescription>
-              Voce ja importou seu perfil pelo LinkedIn. Se continuar, vamos substituir essas informacoes pelos dados extraidos do PDF.
+              Você já importou seu perfil pelo LinkedIn. Se continuar, vamos substituir essas informações pelos dados extraídos do PDF.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

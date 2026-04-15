@@ -208,8 +208,8 @@ describe('rewriteSection', () => {
   it('parses summary rewrites wrapped in markdown fences', async () => {
     createCompletion.mockResolvedValue(buildOpenAIResponse(`\`\`\`json
 {
-  "rewritten_content": "Senior Analytics Engineer com experiencia em dbt, SQL avancado e modelagem analitica escalavel.",
-  "section_data": "Senior Analytics Engineer com experiencia em dbt, SQL avancado e modelagem analitica escalavel.",
+  "rewritten_content": "Senior Analytics Engineer com experiência em dbt, SQL avançado e modelagem analítica escalável.",
+  "section_data": "Senior Analytics Engineer com experiência em dbt, SQL avançado e modelagem analítica escalável.",
   "keywords_added": ["dbt", "SQL"],
   "changes_made": ["Resumo alinhado a engenharia analitica"]
 }
@@ -223,14 +223,14 @@ describe('rewriteSection', () => {
 
     expect(result.output.success).toBe(true)
     expect(result.patch?.cvState).toEqual({
-      summary: 'Senior Analytics Engineer com experiencia em dbt, SQL avancado e modelagem analitica escalavel.',
+      summary: 'Senior Analytics Engineer com experiência em dbt, SQL avançado e modelagem analítica escalável.',
     })
   })
 
   it('recovers summary rewrites when the model nests content inside a serialized section payload', async () => {
     createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
-      rewritten_content: '{"section":"summary","title":"Resumo profissional","items":[{"type":"text","content":"Engenheiro de Dados com experiencia em ETL e analytics."},{"type":"text","content":"Atuacao com PySpark, SQL e Power BI para decisoes estrategicas."}]}',
-      section_data: '{"section":"summary","title":"Resumo profissional","items":[{"type":"text","content":"Engenheiro de Dados com experiencia em ETL e analytics."},{"type":"text","content":"Atuacao com PySpark, SQL e Power BI para decisoes estrategicas."}]}',
+      rewritten_content: '{"section":"summary","title":"Resumo profissional","items":[{"type":"text","content":"Engenheiro de Dados com experiência em ETL e analytics."},{"type":"text","content":"Atuação com PySpark, SQL e Power BI para decisões estratégicas."}]}',
+      section_data: '{"section":"summary","title":"Resumo profissional","items":[{"type":"text","content":"Engenheiro de Dados com experiência em ETL e analytics."},{"type":"text","content":"Atuação com PySpark, SQL e Power BI para decisões estratégicas."}]}',
       keywords_added: ['PySpark', 'Power BI'],
       changes_made: ['Resumo consolidado a partir do payload estruturado'],
     })))
@@ -243,8 +243,8 @@ describe('rewriteSection', () => {
 
     expect(result.output).toEqual({
       success: true,
-      rewritten_content: 'Engenheiro de Dados com experiencia em ETL e analytics. Atuacao com PySpark, SQL e Power BI para decisoes estrategicas.',
-      section_data: 'Engenheiro de Dados com experiencia em ETL e analytics. Atuacao com PySpark, SQL e Power BI para decisoes estrategicas.',
+      rewritten_content: 'Engenheiro de Dados com experiência em ETL e analytics. Atuação com PySpark, SQL e Power BI para decisões estratégicas.',
+      section_data: 'Engenheiro de Dados com experiência em ETL e analytics. Atuação com PySpark, SQL e Power BI para decisões estratégicas.',
       keywords_added: ['PySpark', 'Power BI'],
       changes_made: ['Resumo consolidado a partir do payload estruturado'],
     })

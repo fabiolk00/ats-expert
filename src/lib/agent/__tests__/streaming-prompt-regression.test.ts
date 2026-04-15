@@ -125,7 +125,7 @@ describe('streaming prompt semantics regression', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetMessages.mockResolvedValue([
-      { role: 'user', content: 'Quero otimizar meu curriculo', createdAt: new Date() },
+      { role: 'user', content: 'Quero otimizar meu currículo', createdAt: new Date() },
     ])
     mockTrimMessages.mockImplementation((messages: unknown) => messages)
     mockTrackApiUsage.mockResolvedValue(undefined)
@@ -170,7 +170,7 @@ describe('streaming prompt semantics regression', () => {
     const events = []
     for await (const event of runAgentLoop({
       session: buildSession(),
-      userMessage: 'Analise meu curriculo anexado',
+      userMessage: 'Analise meu currículo anexado',
       appUserId: 'usr_123',
       requestId: 'req_prompt_regression',
       isNewSession: false,

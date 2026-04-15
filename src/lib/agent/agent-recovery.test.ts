@@ -92,7 +92,7 @@ describe('agent recovery helpers', () => {
         },
       },
       session,
-      messages: [{ role: 'user', content: 'Adapte meu curriculo' }],
+      messages: [{ role: 'user', content: 'Adapte meu currículo' }],
       cachedSystemPrompt: 'system prompt',
       requestId: 'req_123',
       appUserId: 'usr_123',

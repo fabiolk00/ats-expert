@@ -187,7 +187,7 @@ async function processClaimedJob(job: PdfImportJobRow): Promise<void> {
 
     try {
       await persistTerminalStatus(job.id, job.claimed_at!, 'failed', {
-        errorMessage: 'Nao foi possivel importar seu curriculo agora. Tente novamente em instantes.',
+        errorMessage: 'Não foi possível importar seu currículo agora. Tente novamente em instantes.',
       })
     } catch (persistError) {
       logError('[pdf-import-jobs] Failed to persist job failure', {

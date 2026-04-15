@@ -7,18 +7,18 @@
 
 ### Verification Closure
 
-- [ ] **VER-01**: Completed phases can produce committed `VERIFICATION.md` artifacts that map shipped requirements, evidence, residual gaps, and verification status in the format expected by `gsd-audit-milestone`.
-- [ ] **VER-02**: Milestone audit can determine recent shipped requirement coverage from committed verification artifacts instead of relying on summary-only inference or missing-proof fallbacks.
+- [x] **VER-01**: Completed phases can produce committed `VERIFICATION.md` artifacts that map shipped requirements, evidence, residual gaps, and verification status in the format expected by `gsd-audit-milestone`.
+- [x] **VER-02**: Milestone audit can determine recent shipped requirement coverage from committed verification artifacts instead of relying on summary-only inference or missing-proof fallbacks.
 
 ### Planning and Archive Integrity
 
-- [ ] **DOC-01**: Roadmap, traceability, archive, and state metadata stay consistent through milestone closeout, including inserted decimal phases and shipped plan counts.
-- [ ] **DOC-02**: Completing a milestone leaves a clean planning surface for the next cycle, including accurate shipped stats, archived proof files, cleared phase directories, and a fresh active requirements file.
+- [x] **DOC-01**: Roadmap, traceability, archive, and state metadata stay consistent through milestone closeout, including inserted decimal phases and shipped plan counts.
+- [x] **DOC-02**: Completing a milestone leaves a clean planning surface for the next cycle, including accurate shipped stats, archived proof files, cleared phase directories, and a fresh active requirements file.
 
 ### Runtime Residual Budget
 
-- [ ] **PERF-04**: The remaining non-E2E runtime outliers are profiled with committed evidence that identifies which suites dominate the post-`v1.4` budget.
-- [ ] **PERF-05**: The repo either reduces the dominant residual non-E2E bottlenecks further or records an explicit accepted runtime budget and gate so future drift is visible and intentional.
+- [x] **PERF-04**: The remaining non-E2E runtime outliers are profiled with committed evidence that identifies which suites dominate the post-`v1.4` budget.
+- [x] **PERF-05**: The repo either reduces the dominant residual non-E2E bottlenecks further or records an explicit accepted runtime budget and gate so future drift is visible and intentional.
 
 ## Future Requirements
 

@@ -41,8 +41,8 @@ const PAGE_WIDTH = 595
 const PAGE_HEIGHT = 842
 const USABLE_WIDTH = PAGE_WIDTH - 2 * MARGIN
 const MAX_VALIDATION_ERROR_MESSAGE_LENGTH = 500
-const DEFAULT_VALIDATION_ERROR_MESSAGE = 'O curriculo salvo ainda tem lacunas que precisam ser corrigidas antes da geracao.'
-const EXPERIENCE_ORDINALS = ['primeira', 'segunda', 'terceira', 'quarta', 'quinta', 'sexta', 'setima', 'oitava']
+const DEFAULT_VALIDATION_ERROR_MESSAGE = 'O currículo salvo ainda tem lacunas que precisam ser corrigidas antes da geração.'
+const EXPERIENCE_ORDINALS = ['primeira', 'segunda', 'terceira', 'quarta', 'quinta', 'sexta', 'sétima', 'oitava']
 
 const GenerationReadyCVStateSchema = CVStateSchema.superRefine((cvState, ctx) => {
   const requireNonEmptyString = (
@@ -129,17 +129,17 @@ const NON_BLOCKING_PLACEHOLDER_RULES: GenerationPlaceholderRule[] = [
   {
     field: 'email',
     label: 'email',
-    placeholder: 'Email nao informado no perfil salvo.',
+    placeholder: 'Email não informado no perfil salvo.',
   },
   {
     field: 'phone',
     label: 'telefone',
-    placeholder: 'Telefone nao informado no perfil salvo.',
+    placeholder: 'Telefone não informado no perfil salvo.',
   },
   {
     field: 'summary',
     label: 'resumo profissional',
-    placeholder: 'Resumo profissional pendente. O perfil salvo nao traz uma descricao valida para esta secao.',
+    placeholder: 'Resumo profissional pendente. O perfil salvo não traz uma descrição válida para esta seção.',
   },
 ]
 
@@ -225,7 +225,7 @@ function getOrdinalLabel(index: number): string {
 function buildExperienceReference(cvState: CVState, index: number): string {
   const experience = cvState.experience[index]
   if (!experience) {
-    return `${index + 1}a experiencia`
+    return `${index + 1}a experiência`
   }
 
   const company = experience.company.trim()
@@ -243,7 +243,7 @@ function buildExperienceReference(cvState: CVState, index: number): string {
     return title
   }
 
-  return `${index + 1}a experiencia`
+  return `${index + 1}a experiência`
 }
 
 function humanizeValidationIssue(issue: z.ZodIssue, cvState: CVState): string {
@@ -254,23 +254,23 @@ function humanizeValidationIssue(issue: z.ZodIssue, cvState: CVState): string {
     const reference = buildExperienceReference(cvState, index)
 
     if (field === 'title') {
-      return `Falta o cargo na sua ${ordinal} experiencia - ${reference}.`
+      return `Falta o cargo na sua ${ordinal} experiência - ${reference}.`
     }
 
     if (field === 'company') {
-      return `Falta a empresa na sua ${ordinal} experiencia - ${reference}.`
+      return `Falta a empresa na sua ${ordinal} experiência - ${reference}.`
     }
 
     if (field === 'startDate') {
-      return `Falta a data de inicio na sua ${ordinal} experiencia - ${reference}.`
+      return `Falta a data de início na sua ${ordinal} experiência - ${reference}.`
     }
 
     if (field === 'endDate') {
-      return `Falta a data de termino na sua ${ordinal} experiencia - ${reference}. Se voce ainda trabalha nela, marque como atual ou informe uma data aproximada.`
+      return `Falta a data de término na sua ${ordinal} experiência - ${reference}. Se você ainda trabalha nela, marque como atual ou informe uma data aproximada.`
     }
 
     if (field === 'bullets') {
-      return `Falta a descricao da sua ${ordinal} experiencia - ${reference}. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.`
+      return `Falta a descrição da sua ${ordinal} experiência - ${reference}. Adicione pelo menos um resultado, responsabilidade ou entrega dessa função.`
     }
   }
 
@@ -279,20 +279,20 @@ function humanizeValidationIssue(issue: z.ZodIssue, cvState: CVState): string {
   }
 
   if (root === 'experience') {
-    return 'Falta pelo menos uma experiencia profissional no curriculo salvo.'
+    return 'Falta pelo menos uma experiência profissional no currículo salvo.'
   }
 
   if (root === 'education' && typeof index === 'number') {
     if (field === 'degree') {
-      return `Falta o curso na sua formacao ${index + 1}.`
+      return `Falta o curso na sua formação ${index + 1}.`
     }
 
     if (field === 'institution') {
-      return `Falta a instituicao na sua formacao ${index + 1}.`
+      return `Falta a instituição na sua formação ${index + 1}.`
     }
 
     if (field === 'year') {
-      return `Falta o ano ou data principal na sua formacao ${index + 1}.`
+      return `Falta o ano ou data principal na sua formação ${index + 1}.`
     }
   }
 

@@ -58,7 +58,7 @@ function shouldRunJobTargetingPipeline(session: Session): boolean {
       !session.agentState.optimizedCvState
       || session.agentState.rewriteStatus !== 'completed'
       || session.agentState.lastRewriteMode !== 'job_targeting'
-    )
+    ),
   )
 }
 
@@ -137,7 +137,7 @@ async function handleFileAttachment(
       success: false,
       errorMessage: parseError,
     })
-    return [message, `[Nota do sistema: NÃ£o foi possÃ­vel processar o arquivo anexado. ${parseError}]`]
+    return [message, `[Nota do sistema: Não foi possível processar o arquivo anexado. ${parseError}]`]
       .filter(Boolean)
       .join('\n\n')
   }
@@ -154,11 +154,11 @@ async function handleFileAttachment(
 
   const base = message.trim()
     ? message
-    : 'Analise o currÃ­culo anexado e me diga os prÃ³ximos passos.'
+    : 'Analise o currículo anexado e me diga os próximos passos.'
 
   return [
     base,
-    '[Nota do sistema: O currÃ­culo anexado jÃ¡ foi processado e o texto extraÃ­do estÃ¡ disponÃ­vel para anÃ¡lise.]',
+    '[Nota do sistema: O currículo anexado já foi processado e o texto extraído está disponível para análise.]',
   ].join('\n\n')
 }
 
@@ -169,7 +169,7 @@ export function hasResumeContextForAutoGap(session: Pick<Session, 'cvState' | 'a
     || session.cvState.skills.length > 0
     || session.cvState.experience.length > 0
     || session.cvState.education.length > 0
-    || (session.cvState.certifications?.length ?? 0) > 0
+    || (session.cvState.certifications?.length ?? 0) > 0,
   )
 }
 

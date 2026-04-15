@@ -58,7 +58,7 @@ export function assessAtsEnhancementReadiness(cvState: CVState): AtsBaseReadines
   const reasons: string[] = []
 
   if (!hasPersonalData) {
-    reasons.push('Adicione seus dados pessoais basicos.')
+    reasons.push('Adicione seus dados pessoais básicos.')
   }
 
   if (!hasSummary) {
@@ -66,7 +66,7 @@ export function assessAtsEnhancementReadiness(cvState: CVState): AtsBaseReadines
   }
 
   if (!hasExperience) {
-    reasons.push('Inclua pelo menos uma experiencia.')
+    reasons.push('Inclua pelo menos uma experiência.')
   }
 
   if (!hasSkills) {
@@ -74,7 +74,7 @@ export function assessAtsEnhancementReadiness(cvState: CVState): AtsBaseReadines
   }
 
   if (!hasEducation) {
-    reasons.push('Adicione pelo menos uma formacao.')
+    reasons.push('Adicione pelo menos uma formação.')
   }
 
   return {
@@ -91,7 +91,7 @@ export function getAtsEnhancementBlockingItems(cvState: CVState): string[] {
   }
 
   if (!cvState.email.trim() && !cvState.phone.trim() && !cvState.linkedin?.trim() && !cvState.location?.trim()) {
-    items.push('Dados pessoais: informe pelo menos email, telefone, LinkedIn ou localizacao.')
+    items.push('Dados pessoais: informe pelo menos email, telefone, LinkedIn ou localização.')
   }
 
   if (!cvState.summary.trim()) {
@@ -101,30 +101,30 @@ export function getAtsEnhancementBlockingItems(cvState: CVState): string[] {
   const experienceEntries = getExperienceEntries(cvState)
 
   if (experienceEntries.length === 0) {
-    items.push('Experiencia: inclua pelo menos uma experiencia profissional.')
+    items.push('Experiência: inclua pelo menos uma experiência profissional.')
   }
 
   for (const [index, entry] of experienceEntries.entries()) {
     const itemNumber = index + 1
 
     if (!entry.title.trim()) {
-      items.push(`Experiencia ${itemNumber}: adicione o cargo.`)
+      items.push(`Experiência ${itemNumber}: adicione o cargo.`)
     }
 
     if (!entry.company.trim()) {
-      items.push(`Experiencia ${itemNumber}: adicione a empresa.`)
+      items.push(`Experiência ${itemNumber}: adicione a empresa.`)
     }
 
     if (!entry.startDate.trim()) {
-      items.push(`Experiencia ${itemNumber}: adicione a data de inicio.`)
+      items.push(`Experiência ${itemNumber}: adicione a data de início.`)
     }
 
     if (!entry.endDate.trim()) {
-      items.push(`Experiencia ${itemNumber}: adicione a data de termino ou marque como atual.`)
+      items.push(`Experiência ${itemNumber}: adicione a data de término ou marque como atual.`)
     }
 
     if (!entry.bullets.some((bullet) => bullet.trim())) {
-      items.push(`Experiencia ${itemNumber}: adicione pelo menos um resultado ou responsabilidade.`)
+      items.push(`Experiência ${itemNumber}: adicione pelo menos um resultado ou responsabilidade.`)
     }
   }
 
@@ -135,22 +135,22 @@ export function getAtsEnhancementBlockingItems(cvState: CVState): string[] {
   const educationEntries = getEducationEntries(cvState)
 
   if (educationEntries.length === 0) {
-    items.push('Educacao: adicione pelo menos uma formacao academica.')
+    items.push('Educação: adicione pelo menos uma formação acadêmica.')
   }
 
   for (const [index, entry] of educationEntries.entries()) {
     const itemNumber = index + 1
 
     if (!entry.degree.trim()) {
-      items.push(`Formacao ${itemNumber}: adicione o curso ou graduacao.`)
+      items.push(`Formação ${itemNumber}: adicione o curso ou graduação.`)
     }
 
     if (!entry.institution.trim()) {
-      items.push(`Formacao ${itemNumber}: adicione a instituicao.`)
+      items.push(`Formação ${itemNumber}: adicione a instituição.`)
     }
 
     if (!entry.year.trim()) {
-      items.push(`Formacao ${itemNumber}: adicione o ano principal.`)
+      items.push(`Formação ${itemNumber}: adicione o ano principal.`)
     }
   }
 
@@ -160,11 +160,11 @@ export function getAtsEnhancementBlockingItems(cvState: CVState): string[] {
     const itemNumber = index + 1
 
     if (!entry.name.trim()) {
-      items.push(`Certificacao ${itemNumber}: adicione o nome.`)
+      items.push(`Certificação ${itemNumber}: adicione o nome.`)
     }
 
     if (!entry.issuer.trim()) {
-      items.push(`Certificacao ${itemNumber}: adicione o emissor.`)
+      items.push(`Certificação ${itemNumber}: adicione o emissor.`)
     }
   }
 
@@ -200,7 +200,7 @@ export function buildResumeTextFromCvState(cvState: CVState): string {
   }
 
   if (cvState.experience.length > 0) {
-    lines.push('Experiencia')
+    lines.push('Experiência')
     for (const experience of cvState.experience) {
       lines.push(`${experience.title} - ${experience.company}`)
       for (const bullet of experience.bullets) {
@@ -212,7 +212,7 @@ export function buildResumeTextFromCvState(cvState: CVState): string {
   }
 
   if (cvState.education.length > 0) {
-    lines.push('Educacao')
+    lines.push('Educação')
     for (const education of cvState.education) {
       lines.push(`${education.degree} - ${education.institution} (${education.year})`)
     }
@@ -220,7 +220,7 @@ export function buildResumeTextFromCvState(cvState: CVState): string {
 
   const certifications = cvState.certifications ?? []
   if (certifications.length > 0) {
-    lines.push('Certificacoes')
+    lines.push('Certificações')
     for (const certification of certifications) {
       lines.push(
         certification.year?.trim()

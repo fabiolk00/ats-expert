@@ -1,3 +1,10 @@
+---
+phase: "32"
+plan: "32-03"
+status: "completed"
+requirements: ["VER-01", "VER-02"]
+---
+
 # Plan 32-03 Summary
 
 ## What changed

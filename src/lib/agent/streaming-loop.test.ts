@@ -653,7 +653,7 @@ describe('runAgentLoop streaming', () => {
     const events = []
     mockCreateChatCompletionStreamWithRetry
       .mockResolvedValueOnce(emptyLengthStreamWithUsage() as never)
-      .mockResolvedValueOnce(mockTextStream('Bom dia! Otimo iniciar. Pode me dizer qual vaga voce esta mirando?') as never)
+      .mockResolvedValueOnce(mockTextStream('Bom dia! Ótimo iniciar. Pode me dizer qual vaga você está mirando?') as never)
 
     for await (const event of runAgentLoop({
       session,
@@ -680,7 +680,7 @@ describe('runAgentLoop streaming', () => {
       2,
       'sess_123',
       'assistant',
-      'Bom dia! Otimo iniciar. Pode me dizer qual vaga voce esta mirando?',
+      'Bom dia! Ótimo iniciar. Pode me dizer qual vaga você está mirando?',
     )
 
     const completedLog = mockLogInfo.mock.calls.find(([event]) => event === 'agent.turn.completed')?.[1]
@@ -741,7 +741,7 @@ describe('runAgentLoop streaming', () => {
       yield {
         choices: [{
           delta: {
-            content: 'Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.',
+            content: 'Recebi a vaga e ela já ficou salva como referência para o seu currículo.',
           },
           finish_reason: null,
         }],
@@ -771,7 +771,7 @@ describe('runAgentLoop streaming', () => {
       yield {
         choices: [{
           delta: {
-            content: 'Posso reescrever agora seu resumo profissional. Ja tenho seu curriculo e a vaga como referencia.',
+            content: 'Posso reescrever agora seu resumo profissional. Já tenho seu currículo e a vaga como referência.',
           },
           finish_reason: null,
         }],
@@ -814,7 +814,7 @@ describe('runAgentLoop streaming', () => {
       2,
       'sess_123',
       'assistant',
-      'Posso seguir, sim. Ja tenho seu curriculo e a vaga como referencia. Vou continuar pelo trecho com maior impacto para essa vaga: seu resumo profissional.',
+      'Posso seguir, sim. Já tenho seu currículo e a vaga como referência. Vou continuar pelo trecho com maior impacto para essa vaga: seu resumo profissional.',
     )
     expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
     expect(events.at(-1)).toMatchObject({
@@ -899,7 +899,7 @@ describe('runAgentLoop streaming', () => {
 
     for await (const _event of runAgentLoop({
       session,
-      userMessage: 'Compare meu curriculo com a vaga ja salva',
+      userMessage: 'Compare meu currículo com a vaga já salva',
       appUserId: 'usr_123',
       requestId: 'req_recovery_prompt',
       isNewSession: false,
@@ -979,7 +979,7 @@ describe('runAgentLoop streaming', () => {
       .join('')
 
     expect(finalText).toContain('Recebi a vaga')
-    expect(finalText).toContain('curriculo')
+    expect(finalText).toContain('currículo')
     expect(finalText).not.toContain('Não consegui concluir a resposta completa desta vez')
     expect(mockAppendMessage).toHaveBeenNthCalledWith(
       2,
@@ -1047,7 +1047,7 @@ describe('runAgentLoop streaming', () => {
     const events = []
     for await (const event of runAgentLoop({
       session,
-      userMessage: 'Reescreva meu curriculo para essa vaga',
+      userMessage: 'Reescreva meu currículo para essa vaga',
       appUserId: 'usr_123',
       requestId: 'req_structured_vacancy_fallback',
       isNewSession: false,
@@ -1110,7 +1110,7 @@ describe('runAgentLoop streaming', () => {
 
     expect(finalText).toContain('Posso seguir, sim.')
     expect(finalText).toContain('resumo profissional')
-    expect(finalText).not.toContain('Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.')
+    expect(finalText).not.toContain('Recebi a vaga e ela já ficou salva como referência para o seu currículo.')
     expect(mockAppendMessage).toHaveBeenNthCalledWith(
       2,
       'sess_123',
@@ -1135,26 +1135,26 @@ describe('runAgentLoop streaming', () => {
     mockDispatchToolWithContext.mockResolvedValueOnce({
       output: {
         success: true,
-        rewritten_content: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
-        section_data: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+        rewritten_content: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos, tradução de necessidades do negócio e melhoria da tomada de decisão.',
+        section_data: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos, tradução de necessidades do negócio e melhoria da tomada de decisão.',
         keywords_added: ['Power BI', 'SQL', 'ETL'],
         changes_made: ['Resumo alinhado a BI senior'],
       },
       outputJson: JSON.stringify({
         success: true,
-        rewritten_content: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
-        section_data: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+        rewritten_content: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos, tradução de necessidades do negócio e melhoria da tomada de decisão.',
+        section_data: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos, tradução de necessidades do negócio e melhoria da tomada de decisão.',
         keywords_added: ['Power BI', 'SQL', 'ETL'],
         changes_made: ['Resumo alinhado a BI senior'],
       }),
       persistedPatch: {
         cvState: {
-          summary: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+          summary: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos, tradução de necessidades do negócio e melhoria da tomada de decisão.',
         },
         agentState: {
           rewriteHistory: {
             summary: {
-              rewrittenContent: 'Analista de BI com experiencia em Power BI, SQL e ETL, focado em dashboards executivos, traducao de necessidades do negocio e melhoria da tomada de decisao.',
+              rewrittenContent: 'Analista de BI com experiência em Power BI, SQL e ETL, focado em dashboards executivos, tradução de necessidades do negócio e melhoria da tomada de decisão.',
               keywordsAdded: ['Power BI', 'SQL', 'ETL'],
               changesMade: ['Resumo alinhado a BI senior'],
               updatedAt: new Date().toISOString(),
@@ -1182,14 +1182,14 @@ describe('runAgentLoop streaming', () => {
       .join('')
 
     expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
-    expect(finalText).toContain('Aqui esta uma versao reescrita do seu resumo profissional:')
-    expect(finalText).toContain('Analista de BI com experiencia em Power BI, SQL e ETL')
+    expect(finalText).toContain('Aqui está uma versão reescrita do seu resumo profissional:')
+    expect(finalText).toContain('Analista de BI com experiência em Power BI, SQL e ETL')
     expect(finalText).toContain('Aceito')
     expect(mockAppendMessage).toHaveBeenNthCalledWith(
       2,
       'sess_123',
       'assistant',
-      expect.stringContaining('Aqui esta uma versao reescrita do seu resumo profissional:'),
+      expect.stringContaining('Aqui está uma versão reescrita do seu resumo profissional:'),
     )
   })
 
@@ -1301,7 +1301,7 @@ describe('runAgentLoop streaming', () => {
       'Responsabilidades',
       'Construir dashboards executivos em Power BI e traduzir necessidades do negocio em indicadores.',
       'Requisitos',
-      'SQL avancado, ETL, comunicacao com areas nao tecnicas e Power BI.',
+      'SQL avançado, ETL, comunicação com áreas não técnicas e Power BI.',
       'Diferenciais',
       'Python, APIs e Microsoft Fabric.',
     ].join('\n')
@@ -1331,7 +1331,7 @@ describe('runAgentLoop streaming', () => {
 
     expect(finalText).toContain('Recebi essa nova vaga')
     expect(finalText).toContain('adaptar agora seu resumo')
-    expect(finalText).not.toContain('Diga qual trecho voce quer ajustar primeiro')
+    expect(finalText).not.toContain('Diga qual trecho você quer ajustar primeiro')
     expect(mockAppendMessage).toHaveBeenNthCalledWith(
       2,
       'sess_123',
@@ -1488,7 +1488,7 @@ describe('runAgentLoop streaming', () => {
     expect(mockAppendMessage).toHaveBeenCalledWith(
       'sess_123',
       'assistant',
-      expect.stringContaining('Recebi a vaga e comparei com seu curriculo com foco em aderencia ATS.'),
+      expect.stringContaining('Recebi a vaga e comparei com seu currículo com foco em aderência ATS.'),
     )
   })
 
@@ -1661,7 +1661,7 @@ describe('runAgentLoop streaming', () => {
       2,
       'sess_123',
       'assistant',
-      expect.stringContaining('Seu curriculo ATS-otimizado em PDF esta pronto.'),
+      expect.stringContaining('Seu currículo ATS-otimizado em PDF está pronto.'),
     )
   })
 
@@ -1706,7 +1706,7 @@ describe('runAgentLoop streaming', () => {
       .join('')
 
     expect(mockCreateChatCompletionStreamWithRetry).not.toHaveBeenCalled()
-    expect(finalText).toBe('Quando fizer sentido, clique em "Aceito" para gerar seu curriculo.')
+    expect(finalText).toBe('Quando fizer sentido, clique em "Aceito" para gerar seu currículo.')
     expect(mockDispatchToolWithContext).not.toHaveBeenCalledWith(
       'generate_file',
       expect.any(Object),
@@ -2272,7 +2272,7 @@ describe('runAgentLoop streaming', () => {
       .join('')
 
     expect(finalText).toContain('ja esta em andamento')
-    expect(finalText).toContain('sem consumir outro credito')
+    expect(finalText).toContain('sem consumir outro crédito')
     expect(events).not.toContainEqual(expect.objectContaining({ type: 'error' }))
   })
 
@@ -2441,22 +2441,22 @@ describe('runAgentLoop streaming', () => {
           output: {
             success: false,
             code: 'VALIDATION_ERROR',
-            error: 'Falta a descricao da sua segunda experiencia - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.',
+            error: 'Falta a descrição da sua segunda experiência - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa função.',
           },
           outputJson: JSON.stringify({
             success: false,
             code: 'VALIDATION_ERROR',
-            error: 'Falta a descricao da sua segunda experiencia - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.',
+            error: 'Falta a descrição da sua segunda experiência - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa função.',
           }),
           outputFailure: {
             success: false,
             code: 'VALIDATION_ERROR',
-            error: 'Falta a descricao da sua segunda experiencia - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.',
+            error: 'Falta a descrição da sua segunda experiência - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa função.',
           },
           persistedPatch: {
             generatedOutput: {
               status: 'failed',
-              error: 'Falta a descricao da sua segunda experiencia - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa funcao.',
+              error: 'Falta a descrição da sua segunda experiência - Case New Holland. Adicione pelo menos um resultado, responsabilidade ou entrega dessa função.',
             },
           },
         }
@@ -2482,8 +2482,8 @@ describe('runAgentLoop streaming', () => {
       .map((event) => event.content)
       .join('')
 
-    expect(finalText).toContain('Nao consegui gerar os arquivos agora.')
-    expect(finalText).toContain('Falta a descricao da sua segunda experiencia - Case New Holland.')
+    expect(finalText).toContain('Não consegui gerar os arquivos agora.')
+    expect(finalText).toContain('Falta a descrição da sua segunda experiência - Case New Holland.')
   })
 
   it('stops cleanly when the abort signal fires after the first chunk', async () => {

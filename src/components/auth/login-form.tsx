@@ -50,10 +50,10 @@ export default function LoginForm() {
         return
       }
 
-      setErrorMessage("Nao foi possivel entrar com esse metodo.")
+      setErrorMessage("Não foi possível entrar com esse método.")
     } catch (error) {
       setErrorMessage(
-        getClerkErrorMessage(error, "Nao foi possivel entrar agora."),
+        getClerkErrorMessage(error, "Não foi possível entrar agora."),
       )
     } finally {
       setIsSubmitting(false)
@@ -76,7 +76,7 @@ export default function LoginForm() {
       })
     } catch (error) {
       setErrorMessage(
-        getClerkErrorMessage(error, "Nao foi possivel iniciar o login com Google."),
+        getClerkErrorMessage(error, "Não foi possível iniciar o login com Google."),
       )
       setIsGooglePending(false)
     }

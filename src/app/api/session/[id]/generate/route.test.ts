@@ -216,7 +216,7 @@ describe('generate route', () => {
     expect(response.status).toBe(409)
     expect(await response.json()).toEqual({
       success: false,
-      error: 'A vaga parece um encaixe fraco para o perfil atual. Confirme explicitamente no chat que deseja continuar antes de gerar esta versao.',
+      error: 'A vaga parece um encaixe fraco para o perfil atual. Confirme explicitamente no chat que deseja continuar antes de gerar esta versão.',
       code: 'CAREER_FIT_CONFIRMATION_REQUIRED',
     })
     expect(dispatchTool).not.toHaveBeenCalled()

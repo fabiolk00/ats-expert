@@ -95,7 +95,7 @@ export async function POST(
       })
       return NextResponse.json({
         success: false,
-        error: 'A vaga parece um encaixe fraco para o perfil atual. Confirme explicitamente no chat que deseja continuar antes de gerar esta versao.',
+        error: 'A vaga parece um encaixe fraco para o perfil atual. Confirme explicitamente no chat que deseja continuar antes de gerar esta versão.',
         code: 'CAREER_FIT_CONFIRMATION_REQUIRED',
       }, { status: 409 })
     }

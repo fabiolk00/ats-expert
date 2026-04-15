@@ -54,7 +54,7 @@ export function detectTargetJobDescription(message: string): TargetJobDetection 
     return undefined
   }
 
-  if (trimmed.includes('[Link da vaga:') || trimmed.includes('[ConteÃºdo extraÃ­do automaticamente]')) {
+  if (trimmed.includes('[Link da vaga:') || trimmed.includes('[Conteúdo extraído automaticamente]')) {
     return {
       targetJobDescription: trimmed,
       confidence: 'high',
@@ -86,7 +86,7 @@ export function detectTargetJobDescription(message: string): TargetJobDetection 
   const roleHit = /\b(analista|engenheiro|developer|desenvolvedor|cientista|gerente|coordenador|consultor|product|designer|arquiteto|devops|sre|qa|bi|dados|data)\b/.test(normalized)
   const hiringIntentHit = /\b(vaga|cargo|posicao|position|role|opportunity|buscamos|contratando)\b/.test(normalized)
   const lines = trimmed.split(/\n+/).map((line) => line.trim()).filter(Boolean)
-  const hasStructuredLayout = lines.length >= 5 || /(^|\n)\s*[-*â€¢]/.test(trimmed) || trimmed.includes(':')
+  const hasStructuredLayout = lines.length >= 5 || /(^|\n)\s*[-*•]/.test(trimmed) || trimmed.includes(':')
   const summarizedRequirementsHit = normalized.includes('resumo dos requisitos') || normalized.includes('requisitos desejaveis')
   const keywordListHit = /(?:sql|python|r|looker|bigquery|google analytics|google tag manager|appsflyer|github|machine learning|etl|power bi|tableau|dbt|airflow|google sheets|sql server).*(?:,|\n).*(?:sql|python|r|looker|bigquery|google analytics|google tag manager|appsflyer|github|machine learning|etl|power bi|tableau|dbt|airflow|google sheets|sql server).*(?:,|\n).*(?:sql|python|r|looker|bigquery|google analytics|google tag manager|appsflyer|github|machine learning|etl|power bi|tableau|dbt|airflow|google sheets|sql server)/.test(normalized)
   let score = 0

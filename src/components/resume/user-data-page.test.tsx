@@ -75,7 +75,7 @@ describe("UserDataPage", () => {
 
     render(<UserDataPage currentCredits={2} />)
 
-    await screen.findByText("Perfil ainda nao salvo")
+    await screen.findByText("Perfil ainda não salvo")
 
     expect(fetchMock).toHaveBeenCalledWith("/api/profile", expect.objectContaining({
       credentials: "include",
@@ -113,9 +113,9 @@ describe("UserDataPage", () => {
 
     render(<UserDataPage currentCredits={2} />)
 
-    const atsButton = await screen.findByText("Melhorar para ATS (1 credito)")
+    const atsButton = await screen.findByText("Melhorar para ATS (1 crédito)")
     expect(atsButton).toBeEnabled()
-    expect(screen.getByText("Complete seu curriculo para gerar uma versao ATS.")).toBeInTheDocument()
+    expect(screen.getByText("Complete seu currículo para gerar uma versão ATS.")).toBeInTheDocument()
 
     await user.click(atsButton)
 
@@ -126,8 +126,8 @@ describe("UserDataPage", () => {
         "• Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.",
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText("• Experiencia: inclua pelo menos uma experiencia profissional.")).toBeInTheDocument()
-    expect(screen.getByText("• Educacao: adicione pelo menos uma formacao academica.")).toBeInTheDocument()
+    expect(screen.getByText("• Experiência: inclua pelo menos uma experiência profissional.")).toBeInTheDocument()
+    expect(screen.getByText("• Educação: adicione pelo menos uma formação acadêmica.")).toBeInTheDocument()
   })
 
   it("enables the ATS enhancement button when the base profile is ready", async () => {
@@ -175,10 +175,10 @@ describe("UserDataPage", () => {
     render(<UserDataPage currentCredits={2} />)
 
     await waitFor(() => {
-      expect(screen.getByText("Melhorar para ATS (1 credito)")).toBeEnabled()
+      expect(screen.getByText("Melhorar para ATS (1 crédito)")).toBeEnabled()
     })
 
-    expect(screen.getByText("Creditos disponiveis")).toBeInTheDocument()
+    expect(screen.getByText("Créditos disponíveis")).toBeInTheDocument()
     expect(screen.getByText("2")).toBeInTheDocument()
   })
 
@@ -277,7 +277,7 @@ describe("UserDataPage", () => {
 
     render(<UserDataPage currentCredits={2} />)
 
-    const button = await screen.findByText("Melhorar para ATS (1 credito)")
+    const button = await screen.findByText("Melhorar para ATS (1 crédito)")
     await user.click(button)
 
     await waitFor(() => {
@@ -388,10 +388,10 @@ describe("UserDataPage", () => {
       target: { value: "Vaga para analista de dados senior com foco em produto e SQL." },
     })
 
-    expect(screen.getByText("Adaptar meu curriculo para esta vaga")).toBeInTheDocument()
-    expect(screen.getByText("Adaptar para vaga (1 credito)")).toBeInTheDocument()
+    expect(screen.getByText("Adaptar meu currículo para esta vaga")).toBeInTheDocument()
+    expect(screen.getByText("Adaptar para vaga (1 crédito)")).toBeInTheDocument()
 
-    await user.click(screen.getByText("Adaptar para vaga (1 credito)"))
+    await user.click(screen.getByText("Adaptar para vaga (1 crédito)"))
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/dashboard?session=sess_target_123")
@@ -451,12 +451,12 @@ describe("UserDataPage", () => {
     const input = await screen.findByTestId("target-job-description-input")
     fireEvent.change(input, { target: { value: "Vaga para analista." } })
 
-    expect(screen.getByText("Adaptar meu curriculo para esta vaga")).toBeInTheDocument()
+    expect(screen.getByText("Adaptar meu currículo para esta vaga")).toBeInTheDocument()
 
     await user.clear(input)
 
-    expect(screen.getByText("Melhorar meu curriculo para ATS")).toBeInTheDocument()
-    expect(screen.getByText("Melhorar para ATS (1 credito)")).toBeInTheDocument()
+    expect(screen.getByText("Melhorar meu currículo para ATS")).toBeInTheDocument()
+    expect(screen.getByText("Melhorar para ATS (1 crédito)")).toBeInTheDocument()
   })
 
   it("shows a readable message when the smart-generation route returns a schema error object", async () => {
@@ -561,7 +561,7 @@ describe("UserDataPage", () => {
     fireEvent.change(await screen.findByTestId("target-job-description-input"), {
       target: { value: "Vaga para analista de dados senior com foco em produto e SQL." },
     })
-    await user.click(screen.getByText("Adaptar para vaga (1 credito)"))
+    await user.click(screen.getByText("Adaptar para vaga (1 crédito)"))
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith("Descricao da vaga muito longa.")
@@ -615,10 +615,10 @@ describe("UserDataPage", () => {
 
     render(<UserDataPage currentCredits={2} />)
 
-    await user.click(await screen.findByText("Melhorar para ATS (1 credito)"))
+    await user.click(await screen.findByText("Melhorar para ATS (1 crédito)"))
 
     expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
-    expect(screen.getByText("• Formacao 1: adicione a instituicao.")).toBeInTheDocument()
+    expect(screen.getByText("• Formação 1: adicione a instituição.")).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(mockPush).not.toHaveBeenCalled()
   })
@@ -670,7 +670,7 @@ describe("UserDataPage", () => {
 
     render(<UserDataPage currentCredits={2} />)
 
-    await user.click(await screen.findByText("Melhorar para ATS (1 credito)"))
+    await user.click(await screen.findByText("Melhorar para ATS (1 crédito)"))
 
     expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
     expect(screen.getByText("• Experiencia 1: adicione o cargo.")).toBeInTheDocument()
@@ -719,7 +719,7 @@ describe("UserDataPage", () => {
 
     render(<UserDataPage currentCredits={2} />)
 
-    await user.click(await screen.findByText("Melhorar para ATS (1 credito)"))
+    await user.click(await screen.findByText("Melhorar para ATS (1 crédito)"))
 
     expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
     expect(
@@ -727,7 +727,7 @@ describe("UserDataPage", () => {
         "• Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.",
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText("• Educacao: adicione pelo menos uma formacao academica.")).toBeInTheDocument()
+    expect(screen.getByText("• Educação: adicione pelo menos uma formação acadêmica.")).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(mockPush).not.toHaveBeenCalled()
   })
@@ -820,7 +820,7 @@ describe("UserDataPage", () => {
         ok: false,
         status: 400,
         json: async () => ({
-          error: "Complete seu curriculo para gerar uma versao ATS.",
+          error: "Complete seu currículo para gerar uma versão ATS.",
           missingItems: ["Experiencia 1: adicione pelo menos um resultado ou responsabilidade."],
         }),
       })
@@ -829,7 +829,7 @@ describe("UserDataPage", () => {
 
     render(<UserDataPage currentCredits={2} />)
 
-    await user.click(await screen.findByText("Melhorar para ATS (1 credito)"))
+    await user.click(await screen.findByText("Melhorar para ATS (1 crédito)"))
 
     expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
     expect(screen.getByText("• Experiencia 1: adicione pelo menos um resultado ou responsabilidade.")).toBeInTheDocument()
@@ -850,7 +850,7 @@ describe("UserDataPage", () => {
 
     await user.click(await screen.findByText("mock-import"))
 
-    expect(screen.getByText("Base salva a partir de curriculo importado")).toBeInTheDocument()
+    expect(screen.getByText("Base salva a partir de currículo importado")).toBeInTheDocument()
   })
 
   it("renders cancelar and salvar below the editor and keeps salvar black", async () => {
@@ -984,20 +984,20 @@ describe("UserDataPage", () => {
 
     render(<UserDataPage currentCredits={2} />)
 
-    expect(await screen.findByText("Melhorar meu curriculo para ATS")).toBeInTheDocument()
+    expect(await screen.findByText("Melhorar meu currículo para ATS")).toBeInTheDocument()
     expect(
       screen.getByText(
-        "Usa o seu perfil base para gerar uma versao ATS em pt-BR seguindo o modelo padrao da plataforma: estrutura linear, sem elementos que atrapalham parsing, linguagem objetiva e foco em verdade, matching e clareza.",
+        "Usa o seu perfil base para gerar uma versão ATS em pt-BR seguindo o modelo padrão da plataforma: estrutura linear, sem elementos que atrapalham parsing, linguagem objetiva e foco em verdade, matching e clareza.",
       ),
     ).toBeInTheDocument()
-    expect(screen.getByText("parse e leitura estruturada do curriculo")).toBeInTheDocument()
-    expect(screen.getByText("score ATS geral, clareza e legibilidade do curriculo")).toBeInTheDocument()
+    expect(screen.getByText("parse e leitura estruturada do currículo")).toBeInTheDocument()
+    expect(screen.getByText("score ATS geral, clareza e legibilidade do currículo")).toBeInTheDocument()
     expect(screen.getByText("reescrita estrategica de resumo e bullets")).toBeInTheDocument()
     expect(screen.getByText("template ATS em PDF textual, simples e pt-BR")).toBeInTheDocument()
     expect(screen.getByTestId("ats-panel-badge")).toHaveClass("bg-foreground", "text-background")
     expect(screen.getByTestId("ats-feature-analysis")).toHaveClass("border-emerald-500/50", "bg-emerald-50")
     expect(screen.getByTestId("ats-panel-cta")).toHaveClass("bg-emerald-600", "text-white")
-    expect(screen.getByText("Melhorar para ATS (1 credito)")).toBeInTheDocument()
+    expect(screen.getByText("Melhorar para ATS (1 crédito)")).toBeInTheDocument()
     expect(screen.getByTestId("target-job-description-input")).toBeInTheDocument()
   })
 

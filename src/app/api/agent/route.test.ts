@@ -1277,7 +1277,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     vi.mocked(runAgentLoop).mockImplementationOnce(async function* () {
       yield {
         type: 'text',
-        content: 'Posso seguir, sim. Diga se voce quer ajustar resumo, experiencia ou skills.',
+        content: 'Posso seguir, sim. Diga se você quer ajustar resumo, experiência ou skills.',
       }
       yield {
         type: 'done',
@@ -1311,7 +1311,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     })
     expect(events[1]).toEqual({
       type: 'text',
-      content: 'Posso seguir, sim. Diga se voce quer ajustar resumo, experiencia ou skills.',
+      content: 'Posso seguir, sim. Diga se você quer ajustar resumo, experiência ou skills.',
     })
     expect(events[2]).toEqual({
       type: 'done',
@@ -1323,7 +1323,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
       isNewSession: false,
       toolIterations: 0,
     })
-    expect(events.some((event) => JSON.stringify(event).includes('Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.'))).toBe(false)
+    expect(events.some((event) => JSON.stringify(event).includes('Recebi a vaga e ela já ficou salva como referência para o seu currículo.'))).toBe(false)
     expect(runAgentLoop).toHaveBeenCalledWith(expect.objectContaining({
       userMessage: 'pode fazer',
       session: expect.objectContaining({ phase: 'dialog' }),
@@ -1384,7 +1384,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
           'Responsabilidades',
           'Construir dashboards executivos em Power BI e traduzir necessidades do negocio em indicadores.',
           'Requisitos',
-          'SQL avancado, ETL, comunicacao com areas nao tecnicas e Power BI.',
+          'SQL avançado, ETL, comunicação com áreas não técnicas e Power BI.',
           'Diferenciais',
           'Python, APIs e Microsoft Fabric.',
         ].join('\n'),
@@ -1413,7 +1413,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
       isNewSession: false,
       toolIterations: 0,
     })
-    expect(events.some((event) => JSON.stringify(event).includes('Diga qual trecho voce quer ajustar primeiro'))).toBe(false)
+    expect(events.some((event) => JSON.stringify(event).includes('Diga qual trecho você quer ajustar primeiro'))).toBe(false)
     expect(runAgentLoop).toHaveBeenCalledWith(expect.objectContaining({
       userMessage: expect.stringContaining('Responsabilidades'),
       session: expect.objectContaining({ phase: 'dialog' }),

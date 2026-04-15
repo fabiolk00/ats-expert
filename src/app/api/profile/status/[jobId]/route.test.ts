@@ -117,7 +117,7 @@ describe('GET /api/profile/status/[jobId]', () => {
     const json = await res.json()
     expect(json.status).toBe('failed')
     expect(json.errorMessage).toBe(
-      'Nao foi possivel importar esse perfil do LinkedIn agora. Confira se o link esta publico e tente novamente em instantes.',
+      'Não foi possível importar esse perfil do LinkedIn agora. Confira se o link está público e tente novamente em instantes.',
     )
   })
 
@@ -129,6 +129,6 @@ describe('GET /api/profile/status/[jobId]', () => {
     const res = await GET(makeRequest(), { params: { jobId: JOB_ID } })
     expect(res.status).toBe(500)
     const json = await res.json()
-    expect(json.error).toBe('Nao foi possivel acompanhar a importacao do LinkedIn agora. Tente novamente em instantes.')
+    expect(json.error).toBe('Não foi possível acompanhar a importação do LinkedIn agora. Tente novamente em instantes.')
   })
 })

@@ -28,7 +28,7 @@ const gapAnalysis: GapAnalysisResult = {
   matchScore: 72,
   missingSkills: ['Airflow'],
   weakAreas: ['summary'],
-  improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
+  improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
 }
 
 describe('buildTargetingPlan', () => {

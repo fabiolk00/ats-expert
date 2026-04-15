@@ -130,48 +130,48 @@ function buildLiveProfileWarningItems(rawCvState: Partial<CVState>): string[] {
   const experienceEntries = cvState.experience.filter(hasAnyExperienceEntryData)
 
   if (experienceEntries.length === 0) {
-    items.push("Experiencia: inclua pelo menos uma experiencia profissional.")
+    items.push("Experiência: inclua pelo menos uma experiência profissional.")
   }
 
   for (const [index, entry] of experienceEntries.entries()) {
     const itemNumber = index + 1
 
     if (!entry.title.trim()) {
-      items.push(`Experiencia ${itemNumber}: adicione o cargo.`)
+      items.push(`Experiência ${itemNumber}: adicione o cargo.`)
     }
 
     if (!entry.company.trim()) {
-      items.push(`Experiencia ${itemNumber}: adicione a empresa.`)
+      items.push(`Experiência ${itemNumber}: adicione a empresa.`)
     }
 
     if (!entry.startDate.trim()) {
-      items.push(`Experiencia ${itemNumber}: adicione a data de inicio.`)
+      items.push(`Experiência ${itemNumber}: adicione a data de início.`)
     }
 
     if (!entry.endDate.trim()) {
-      items.push(`Experiencia ${itemNumber}: adicione a data de termino ou marque como atual.`)
+      items.push(`Experiência ${itemNumber}: adicione a data de término ou marque como atual.`)
     }
 
     if (!entry.bullets.some((bullet) => bullet.trim())) {
-      items.push(`Experiencia ${itemNumber}: adicione pelo menos um resultado ou responsabilidade.`)
+      items.push(`Experiência ${itemNumber}: adicione pelo menos um resultado ou responsabilidade.`)
     }
   }
 
   const educationEntries = cvState.education.filter(hasAnyEducationEntryData)
 
   if (educationEntries.length === 0) {
-    items.push("Educacao: adicione pelo menos uma formacao academica.")
+    items.push("Educação: adicione pelo menos uma formação acadêmica.")
   }
 
   for (const [index, entry] of educationEntries.entries()) {
     const itemNumber = index + 1
 
     if (!entry.degree.trim()) {
-      items.push(`Formacao ${itemNumber}: adicione o curso ou graduacao.`)
+      items.push(`Formação ${itemNumber}: adicione o curso ou graduação.`)
     }
 
     if (!entry.institution.trim()) {
-      items.push(`Formacao ${itemNumber}: adicione a instituicao.`)
+      items.push(`Formação ${itemNumber}: adicione a instituição.`)
     }
 
     if (!entry.year.trim()) {
@@ -211,9 +211,9 @@ function getChatCopy(firstName?: string): ChatCopy {
 
   return {
     heading: greeting,
-    description: "Cole a descricao da vaga para eu adaptar seu curriculo ATS com base no perfil salvo.",
-    placeholder: "Cole a descricao da vaga aqui...",
-    helperText: "Quando fizer sentido, clique em Aceito para gerar seu curriculo.",
+    description: "Cole a descrição da vaga para eu adaptar seu currículo ATS com base no perfil salvo.",
+    placeholder: "Cole a descrição da vaga aqui...",
+    helperText: 'Quando fizer sentido, clique em "Aceito" para gerar seu currículo.',
     thinkingText: "Pensando...",
     sessionCounterLabel: "nesta an\u00E1lise",
     sessionExpiredText: "Sess\u00E3o n\u00E3o encontrada. Inicie uma nova an\u00E1lise para continuar.",
@@ -271,9 +271,9 @@ function createWelcomeMessages(firstName?: string, profileWarningItems?: string[
   const messages: Message[] = [{
     id: "welcome",
     role: "assistant",
-    content: `${greeting} Tenho seu curriculo salvo aqui.
+    content: `${greeting} Tenho seu currículo salvo aqui.
 
-Quer que eu adapte o curriculo para uma vaga especifica? Mande o link ou cole o texto da vaga.`,
+Quer que eu adapte o currículo para uma vaga específica? Mande o link ou cole o texto da vaga.`,
     timestamp: "",
   }]
 
@@ -1019,12 +1019,12 @@ export function ChatInterface({
                 {phase === "confirm"
                   ? (
                     <>
-                      Quando fizer sentido, clique em <span className="font-semibold">Aceito</span> para gerar seu curriculo.
+                      Quando fizer sentido, clique em <span className="font-semibold">Aceito</span> para gerar seu currículo.
                     </>
                   )
                   : (
                     <>
-                      Se a versao atual ja estiver boa para voce, clique em <span className="font-semibold">Aceito</span> para gerar seu curriculo.
+                      Se a versão atual já estiver boa para você, clique em <span className="font-semibold">Aceito</span> para gerar seu currículo.
                     </>
                   )}
               </p>
@@ -1115,7 +1115,7 @@ export function ChatInterface({
           ) : (
             <p className="text-center text-xs text-muted-foreground">
               {showGenerationApproval
-                ? 'Para gerar o PDF final, responda com "Aceito" ou use o botao acima.'
+                ? 'Para gerar o PDF final, responda com "Aceito" ou use o botão acima.'
                 : copy.helperText}
             </p>
           )}

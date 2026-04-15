@@ -101,34 +101,34 @@ export function buildTargetingPlan(params: {
     missingButCannotInvent,
     sectionStrategy: {
       summary: [
-        `Posicione o candidato para ${targetRole} sem alegar experiencia nao comprovada.`,
+        `Posicione o candidato para ${targetRole} sem alegar experiência não comprovada.`,
         mustEmphasize.length > 0
           ? `Priorize ${mustEmphasize.join(', ')} quando houver suporte factual.`
-          : 'Priorize termos e contextos da vaga que ja aparecem no curriculo.',
+          : 'Priorize termos e contextos da vaga que já aparecem no currículo.',
         missingButCannotInvent.length > 0
-          ? `Nao esconda gaps como ${missingButCannotInvent.join(', ')}.`
+          ? `Não esconda gaps como ${missingButCannotInvent.join(', ')}.`
           : 'Evite parecer um encaixe perfeito quando houver lacunas reais.',
       ],
       experience: [
-        'Reordene a narrativa dos bullets para destacar contexto, stack e impacto mais proximos da vaga.',
+        'Reordene a narrativa dos bullets para destacar contexto, stack e impacto mais próximos da vaga.',
         'Mantenha empresas, cargos, datas e escopo factual intactos.',
         shouldDeemphasize.length > 0
-          ? `Reduza enfase em ${shouldDeemphasize.join(', ')} quando nao forem centrais para a vaga.`
+          ? `Reduza ênfase em ${shouldDeemphasize.join(', ')} quando não forem centrais para a vaga.`
           : 'Remova redundancias e preserve apenas o que ajuda na leitura ATS.',
       ],
       skills: [
         mustEmphasize.length > 0
           ? `Suba para o topo skills aderentes como ${mustEmphasize.join(', ')}.`
           : 'Ordene skills pela relevancia para a vaga.',
-        'Nao adicione skills ausentes do curriculo original.',
+        'Não adicione skills ausentes do currículo original.',
       ],
       education: [
-        'Mantenha formacao totalmente factual.',
+        'Mantenha formação totalmente factual.',
         'Apenas padronize formato e leitura ATS.',
       ],
       certifications: [
-        'Destaque certificacoes mais proximas da vaga, mantendo nomes, emissores e anos.',
-        'Nao crie alinhamento artificial com certificacoes inexistentes.',
+        'Destaque certificações mais próximas da vaga, mantendo nomes, emissores e anos.',
+        'Não crie alinhamento artificial com certificações inexistentes.',
       ],
     },
   }

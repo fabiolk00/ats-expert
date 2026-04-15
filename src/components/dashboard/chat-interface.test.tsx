@@ -426,7 +426,7 @@ describe("ChatInterface", () => {
           return new Response(
             createSSEStream([
               { type: "patch", patch: { phase: "confirm" }, phase: "confirm" },
-              { type: "text", content: 'Quando fizer sentido, clique em "Aceito" para gerar seu curriculo.' },
+              { type: "text", content: 'Quando fizer sentido, clique em "Aceito" para gerar seu currículo.' },
               { type: "done", sessionId: "sess_confirm", phase: "confirm", messageCount: 3 },
             ]),
             { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_confirm" } },
@@ -435,7 +435,7 @@ describe("ChatInterface", () => {
 
         return new Response(
           createSSEStream([
-            { type: "text", content: "Seu curriculo ATS-otimizado em PDF esta pronto. ATS Score antes: 47/100. ATS agora: 63/100. Confira o download e a pre-visualizacao acima." },
+            { type: "text", content: "Seu currículo ATS-otimizado em PDF está pronto. ATS Score antes: 47/100. ATS agora: 63/100. Confira o download e a pré-visualização acima." },
             { type: "done", sessionId: "sess_confirm", phase: "generation", messageCount: 4 },
           ]),
           { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_confirm" } },
@@ -482,7 +482,7 @@ describe("ChatInterface", () => {
       if (typeof url === "string" && url.includes("/api/agent")) {
         return new Response(
           createSSEStream([
-            { type: "text", content: "Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo." },
+            { type: "text", content: "Recebi a vaga e ela já ficou salva como referência para o seu currículo." },
             { type: "done", sessionId: "sess_dialog_ready", phase: "dialog", atsScore: { total: 47 }, messageCount: 3 },
           ]),
           { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_dialog_ready" } },
@@ -653,13 +653,13 @@ describe("ChatInterface", () => {
       if (typeof url === "string" && url.includes("/api/agent")) {
         return new Response(
           createSSEStream([
-            { delta: "Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo. " },
+            { delta: "Recebi a vaga e ela já ficou salva como referência para o seu currículo. " },
             {
               error: "Invalid gap analysis payload.",
               code: "LLM_INVALID_OUTPUT",
             },
             {
-              delta: "Pontuacao ATS atual: 51/100. Posso seguir reescrevendo seu resumo ou experiencia com base nesses pontos.",
+              delta: "Pontuação ATS atual: 51/100. Posso seguir reescrevendo seu resumo ou experiência com base nesses pontos.",
             },
             { done: true, sessionId: "sess_recoverable", phase: "analysis" },
           ]),
@@ -700,7 +700,7 @@ describe("ChatInterface", () => {
               error: "Invalid gap analysis payload.",
               code: "LLM_INVALID_OUTPUT",
             },
-            { type: "text", content: "Ja tenho seu curriculo e a vaga como referencia." },
+            { type: "text", content: "Já tenho seu currículo e a vaga como referência." },
             { type: "done", sessionId: "sess_rewrite_single", phase: "dialog", messageCount: 2 },
           ]),
           {
@@ -739,7 +739,7 @@ describe("ChatInterface", () => {
 
       const finalAssistantMessage = assistantMessages[assistantMessages.length - 1]
       expect(finalAssistantMessage).toHaveTextContent(
-        /Posso reescrever agora seu resumo profissional\. Ja tenho seu curriculo e a vaga como referencia\./i,
+        /Posso reescrever agora seu resumo profissional\. Já tenho seu currículo e a vaga como referência\./i,
       )
       expect(finalAssistantMessage).not.toHaveTextContent(/Aviso:\s*Invalid gap analysis payload\./i)
     })
@@ -757,7 +757,7 @@ describe("ChatInterface", () => {
           createSSEStream([
             { type: "sessionCreated", sessionId: "sess_history_reconcile" },
             { type: "text", content: "Posso reescrever agora seu resumo profissional. " },
-            { type: "text", content: "Ja tenho seu curriculo e a vaga como referencia." },
+            { type: "text", content: "Já tenho seu currículo e a vaga como referência." },
             { type: "done", sessionId: "sess_history_reconcile", phase: "dialog", messageCount: 2 },
           ]),
           {
@@ -798,7 +798,7 @@ describe("ChatInterface", () => {
       const assistantMessages = screen.getAllByTestId("message-assistant")
       expect(assistantMessages).toHaveLength(2)
       expect(assistantMessages[assistantMessages.length - 1]).toHaveTextContent(
-        /Posso reescrever agora seu resumo profissional\. Ja tenho seu curriculo e a vaga como referencia\./i,
+        /Posso reescrever agora seu resumo profissional\. Já tenho seu currículo e a vaga como referência\./i,
       )
     })
 
@@ -827,7 +827,7 @@ describe("ChatInterface", () => {
       const assistantMessages = screen.getAllByTestId("message-assistant")
       expect(assistantMessages).toHaveLength(2)
       expect(assistantMessages[assistantMessages.length - 1]).toHaveTextContent(
-        /Posso reescrever agora seu resumo profissional\. Ja tenho seu curriculo e a vaga como referencia\./i,
+        /Posso reescrever agora seu resumo profissional\. Já tenho seu currículo e a vaga como referência\./i,
       )
     })
   })
@@ -899,7 +899,7 @@ describe("ChatInterface", () => {
     })
 
     expect(screen.queryByText(/atingiu o limite de mensagens/i)).not.toBeInTheDocument()
-    expect(screen.getByText(/Tenho seu curriculo salvo aqui/i)).toBeInTheDocument()
+    expect(screen.getByText(/Tenho seu currículo salvo aqui/i)).toBeInTheDocument()
   })
 
   it("reads X-Session-Id header and fires onSessionChange before SSE parsing", async () => {

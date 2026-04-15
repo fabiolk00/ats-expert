@@ -38,7 +38,7 @@ export async function prepareUserMessage(
     const sanitizedScrapedText = sanitizeUserInput(scrapeResult.text)
     message = message.replace(
       detectedUrl,
-      `[Link da vaga: ${detectedUrl}]\n\n[ConteÃºdo extraÃ­do automaticamente]:\n${sanitizedScrapedText}`,
+      `[Link da vaga: ${detectedUrl}]\n\n[Conteúdo extraído automaticamente]:\n${sanitizedScrapedText}`,
     )
     logInfo('agent.scrape.completed', {
       requestId,
@@ -56,7 +56,7 @@ export async function prepareUserMessage(
       scrapeSucceeded: false,
       success: false,
     })
-    message = `${message}\n\n[Nota do sistema: Tentei acessar o link ${detectedUrl} mas nÃ£o consegui extrair o conteÃºdo. Motivo: ${scrapeResult.error}]`
+    message = `${message}\n\n[Nota do sistema: Tentei acessar o link ${detectedUrl} mas não consegui extrair o conteúdo. Motivo: ${scrapeResult.error}]`
   }
 
   return message

@@ -49,7 +49,7 @@ export function useSessionCvState(
       setError(
         fetchError instanceof Error
           ? fetchError.message
-          : 'Nao foi possivel carregar o curriculo.',
+          : 'Não foi possível carregar o currículo.',
       )
     } finally {
       setIsLoading(false)

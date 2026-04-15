@@ -19,13 +19,13 @@ type SessionDocuments = {
 function getDocumentErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     if (error.message === 'Generated resume artifacts could not be retrieved.') {
-      return 'Nao foi possivel carregar seus arquivos agora. Tente novamente em instantes.'
+      return 'Não foi possível carregar seus arquivos agora. Tente novamente em instantes.'
     }
 
     return error.message
   }
 
-  return 'Nao foi possivel carregar os documentos da sessao.'
+  return 'Não foi possível carregar os documentos da sessão.'
 }
 
 export function useSessionDocuments(sessionId: string | null): SessionDocuments {

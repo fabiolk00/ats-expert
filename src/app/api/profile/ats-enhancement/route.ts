@@ -43,7 +43,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const missingItems = getAtsEnhancementBlockingItems(parsed.data)
   if (!readiness.isReady || missingItems.length > 0) {
     return NextResponse.json({
-      error: 'Complete seu curriculo para gerar uma versao ATS.',
+      error: 'Complete seu currículo para gerar uma versão ATS.',
       reasons: missingItems.length > 0 ? missingItems : readiness.reasons,
       missingItems,
     }, { status: 400 })
@@ -52,14 +52,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const hasCredits = await checkUserQuota(appUser.id)
   if (!hasCredits) {
     return NextResponse.json({
-      error: 'Seus creditos acabaram. Recarregue seu saldo para gerar uma versao ATS.',
+      error: 'Seus créditos acabaram. Recarregue seu saldo para gerar uma versão ATS.',
     }, { status: 402 })
   }
 
   const generationValidation = validateGenerationCvState(parsed.data)
   if (!generationValidation.success) {
     return NextResponse.json({
-      error: 'Complete seu curriculo para gerar uma versao ATS.',
+      error: 'Complete seu currículo para gerar uma versão ATS.',
       reasons: [generationValidation.errorMessage],
       missingItems: [generationValidation.errorMessage],
     }, { status: 400 })
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const pipeline = await runAtsEnhancementPipeline(session)
   if (!pipeline.success || !pipeline.optimizedCvState) {
     return NextResponse.json({
-      error: pipeline.error ?? 'Nao foi possivel melhorar sua versao ATS agora.',
+      error: pipeline.error ?? 'Não foi possível melhorar sua versão ATS agora.',
       reasons: pipeline.validation?.issues.map((issue) => issue.message),
     }, { status: 500 })
   }

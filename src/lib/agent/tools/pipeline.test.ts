@@ -167,14 +167,14 @@ describe('ATS enhancement reliability hardening', () => {
           matchScore: 68,
           missingSkills: ['BigQuery'],
           weakAreas: ['summary'],
-          improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
+          improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
         },
       },
       result: {
         matchScore: 68,
         missingSkills: ['BigQuery'],
         weakAreas: ['summary'],
-        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
       },
     })
   })
@@ -400,7 +400,7 @@ describe('ATS enhancement reliability hardening', () => {
         matchScore: 68,
         missingSkills: ['BigQuery'],
         weakAreas: ['summary'],
-        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
       },
       targetingPlan: {
         targetRole: 'Analytics Engineer',

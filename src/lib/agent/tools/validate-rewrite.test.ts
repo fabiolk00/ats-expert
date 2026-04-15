@@ -30,7 +30,7 @@ describe('validateRewrite', () => {
       buildCvState(),
       {
         ...buildCvState(),
-        summary: 'Profissional de dados com foco em BI e SQL. Requisitos obrigatorios atendidos com base na experiencia.',
+        summary: 'Profissional de dados com foco em BI e SQL. Requisitos obrigatórios atendidos com base na experiência.',
       },
       {
         mode: 'job_targeting',
@@ -51,7 +51,7 @@ describe('validateRewrite', () => {
     )
 
     expect(result.issues).not.toContainEqual(expect.objectContaining({
-      message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidencia equivalente no curriculo original.',
+      message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidência equivalente no currículo original.',
     }))
   })
 
@@ -112,7 +112,7 @@ describe('validateRewrite', () => {
     )
 
     expect(result.issues).not.toContainEqual(expect.objectContaining({
-      message: 'A versao targetizada tentou apagar gaps reais adicionando alinhamento nao comprovado com a vaga.',
+      message: 'A versão targetizada tentou apagar gaps reais adicionando alinhamento não comprovado com a vaga.',
     }))
   })
 })

@@ -21,12 +21,12 @@ export const embeddedClerkLocalizationPtBr: LocalizationResource = {
   formFieldHintText__optional: "",
   signInEnterPasswordTitle: "Digite sua senha",
   backButton: "Voltar",
-  footerActionLink__useAnotherMethod: "Usar outro metodo",
+  footerActionLink__useAnotherMethod: "Usar outro método",
   signIn: {
     start: {
       title: "Entrar na sua conta",
       subtitle: "",
-      actionText: "Nao tem conta?",
+      actionText: "Não tem conta?",
       actionLink: "Criar conta",
       actionLink__use_email: "Usar e-mail",
       actionLink__use_phone: "Usar telefone",
@@ -45,11 +45,11 @@ export const embeddedClerkLocalizationPtBr: LocalizationResource = {
       subtitle_email: "",
       subtitle_phone: "",
       formTitle: "Verifique seu e-mail",
-      resendButton: "Reenviar codigo",
+      resendButton: "Reenviar código",
     },
     forgotPasswordAlternativeMethods: {
       title: "Escolha outra forma",
-      label__alternativeMethods: "Outros metodos",
+      label__alternativeMethods: "Outros métodos",
       blockButton__resetPassword: "Redefinir senha",
     },
     resetPassword: {
@@ -61,8 +61,8 @@ export const embeddedClerkLocalizationPtBr: LocalizationResource = {
     emailCode: {
       title: "Verifique seu e-mail",
       subtitle: "",
-      formTitle: "Digite o codigo",
-      resendButton: "Reenviar codigo",
+      formTitle: "Digite o código",
+      resendButton: "Reenviar código",
     },
     emailLink: {
       title: "Confira seu e-mail",
@@ -71,7 +71,7 @@ export const embeddedClerkLocalizationPtBr: LocalizationResource = {
       formSubtitle: "",
       resendButton: "Reenviar link",
       unusedTab: {
-        title: "Link nao utilizado",
+        title: "Link não utilizado",
       },
       verified: {
         title: "E-mail verificado",
@@ -87,7 +87,7 @@ export const embeddedClerkLocalizationPtBr: LocalizationResource = {
     start: {
       title: "Criar conta",
       subtitle: "",
-      actionText: "Ja tem conta?",
+      actionText: "Já tem conta?",
       actionLink: "Entrar",
       actionLink__use_phone: "Usar telefone",
       actionLink__use_email: "Usar e-mail",
@@ -95,7 +95,7 @@ export const embeddedClerkLocalizationPtBr: LocalizationResource = {
     continue: {
       title: "Complete seu cadastro",
       subtitle: "",
-      actionText: "Ja tem conta?",
+      actionText: "Já tem conta?",
       actionLink: "Entrar",
     },
     emailLink: {
@@ -123,9 +123,9 @@ export const embeddedClerkLocalizationPtBr: LocalizationResource = {
     emailCode: {
       title: "Verifique seu e-mail",
       subtitle: "",
-      formTitle: "Digite o codigo",
+      formTitle: "Digite o código",
       formSubtitle: "",
-      resendButton: "Reenviar codigo",
+      resendButton: "Reenviar código",
     },
   },
 }

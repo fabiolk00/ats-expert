@@ -126,7 +126,7 @@ export default function SignupForm() {
       setNeedsVerification(true)
     } catch (error) {
       setErrorMessage(
-        getClerkErrorMessage(error, "Nao foi possivel criar sua conta agora."),
+        getClerkErrorMessage(error, "Não foi possível criar sua conta agora."),
       )
     } finally {
       setIsSubmitting(false)
@@ -156,10 +156,10 @@ export default function SignupForm() {
         }
       }
 
-      setErrorMessage("Nao foi possivel verificar o codigo informado.")
+      setErrorMessage("Não foi possível verificar o código informado.")
     } catch (error) {
       setErrorMessage(
-        getClerkErrorMessage(error, "Nao foi possivel verificar seu e-mail."),
+        getClerkErrorMessage(error, "Não foi possível verificar seu e-mail."),
       )
     } finally {
       setIsSubmitting(false)
@@ -180,7 +180,7 @@ export default function SignupForm() {
       })
     } catch (error) {
       setErrorMessage(
-        getClerkErrorMessage(error, "Nao foi possivel reenviar o codigo."),
+        getClerkErrorMessage(error, "Não foi possível reenviar o código."),
       )
     } finally {
       setIsSubmitting(false)
@@ -203,7 +203,7 @@ export default function SignupForm() {
       })
     } catch (error) {
       setErrorMessage(
-        getClerkErrorMessage(error, "Nao foi possivel iniciar o cadastro com Google."),
+        getClerkErrorMessage(error, "Não foi possível iniciar o cadastro com Google."),
       )
       setIsGooglePending(false)
     }
@@ -212,7 +212,7 @@ export default function SignupForm() {
   const passwordRequirements = [
     {
       id: "min-length",
-      label: `Minimo de ${minimumLength} caracteres`,
+      label: `Mínimo de ${minimumLength} caracteres`,
       met:
         password.length > 0 &&
         password.length >= minimumLength &&
@@ -238,7 +238,7 @@ export default function SignupForm() {
             Verifique seu e-mail
           </h3>
           <p className="text-sm text-muted-foreground">
-            Enviamos um codigo para {email}. Digite abaixo para concluir sua conta.
+            Enviamos um código para {email}. Digite abaixo para concluir sua conta.
           </p>
         </div>
 
@@ -248,9 +248,9 @@ export default function SignupForm() {
         >
           <AuthField
             id="signup-verification-code"
-            label="Codigo"
+            label="Código"
             autoComplete="one-time-code"
-            placeholder="Digite o codigo"
+            placeholder="Digite o código"
             value={verificationCode}
             onChange={setVerificationCode}
           />
@@ -269,7 +269,7 @@ export default function SignupForm() {
               onClick={() => void resendVerificationCode()}
               disabled={isSubmitting || !isSignUpLoaded}
             >
-              Reenviar codigo
+              Reenviar código
             </Button>
           </div>
         </form>

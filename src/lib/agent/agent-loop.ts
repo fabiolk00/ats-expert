@@ -62,9 +62,9 @@ import type {
 } from '@/types/agent'
 
 const LENGTH_RECOVERY_PROMPT = 'Your previous response was cut off by token limits. Continue exactly where it stopped. Do not repeat prior text. Do not call tools.'
-const GENERATION_CONFIRMATION_TEXT = 'Quando fizer sentido, clique em "Aceito" para gerar seu curriculo.'
-const MISSING_PROFILE_WITH_TARGET_TEXT = 'Recebi a vaga. Para adaptar seu curriculo, complete primeiro seu perfil em "Meu Perfil" antes de continuar.'
-const MISSING_PROFILE_TEXT = 'Preciso do seu curriculo salvo em "Meu Perfil" para continuar.'
+const GENERATION_CONFIRMATION_TEXT = 'Quando fizer sentido, clique em "Aceito" para gerar seu currículo.'
+const MISSING_PROFILE_WITH_TARGET_TEXT = 'Recebi a vaga. Para adaptar seu currículo, complete primeiro seu perfil em "Meu Perfil" antes de continuar.'
+const MISSING_PROFILE_TEXT = 'Preciso do seu currículo salvo em "Meu Perfil" para continuar.'
 const RECOVERY_SYSTEM_PROMPT = [
   'You are CurrIA, a resume optimization assistant for Brazilian users.',
   'Respond in the same language as the user, in plain text, with a short and useful answer.',
@@ -261,9 +261,9 @@ function formatRewriteFocusLabel(focus: RewriteFocus): string {
     case 'summary':
       return 'resumo profissional'
     case 'experience':
-      return 'experiencia'
+      return 'experiência'
     case 'skills':
-      return 'competencias'
+      return 'competências'
   }
 }
 
@@ -280,11 +280,11 @@ function buildDialogRewriteContinuation(params: {
       : `dialog_rewrite_resume_only_${params.focus}`,
     text: params.hasTargetJobContext
       ? (params.explicit
-        ? `Posso reescrever agora seu ${focusLabel}. Ja tenho seu curriculo e a vaga como referencia. Vou devolver uma versao mais alinhada a essa oportunidade.`
-        : `Posso seguir, sim. Ja tenho seu curriculo e a vaga como referencia. Vou continuar pelo trecho com maior impacto para essa vaga: seu ${focusLabel}.`)
+        ? `Posso reescrever agora seu ${focusLabel}. Já tenho seu currículo e a vaga como referência. Vou devolver uma versão mais alinhada a essa oportunidade.`
+        : `Posso seguir, sim. Já tenho seu currículo e a vaga como referência. Vou continuar pelo trecho com maior impacto para essa vaga: seu ${focusLabel}.`)
       : (params.explicit
-        ? `Posso reescrever agora seu ${focusLabel}. Ja tenho seu curriculo em contexto e vou te devolver uma versao mais forte e objetiva.`
-      : `Posso seguir, sim. Ja tenho seu curriculo em contexto. Vou continuar pelo trecho com maior impacto: seu ${focusLabel}.`),
+        ? `Posso reescrever agora seu ${focusLabel}. Já tenho seu currículo em contexto e vou te devolver uma versão mais forte e objetiva.`
+      : `Posso seguir, sim. Já tenho seu currículo em contexto. Vou continuar pelo trecho com maior impacto: seu ${focusLabel}.`),
   }
 }
 
@@ -485,7 +485,7 @@ function resolveGenerationPrerequisiteMessage(session: Session): string | null {
   }
 
   if (!hasTargetJobContext) {
-    return 'Ja tenho seu curriculo salvo. Cole a descricao da vaga antes de gerar o curriculo otimizado ATS.'
+    return 'Já tenho seu currículo salvo. Cole a descrição da vaga antes de gerar o currículo otimizado ATS.'
   }
 
   if (hasPendingCareerFitOverride(session)) {
@@ -562,9 +562,9 @@ function buildCareerFitOverrideAcknowledgement(session: Session): string {
   const profileAudit = formatProfileAuditSummary(session.cvState, 2)
 
   return [
-    'Entendido. Vou continuar mesmo com esse desalinhamento e focar em deixar sua candidatura o mais competitiva possivel dentro do seu historico real.',
-    profileAudit ? `Antes de seguir, eu tambem reforcaria estes pontos no seu perfil salvo: ${profileAudit}` : null,
-    'Agora posso adaptar seu resumo, experiencia ou competencias para a vaga. Quando fizer sentido, clique em "Aceito" para gerar seu curriculo.',
+    'Entendido. Vou continuar mesmo com esse desalinhamento e focar em deixar sua candidatura o mais competitiva possível dentro do seu histórico real.',
+    profileAudit ? `Antes de seguir, eu também reforçaria estes pontos no seu perfil salvo: ${profileAudit}` : null,
+    'Agora posso adaptar seu resumo, experiência ou competências para a vaga. Quando fizer sentido, clique em "Aceito" para gerar seu currículo.',
   ].filter(Boolean).join(' ')
 }
 
@@ -668,7 +668,7 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
       return careerFitWarning
     }
 
-    const parts = ['Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo.']
+    const parts = ['Recebi a vaga e ela já ficou salva como referência para o seu currículo.']
 
     if (session.atsScore) {
       parts.push(`Pontuacao ATS atual: ${session.atsScore.total}/100.`)
@@ -676,10 +676,10 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
 
     if (session.agentState.targetFitAssessment) {
       parts.push(
-        `Aderencia inicial: ${formatFitLevel(session.agentState.targetFitAssessment.level)}. ${session.agentState.targetFitAssessment.summary}`,
+        `Aderência inicial: ${formatFitLevel(session.agentState.targetFitAssessment.level)}. ${session.agentState.targetFitAssessment.summary}`,
       )
     } else if (session.agentState.gapAnalysis) {
-      parts.push(`Aderencia estimada a vaga: ${session.agentState.gapAnalysis.result.matchScore}/100.`)
+      parts.push(`Aderência estimada à vaga: ${session.agentState.gapAnalysis.result.matchScore}/100.`)
     }
 
     if (session.agentState.gapAnalysis) {
@@ -693,12 +693,12 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
       }
     }
 
-    parts.push('Posso seguir reescrevendo seu resumo ou experiencia com base nesses pontos. Se quiser gerar agora a versao otimizada, responda com "Aceito".')
+    parts.push('Posso seguir reescrevendo seu resumo ou experiência com base nesses pontos. Se quiser gerar agora a versão otimizada, responda com "Aceito".')
     return parts.join(' ')
   }
 
   if (hasTargetJobContext) {
-    return 'Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo. Posso seguir reescrevendo seu resumo ou experiencia com base nela. Se quiser gerar agora a versao otimizada, responda com "Aceito".'
+    return 'Recebi a vaga e ela já ficou salva como referência para o seu currículo. Posso seguir reescrevendo seu resumo ou experiência com base nela. Se quiser gerar agora a versão otimizada, responda com "Aceito".'
   }
 
   if (hasTargetJobContext) {
@@ -707,10 +707,10 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
 
   const profileAuditSummary = formatProfileAuditSummary(session.cvState, 3)
   if (profileAuditSummary) {
-    return `Tenho seu curriculo salvo e ja identifiquei alguns pontos que podem reduzir sua visibilidade para recrutadores e ATS: ${profileAuditSummary} Cole a descricao da vaga que eu cruzo isso com a oportunidade certa.`
+    return `Tenho seu currículo salvo e já identifiquei alguns pontos que podem reduzir sua visibilidade para recrutadores e ATS: ${profileAuditSummary} Cole a descrição da vaga que eu cruzo isso com a oportunidade certa.`
   }
 
-  return 'Tenho seu curriculo salvo. Cole a descricao da vaga que eu comparo seu perfil com a oportunidade e sigo com os ajustes mais estrategicos.'
+  return 'Tenho seu currículo salvo. Cole a descrição da vaga que eu comparo seu perfil com a oportunidade e sigo com os ajustes mais estratégicos.'
 }
 
 function buildDeterministicVacancyBootstrap(
@@ -731,7 +731,7 @@ function buildDeterministicVacancyBootstrap(
     return careerFitWarning
   }
 
-  const parts = ['Recebi a vaga e comparei com seu curriculo com foco em aderencia ATS.']
+  const parts = ['Recebi a vaga e comparei com seu currículo com foco em aderência ATS.']
 
   if (
     targetPreparation.applied
@@ -739,7 +739,7 @@ function buildDeterministicVacancyBootstrap(
     && targetPreparation.optimizedAtsTotal !== undefined
   ) {
     parts.push(
-      `Atualizei a versao de trabalho do seu curriculo para essa vaga. ATS antes: ${targetPreparation.previousAtsTotal}/100. ATS da versao otimizada: ${targetPreparation.optimizedAtsTotal}/100.`,
+      `Atualizei a versão de trabalho do seu currículo para essa vaga. ATS antes: ${targetPreparation.previousAtsTotal}/100. ATS da versão otimizada: ${targetPreparation.optimizedAtsTotal}/100.`,
     )
   } else if (session.atsScore) {
     parts.push(`Pontuacao ATS atual: ${session.atsScore.total}/100.`)
@@ -747,10 +747,10 @@ function buildDeterministicVacancyBootstrap(
 
   if (session.agentState.targetFitAssessment) {
     parts.push(
-      `Aderencia inicial: ${formatFitLevel(session.agentState.targetFitAssessment.level)}. ${session.agentState.targetFitAssessment.summary}`,
+      `Aderência inicial: ${formatFitLevel(session.agentState.targetFitAssessment.level)}. ${session.agentState.targetFitAssessment.summary}`,
     )
   } else if (session.agentState.gapAnalysis) {
-    parts.push(`Aderencia estimada a vaga: ${session.agentState.gapAnalysis.result.matchScore}/100.`)
+    parts.push(`Aderência estimada à vaga: ${session.agentState.gapAnalysis.result.matchScore}/100.`)
   }
 
   if (session.agentState.gapAnalysis) {
@@ -759,15 +759,15 @@ function buildDeterministicVacancyBootstrap(
     const topSuggestion = session.agentState.gapAnalysis.result.improvementSuggestions[0]
 
     if (missingSkills.length > 0) {
-      parts.push(`Palavras-chave e sinais que ainda estao fracos: ${missingSkills.join(', ')}.`)
+      parts.push(`Palavras-chave e sinais que ainda estão fracos: ${missingSkills.join(', ')}.`)
     }
 
     if (weakAreas.length > 0) {
-      parts.push(`Trechos do curriculo com maior oportunidade de ganho: ${weakAreas.join(', ')}.`)
+      parts.push(`Trechos do currículo com maior oportunidade de ganho: ${weakAreas.join(', ')}.`)
     }
 
     if (topSuggestion) {
-      parts.push(`Melhor proximo ajuste ATS: ${normalizeTrailingSentence(topSuggestion)}.`)
+      parts.push(`Melhor próximo ajuste ATS: ${normalizeTrailingSentence(topSuggestion)}.`)
     }
   } else if (session.atsScore) {
     const topIssue = session.atsScore.issues[0]?.message
@@ -779,22 +779,22 @@ function buildDeterministicVacancyBootstrap(
     }
 
     if (uniqueMessages[1]) {
-      parts.push(`Melhor proximo ajuste ATS: ${normalizeTrailingSentence(uniqueMessages[1])}.`)
+      parts.push(`Melhor próximo ajuste ATS: ${normalizeTrailingSentence(uniqueMessages[1])}.`)
     }
   }
 
   if (targetPreparation.applied) {
-    parts.push('Ja deixei uma versao base otimizada para essa vaga. Se quiser, ainda posso refinar resumo, experiencia ou competencias antes da geracao.')
+    parts.push('Já deixei uma versão base otimizada para essa vaga. Se quiser, ainda posso refinar resumo, experiência ou competências antes da geração.')
   } else {
-    parts.push('Posso otimizar agora seu resumo, experiencia ou competencias com base nessa vaga.')
+    parts.push('Posso otimizar agora seu resumo, experiência ou competências com base nessa vaga.')
   }
 
   const profileAuditSummary = formatProfileAuditSummary(session.cvState, 2)
   if (profileAuditSummary) {
-    parts.push(`No seu perfil base, eu ainda reforcaria estes pontos: ${profileAuditSummary}`)
+    parts.push(`No seu perfil base, eu ainda reforçaria estes pontos: ${profileAuditSummary}`)
   }
 
-  parts.push('Quando fizer sentido, clique em "Aceito" para gerar seu curriculo.')
+  parts.push('Quando fizer sentido, clique em "Aceito" para gerar seu currículo.')
 
   return parts.join(' ')
 }
@@ -818,7 +818,7 @@ function buildDialogFallback(session: Session, userMessage: string): Determinist
   if (latestMessageLooksLikeVacancy) {
     return {
       kind: 'dialog_latest_target_job_context',
-      text: 'Recebi essa nova vaga e ja tenho seu curriculo em contexto. Posso adaptar agora seu resumo, experiencia ou competencias para essa oportunidade. Se quiser, responda com "reescreva meu resumo" ou "Aceito" para gerar a versao otimizada.',
+      text: 'Recebi essa nova vaga e já tenho seu currículo em contexto. Posso adaptar agora seu resumo, experiência ou competências para essa oportunidade. Se quiser, responda com "reescreva meu resumo" ou "Aceito" para gerar a versão otimizada.',
     }
   }
 
@@ -846,13 +846,13 @@ function buildDialogFallback(session: Session, userMessage: string): Determinist
   if (hasTargetJobContext) {
     return {
       kind: 'dialog_saved_target_context',
-      text: 'Ja tenho seu curriculo e a vaga como referencia. Posso reescrever agora seu resumo, experiencia ou competencias para aumentar a aderencia ATS. Se quiser, responda com "reescreva meu resumo" ou "Aceito" para gerar a versao otimizada.',
+      text: 'Já tenho seu currículo e a vaga como referência. Posso reescrever agora seu resumo, experiência ou competências para aumentar a aderência ATS. Se quiser, responda com "reescreva meu resumo" ou "Aceito" para gerar a versão otimizada.',
     }
   }
 
   return {
     kind: 'dialog_resume_context_only',
-    text: 'Ja tenho seu curriculo em contexto. Posso reescrever seu resumo, experiencia ou competencias. Diga qual trecho voce quer ajustar primeiro.',
+    text: 'Já tenho seu currículo em contexto. Posso reescrever seu resumo, experiência ou competências. Diga qual trecho você quer ajustar primeiro.',
   }
 }
 
@@ -1304,7 +1304,7 @@ async function* handleConfirmedGeneration(params: {
     )
 
     if (generationInProgress) {
-      return 'Sua geracao ja esta em andamento. Aguarde alguns segundos e tente novamente para recuperar o resultado sem consumir outro credito.'
+      return 'Sua geração já está em andamento. Aguarde alguns segundos e tente novamente para recuperar o resultado sem consumir outro crédito.'
     }
 
     let refreshedAtsTotal: number | null = null
@@ -1359,25 +1359,25 @@ async function* handleConfirmedGeneration(params: {
 
     if (generationWarnings.length > 0) {
       return [
-        'Seu curriculo ATS-otimizado em PDF esta pronto.',
+        'Seu currículo ATS-otimizado em PDF está pronto.',
         atsSummary,
         `Mantive avisos claros nos campos pendentes do perfil: ${generationWarnings.join(', ')}.`,
-        'Confira o download e a pre-visualizacao acima.',
+        'Confira o download e a pré-visualização acima.',
       ].filter(Boolean).join(' ')
     }
 
     return [
-      'Seu curriculo ATS-otimizado em PDF esta pronto.',
+      'Seu currículo ATS-otimizado em PDF está pronto.',
       atsSummary,
-      'Confira o download e a pre-visualizacao acima.',
+      'Confira o download e a pré-visualização acima.',
     ].filter(Boolean).join(' ')
   }
 
   if (!setPhaseResult.success && setPhaseResult.failureMessage) {
-    return `Nao consegui iniciar a geracao agora. ${setPhaseResult.failureMessage}`
+    return `Não consegui iniciar a geração agora. ${setPhaseResult.failureMessage}`
   }
 
-  return `Nao consegui gerar os arquivos agora. ${generationResult.failureMessage ?? 'Tente novamente em alguns instantes.'}`
+  return `Não consegui gerar os arquivos agora. ${generationResult.failureMessage ?? 'Tente novamente em alguns instantes.'}`
 }
 
 async function* handleGenerationConfirmationRequest(params: {
@@ -1400,7 +1400,7 @@ async function* handleGenerationConfirmationRequest(params: {
     })
 
     if (!setPhaseResult.success) {
-      return `Nao consegui preparar a confirmacao da geracao agora. ${setPhaseResult.failureMessage ?? 'Tente novamente em alguns instantes.'}`
+      return `Não consegui preparar a confirmação da geração agora. ${setPhaseResult.failureMessage ?? 'Tente novamente em alguns instantes.'}`
     }
   }
 
@@ -1419,21 +1419,21 @@ async function* handleDeterministicRewriteRequest(params: {
   if (!currentContent?.trim()) {
     switch (focus) {
       case 'experience':
-        return 'Seu perfil salvo ainda nao tem experiencias suficientes para eu reescrever essa secao. Posso comecar pelo resumo profissional se quiser.'
+        return 'Seu perfil salvo ainda não tem experiências suficientes para eu reescrever essa seção. Posso começar pelo resumo profissional se quiser.'
       case 'skills':
-        return 'Seu perfil salvo ainda nao tem competencias suficientes para eu reorganizar essa secao. Posso comecar pelo resumo profissional se quiser.'
+        return 'Seu perfil salvo ainda não tem competências suficientes para eu reorganizar essa seção. Posso começar pelo resumo profissional se quiser.'
       case 'summary':
-        return 'Nao encontrei resumo suficiente no seu perfil salvo para reescrever agora. Atualize seu perfil e tente novamente.'
+        return 'Não encontrei resumo suficiente no seu perfil salvo para reescrever agora. Atualize seu perfil e tente novamente.'
     }
   }
 
   if (!params.session.agentState.targetJobDescription?.trim()) {
-    return 'Ja tenho seu curriculo salvo. Cole a descricao da vaga antes de pedir a reescrita otimizada.'
+    return 'Já tenho seu currículo salvo. Cole a descrição da vaga antes de pedir a reescrita otimizada.'
   }
 
   if (hasPendingCareerFitOverride(params.session)) {
     return buildCareerFitWarningText(params.session)
-      ?? 'Antes de otimizar para essa vaga, preciso do seu ok explicito para seguir mesmo com o desalinhamento atual.'
+      ?? 'Antes de otimizar para essa vaga, preciso do seu ok explícito para seguir mesmo com o desalinhamento atual.'
   }
 
   if (params.session.phase !== 'dialog') {
@@ -1466,9 +1466,9 @@ async function* handleDeterministicRewriteRequest(params: {
 
   if (!rewriteResult.success) {
     const generationHint = resolveGenerationPrerequisiteMessage(params.session) === null
-      ? ' Se quiser gerar os arquivos com a versao atual do curriculo, responda com "Aceito".'
+      ? ' Se quiser gerar os arquivos com a versão atual do currículo, responda com "Aceito".'
       : ''
-    return `Nao consegui reescrever essa secao agora. ${rewriteResult.failureMessage ?? 'Tente novamente em alguns instantes.'}${generationHint}`
+    return `Não consegui reescrever essa seção agora. ${rewriteResult.failureMessage ?? 'Tente novamente em alguns instantes.'}${generationHint}`
   }
 
   const rewriteOutput = rewriteResult.output
@@ -1484,17 +1484,17 @@ async function* handleDeterministicRewriteRequest(params: {
     : null
 
   if (!rewrittenContent?.trim()) {
-    return 'Consegui atualizar a secao, mas nao recebi um texto legivel para mostrar aqui. Tente novamente em alguns instantes.'
+    return 'Consegui atualizar a seção, mas não recebi um texto legível para mostrar aqui. Tente novamente em alguns instantes.'
   }
 
   const focusLabel = formatRewriteFocusLabel(focus)
 
   return [
-    `Aqui esta uma versao reescrita do seu ${focusLabel}:`,
+    `Aqui está uma versão reescrita do seu ${focusLabel}:`,
     '',
     rewrittenContent.trim(),
     '',
-    'Se quiser seguir para a geracao agora, responda com "Aceito".',
+    'Se quiser seguir para a geração agora, responda com "Aceito".',
   ].join('\n')
 }
 

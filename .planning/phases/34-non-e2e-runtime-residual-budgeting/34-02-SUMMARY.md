@@ -1,3 +1,10 @@
+---
+phase: "34"
+plan: "34-02"
+status: "completed"
+requirements: ["PERF-04", "PERF-05"]
+---
+
 # Plan 34-02 Summary
 
 ## What changed

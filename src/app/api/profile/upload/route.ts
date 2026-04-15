@@ -22,15 +22,15 @@ const FileMetadataSchema = z.object({
   size: z.number().positive().max(MAX_FILE_SIZE_BYTES),
 })
 
-const AUTH_REQUIRED_MESSAGE = 'Voce precisa estar autenticado para importar um curriculo.'
+const AUTH_REQUIRED_MESSAGE = 'Você precisa estar autenticado para importar um currículo.'
 const MISSING_FILE_MESSAGE = 'Selecione um arquivo PDF para importar.'
 const INVALID_FILE_TYPE_MESSAGE = 'Envie um arquivo PDF.'
-const FILE_TOO_LARGE_MESSAGE = 'Arquivo muito grande. Envie um curriculo de ate 5 MB.'
-const SCANNED_PDF_MESSAGE = 'Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.'
-const EXTRACTION_FAILURE_MESSAGE = 'Nao foi possivel identificar dados suficientes no arquivo enviado.'
-const NO_PROFILE_CHANGES_MESSAGE = 'Esse arquivo nao trouxe novas informacoes para o seu perfil atual.'
-const REPLACE_LINKEDIN_CONFIRMATION_MESSAGE = 'Voce ja importou seu perfil pelo LinkedIn. Confirme se deseja substituir essas informacoes pelo PDF.'
-const START_IMPORT_FAILURE_MESSAGE = 'Nao foi possivel importar seu curriculo agora. Tente novamente em instantes.'
+const FILE_TOO_LARGE_MESSAGE = 'Arquivo muito grande. Envie um currículo de até 5 MB.'
+const SCANNED_PDF_MESSAGE = 'Não conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionável ou preencha manualmente.'
+const EXTRACTION_FAILURE_MESSAGE = 'Não foi possível identificar dados suficientes no arquivo enviado.'
+const NO_PROFILE_CHANGES_MESSAGE = 'Esse arquivo não trouxe novas informações para o seu perfil atual.'
+const REPLACE_LINKEDIN_CONFIRMATION_MESSAGE = 'Você já importou seu perfil pelo LinkedIn. Confirme se deseja substituir essas informações pelo PDF.'
+const START_IMPORT_FAILURE_MESSAGE = 'Não foi possível importar seu currículo agora. Tente novamente em instantes.'
 
 function resolveAsyncPdfImportThresholdBytes(): number {
   const parsed = Number.parseInt(process.env.PDF_IMPORT_ASYNC_THRESHOLD_BYTES ?? '', 10)

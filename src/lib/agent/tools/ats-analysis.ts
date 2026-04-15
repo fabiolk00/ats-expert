@@ -40,14 +40,14 @@ function buildDerivedIssues(cvState: CVState): AtsAnalysisIssue[] {
     issues.push({
       code: 'summary_missing',
       severity: 'high',
-      message: 'O resumo profissional precisa existir para posicionar o curriculo com clareza.',
+      message: 'O resumo profissional precisa existir para posicionar o currículo com clareza.',
       section: 'summary',
     })
   } else if (cvState.summary.trim().length < 80) {
     issues.push({
       code: 'summary_too_short',
       severity: 'medium',
-      message: 'O resumo profissional esta curto demais para comunicar senioridade, especialidade e foco.',
+      message: 'O resumo profissional está curto demais para comunicar senioridade, especialidade e foco.',
       section: 'summary',
     })
   }
@@ -56,7 +56,7 @@ function buildDerivedIssues(cvState: CVState): AtsAnalysisIssue[] {
     issues.push({
       code: 'experience_missing',
       severity: 'high',
-      message: 'A secao de experiencia profissional precisa ter pelo menos uma entrada estruturada.',
+      message: 'A seção de experiência profissional precisa ter pelo menos uma entrada estruturada.',
       section: 'experience',
     })
   }
@@ -70,7 +70,7 @@ function buildDerivedIssues(cvState: CVState): AtsAnalysisIssue[] {
     issues.push({
       code: 'experience_bullets_weak',
       severity: 'medium',
-      message: 'Alguns bullets de experiencia estao curtos demais e perdem impacto ou contexto.',
+      message: 'Alguns bullets de experiência estão curtos demais e perdem impacto ou contexto.',
       section: 'experience',
     })
   }
@@ -79,7 +79,7 @@ function buildDerivedIssues(cvState: CVState): AtsAnalysisIssue[] {
     issues.push({
       code: 'skills_sparse',
       severity: 'medium',
-      message: 'A secao de skills esta enxuta e pode reduzir cobertura semantica para ATS.',
+      message: 'A seção de skills está enxuta e pode reduzir cobertura semântica para ATS.',
       section: 'skills',
     })
   }
@@ -88,7 +88,7 @@ function buildDerivedIssues(cvState: CVState): AtsAnalysisIssue[] {
     issues.push({
       code: 'education_missing',
       severity: 'medium',
-      message: 'A secao de educacao esta ausente ou vazia.',
+      message: 'A seção de educação está ausente ou vazia.',
       section: 'education',
     })
   }
@@ -98,7 +98,7 @@ function buildDerivedIssues(cvState: CVState): AtsAnalysisIssue[] {
     issues.push({
       code: 'experience_dates_inconsistent',
       severity: 'medium',
-      message: 'Existem datas de experiencia pouco padronizadas ou incompletas.',
+      message: 'Existem datas de experiência pouco padronizadas ou incompletas.',
       section: 'experience',
     })
   }

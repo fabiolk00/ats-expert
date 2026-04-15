@@ -217,7 +217,7 @@ describe('POST /api/profile/ats-enhancement', () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error: 'Complete seu curriculo para gerar uma versao ATS.',
+      error: 'Complete seu currículo para gerar uma versão ATS.',
       reasons: expect.any(Array),
       missingItems: expect.any(Array),
     })
@@ -241,9 +241,9 @@ describe('POST /api/profile/ats-enhancement', () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error: 'Complete seu curriculo para gerar uma versao ATS.',
-      reasons: ['Formacao 1: adicione a instituicao.'],
-      missingItems: ['Formacao 1: adicione a instituicao.'],
+      error: 'Complete seu currículo para gerar uma versão ATS.',
+      reasons: ['Formação 1: adicione a instituição.'],
+      missingItems: ['Formação 1: adicione a instituição.'],
     })
     expect(createSession).not.toHaveBeenCalled()
     expect(dispatchToolWithContext).not.toHaveBeenCalled()
@@ -263,14 +263,14 @@ describe('POST /api/profile/ats-enhancement', () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error: 'Complete seu curriculo para gerar uma versao ATS.',
+      error: 'Complete seu currículo para gerar uma versão ATS.',
       reasons: [
         'Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.',
-        'Educacao: adicione pelo menos uma formacao academica.',
+        'Educação: adicione pelo menos uma formação acadêmica.',
       ],
       missingItems: [
         'Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.',
-        'Educacao: adicione pelo menos uma formacao academica.',
+        'Educação: adicione pelo menos uma formação acadêmica.',
       ],
     })
     expect(createSession).not.toHaveBeenCalled()

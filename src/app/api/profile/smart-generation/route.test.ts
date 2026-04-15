@@ -237,7 +237,7 @@ describe('POST /api/profile/smart-generation', () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
-      error: 'Complete seu curriculo para adaptar sua versao para a vaga.',
+      error: 'Complete seu currículo para adaptar sua versão para a vaga.',
       reasons: expect.any(Array),
       missingItems: expect.any(Array),
     })

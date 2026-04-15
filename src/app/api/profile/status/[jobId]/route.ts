@@ -5,7 +5,7 @@ import { claimAndProcessJob, getImportJob } from '@/lib/linkedin/import-jobs'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 
 const TRACK_IMPORT_FAILURE_MESSAGE =
-  'Nao foi possivel acompanhar a importacao do LinkedIn agora. Tente novamente em instantes.'
+  'Não foi possível acompanhar a importação do LinkedIn agora. Tente novamente em instantes.'
 
 function getSafeImportFailureMessage(errorMessage: string | null): string {
   const normalized = errorMessage?.toLowerCase() ?? ''
@@ -15,10 +15,10 @@ function getSafeImportFailureMessage(errorMessage: string | null): string {
     || normalized.includes('404')
     || normalized.includes('perfil')
   ) {
-    return 'Nao conseguimos acessar esse perfil agora. Confira se o link do LinkedIn esta publico e tente novamente.'
+    return 'Não conseguimos acessar esse perfil agora. Confira se o link do LinkedIn está público e tente novamente.'
   }
 
-  return 'Nao foi possivel importar esse perfil do LinkedIn agora. Confira se o link esta publico e tente novamente em instantes.'
+  return 'Não foi possível importar esse perfil do LinkedIn agora. Confira se o link está público e tente novamente em instantes.'
 }
 
 export async function GET(
@@ -36,7 +36,7 @@ export async function GET(
       success: false,
       latencyMs: Date.now() - requestStartedAt,
     })
-    return NextResponse.json({ error: 'Voce precisa estar autenticado para acompanhar a importacao.' }, { status: 401 })
+    return NextResponse.json({ error: 'Você precisa estar autenticado para acompanhar a importação.' }, { status: 401 })
   }
 
   const { jobId } = params
@@ -53,7 +53,7 @@ export async function GET(
         success: false,
         latencyMs: Date.now() - requestStartedAt,
       })
-      return NextResponse.json({ error: 'Importacao nao encontrada.' }, { status: 404 })
+      return NextResponse.json({ error: 'Importação não encontrada.' }, { status: 404 })
     }
 
     // If still pending, atomically claim and process it now.

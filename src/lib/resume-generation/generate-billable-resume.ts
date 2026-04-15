@@ -197,7 +197,7 @@ export async function generateBillableResume(input: {
     return {
       output: toolFailure(
         TOOL_ERROR_CODES.VALIDATION_ERROR,
-        'Gere uma nova versao otimizada pela IA antes de exportar este curriculo.',
+        'Gere uma nova versão otimizada pela IA antes de exportar este currículo.',
       ),
     }
   }

@@ -8,7 +8,7 @@ import {
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 
 const TRACK_IMPORT_FAILURE_MESSAGE =
-  'Nao foi possivel acompanhar a importacao do curriculo agora. Tente novamente em instantes.'
+  'Não foi possível acompanhar a importação do currículo agora. Tente novamente em instantes.'
 
 export async function GET(
   _req: NextRequest,
@@ -26,7 +26,7 @@ export async function GET(
       latencyMs: Date.now() - requestStartedAt,
     })
     return NextResponse.json(
-      { error: 'Voce precisa estar autenticado para acompanhar a importacao.' },
+      { error: 'Você precisa estar autenticado para acompanhar a importação.' },
       { status: 401 },
     )
   }
@@ -43,7 +43,7 @@ export async function GET(
         success: false,
         latencyMs: Date.now() - requestStartedAt,
       })
-      return NextResponse.json({ error: 'Importacao nao encontrada.' }, { status: 404 })
+      return NextResponse.json({ error: 'Importação não encontrada.' }, { status: 404 })
     }
 
     if (job.status === 'pending' || job.status === 'processing') {

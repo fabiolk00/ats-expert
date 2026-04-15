@@ -328,7 +328,7 @@ describe('generateFile', () => {
     }
 
     expect(result.output.code).toBe('VALIDATION_ERROR')
-    expect(result.output.error).toBe('Falta pelo menos uma experiencia profissional no curriculo salvo.')
+    expect(result.output.error).toBe('Falta pelo menos uma experiência profissional no currículo salvo.')
   })
 
   it('returns VALIDATION_ERROR when base cvState is invalid', async () => {
@@ -399,7 +399,7 @@ describe('generateFile', () => {
         docxPath: undefined,
         pdfPath: undefined,
         generatedAt: undefined,
-        error: 'Falta pelo menos uma experiencia profissional no curriculo salvo.',
+        error: 'Falta pelo menos uma experiência profissional no currículo salvo.',
       },
     })
   })
@@ -420,7 +420,7 @@ describe('generateFile', () => {
     expect(result.output).toEqual({
       success: false,
       code: 'VALIDATION_ERROR',
-      error: 'Falta pelo menos uma experiencia profissional no curriculo salvo.',
+      error: 'Falta pelo menos uma experiência profissional no currículo salvo.',
     })
     expect(getSupabase).not.toHaveBeenCalled()
     expect(generateDOCX).not.toHaveBeenCalled()
@@ -455,9 +455,9 @@ describe('generateFile', () => {
       warnings: ['email', 'telefone', 'resumo profissional'],
     })
     expect(generatePDF).toHaveBeenCalledWith(expect.objectContaining({
-      email: 'Email nao informado no perfil salvo.',
-      phone: 'Telefone nao informado no perfil salvo.',
-      summary: 'Resumo profissional pendente. O perfil salvo nao traz uma descricao valida para esta secao.',
+      email: 'Email não informado no perfil salvo.',
+      phone: 'Telefone não informado no perfil salvo.',
+      summary: 'Resumo profissional pendente. O perfil salvo não traz uma descrição válida para esta seção.',
     }))
   })
 
@@ -509,7 +509,7 @@ describe('generateFile', () => {
     expect(result.output).toEqual({
       success: false,
       code: 'VALIDATION_ERROR',
-      error: 'Falta a data de termino na sua primeira experiencia - Senior Analytics Engineer - Pravaler. Se voce ainda trabalha nela, marque como atual ou informe uma data aproximada.',
+      error: 'Falta a data de término na sua primeira experiência - Senior Analytics Engineer - Pravaler. Se você ainda trabalha nela, marque como atual ou informe uma data aproximada.',
     })
   })
 
@@ -539,7 +539,7 @@ describe('generateFile', () => {
     expect(result.output).toEqual({
       success: false,
       code: 'VALIDATION_ERROR',
-      error: 'Falta a data de inicio na sua primeira experiencia - BI Analyst - Grupo Positivo.',
+      error: 'Falta a data de início na sua primeira experiência - BI Analyst - Grupo Positivo.',
     })
     expect(result.patch).toEqual({
       generatedOutput: {
@@ -547,7 +547,7 @@ describe('generateFile', () => {
         docxPath: undefined,
         pdfPath: undefined,
         generatedAt: undefined,
-        error: 'Falta a data de inicio na sua primeira experiencia - BI Analyst - Grupo Positivo.',
+        error: 'Falta a data de início na sua primeira experiência - BI Analyst - Grupo Positivo.',
       },
     })
   })
@@ -575,7 +575,7 @@ describe('generateFile', () => {
 
     expect(validation).toEqual({
       success: false,
-      errorMessage: 'Falta a data de termino na sua primeira experiencia - Current Role - Acme. Se voce ainda trabalha nela, marque como atual ou informe uma data aproximada.',
+      errorMessage: 'Falta a data de término na sua primeira experiência - Current Role - Acme. Se você ainda trabalha nela, marque como atual ou informe uma data aproximada.',
     })
   })
 })

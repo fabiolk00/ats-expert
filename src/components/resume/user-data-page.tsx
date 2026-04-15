@@ -178,60 +178,60 @@ function sanitizeResumeData(value: CVState): CVState {
 }
 
 const atsFeatures: AtsFeature[] = [
-  { id: "analysis", label: "parse e leitura estruturada do curriculo", icon: FileSearch },
-  { id: "keywords", label: "score ATS geral, clareza e legibilidade do curriculo", icon: Target },
-  { id: "structure", label: "reescrita estrategica de resumo e bullets", icon: PenLine },
+  { id: "analysis", label: "parse e leitura estruturada do currículo", icon: FileSearch },
+  { id: "keywords", label: "score ATS geral, clareza e legibilidade do currículo", icon: Target },
+  { id: "structure", label: "reescrita estratégica de resumo e bullets", icon: PenLine },
   { id: "rewrite", label: "template ATS em PDF textual, simples e pt-BR", icon: FileOutput },
 ]
 
 const targetJobFeatures: AtsFeature[] = [
-  { id: "analysis", label: "deteccao da vaga e gap analysis antes da reescrita", icon: FileSearch },
-  { id: "keywords", label: "priorizacao de keywords e requisitos da vaga alvo", icon: Target },
-  { id: "structure", label: "reescrita completa por secao com foco no cargo", icon: PenLine },
-  { id: "rewrite", label: "versao targetizada pronta para preview e export", icon: FileOutput },
+  { id: "analysis", label: "detecção da vaga e gap analysis antes da reescrita", icon: FileSearch },
+  { id: "keywords", label: "priorização de keywords e requisitos da vaga alvo", icon: Target },
+  { id: "structure", label: "reescrita completa por seção com foco no cargo", icon: PenLine },
+  { id: "rewrite", label: "versão targetizada pronta para preview e export", icon: FileOutput },
 ]
 
 function getGenerationCopy(mode: SetupGenerationMode): SetupGenerationCopy {
   if (mode === "job_targeting") {
     return {
       badge: "Target Job - Adaptar para Vaga",
-      title: "Adaptar meu curriculo para esta vaga",
+      title: "Adaptar meu currículo para esta vaga",
       description:
-        "Usa o seu curriculo base e a descricao da vaga para fazer gap analysis, montar um plano de targeting e reescrever o curriculo inteiro com foco no cargo alvo sem inventar fatos.",
+        "Usa o seu currículo base e a descrição da vaga para fazer gap analysis, montar um plano de targeting e reescrever o currículo inteiro com foco no cargo alvo sem inventar fatos.",
       helper:
-        "Cole a descricao da vaga abaixo. Se voce remover a vaga, esta entrada volta automaticamente para melhoria ATS geral.",
-      incomplete: "Complete seu curriculo para adaptar sua versao para a vaga.",
-      buttonIdle: "Adaptar para vaga (1 credito)",
+        "Cole a descrição da vaga abaixo. Se você remover a vaga, esta entrada volta automaticamente para melhoria ATS geral.",
+      incomplete: "Complete seu currículo para adaptar sua versão para a vaga.",
+      buttonIdle: "Adaptar para vaga (1 crédito)",
       buttonRunning: "Adaptando para vaga",
-      success: "Versao adaptada para a vaga criada com sucesso.",
-      failure: "Erro ao adaptar o curriculo para a vaga.",
+      success: "Versão adaptada para a vaga criada com sucesso.",
+      failure: "Erro ao adaptar o currículo para a vaga.",
       modalTitle: "Complete seu perfil antes de adaptar para a vaga",
       modalDescription:
-        "Faltam alguns pontos importantes para gerar uma versao targetizada com qualidade. Preencha estes itens no formulario e tente novamente.",
+        "Faltam alguns pontos importantes para gerar uma versão targetizada com qualidade. Preencha estes itens no formulário e tente novamente.",
     }
   }
 
   return {
-    badge: "ATS - Aprimorar Curriculo",
-    title: "Melhorar meu curriculo para ATS",
+    badge: "ATS - Aprimorar Currículo",
+    title: "Melhorar meu currículo para ATS",
     description:
-      "Usa o seu perfil base para gerar uma versao ATS em pt-BR seguindo o modelo padrao da plataforma: estrutura linear, sem elementos que atrapalham parsing, linguagem objetiva e foco em verdade, matching e clareza.",
+      "Usa o seu perfil base para gerar uma versão ATS em pt-BR seguindo o modelo padrão da plataforma: estrutura linear, sem elementos que atrapalham parsing, linguagem objetiva e foco em verdade, matching e clareza.",
     helper:
-      "Se voce adicionar uma vaga alvo abaixo, esta entrada muda para adaptacao estrategica por vaga sem precisar ir para o chat.",
-    incomplete: "Complete seu curriculo para gerar uma versao ATS.",
-    buttonIdle: "Melhorar para ATS (1 credito)",
-    buttonRunning: "Gerando versao ATS",
-    success: "Versao ATS criada com sucesso.",
-    failure: "Erro ao gerar a versao ATS.",
+      "Se você adicionar uma vaga alvo abaixo, esta entrada muda para adaptação estratégica por vaga sem precisar ir para o chat.",
+    incomplete: "Complete seu currículo para gerar uma versão ATS.",
+      buttonIdle: "Melhorar para ATS (1 crédito)",
+    buttonRunning: "Gerando versão ATS",
+    success: "Versão ATS criada com sucesso.",
+    failure: "Erro ao gerar a versão ATS.",
     modalTitle: "Complete seu perfil antes de melhorar para ATS",
     modalDescription:
-      "Faltam alguns pontos importantes para gerar uma versao ATS com qualidade. Preencha estes itens no formulario e tente novamente.",
+      "Faltam alguns pontos importantes para gerar uma versão ATS com qualidade. Preencha estes itens no formulário e tente novamente.",
   }
 }
 
 function formatUpdatedLabel(lastUpdatedAt: string | null): string {
   if (!lastUpdatedAt) {
-    return "Nenhuma atualizacao salva ainda."
+    return "Nenhuma atualização salva ainda."
   }
 
   return `Atualizado em ${new Date(lastUpdatedAt).toLocaleDateString("pt-BR", {
@@ -285,7 +285,7 @@ export default function UserDataPage({
         })
 
         if (!response.ok) {
-          throw new Error("Nao foi possivel carregar seu perfil.")
+          throw new Error("Não foi possível carregar seu perfil.")
         }
 
         const data = (await response.json()) as ProfileResponse
@@ -347,7 +347,7 @@ export default function UserDataPage({
 
     const data = (await response.json()) as ProfileResponse & { error?: string }
     if (!response.ok || !data.profile) {
-      throw new Error(data.error ?? "Nao foi possivel salvar seu perfil.")
+      throw new Error(data.error ?? "Não foi possível salvar seu perfil.")
     }
 
     setResumeData(normalizeResumeData(data.profile.cvState))
@@ -423,8 +423,8 @@ export default function UserDataPage({
 
       toast.success(
         data.generationType === "JOB_TARGETING"
-          ? "Versao adaptada para a vaga criada com sucesso."
-          : "Versao ATS criada com sucesso.",
+          ? "Versão adaptada para a vaga criada com sucesso."
+          : "Versão ATS criada com sucesso.",
       )
       router.push(`/dashboard?session=${encodeURIComponent(data.sessionId)}`)
     } catch (error) {
@@ -436,7 +436,7 @@ export default function UserDataPage({
 
   const profileBadgeText = useMemo(() => {
     if (!profileSource) {
-      return "Perfil ainda nao salvo"
+      return "Perfil ainda não salvo"
     }
 
     if (profileSource === "linkedin") {
@@ -444,7 +444,7 @@ export default function UserDataPage({
     }
 
     if (profileSource === "pdf") {
-      return "Base salva a partir de curriculo importado"
+      return "Base salva a partir de currículo importado"
     }
 
     if (profileSource === "manual") {
@@ -472,8 +472,8 @@ export default function UserDataPage({
   }, [resumeData])
 
   const stats = [
-    { label: "Seccoes preenchidas", value: `${filledSections}/6`, icon: Layers3 },
-    { label: "Experiencias", value: `${resumeData.experience.length}`, icon: BadgeCheck },
+    { label: "Seções preenchidas", value: `${filledSections}/6`, icon: Layers3 },
+    { label: "Experiências", value: `${resumeData.experience.length}`, icon: BadgeCheck },
     { label: "Skills", value: `${resumeData.skills.length}`, icon: Sparkles },
   ]
 
@@ -482,23 +482,23 @@ export default function UserDataPage({
   const previewExperiences = template.experiences.length > 0
     ? template.experiences
     : [{
-        title: "Experiencia principal",
+        title: "Experiência principal",
         company: "",
         location: "",
-        period: "Periodo",
+        period: "Período",
         techStack: "",
         bullets: [{ text: "Os bullets reescritos para ATS aparecem aqui." }],
       }]
   const previewEducation = template.education.length > 0
     ? template.education
     : [{
-        degree: "Sua formacao aparece aqui",
+        degree: "Sua formação aparece aqui",
         institution: "",
         period: "",
       }]
   const previewCertifications = template.certifications.length > 0
     ? template.certifications
-    : [{ name: "Suas certificacoes aparecem aqui" }]
+    : [{ name: "Suas certificações aparecem aqui" }]
 
   const atsReadiness = useMemo(
     () => assessAtsEnhancementReadiness(sanitizedResumeData),
@@ -546,7 +546,7 @@ export default function UserDataPage({
             ) : (
               <div className="flex-1 min-h-0 overflow-y-auto">
                 <div className="p-5">
-                  <h2 className="mb-4 text-base font-semibold text-foreground">Preview do curriculo base</h2>
+                  <h2 className="mb-4 text-base font-semibold text-foreground">Preview do currículo base</h2>
 
                   <div className="mb-3">
                     <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -587,7 +587,7 @@ export default function UserDataPage({
                         </div>
                       ) : null}
                       {!template.linkedin && !template.location ? (
-                        <p>Seus links e localizacao aparecem aqui.</p>
+                        <p>Seus links e localização aparecem aqui.</p>
                       ) : null}
                     </div>
                   </div>
@@ -663,7 +663,7 @@ export default function UserDataPage({
 
                   <div>
                     <h4 className="mb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Educacao
+                      Educação
                     </h4>
                     <div className="space-y-3">
                       {previewEducation.slice(0, 3).map((entry, index) => (
@@ -685,7 +685,7 @@ export default function UserDataPage({
                       ))}
                       {template.education.length > 3 ? (
                         <p className="text-[10px] text-muted-foreground">
-                          +{template.education.length - 3} formacoes
+                          +{template.education.length - 3} formações
                         </p>
                       ) : null}
                     </div>
@@ -695,7 +695,7 @@ export default function UserDataPage({
 
                   <div>
                     <h4 className="mb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Certificacoes
+                      Certificações
                     </h4>
                     <div className="space-y-2">
                       {previewCertifications.slice(0, 4).map((certification, index) => (
@@ -708,7 +708,7 @@ export default function UserDataPage({
                       ))}
                       {template.certifications.length > 4 ? (
                         <p className="text-[10px] text-muted-foreground">
-                          +{template.certifications.length - 4} certificacoes
+                          +{template.certifications.length - 4} certificações
                         </p>
                       ) : null}
                     </div>
@@ -724,10 +724,10 @@ export default function UserDataPage({
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0">
                     <h1 className="text-xl font-semibold text-foreground text-balance">
-                      Revise seu curriculo com uma base limpa e consistente.
+                      Revise seu currículo com uma base limpa e consistente.
                     </h1>
                     <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                      Importe do LinkedIn, ajuste os campos manualmente e deixe seu perfil pronto para novas sessoes.
+                      Importe do LinkedIn, ajuste os campos manualmente e deixe seu perfil pronto para novas sessões.
                     </p>
                   </div>
 
@@ -851,7 +851,7 @@ export default function UserDataPage({
                     onChange={(event) => setTargetJobDescription(event.target.value)}
                     disabled={isBusy}
                     rows={8}
-                    placeholder="Cole aqui a descricao da vaga para adaptar o curriculo a um cargo especifico."
+                    placeholder="Cole aqui a descrição da vaga para adaptar o currículo a um cargo específico."
                   />
                   <p className="text-xs leading-relaxed text-muted-foreground">
                     {generationCopy.helper}
@@ -891,7 +891,7 @@ export default function UserDataPage({
 
                 <div className="mb-4 text-sm">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Creditos disponiveis</span>
+                    <span className="text-muted-foreground">Créditos disponíveis</span>
                     <span className="font-semibold text-foreground">{currentCredits}</span>
                   </div>
                   {!atsReadiness.isReady ? (
@@ -908,7 +908,7 @@ export default function UserDataPage({
                   ) : null}
                   {currentCredits < 1 ? (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Voce precisa de pelo menos 1 credito para gerar essa versao.
+                      Você precisa de pelo menos 1 crédito para gerar essa versão.
                     </p>
                   ) : null}
                 </div>

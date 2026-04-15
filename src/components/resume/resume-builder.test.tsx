@@ -101,7 +101,7 @@ describe("ImportResumeModal", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       json: async () => ({
-        error: "Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.",
+        error: "Não conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionável ou preencha manualmente.",
       }),
     })
 
@@ -124,7 +124,7 @@ describe("ImportResumeModal", () => {
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith(
-        "Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.",
+        "Não conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionável ou preencha manualmente.",
       )
     })
   })
@@ -227,7 +227,7 @@ describe("ImportResumeModal", () => {
           jobId: "job_pdf_123",
           status: "failed",
           errorMessage:
-            "Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.",
+            "Não conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionável ou preencha manualmente.",
         }),
       })
 
@@ -252,7 +252,7 @@ describe("ImportResumeModal", () => {
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith(
-        "Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.",
+        "Não conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionável ou preencha manualmente.",
       )
     }, { timeout: 5000 })
   })
@@ -322,7 +322,7 @@ describe("ImportResumeModal", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       json: async () => ({
-        error: "Esse arquivo nao trouxe novas informacoes para o seu perfil atual.",
+        error: "Esse arquivo não trouxe novas informações para o seu perfil atual.",
       }),
     })
 
@@ -344,7 +344,7 @@ describe("ImportResumeModal", () => {
     await user.click(screen.getAllByRole("button", { name: /importar arquivo/i })[0])
 
     await waitFor(() => {
-      expect(toastError).toHaveBeenCalledWith("Esse arquivo nao trouxe novas informacoes para o seu perfil atual.")
+      expect(toastError).toHaveBeenCalledWith("Esse arquivo não trouxe novas informações para o seu perfil atual.")
     })
 
     expect(screen.getByText("resume.pdf")).toBeInTheDocument()
@@ -461,7 +461,7 @@ describe("ImportResumeModal", () => {
       expect(fetchMock).toHaveBeenCalledTimes(2)
     })
 
-    expect(screen.getAllByRole("button", { name: /importando curriculo/i })[0]).toBeDisabled()
+    expect(screen.getAllByRole("button", { name: /importando currículo/i })[0]).toBeDisabled()
     expect(screen.getByText("resume-2.pdf")).toBeInTheDocument()
     expect(screen.getByText(/status da importacao: extraindo e organizando dados/i)).toBeInTheDocument()
 
@@ -490,7 +490,7 @@ describe("ImportResumeModal", () => {
 
     expect(onImportSuccess).not.toHaveBeenCalled()
     expect(toastSuccess).not.toHaveBeenCalled()
-    expect(screen.getAllByRole("button", { name: /importando curriculo/i })[0]).toBeDisabled()
+    expect(screen.getAllByRole("button", { name: /importando currículo/i })[0]).toBeDisabled()
     expect(screen.getByText("resume-2.pdf")).toBeInTheDocument()
     expect(screen.getByText(/status da importacao: extraindo e organizando dados/i)).toBeInTheDocument()
 

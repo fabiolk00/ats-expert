@@ -29,6 +29,12 @@ jobs:
       - name: Secret Audit
         run: npm run audit:secrets
 
+      - name: Copy Encoding Audit
+        run: npm run audit:copy-encoding
+
+      - name: PT-BR Copy Regression Audit
+        run: npm run audit:copy-regression
+
       - name: TypeScript
         run: npm run typecheck
 

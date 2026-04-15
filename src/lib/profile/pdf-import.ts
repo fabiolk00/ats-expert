@@ -32,10 +32,10 @@ export type PdfImportResult =
       error: string
     }
 
-const SCANNED_PDF_MESSAGE = 'Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.'
-const EXTRACTION_FAILURE_MESSAGE = 'Nao foi possivel identificar dados suficientes no arquivo enviado.'
-const NO_PROFILE_CHANGES_MESSAGE = 'Esse arquivo nao trouxe novas informacoes para o seu perfil atual.'
-const REPLACE_LINKEDIN_CONFIRMATION_MESSAGE = 'Voce ja importou seu perfil pelo LinkedIn. Confirme se deseja substituir essas informacoes pelo PDF.'
+const SCANNED_PDF_MESSAGE = 'Não conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionável ou preencha manualmente.'
+const EXTRACTION_FAILURE_MESSAGE = 'Não foi possível identificar dados suficientes no arquivo enviado.'
+const NO_PROFILE_CHANGES_MESSAGE = 'Esse arquivo não trouxe novas informações para o seu perfil atual.'
+const REPLACE_LINKEDIN_CONFIRMATION_MESSAGE = 'Você já importou seu perfil pelo LinkedIn. Confirme se deseja substituir essas informações pelo PDF.'
 
 function createEmptyCvState(): CVState {
   return {
@@ -168,7 +168,7 @@ export async function importPdfProfile(params: {
   })
 
   const warning = ingestionResult.confidenceScore !== undefined && ingestionResult.confidenceScore < 0.55
-    ? 'Revise os dados importados antes de salvar. A confianca desta leitura foi baixa.'
+    ? 'Revise os dados importados antes de salvar. A confiança desta leitura foi baixa.'
     : undefined
 
   if (warning) {
