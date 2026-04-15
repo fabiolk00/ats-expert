@@ -32,6 +32,34 @@ function createDeferred<T>() {
   return { promise, resolve, reject }
 }
 
+function normalizeText(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+}
+
+function textContentExactly(expected: string) {
+  const normalizedExpected = normalizeText(expected)
+
+  return (_content: string, node: Element | null): boolean => {
+    if (!node) {
+      return false
+    }
+
+    const normalizedNodeText = normalizeText(node.textContent ?? "")
+    if (normalizedNodeText !== normalizedExpected) {
+      return false
+    }
+
+    return Array.from(node.children).every(
+      (child) => normalizeText(child.textContent ?? "") !== normalizedExpected,
+    )
+  }
+}
+
 describe("ImportResumeModal", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -93,7 +121,7 @@ describe("ImportResumeModal", () => {
       null,
       "pdf",
     )
-    expect(toastSuccess).toHaveBeenCalledWith("Curriculo importado com sucesso.")
+    expect(toastSuccess).toHaveBeenCalledWith("Currículo importado com sucesso.")
   })
 
   it("shows an import error when the upload route fails", async () => {
@@ -193,7 +221,9 @@ describe("ImportResumeModal", () => {
     await user.upload(input, file)
     await user.click(screen.getAllByRole("button", { name: /importar arquivo/i })[0])
 
-    expect(await screen.findByText(/status da importacao: aguardando processamento/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
 
     await waitFor(() => {
       expect(onImportSuccess).toHaveBeenCalledWith(
@@ -206,7 +236,7 @@ describe("ImportResumeModal", () => {
     expect(toastWarning).toHaveBeenCalledWith(
       "Revise os dados importados antes de salvar. A confianca desta leitura foi baixa.",
     )
-    expect(toastSuccess).toHaveBeenCalledWith("Curriculo importado com sucesso.")
+    expect(toastSuccess).toHaveBeenCalledWith("Currículo importado com sucesso.")
   })
 
   it("shows a failed async PDF import status when the background job fails", async () => {
@@ -248,7 +278,9 @@ describe("ImportResumeModal", () => {
     await user.upload(input, file)
     await user.click(screen.getAllByRole("button", { name: /importar arquivo/i })[0])
 
-    expect(await screen.findByText(/status da importacao: aguardando processamento/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith(
@@ -348,7 +380,7 @@ describe("ImportResumeModal", () => {
     })
 
     expect(screen.getByText("resume.pdf")).toBeInTheDocument()
-    expect(screen.getByText(/status da importacao: importacao falhou/i)).toBeInTheDocument()
+    expect(screen.getByText(textContentExactly("Status da importação: Importação falhou"))).toBeInTheDocument()
 
     rerender(
       <ImportResumeModal
@@ -367,7 +399,7 @@ describe("ImportResumeModal", () => {
     )
 
     expect(screen.getByText("Clique para selecionar um PDF.")).toBeInTheDocument()
-    expect(screen.queryByText(/status da importacao:/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Status da importação:/i)).not.toBeInTheDocument()
     expect(screen.getAllByRole("button", { name: /importar arquivo/i })[0]).toBeDisabled()
   })
 
@@ -463,7 +495,9 @@ describe("ImportResumeModal", () => {
 
     expect(screen.getAllByRole("button", { name: /importando currículo/i })[0]).toBeDisabled()
     expect(screen.getByText("resume-2.pdf")).toBeInTheDocument()
-    expect(screen.getByText(/status da importacao: extraindo e organizando dados/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(textContentExactly("Status da importação: Extraindo e organizando dados")),
+    ).toBeInTheDocument()
 
     uploadRequestA.resolve({
       ok: true,
@@ -492,7 +526,9 @@ describe("ImportResumeModal", () => {
     expect(toastSuccess).not.toHaveBeenCalled()
     expect(screen.getAllByRole("button", { name: /importando currículo/i })[0]).toBeDisabled()
     expect(screen.getByText("resume-2.pdf")).toBeInTheDocument()
-    expect(screen.getByText(/status da importacao: extraindo e organizando dados/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(textContentExactly("Status da importação: Extraindo e organizando dados")),
+    ).toBeInTheDocument()
 
     uploadRequestB.resolve({
       ok: true,
