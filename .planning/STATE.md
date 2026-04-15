@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: milestone
-current_phase: 28
-current_phase_name: Agent Input and Setup Service Extraction
-current_plan: 3
-status: completed
+current_phase: 29
+current_phase_name: Agent Recovery, Streaming, and Persistence Decomposition
+current_plan: 0
+status: planned
 stopped_at: Milestone v1.4 started; requirements and roadmap initialized
-last_updated: "2026-04-15T12:51:30.000Z"
-last_activity: 2026-04-15 -- Phase 28 completed and verified
+last_updated: "2026-04-15T13:05:00.000Z"
+last_activity: 2026-04-15 -- Phase 29 planned and ready for execution
 progress:
   total_phases: 4
   completed_phases: 1
@@ -24,22 +24,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Phase 28 — Agent Input and Setup Service Extraction
+**Current focus:** Phase 29 - Agent Recovery, Streaming, and Persistence Decomposition
 
 ## Current Position
 
-Current Phase: 28
-Current Phase Name: Agent Input and Setup Service Extraction
-Current Plan: 3
+Current Phase: 29
+Current Phase Name: Agent Recovery, Streaming, and Persistence Decomposition
+Current Plan: 0
 Total Plans in Phase: 3
-Status: Phase 28 completed
-Last activity: 2026-04-15 -- Phase 28 completed and verified
-Last Activity Description: Extracted message preparation and pre-loop setup services, then added direct regression coverage for the new seams
+Status: Phase 29 planned
+Last activity: 2026-04-15 -- Phase 29 planned and ready for execution
+Last Activity Description: Researched the back-half runtime seams and created execution plans for recovery, streaming, persistence, and regression coverage
 
-Phase: 28 (Agent Input and Setup Service Extraction) — EXECUTING
-Plan: 3 of 3
-Status: Verified and ready to advance
-Last activity: 2026-04-15 -- Phase 28 completed and verified
+Phase: 29 (Agent Recovery, Streaming, and Persistence Decomposition) - READY
+Plan: 0 of 3
+Status: Planned and ready to execute
+Last activity: 2026-04-15 -- Phase 29 planned and ready for execution
 
 Progress: [###-------] 25%
 
@@ -105,3 +105,4 @@ Resume file: None
 | 2026-04-13 | 260413-up5 | Standardize CurrIA brand pattern across landing page and public pages | Complete |
 | 2026-04-15 | 260414-u6l | Fix pnpm frozen lockfile drift and classify pdf_import_jobs in database convention audit | Complete |
 | 2026-04-15 | 260414-u9d | Make package scripts package-manager agnostic so lint works when CI invokes npm scripts without pnpm on PATH | Complete |
+
