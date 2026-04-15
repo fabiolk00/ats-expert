@@ -3,6 +3,15 @@
 import { useCallback, useEffect, useState } from "react"
 import { useDefaultLayout } from "react-resizable-panels"
 
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { usePreviewPanel } from "@/context/preview-panel-context"
 import { usePreviewPanelOverlay } from "@/hooks/use-preview-panel-overlay"
 import {
@@ -64,6 +73,87 @@ function createClientRequestId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+function normalizeRoleForReview(value?: string): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+}
+
+function isSuspiciousTargetRole(value?: string): boolean {
+  const normalized = normalizeRoleForReview(value)
+
+  if (!normalized) {
+    return false
+  }
+
+  return /^(responsabilidades?(?:\s+e\s+atribuicoes)?|atribuicoes|requisitos(?:\s+e\s+qualificacoes)?|qualificacoes|descricao|atividades)$/.test(normalized)
+}
+
+function formatValidationSectionLabel(section?: string): string {
+  switch (section) {
+    case "summary":
+      return "Resumo"
+    case "experience":
+      return "Experiência"
+    case "skills":
+      return "Skills"
+    case "education":
+      return "Educação"
+    case "certifications":
+      return "Certificações"
+    default:
+      return "Validação"
+  }
+}
+
+function getRewriteFailureCopy(workspace: SessionWorkspace | null): {
+  title: string
+  description: string
+  explanationTitle: string
+  explanationBody: string
+} {
+  const mode = workspace?.session.agentState.workflowMode
+
+  if (mode === "job_targeting") {
+    return {
+      title: "Não concluímos essa adaptação automaticamente",
+      description: "Identificamos um bloqueio na validação final e interrompemos a adaptação para a vaga, para não gerar um currículo com informações inconsistentes.",
+      explanationTitle: "Como interpretar esse aviso",
+      explanationBody: "Quando mostramos esse modal, o sistema parou por segurança. Isso normalmente significa um impeditivo factual na adaptação para a vaga, não que o currículo foi gerado com sucesso. Se a justificativa parecer incoerente com a vaga enviada, aí sim pode ser bug.",
+    }
+  }
+
+  return {
+    title: "Não concluímos essa melhoria ATS automaticamente",
+    description: "Identificamos um bloqueio na validação final e interrompemos a melhoria ATS, para não gerar um currículo com informações inconsistentes.",
+    explanationTitle: "Como interpretar esse aviso",
+    explanationBody: "Quando mostramos esse modal, o sistema parou por segurança. Isso normalmente significa um impeditivo factual na reescrita ATS, não que o currículo foi gerado com sucesso. Se a justificativa parecer incoerente com o seu perfil real, aí sim pode ser bug.",
+  }
+}
+
+function buildRewriteFailureKey(workspace: SessionWorkspace | null): string | null {
+  const session = workspace?.session
+  const issues = session?.agentState.rewriteValidation?.issues
+
+  if (session?.agentState.rewriteStatus !== "failed" || !issues || issues.length === 0) {
+    return null
+  }
+
+  return JSON.stringify({
+    sessionId: session.id,
+    updatedAt: session.updatedAt,
+    workflowMode: session.agentState.workflowMode,
+    targetRole: session.agentState.targetingPlan?.targetRole,
+    issues: issues.map((issue) => ({
+      severity: issue.severity,
+      section: issue.section,
+      message: issue.message,
+    })),
+  })
+}
+
 function getManualEditSectionValue(
   workspace: SessionWorkspace | null,
   section: ManualEditSection | null,
@@ -116,6 +206,8 @@ export function ResumeWorkspace({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [planUpdateOpen, setPlanUpdateOpen] = useState(false)
+  const [rewriteFailureDialogOpen, setRewriteFailureDialogOpen] = useState(false)
+  const [lastSeenRewriteFailureKey, setLastSeenRewriteFailureKey] = useState<string | null>(null)
   const { isOpen: isPreviewOpen, file: previewFile, close: closePreview } = usePreviewPanel()
   const isPreviewOverlay = usePreviewPanelOverlay()
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
@@ -181,6 +273,23 @@ export function ResumeWorkspace({
   const baseOutputReady = isGeneratedOutputReady(workspace?.session.generatedOutput)
   const manualEditValue = getManualEditSectionValue(workspace, manualEditSection)
   const targetCount = workspace?.targets.length ?? 0
+  const rewriteFailureKey = buildRewriteFailureKey(workspace)
+  const rewriteValidationIssues = workspace?.session.agentState.rewriteValidation?.issues ?? []
+  const suspiciousTargetRole = isSuspiciousTargetRole(workspace?.session.agentState.targetingPlan?.targetRole)
+  const rewriteFailureCopy = getRewriteFailureCopy(workspace)
+
+  useEffect(() => {
+    if (!rewriteFailureKey) {
+      return
+    }
+
+    if (rewriteFailureKey === lastSeenRewriteFailureKey) {
+      return
+    }
+
+    setRewriteFailureDialogOpen(true)
+    setLastSeenRewriteFailureKey(rewriteFailureKey)
+  }, [lastSeenRewriteFailureKey, rewriteFailureKey])
 
   const refreshWorkspace = useCallback(async (targetSessionId: string): Promise<void> => {
     setActiveMutation("workspace-refresh")
@@ -374,6 +483,56 @@ export function ResumeWorkspace({
         activeRecurringPlan={activeRecurringPlan}
         currentCredits={availableCredits}
       />
+
+      <Dialog open={rewriteFailureDialogOpen} onOpenChange={setRewriteFailureDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{rewriteFailureCopy.title}</DialogTitle>
+            <DialogDescription>
+              {rewriteFailureCopy.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm text-slate-700">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="font-medium text-amber-900">O que bloqueou automaticamente</p>
+              <ul className="mt-2 space-y-2">
+                {rewriteValidationIssues.map((issue, index) => (
+                  <li key={`${issue.section ?? "unknown"}-${index}`} className="list-none">
+                    <span className="font-medium">{formatValidationSectionLabel(issue.section)}:</span>{" "}
+                    {issue.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {suspiciousTargetRole ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                <p className="font-medium text-rose-900">Possível bug de leitura da vaga</p>
+                <p className="mt-2">
+                  Detectamos um cargo-alvo suspeito na vaga analisada:
+                  {" "}
+                  <span className="font-medium">{workspace?.session.agentState.targetingPlan?.targetRole}</span>.
+                  Isso parece mais um título de seção da vaga do que o cargo real. Se isso não fizer sentido para você, trate como erro do sistema e tente reenviar a vaga.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="font-medium text-slate-900">{rewriteFailureCopy.explanationTitle}</p>
+                <p className="mt-2">
+                  {rewriteFailureCopy.explanationBody}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" onClick={() => setRewriteFailureDialogOpen(false)}>
+              Entendi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

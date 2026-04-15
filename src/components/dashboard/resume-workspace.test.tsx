@@ -95,12 +95,22 @@ vi.mock("@/components/ui/spinner", () => ({
 function buildWorkspace() {
   return {
     session: {
+      id: "sess_workspace",
       phase: "intake",
       stateVersion: 1,
       generatedOutput: { status: "ready" },
       atsScore: null,
+      messageCount: 1,
+      creditConsumed: false,
+      createdAt: "2026-04-15T00:00:00.000Z",
+      updatedAt: "2026-04-15T00:00:00.000Z",
       agentState: {
         gapAnalysis: null,
+        rewriteStatus: "completed",
+        rewriteValidation: {
+          valid: true,
+          issues: [],
+        },
       },
       cvState: {
         fullName: "Fabio Silva",
@@ -250,5 +260,121 @@ describe("ResumeWorkspace", () => {
     })
 
     expect(screen.getByTestId("resume-workspace")).toHaveAttribute("data-session-id", "")
+  })
+
+  it("opens a blocking modal when rewrite validation fails", async () => {
+    mockGetSessionWorkspace.mockResolvedValue({
+      ...buildWorkspace(),
+      session: {
+        ...buildWorkspace().session,
+        id: "sess_failed_validation",
+        updatedAt: "2026-04-15T22:35:57.744Z",
+        agentState: {
+          ...buildWorkspace().session.agentState,
+          workflowMode: "job_targeting",
+          rewriteStatus: "failed",
+          rewriteValidation: {
+            valid: false,
+            issues: [{
+              severity: "medium",
+              section: "skills",
+              message: "A lista de skills otimizada introduziu habilidade ou ferramenta sem base no currículo original.",
+            }],
+          },
+          targetingPlan: {
+            targetRole: "Analista de BI",
+            mustEmphasize: [],
+            shouldDeemphasize: [],
+            missingButCannotInvent: [],
+            sectionStrategy: {
+              summary: [],
+              experience: [],
+              skills: [],
+              education: [],
+              certifications: [],
+            },
+          },
+        },
+      },
+    })
+
+    renderWorkspace(<ResumeWorkspace initialSessionId="sess_failed_validation" userName="Fabio" />)
+
+    expect(await screen.findByText("Não concluímos essa adaptação automaticamente")).toBeInTheDocument()
+    expect(screen.getByText("O que bloqueou automaticamente")).toBeInTheDocument()
+    expect(screen.getByText(/A lista de skills otimizada introduziu habilidade ou ferramenta sem base no currículo original\./)).toBeInTheDocument()
+    expect(screen.getByText("Como interpretar esse aviso")).toBeInTheDocument()
+  })
+
+  it("uses ATS-specific modal copy when ats_enhancement validation fails", async () => {
+    mockGetSessionWorkspace.mockResolvedValue({
+      ...buildWorkspace(),
+      session: {
+        ...buildWorkspace().session,
+        id: "sess_failed_ats_validation",
+        updatedAt: "2026-04-15T22:59:45.604Z",
+        agentState: {
+          ...buildWorkspace().session.agentState,
+          workflowMode: "ats_enhancement",
+          rewriteStatus: "failed",
+          rewriteValidation: {
+            valid: false,
+            issues: [{
+              severity: "medium",
+              section: "summary",
+              message: "O resumo otimizado adicionou claim numérico sem suporte no currículo original.",
+            }],
+          },
+        },
+      },
+    })
+
+    renderWorkspace(<ResumeWorkspace initialSessionId="sess_failed_ats_validation" userName="Fabio" />)
+
+    expect(await screen.findByText("Não concluímos essa melhoria ATS automaticamente")).toBeInTheDocument()
+    expect(screen.getByText(/interrompemos a melhoria ATS/)).toBeInTheDocument()
+    expect(screen.getByText(/impeditivo factual na reescrita ATS/)).toBeInTheDocument()
+  })
+
+  it("highlights a possible parsing bug when targetRole looks like a section heading", async () => {
+    mockGetSessionWorkspace.mockResolvedValue({
+      ...buildWorkspace(),
+      session: {
+        ...buildWorkspace().session,
+        id: "sess_failed_heading_role",
+        updatedAt: "2026-04-15T22:35:57.744Z",
+        agentState: {
+          ...buildWorkspace().session.agentState,
+          workflowMode: "job_targeting",
+          rewriteStatus: "failed",
+          rewriteValidation: {
+            valid: false,
+            issues: [{
+              severity: "medium",
+              section: "skills",
+              message: "A lista de skills otimizada introduziu habilidade ou ferramenta sem base no currículo original.",
+            }],
+          },
+          targetingPlan: {
+            targetRole: "Responsabilidades E Atribuições",
+            mustEmphasize: [],
+            shouldDeemphasize: [],
+            missingButCannotInvent: [],
+            sectionStrategy: {
+              summary: [],
+              experience: [],
+              skills: [],
+              education: [],
+              certifications: [],
+            },
+          },
+        },
+      },
+    })
+
+    renderWorkspace(<ResumeWorkspace initialSessionId="sess_failed_heading_role" userName="Fabio" />)
+
+    expect(await screen.findByText("Possível bug de leitura da vaga")).toBeInTheDocument()
+    expect(screen.getByText(/Responsabilidades E Atribuições/)).toBeInTheDocument()
   })
 })

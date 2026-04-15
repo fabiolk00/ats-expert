@@ -371,11 +371,14 @@ describe('ATS enhancement reliability hardening', () => {
       status: 'failed',
       currentStage: 'validation',
       lastFailureStage: 'validation',
+      lastFailureReason: expect.stringContaining('Resumo sem suporte factual.'),
     })
     expect(mockCreateCvVersion).not.toHaveBeenCalled()
     expect(mockLogWarn).toHaveBeenCalledWith('agent.ats_enhancement.validation_failed', expect.objectContaining({
       workflowMode: 'ats_enhancement',
       issueCount: 1,
+      issueSections: 'summary',
+      issueMessages: expect.stringContaining('Resumo sem suporte factual.'),
     }))
   })
 

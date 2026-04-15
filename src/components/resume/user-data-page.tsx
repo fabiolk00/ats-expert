@@ -178,17 +178,17 @@ function sanitizeResumeData(value: CVState): CVState {
 }
 
 const atsFeatures: AtsFeature[] = [
-  { id: "analysis", label: "parse e leitura estruturada do currículo", icon: FileSearch },
-  { id: "keywords", label: "score ATS geral, clareza e legibilidade do currículo", icon: Target },
-  { id: "structure", label: "reescrita estratégica de resumo e bullets", icon: PenLine },
-  { id: "rewrite", label: "template ATS em PDF textual, simples e pt-BR", icon: FileOutput },
+  { id: "analysis", label: "Construção e leitura estruturada do currículo", icon: FileSearch },
+  { id: "keywords", label: "Score ATS geral, clareza e legibilidade do currículo.", icon: Target },
+  { id: "structure", label: "Reescrita estratégica de resumo e bullets.", icon: PenLine },
+  { id: "rewrite", label: "Template ATS em PDF textual, simples e objetivo.", icon: FileOutput },
 ]
 
 const targetJobFeatures: AtsFeature[] = [
-  { id: "analysis", label: "detecção da vaga e gap analysis antes da reescrita", icon: FileSearch },
-  { id: "keywords", label: "priorização de keywords e requisitos da vaga alvo", icon: Target },
-  { id: "structure", label: "reescrita completa por seção com foco no cargo", icon: PenLine },
-  { id: "rewrite", label: "versão targetizada pronta para preview e export", icon: FileOutput },
+  { id: "analysis", label: "Detecção da vaga e gap analysis antes da reescrita.", icon: FileSearch },
+  { id: "keywords", label: "Priorização de keywords e requisitos da vaga alvo.", icon: Target },
+  { id: "structure", label: "Reescrita completa por seção com foco no cargo.", icon: PenLine },
+  { id: "rewrite", label: "Versão targetizada pronta para preview e export.", icon: FileOutput },
 ]
 
 function getGenerationCopy(mode: SetupGenerationMode): SetupGenerationCopy {

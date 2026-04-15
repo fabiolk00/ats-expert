@@ -181,6 +181,8 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
 
   const validation = validateRewrite(session.cvState, rewriteResult.optimizedCvState)
   const optimizedAt = new Date().toISOString()
+  const validationIssueMessages = validation.issues.map((issue) => issue.message)
+  const validationIssueSections = Array.from(new Set(validation.issues.map((issue) => issue.section).filter(Boolean)))
   const nextAgentState: Session['agentState'] = {
     ...session.agentState,
     workflowMode: 'ats_enhancement',
@@ -203,7 +205,11 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
         compactedSections: rewriteResult.diagnostics?.compactedSections.length ?? 0,
       },
       lastFailureStage: validation.valid ? undefined : 'validation',
-      lastFailureReason: validation.valid ? undefined : 'ATS rewrite validation failed.',
+      lastFailureReason: validation.valid
+        ? undefined
+        : validationIssueMessages[0]
+          ? `ATS rewrite validation failed: ${validationIssueMessages[0]}`
+          : 'ATS rewrite validation failed.',
     }),
   }
 
@@ -217,6 +223,8 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
       stage: 'validation',
       success: false,
       issueCount: validation.issues.length,
+      issueSections: validationIssueSections.join(', ') || undefined,
+      issueMessages: validationIssueMessages.join(' | ') || undefined,
     })
     return {
       success: false,
