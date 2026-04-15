@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockLengthExceededStream, mockTextStream, mockTextThenToolStream, mockToolCallStream } from './__tests__/mock-openai-stream'
 import { runAgentLoop } from './streaming-loop'
@@ -158,6 +158,7 @@ function buildSession() {
 
 describe('runAgentLoop streaming', () => {
   beforeEach(() => {
+    process.env.AGENT_RECOVERY_RETRY_DELAY_BASE_MS = '0'
     vi.clearAllMocks()
     mockGetMessages.mockResolvedValue([
       { role: 'user', content: 'Quero uma análise', createdAt: new Date() },
@@ -197,6 +198,10 @@ describe('runAgentLoop streaming', () => {
         }
       }
     })
+  })
+
+  afterEach(() => {
+    delete process.env.AGENT_RECOVERY_RETRY_DELAY_BASE_MS
   })
 
   it('streams text chunks and completes the turn', async () => {

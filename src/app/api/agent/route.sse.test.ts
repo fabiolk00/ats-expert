@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 import { POST } from './route'
@@ -275,6 +275,7 @@ function buildContextToolResultWithAppliedPatch(result: {
 
 describe('/api/agent SSE fallback coverage', () => {
   beforeEach(() => {
+    process.env.AGENT_RECOVERY_RETRY_DELAY_BASE_MS = '0'
     vi.clearAllMocks()
 
     vi.mocked(getCurrentAppUser).mockResolvedValue({
@@ -360,6 +361,10 @@ describe('/api/agent SSE fallback coverage', () => {
       success: true,
       optimizedCvState: undefined,
     })
+  })
+
+  afterEach(() => {
+    delete process.env.AGENT_RECOVERY_RETRY_DELAY_BASE_MS
   })
 
   it('streams a dialog continue fallback through the real agent loop without repeating the bootstrap copy', async () => {

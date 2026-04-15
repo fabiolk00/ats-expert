@@ -66,6 +66,16 @@ type DeterministicFallbackResolver = (session: Session, userMessage: string) => 
 
 type LogFields = Record<string, string | number | boolean | null | undefined>
 
+function resolveRecoveryRetryDelayBaseMs(env: NodeJS.ProcessEnv = process.env): number {
+  const parsed = Number.parseInt(env.AGENT_RECOVERY_RETRY_DELAY_BASE_MS ?? '', 10)
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 1000
+  }
+
+  return parsed
+}
+
 function mergeUsage(
   current: StreamTurnResult['usage'],
   next: StreamTurnResult['usage'],
@@ -284,7 +294,7 @@ export async function* recoverAssistantResponse(params: {
 
   for (let recoveryAttempt = 1; recoveryAttempt <= maxRecoveryAttempts && !recoverySucceeded && !params.signal?.aborted; recoveryAttempt++) {
     if (recoveryAttempt > 1) {
-      const delayMs = Math.pow(2, recoveryAttempt - 2) * 1000
+      const delayMs = Math.pow(2, recoveryAttempt - 2) * resolveRecoveryRetryDelayBaseMs()
       await new Promise((resolve) => setTimeout(resolve, delayMs))
     }
 

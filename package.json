@@ -20,6 +20,7 @@
     "audit:db-conventions": "tsx scripts/audit-database-conventions.ts",
     "audit:secrets": "node scripts/audit-secrets.mjs",
     "test": "vitest run",
+    "test:profile:non-e2e": "vitest run --reporter=verbose",
     "test:e2e": "playwright test",
     "test:e2e:release-critical": "playwright test tests/e2e/core-funnel.spec.ts tests/e2e/long-vacancy-generation.spec.ts --project=chromium",
     "test:watch": "vitest",

@@ -6,7 +6,11 @@ export default defineConfig({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   plugins: [react() as any],
   test: {
-    environment: 'jsdom',
+    environment: 'node',
+    environmentMatchGlobs: [
+      ['src/**/*.test.tsx', 'jsdom'],
+      ['tests/**/*.test.tsx', 'jsdom'],
+    ],
     globals: true,
     css: false,
     setupFiles: ['./vitest.setup.ts'],
