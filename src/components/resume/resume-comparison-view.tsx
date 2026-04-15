@@ -443,7 +443,7 @@ export function ResumeComparisonView({
       <div className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
         <div
           className={cn(
-            "mx-auto grid max-w-7xl gap-4 transition-all duration-700 sm:gap-6 lg:grid-cols-2",
+            "mx-auto grid max-w-7xl gap-8 transition-all duration-700 sm:gap-6 lg:grid-cols-2",
             isVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
           )}
         >
