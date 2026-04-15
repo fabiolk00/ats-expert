@@ -115,6 +115,10 @@ const TABLE_CONVENTIONS: Record<string, TableConvention> = {
     id: 'generic',
     timestamps: 'mutable',
   },
+  pdf_import_jobs: {
+    id: 'generic',
+    timestamps: 'mutable',
+  },
 }
 
 function normalizeIdentifier(value: string): string {

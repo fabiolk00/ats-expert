@@ -7,8 +7,8 @@ current_phase_name: Dependency Cleanup and Sustained Enforcement
 current_plan: Archived
 status: ready_for_next_milestone
 stopped_at: Milestone v1.2 archived; ready for next milestone
-last_updated: "2026-04-14T22:55:00.0000000-03:00"
-last_activity: 2026-04-14 -- Archived milestone v1.2 Code Hygiene and Dead Code Reduction
+last_updated: "2026-04-14T21:44:25.3061660-03:00"
+last_activity: 2026-04-15 -- Completed quick task 260414-u6l
 progress:
   total_phases: 4
   completed_phases: 4
@@ -33,13 +33,13 @@ Current Phase Name: Dependency Cleanup and Sustained Enforcement
 Current Plan: Archived
 Total Plans in Phase: 3
 Status: Ready for next milestone
-Last activity: 2026-04-14 -- Archived milestone v1.2 Code Hygiene and Dead Code Reduction
-Last Activity Description: Archived roadmap and requirements for v1.2, updated project state and milestone history, and reset planning state for the next milestone.
+Last activity: 2026-04-15 -- Completed quick task 260414-u6l
+Last Activity Description: Synced the pnpm lockfile with the current manifest and classified pdf_import_jobs in the database convention audit.
 
 Phase: 23 (Dependency Cleanup and Sustained Enforcement)
 Plan: 3 of 3
 Status: Archived
-Last activity: 2026-04-14 -- Awaiting `/gsd-new-milestone`
+Last activity: 2026-04-15 -- Completed quick task 260414-u6l
 
 Progress: [##########] 100%
 
@@ -103,3 +103,4 @@ Resume file: None
 | 2026-04-13 | 260413-dh7 | fix broken login and signup input box layout | Complete |
 | 2026-04-13 | 260413-u8s | set navbar font color to black for 'O que Ã© o ATS?' and 'PreÃ§os' links | Complete |
 | 2026-04-13 | 260413-up5 | standardize CurrIA brand pattern across landing page and public pages | Complete |
+| 2026-04-15 | 260414-u6l | Fix pnpm frozen lockfile drift and classify pdf_import_jobs in database convention audit | Complete |
