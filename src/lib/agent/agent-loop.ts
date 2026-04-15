@@ -30,18 +30,24 @@ import {
   resolveMaxToolIterations,
 } from '@/lib/agent/config'
 import {
+  appendAssistantTurn,
+  appendUserTurn,
+  buildDoneChunk,
+  createPatchChunk,
+  persistPatch,
+} from '@/lib/agent/agent-persistence'
+import {
   recoverAssistantResponse,
   recoverConciseTurn,
   recoverTruncatedTurn,
   recoverZeroTextTurn,
   type StreamTurnResult,
 } from '@/lib/agent/agent-recovery'
+import { streamAssistantTurn } from '@/lib/agent/agent-streaming'
 import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
 import { dispatchToolWithContext, getToolDefinitionsForPhase } from '@/lib/agent/tools'
 import { calculateUsageCostCents, trackApiUsage } from '@/lib/agent/usage-tracker'
-import { appendMessage, applyToolPatchWithVersion, getMessages } from '@/lib/db/sessions'
-import { createChatCompletionStreamWithRetry } from '@/lib/openai/chat'
-import { openai } from '@/lib/openai/client'
+import { applyToolPatchWithVersion, getMessages } from '@/lib/db/sessions'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import { deriveTargetResumeCvState } from '@/lib/resume-targets/create-target-resume'
 import { getAgentReleaseMetadata, type AgentReleaseMetadata } from '@/lib/runtime/release-metadata'
@@ -211,19 +217,6 @@ function createErrorChunk(
     error,
     code,
     requestId,
-  }
-}
-
-function toUsage(
-  usage: OpenAI.CompletionUsage | null | undefined,
-): StreamTurnResult['usage'] | undefined {
-  if (!usage) {
-    return undefined
-  }
-
-  return {
-    inputTokens: usage.prompt_tokens ?? 0,
-    outputTokens: usage.completion_tokens ?? 0,
   }
 }
 
@@ -541,7 +534,7 @@ async function markCareerFitWarningIssued(session: Session): Promise<Parameters<
     },
   } satisfies Parameters<typeof applyToolPatchWithVersion>[1]
 
-  await applyToolPatchWithVersion(session, patch)
+  await persistPatch(session, patch)
   return patch
 }
 
@@ -561,7 +554,7 @@ async function confirmCareerFitOverride(session: Session): Promise<Parameters<ty
     },
   } satisfies Parameters<typeof applyToolPatchWithVersion>[1]
 
-  await applyToolPatchWithVersion(session, patch)
+  await persistPatch(session, patch)
   return patch
 }
 
@@ -584,11 +577,7 @@ async function* maybeIssueCareerFitWarning(params: {
 
   const patch = await markCareerFitWarningIssued(params.session)
   if (patch) {
-    yield {
-      type: 'patch',
-      patch,
-      phase: params.session.phase,
-    }
+    yield createPatchChunk(params.session, patch)
   }
 
   return buildCareerFitWarningText(params.session)
@@ -1011,143 +1000,6 @@ async function trackTurnUsage(params: {
   })
 }
 
-async function* streamAssistantTurn(params: {
-  session: Session
-  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]
-  cachedSystemPrompt: string
-  requestId: string
-  appUserId: string
-  requestStartedAt: number
-  signal?: AbortSignal
-  maxCompletionTokens: number
-  tools?: OpenAI.Chat.Completions.ChatCompletionTool[]
-  toolChoice?: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption
-}): AsyncGenerator<AgentTextChunk, StreamTurnResult> {
-  const streamStartedAt = Date.now()
-  const selectedModel = resolveAgentModelForPhase(params.session.phase)
-
-  // Only include tool_choice if tools are provided. OpenAI API requires tools when tool_choice is set.
-  const requestParams: Parameters<typeof createChatCompletionStreamWithRetry>[1] = {
-    model: selectedModel,
-    max_completion_tokens: params.maxCompletionTokens,
-    messages: [
-      { role: 'system', content: params.cachedSystemPrompt },
-      ...params.messages,
-    ],
-    stream: true,
-    stream_options: { include_usage: true },
-  }
-
-  if (params.tools && params.tools.length > 0) {
-    requestParams.tools = params.tools
-    if (params.toolChoice) {
-      requestParams.tool_choice = params.toolChoice
-    }
-  }
-
-  const stream = await createChatCompletionStreamWithRetry(
-    openai,
-    requestParams,
-    3,
-    AGENT_CONFIG.timeout,
-    params.signal,
-    {
-      operation: 'agent_stream',
-      stage: params.session.phase,
-      model: selectedModel,
-      sessionId: params.session.id,
-      userId: params.appUserId,
-      workflowMode: params.session.agentState.workflowMode,
-    },
-  )
-
-  const toolCalls: AccumulatedToolCall[] = []
-  let assistantText = ''
-  let finishReason: StreamTurnResult['finishReason'] = null
-  let usage: StreamTurnResult['usage']
-  let loggedFirstToken = false
-
-  for await (const chunk of stream) {
-    if (params.signal?.aborted) {
-      throw new DOMException('Request aborted', 'AbortError')
-    }
-
-    if (chunk.usage) {
-      usage = toUsage(chunk.usage)
-    }
-
-    const choice = chunk.choices[0]
-    if (!choice) {
-      continue
-    }
-
-    const { delta } = choice
-    if (choice.finish_reason) {
-      finishReason = choice.finish_reason
-    }
-
-    if (delta.content) {
-      assistantText += delta.content
-
-      if (!loggedFirstToken) {
-        loggedFirstToken = true
-        logInfo('agent.stream.first_token', {
-          requestId: params.requestId,
-          sessionId: params.session.id,
-          appUserId: params.appUserId,
-          phase: params.session.phase,
-          stateVersion: params.session.stateVersion,
-          setupMs: streamStartedAt - params.requestStartedAt,
-          firstTokenMs: Date.now() - streamStartedAt,
-          totalLatencyMs: Date.now() - params.requestStartedAt,
-          success: true,
-        })
-      }
-
-      yield {
-        type: 'text',
-        content: delta.content,
-      }
-    }
-
-    if (!delta.tool_calls) {
-      continue
-    }
-
-    for (const toolCallDelta of delta.tool_calls) {
-      const index = toolCallDelta.index ?? 0
-
-      if (!toolCalls[index]) {
-        toolCalls[index] = {
-          id: toolCallDelta.id ?? '',
-          name: toolCallDelta.function?.name ?? '',
-          argumentsRaw: '',
-        }
-      }
-
-      if (toolCallDelta.id) {
-        toolCalls[index].id = toolCallDelta.id
-      }
-
-      if (toolCallDelta.function?.name) {
-        toolCalls[index].name = toolCallDelta.function.name
-      }
-
-      if (toolCallDelta.function?.arguments) {
-        toolCalls[index].argumentsRaw += toolCallDelta.function.arguments
-      }
-    }
-  }
-
-  return {
-    assistantText,
-    toolCalls: toolCalls.filter(Boolean),
-    finishReason,
-    model: selectedModel,
-    usage,
-  }
-}
-
 async function* runDeterministicTool(params: {
   session: Session
   toolName: string
@@ -1185,11 +1037,7 @@ async function* runDeterministicTool(params: {
     }
 
     if (toolResult.persistedPatch) {
-      yield {
-        type: 'patch',
-        patch: toolResult.persistedPatch,
-        phase: params.session.phase,
-      }
+      yield createPatchChunk(params.session, toolResult.persistedPatch)
     }
 
     return {
@@ -1208,11 +1056,7 @@ async function* runDeterministicTool(params: {
   }
 
   if (toolResult.persistedPatch) {
-    yield {
-      type: 'patch',
-      patch: toolResult.persistedPatch,
-      phase: params.session.phase,
-    }
+    yield createPatchChunk(params.session, toolResult.persistedPatch)
   }
 
   return {
@@ -1331,17 +1175,13 @@ async function* maybePrepareTargetResumeForDeterministicFlow(params: {
     },
   } satisfies Parameters<typeof applyToolPatchWithVersion>[1]
 
-  await applyToolPatchWithVersion(
+  await persistPatch(
     params.session,
     derivedPatch,
     'target-derived',
   )
 
-  yield {
-    type: 'patch',
-    patch: derivedPatch,
-    phase: params.session.phase,
-  }
+  yield createPatchChunk(params.session, derivedPatch)
 
   const refreshedScoreResult = yield* runDeterministicTool({
     session: params.session,
@@ -1431,17 +1271,13 @@ async function* handleConfirmedGeneration(params: {
         },
       } satisfies Parameters<typeof applyToolPatchWithVersion>[1]
 
-      await applyToolPatchWithVersion(
+      await persistPatch(
         params.session,
         targetDerivedPatch,
         'target-derived',
       )
 
-      yield {
-        type: 'patch',
-        patch: targetDerivedPatch,
-        phase: params.session.phase,
-      }
+      yield createPatchChunk(params.session, targetDerivedPatch)
     }
   }
 
@@ -1669,7 +1505,7 @@ export async function* runAgentLoop(
   const releaseMetadata = getAgentReleaseMetadata()
   const initialHistoryLimit = resolveMaxHistoryMessages(session.phase)
 
-  await appendMessage(session.id, 'user', userMessage)
+  await appendUserTurn(session.id, userMessage)
 
   const history = await getMessages(session.id, initialHistoryLimit)
   const messages = toOpenAIHistory(
@@ -1691,11 +1527,7 @@ export async function* runAgentLoop(
     if (pendingCareerFitOverride && isCareerFitOverrideConfirmation(userMessage)) {
       const patch = await confirmCareerFitOverride(session)
       if (patch) {
-        yield {
-          type: 'patch',
-          patch,
-          phase: session.phase,
-        }
+        yield createPatchChunk(session, patch)
       }
 
       const careerFitAcknowledgement = buildCareerFitOverrideAcknowledgement(session)
@@ -1706,19 +1538,15 @@ export async function* runAgentLoop(
       }
 
       assistantResponded = true
-      await appendMessage(session.id, 'assistant', careerFitAcknowledgement)
+      await appendAssistantTurn(session.id, careerFitAcknowledgement)
 
-      yield {
-        type: 'done',
+      yield buildDoneChunk({
         requestId,
-        sessionId: session.id,
-        phase: session.phase,
-        atsScore: session.atsScore,
-        messageCount: session.messageCount + 1,
-        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        session,
         isNewSession,
         toolIterations,
-      }
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+      })
       return
     }
 
@@ -1726,11 +1554,7 @@ export async function* runAgentLoop(
       if (hasPendingCareerFitOverride(session) && hasActiveCareerFitWarning(session)) {
         const overridePatch = await confirmCareerFitOverride(session)
         if (overridePatch) {
-          yield {
-            type: 'patch',
-            patch: overridePatch,
-            phase: session.phase,
-          }
+          yield createPatchChunk(session, overridePatch)
         }
       }
 
@@ -1744,19 +1568,15 @@ export async function* runAgentLoop(
         }
 
         assistantResponded = true
-        await appendMessage(session.id, 'assistant', careerFitWarning)
+        await appendAssistantTurn(session.id, careerFitWarning)
 
-        yield {
-          type: 'done',
+        yield buildDoneChunk({
           requestId,
-          sessionId: session.id,
-          phase: session.phase,
-          atsScore: session.atsScore,
-          messageCount: session.messageCount + 1,
-          maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+          session,
           isNewSession,
           toolIterations,
-        }
+          maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        })
         return
       }
 
@@ -1774,7 +1594,7 @@ export async function* runAgentLoop(
       }
 
       assistantResponded = true
-      await appendMessage(session.id, 'assistant', generationAssistantText)
+      await appendAssistantTurn(session.id, generationAssistantText)
 
       logInfo('agent.stream.completed', {
         ...releaseMetadata,
@@ -1790,17 +1610,13 @@ export async function* runAgentLoop(
         latencyMs: Date.now() - requestStartedAt,
       })
 
-      yield {
-        type: 'done',
+      yield buildDoneChunk({
         requestId,
-        sessionId: session.id,
-        phase: session.phase,
-        atsScore: session.atsScore,
-        messageCount: session.messageCount + 1,
-        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        session,
         isNewSession,
         toolIterations,
-      }
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+      })
       return
     }
 
@@ -1808,11 +1624,7 @@ export async function* runAgentLoop(
       if (hasPendingCareerFitOverride(session) && hasActiveCareerFitWarning(session)) {
         const overridePatch = await confirmCareerFitOverride(session)
         if (overridePatch) {
-          yield {
-            type: 'patch',
-            patch: overridePatch,
-            phase: session.phase,
-          }
+          yield createPatchChunk(session, overridePatch)
         }
       }
 
@@ -1826,7 +1638,7 @@ export async function* runAgentLoop(
         }
 
         assistantResponded = true
-        await appendMessage(session.id, 'assistant', careerFitWarning)
+        await appendAssistantTurn(session.id, careerFitWarning)
 
         logInfo('agent.stream.completed', {
           ...releaseMetadata,
@@ -1842,17 +1654,13 @@ export async function* runAgentLoop(
           latencyMs: Date.now() - requestStartedAt,
         })
 
-        yield {
-          type: 'done',
+        yield buildDoneChunk({
           requestId,
-          sessionId: session.id,
-          phase: session.phase,
-          atsScore: session.atsScore,
-          messageCount: session.messageCount + 1,
-          maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+          session,
           isNewSession,
           toolIterations,
-        }
+          maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        })
         return
       }
 
@@ -1869,7 +1677,7 @@ export async function* runAgentLoop(
       }
 
       assistantResponded = true
-      await appendMessage(session.id, 'assistant', generationAssistantText)
+      await appendAssistantTurn(session.id, generationAssistantText)
 
       logInfo('agent.stream.completed', {
         ...releaseMetadata,
@@ -1885,17 +1693,13 @@ export async function* runAgentLoop(
         latencyMs: Date.now() - requestStartedAt,
       })
 
-      yield {
-        type: 'done',
+      yield buildDoneChunk({
         requestId,
-        sessionId: session.id,
-        phase: session.phase,
-        atsScore: session.atsScore,
-        messageCount: session.messageCount + 1,
-        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        session,
         isNewSession,
         toolIterations,
-      }
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+      })
       return
     }
 
@@ -1913,7 +1717,7 @@ export async function* runAgentLoop(
       }
 
       assistantResponded = true
-      await appendMessage(session.id, 'assistant', rewriteAssistantText)
+      await appendAssistantTurn(session.id, rewriteAssistantText)
 
       logInfo('agent.stream.completed', {
         ...releaseMetadata,
@@ -1929,17 +1733,13 @@ export async function* runAgentLoop(
         latencyMs: Date.now() - requestStartedAt,
       })
 
-      yield {
-        type: 'done',
+      yield buildDoneChunk({
         requestId,
-        sessionId: session.id,
-        phase: session.phase,
-        atsScore: session.atsScore,
-        messageCount: session.messageCount + 1,
-        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        session,
         isNewSession,
         toolIterations,
-      }
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+      })
       return
     }
 
@@ -1952,7 +1752,7 @@ export async function* runAgentLoop(
       }
 
       assistantResponded = true
-      await appendMessage(session.id, 'assistant', continuationAssistantText)
+      await appendAssistantTurn(session.id, continuationAssistantText)
 
       logInfo('agent.stream.completed', {
         ...releaseMetadata,
@@ -1969,17 +1769,13 @@ export async function* runAgentLoop(
         deterministicFastPath: 'dialog_continue',
       })
 
-      yield {
-        type: 'done',
+      yield buildDoneChunk({
         requestId,
-        sessionId: session.id,
-        phase: session.phase,
-        atsScore: session.atsScore,
-        messageCount: session.messageCount + 1,
-        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        session,
         isNewSession,
         toolIterations,
-      }
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+      })
       return
     }
 
@@ -2033,7 +1829,7 @@ export async function* runAgentLoop(
       }
 
       assistantResponded = true
-      await appendMessage(session.id, 'assistant', bootstrapAssistantText)
+      await appendAssistantTurn(session.id, bootstrapAssistantText)
 
       logInfo('agent.stream.completed', {
         ...releaseMetadata,
@@ -2050,17 +1846,13 @@ export async function* runAgentLoop(
         latencyMs: Date.now() - requestStartedAt,
       })
 
-      yield {
-        type: 'done',
+      yield buildDoneChunk({
         requestId,
-        sessionId: session.id,
-        phase: session.phase,
-        atsScore: session.atsScore,
-        messageCount: session.messageCount + 1,
-        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        session,
         isNewSession,
         toolIterations,
-      }
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+      })
       return
     }
 
@@ -2220,7 +2012,7 @@ export async function* runAgentLoop(
 
       if (turn.assistantText.trim()) {
         assistantResponded = true
-        await appendMessage(session.id, 'assistant', turn.assistantText.trim())
+        await appendAssistantTurn(session.id, turn.assistantText.trim())
       }
 
       if (turn.finishReason === 'tool_calls') {
@@ -2300,11 +2092,7 @@ export async function* runAgentLoop(
           }
 
           if (toolResult.persistedPatch) {
-            yield {
-              type: 'patch',
-              patch: toolResult.persistedPatch,
-              phase: session.phase,
-            }
+            yield createPatchChunk(session, toolResult.persistedPatch)
             systemPromptDirty = true
           }
           continue
@@ -2320,11 +2108,7 @@ export async function* runAgentLoop(
         }
 
         if (toolResult.persistedPatch) {
-          yield {
-            type: 'patch',
-            patch: toolResult.persistedPatch,
-            phase: session.phase,
-          }
+          yield createPatchChunk(session, toolResult.persistedPatch)
           systemPromptDirty = true
         }
       }
@@ -2353,7 +2137,7 @@ export async function* runAgentLoop(
       })
 
       assistantResponded = true
-      await appendMessage(session.id, 'assistant', recovery.assistantText)
+      await appendAssistantTurn(session.id, recovery.assistantText)
     }
 
     logInfo('agent.stream.completed', {
@@ -2370,17 +2154,13 @@ export async function* runAgentLoop(
       latencyMs: Date.now() - requestStartedAt,
     })
 
-    yield {
-      type: 'done',
+    yield buildDoneChunk({
       requestId,
-      sessionId: session.id,
-      phase: session.phase,
-      atsScore: session.atsScore,
-      messageCount: session.messageCount + 1,
-      maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+      session,
       isNewSession,
       toolIterations,
-    }
+      maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+    })
   } catch (error) {
     if ((error instanceof Error || error instanceof DOMException) && error.name === 'AbortError' && signal?.aborted) {
       logInfo('agent.request.cancelled', {
