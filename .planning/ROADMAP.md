@@ -46,7 +46,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 25-01: Reduce blocking work before first chat response
+- [x] 25-01: Reduce blocking work before first chat response
 - [ ] 25-02: Decouple or defer non-essential ATS enhancement work
 - [ ] 25-03: Verify latency gains and state-safety invariants for the reduced request path
 
@@ -102,7 +102,7 @@ Phases execute in numeric order: 24 -> 25 -> 26 -> 27
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 24. Agent Response Baseline and Chat/ATS Latency Instrumentation | 1/1 | Complete | 2026-04-14 |
-| 25. Chat and ATS Enhancement Request-Path Reduction | 0/3 | Not Started | |
+| 25. Chat and ATS Enhancement Request-Path Reduction | 1/3 | In Progress | |
 | 26. Agent Runtime Simplification and Budget Optimization | 0/3 | Not Started | |
 | 27. Performance Proof and Critical Route Hardening | 0/3 | Not Started | |
 

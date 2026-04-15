@@ -620,6 +620,80 @@ async function handleFileAttachment(
   ].join('\n\n')
 }
 
+function shouldEmitExistingSessionPreparationProgress(
+  session: Session,
+  hasFileAttachment: boolean,
+): boolean {
+  if (hasFileAttachment) {
+    return true
+  }
+
+  const predictedWorkflowMode = resolveWorkflowMode(session)
+  if (
+    predictedWorkflowMode === 'ats_enhancement'
+    && hasResumeContextForAutoGap(session)
+    && (!session.agentState.optimizedCvState || session.agentState.rewriteStatus !== 'completed')
+  ) {
+    return true
+  }
+
+  return shouldRunJobTargetingPipeline({
+    ...session,
+    agentState: {
+      ...session.agentState,
+      workflowMode: predictedWorkflowMode,
+    },
+  })
+}
+
+async function runPreLoopSetup(params: {
+  session: Session
+  message: string
+  file?: string
+  fileMime?: string
+  appUserId: string
+  requestId: string
+  externalSignal?: AbortSignal
+  timing: ReturnType<typeof createRequestTimingTracker>
+  isNewSession: boolean
+}): Promise<string> {
+  const {
+    session,
+    message,
+    file,
+    fileMime,
+    appUserId,
+    requestId,
+    externalSignal,
+    timing,
+    isNewSession,
+  } = params
+  const stageSuffix = isNewSession ? 'new' : 'existing'
+  let nextMessage = message
+
+  if (file && fileMime) {
+    nextMessage = await timing.runStage(
+      `file_attachment_${stageSuffix}`,
+      () => handleFileAttachment(nextMessage, file, fileMime, session, appUserId, requestId, externalSignal),
+    )
+  }
+
+  await timing.runStage(`workflow_mode_${stageSuffix}`, () => persistWorkflowMode(session))
+  if (
+    session.agentState.workflowMode === 'ats_enhancement'
+    && hasResumeContextForAutoGap(session)
+    && (!session.agentState.optimizedCvState || session.agentState.rewriteStatus !== 'completed')
+  ) {
+    await timing.runStage(`ats_pipeline_${stageSuffix}`, () => runAtsEnhancementPipeline(session))
+  }
+  if (shouldRunJobTargetingPipeline(session)) {
+    await timing.runStage(`job_targeting_pipeline_${stageSuffix}`, () => runJobTargetingPipeline(session))
+  }
+
+  await timing.runStage(`increment_message_${stageSuffix}`, () => incrementMessageCount(session.id))
+  return nextMessage
+}
+
 // ---------------------------------------------------------------------------
 // Route handler — thin HTTP/SSE adapter
 // ---------------------------------------------------------------------------
@@ -786,28 +860,10 @@ export async function POST(req: NextRequest) {
     ),
   )
 
-  if (!isNewSession) {
+  if (!isNewSession && req.method === 'HEAD') {
     try {
-      if (file && fileMime) {
-        message = await timing.runStage(
-          'file_attachment_existing',
-          () => handleFileAttachment(message, file, fileMime, session!, appUserId, requestId, req.signal),
-        )
-      }
-
-      await timing.runStage('workflow_mode_existing', () => persistWorkflowMode(session!))
-      if (
-        session!.agentState.workflowMode === 'ats_enhancement'
-        && hasResumeContextForAutoGap(session!)
-        && (!session!.agentState.optimizedCvState || session!.agentState.rewriteStatus !== 'completed')
-      ) {
-        await timing.runStage('ats_pipeline_existing', () => runAtsEnhancementPipeline(session!))
-      }
-      if (shouldRunJobTargetingPipeline(session!)) {
-        await timing.runStage('job_targeting_pipeline_existing', () => runJobTargetingPipeline(session!))
-      }
-
-      await timing.runStage('increment_message_existing', () => incrementMessageCount(session!.id))
+      // Existing-session turn setup now runs inside the SSE stream so heavy
+      // ATS/job-targeting work does not block the first visible response.
     } catch (err) {
       const isAbort = (err instanceof Error || err instanceof DOMException) && err.name === 'AbortError'
       const errorMessage = isAbort
@@ -829,6 +885,8 @@ export async function POST(req: NextRequest) {
 
   // ── SSE stream ──────────────────────────────────────────────────────
   const encoder = new TextEncoder()
+  const shouldEmitPreparationProgress = !isNewSession
+    && shouldEmitExistingSessionPreparationProgress(session, Boolean(file && fileMime))
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -878,6 +936,37 @@ export async function POST(req: NextRequest) {
         }
       }, 15_000)
 
+      if (shouldEmitPreparationProgress) {
+        send({ type: 'toolStart', toolName: 'preparo da resposta' })
+      }
+
+      if (!isNewSession) {
+        try {
+          message = await runPreLoopSetup({
+            session: session!,
+            message,
+            file,
+            fileMime,
+            appUserId,
+            requestId,
+            externalSignal: req.signal,
+            timing,
+            isNewSession: false,
+          })
+        } catch (err) {
+          const isAbort = (err instanceof Error || err instanceof DOMException) && err.name === 'AbortError'
+          const errorMessage = isAbort
+            ? 'A requisição demorou muito. Por favor, tente novamente.'
+            : 'Algo deu errado. Por favor, tente novamente.'
+          sendStreamError(
+            errorMessage,
+            TOOL_ERROR_CODES.INTERNAL_ERROR,
+            heartbeat,
+          )
+          return
+        }
+      }
+
       // For new sessions, emit sessionCreated immediately so the frontend
       // can persist the sessionId (URL + state) before any slow work runs.
       if (isNewSession) {
@@ -888,29 +977,17 @@ export async function POST(req: NextRequest) {
         send(sessionCreatedChunk)
 
         try {
-          // For brand-new sessions with attachments, avoid consuming the first
-          // message count until attachment preprocessing has succeeded.
-          if (file && fileMime) {
-            message = await timing.runStage(
-              'file_attachment_new',
-              () => handleFileAttachment(message, file, fileMime, session!, appUserId, requestId, req.signal),
-            )
-          }
-
-          await timing.runStage('workflow_mode_new', () => persistWorkflowMode(session!))
-          if (
-            session!.agentState.workflowMode === 'ats_enhancement'
-            && hasResumeContextForAutoGap(session!)
-            && (!session!.agentState.optimizedCvState || session!.agentState.rewriteStatus !== 'completed')
-          ) {
-            await timing.runStage('ats_pipeline_new', () => runAtsEnhancementPipeline(session!))
-          }
-          if (shouldRunJobTargetingPipeline(session!)) {
-            await timing.runStage('job_targeting_pipeline_new', () => runJobTargetingPipeline(session!))
-          }
-
-          await timing.runStage('increment_message_new', () => incrementMessageCount(session!.id))
-
+          message = await runPreLoopSetup({
+            session: session!,
+            message,
+            file,
+            fileMime,
+            appUserId,
+            requestId,
+            externalSignal: req.signal,
+            timing,
+            isNewSession: true,
+          })
         } catch (err) {
           const isAbort = (err instanceof Error || err instanceof DOMException) && err.name === 'AbortError'
           const errorMessage = isAbort

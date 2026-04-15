@@ -784,6 +784,8 @@ export function ChatInterface({
 
               switch (chunk.type) {
                 case "text":
+                  setIsToolExecuting(false)
+                  setCurrentToolName(null)
                   appendAssistantMessageContent(assistantMessageId, chunk.content)
                   break
 

@@ -1189,6 +1189,36 @@ describe("ChatInterface", () => {
     })
   })
 
+  it("clears the tool execution indicator when assistant text starts streaming", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        return new Response(
+          createSSEStream([
+            { type: "toolStart", toolName: "preparo da resposta" },
+            { type: "text", content: "Resposta pronta." },
+          ]),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface sessionId="sess_text_clear" userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    await userEvent.type(textarea, "Aplique a mudanca")
+    await userEvent.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("tool-status")).not.toBeInTheDocument()
+      expect(screen.getAllByTestId("message-assistant").at(-1)).toHaveTextContent("Resposta pronta.")
+    })
+  })
+
   it("refetches the session snapshot on done and applies the server truth to the header", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
       if (typeof url === "string" && url.includes("/api/agent")) {

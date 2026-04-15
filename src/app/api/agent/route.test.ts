@@ -284,6 +284,7 @@ describe('agent route billing guard', () => {
     }))
 
     expect(response.status).toBe(200)
+    await response.text()
     expect(incrementMessageCount).toHaveBeenCalledWith('sess_full')
   })
 
@@ -328,9 +329,18 @@ describe('agent route billing guard', () => {
       }),
     }))
 
-    expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('text/event-stream')
+
+    const events = parseSseDataEvents(await response.text())
+    expect(events[0]).toEqual({
+      type: 'toolStart',
+      toolName: 'preparo da resposta',
+    })
+    expect(events[1]).toMatchObject({
+      type: 'error',
       error: 'Algo deu errado. Por favor, tente novamente.',
+      code: 'INTERNAL_ERROR',
     })
     expect(incrementMessageCount).not.toHaveBeenCalled()
   })
@@ -611,6 +621,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     }))
 
     expect(response.status).toBe(200)
+    await response.text()
     expect(updateSession).toHaveBeenCalledWith('sess_gap_ready', {
       agentState: expect.objectContaining({
         targetJobDescription: expect.stringContaining('Power BI'),
@@ -681,6 +692,7 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     }))
 
     expect(response.status).toBe(200)
+    await response.text()
     expect(runJobTargetingPipeline).toHaveBeenCalledTimes(1)
     expect(analyzeGap).not.toHaveBeenCalled()
   })
@@ -870,6 +882,57 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     const events = text.split('\n\n').filter(Boolean)
     const hasSessionCreated = events.some((e) => e.includes('"type":"sessionCreated"'))
     expect(hasSessionCreated).toBe(false)
+  })
+
+  it('emits early preparation progress for existing ATS-heavy sessions before the final stream output', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_existing_ats_progress',
+      userId: 'usr_123',
+      stateVersion: 1,
+      phase: 'dialog',
+      cvState: {
+        fullName: 'Test',
+        email: 'test@test.com',
+        phone: '123',
+        summary: 'test',
+        experience: [],
+        skills: ['SQL'],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+        sourceResumeText: 'Resumo salvo',
+      },
+      generatedOutput: { status: 'idle' },
+      creditsUsed: 1,
+      messageCount: 2,
+      creditConsumed: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    vi.mocked(incrementMessageCount).mockResolvedValue(true)
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'sess_existing_ats_progress',
+        message: 'Continue',
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+
+    const events = parseSseDataEvents(await response.text())
+    expect(events[0]).toEqual({
+      type: 'toolStart',
+      toolName: 'preparo da resposta',
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: 'done',
+    })
+    expect(runAtsEnhancementPipeline).toHaveBeenCalled()
   })
 
   it('aborts new-session stream with error when incrementMessageCount throws', async () => {
@@ -1105,21 +1168,23 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
 
     const events = parseSseDataEvents(await response.text())
     expect(events.map((event) => event.type)).toEqual([
+      'toolStart',
       'text',
       'toolStart',
       'toolResult',
       'patch',
       'done',
     ])
-    expect(events[0]).toEqual({ type: 'text', content: 'Hello' })
-    expect(events[1]).toEqual({ type: 'toolStart', toolName: 'parse_file' })
-    expect(events[2]).toEqual({ type: 'toolResult', toolName: 'parse_file', output: { success: true } })
-    expect(events[3]).toEqual({
+    expect(events[0]).toEqual({ type: 'toolStart', toolName: 'preparo da resposta' })
+    expect(events[1]).toEqual({ type: 'text', content: 'Hello' })
+    expect(events[2]).toEqual({ type: 'toolStart', toolName: 'parse_file' })
+    expect(events[3]).toEqual({ type: 'toolResult', toolName: 'parse_file', output: { success: true } })
+    expect(events[4]).toEqual({
       type: 'patch',
       patch: { agentState: { parseStatus: 'parsed' } },
       phase: 'analysis',
     })
-    expect(events[4]).toEqual({
+    expect(events[5]).toEqual({
       type: 'done',
       sessionId: 'sess_forwarding',
       phase: 'analysis',
@@ -1190,12 +1255,16 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     expect(response.headers.get('Content-Type')).toBe('text/event-stream')
 
     const events = parseSseDataEvents(await response.text())
-    expect(events.map((event) => event.type)).toEqual(['text', 'done'])
+    expect(events.map((event) => event.type)).toEqual(['toolStart', 'text', 'done'])
     expect(events[0]).toEqual({
+      type: 'toolStart',
+      toolName: 'preparo da resposta',
+    })
+    expect(events[1]).toEqual({
       type: 'text',
       content: 'Posso seguir, sim. Diga se voce quer ajustar resumo, experiencia ou skills.',
     })
-    expect(events[1]).toEqual({
+    expect(events[2]).toEqual({
       type: 'done',
       sessionId: 'sess_dialog_continue',
       phase: 'dialog',
@@ -1276,12 +1345,16 @@ Python, APIs, Microsoft Fabric e storytelling de dados.`
     expect(response.status).toBe(200)
 
     const events = parseSseDataEvents(await response.text())
-    expect(events.map((event) => event.type)).toEqual(['text', 'done'])
+    expect(events.map((event) => event.type)).toEqual(['toolStart', 'text', 'done'])
     expect(events[0]).toEqual({
+      type: 'toolStart',
+      toolName: 'preparo da resposta',
+    })
+    expect(events[1]).toEqual({
       type: 'text',
       content: 'Recebi essa nova vaga. Posso adaptar agora seu resumo para essa oportunidade.',
     })
-    expect(events[1]).toEqual({
+    expect(events[2]).toEqual({
       type: 'done',
       sessionId: 'sess_dialog_new_vacancy',
       phase: 'dialog',

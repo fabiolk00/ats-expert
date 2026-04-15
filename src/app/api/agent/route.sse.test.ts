@@ -919,6 +919,7 @@ describe('/api/agent SSE fallback coverage', () => {
     }))
 
     expect(response.status).toBe(200)
+    await response.text()
     expect(updateSession).toHaveBeenCalledWith(
       session.id,
       expect.objectContaining({
@@ -956,6 +957,7 @@ describe('/api/agent SSE fallback coverage', () => {
     }))
 
     expect(response.status).toBe(200)
+    await response.text()
     expect(updateSession).toHaveBeenCalledWith(
       session.id,
       expect.objectContaining({
