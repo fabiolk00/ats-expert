@@ -186,6 +186,11 @@ npm run start
 npm run typecheck
 npm run lint
 pnpm lint:types
+pnpm lint:types:fix
+pnpm hygiene:inventory
+pnpm unused
+pnpm depcheck
+pnpm orphans
 pnpm format:check
 npm test
 npm run test:e2e -- --project=chromium
@@ -194,6 +199,21 @@ npm run db:migrate
 npm run db:push
 npm run db:studio
 ```
+
+## Dead-Code Hygiene Baseline
+
+CurrIA now has a staged dead-code discovery baseline for `v1.2`.
+
+Recommended order:
+
+1. `pnpm lint:types:fix` to safely auto-remove unused imports in the currently approved brownfield scope.
+2. `pnpm unused` to inventory candidate dead exports.
+3. `pnpm depcheck` to inventory candidate unused dependencies.
+4. `pnpm orphans` to inventory orphan files under `src/`.
+
+Do not bulk-delete findings in one pass. Review false-positive classes first in [docs/operations/dead-code-cleanup-workflow.md](docs/operations/dead-code-cleanup-workflow.md), especially for Next.js routes, dynamic imports, string-driven handlers, and background-job style flows.
+
+Dependency findings are also reviewed through [docs/operations/dependency-hygiene-inventory.md](docs/operations/dependency-hygiene-inventory.md), which records which packages were kept, ignored, added explicitly, or removed.
 
 ## Operational Scripts
 

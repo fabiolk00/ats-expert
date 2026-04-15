@@ -1,0 +1,16 @@
+{
+  "ignores": [
+    "server-only",
+    "autoprefixer",
+    "postcss"
+  ],
+  "ignore-patterns": [
+    ".next",
+    "docs/design-system-migration/workspace"
+  ],
+  "specials": [
+    "bin",
+    "eslint",
+    "prettier"
+  ]
+}

@@ -76,8 +76,31 @@ For docs/config-only edits:
 1. `pnpm format:check`
 2. any targeted validation relevant to the changed contract
 
+## Dead-Code Hygiene Baseline
+
+CurrIA now exposes a staged hygiene toolchain for cleanup work:
+
+- `pnpm lint:types:fix`
+- `pnpm unused`
+- `pnpm depcheck`
+- `pnpm orphans`
+
+This baseline is intentionally split into discovery first and deletion later. The commands above surface candidates, but they do not grant permission to delete runtime seams automatically.
+
+Before removing findings, review the repo-specific guardrails in [dead-code-cleanup-workflow.md](../operations/dead-code-cleanup-workflow.md).
+
+## Sustained Enforcement
+
+The sustained hygiene baseline at the end of `v1.2` is intentionally conservative:
+
+- keep scoped `typescript-eslint` enforcement in the proven brownfield-safe slices
+- keep `depcheck` configured for known repo false positives
+- keep global `noUnusedLocals` and `noUnusedParameters` disabled until a later milestone proves broader safety
+- prefer reviewed inventory plus focused validation over repo-wide hard-fail cleanup gates
+
 ## Rollout Boundaries
 
 - We are not enabling strict `typescript-eslint` across every legacy file yet.
 - We are not auto-formatting the entire repo in one migration.
 - New scope should expand from the staged directories only when the local error rate stays manageable.
+- We are not enabling global `noUnusedLocals` or `noUnusedParameters` during this baseline phase.

@@ -31,6 +31,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Dead-Code Tooling Baseline
+        run: |
+          npm run unused -- --help
+          npm run depcheck
+          npm run orphans -- --help
+
       - name: Tests
         run: npm test
         env:

@@ -19,6 +19,8 @@ These are the discoverable copies of the core rules that also remain available u
 - [Quality Baseline](./QUALITY_BASELINE.md)
 - [Error Handling](./ERROR_HANDLING.md)
 - [Testing](./TESTING.md)
+- [Dead-Code Cleanup Workflow](../operations/dead-code-cleanup-workflow.md)
+- [Dependency Hygiene Inventory](../operations/dependency-hygiene-inventory.md)
 
 ## Notes
 

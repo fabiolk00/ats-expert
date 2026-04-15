@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.2 Code Hygiene and Dead Code Reduction (Shipped: 2026-04-14)
+
+**Phases completed:** 4 phases, 12 plans, 12 tasks
+
+**Key accomplishments:**
+
+- Added a repo-native hygiene baseline with committed scripts for unused imports, dead exports, orphan files, and dependency review.
+- Documented repo-specific false-positive guardrails for Next.js routes, dynamic imports, string-driven handlers, middleware, and background-job style flows before any deletion work.
+- Confirmed the approved low-risk cleanup slices were already clean, while also restoring missing validation dependencies so `typecheck` and Vitest matched the actual repo test stack.
+- Published a reviewed dead-code inventory that separated framework and test noise from true deletion candidates, then removed only the small subset of code proven dead.
+- Closed the milestone with a configured dependency hygiene inventory, an explicit sustained enforcement boundary, and CI and contributor docs aligned to the realistic brownfield baseline.
+
+**Known gaps:**
+
+- No standalone `v1.2` milestone audit file was produced before archive.
+- Global `noUnusedLocals` and `noUnusedParameters` enforcement remains intentionally deferred because the repo has not yet proven it can sustain that gate without brownfield noise.
+
+---
+
 ## v1.1 Agent Reliability and Response Continuity (Shipped: 2026-04-15)
 
 **Phases completed:** 15 phases, 45 plans, 72 tasks

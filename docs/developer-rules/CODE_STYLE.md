@@ -51,6 +51,8 @@ Back to [Developer Rules](./README.md) | [All Docs](../INDEX.md)
 - Use `@/` absolute imports.
 - Group imports: framework, third-party, internal.
 - Do not import from `src/` directly.
+- Use `pnpm lint:types:fix` for scoped unused-import cleanup instead of ad hoc manual churn in the approved baseline slices.
+- Treat static dead-code findings as candidates that still require human review.
 
 ## Error handling
 
@@ -70,3 +72,19 @@ Back to [Developer Rules](./README.md) | [All Docs](../INDEX.md)
 - `agentState` may store structured gap analysis and operational targeting context, but not target-derived resume variants.
 - Immutable resume history belongs in `cv_versions`.
 - Target-specific derived resume variants belong in `resume_targets`.
+
+## Dead-Code Guardrails
+
+Do not auto-delete findings from static tooling when they may belong to:
+
+- Next.js app or API routes
+- dynamic imports
+- string-driven handlers or workflow dispatch
+- background jobs, polling endpoints, or queue-like flows
+
+Review the staged cleanup workflow in [dead-code-cleanup-workflow.md](../operations/dead-code-cleanup-workflow.md) before deleting code.
+
+For dependency hygiene:
+
+- use the configured `pnpm depcheck` command, not raw `depcheck` defaults
+- review [dependency-hygiene-inventory.md](../operations/dependency-hygiene-inventory.md) before uninstalling anything

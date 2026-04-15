@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Code Hygiene and Dead Code Reduction
-current_phase: 20
-current_phase_name: Dead-Code Tooling and Safety Baseline
-current_plan: Not started
-status: ready_to_plan_phase
-stopped_at: Milestone v1.2 initialized; Phase 20 ready for planning
-last_updated: "2026-04-15T21:35:00.0000000-03:00"
-last_activity: 2026-04-15 -- Started milestone v1.2 Code Hygiene and Dead Code Reduction
+current_phase: 23
+current_phase_name: Dependency Cleanup and Sustained Enforcement
+current_plan: Archived
+status: ready_for_next_milestone
+stopped_at: Milestone v1.2 archived; ready for next milestone
+last_updated: "2026-04-14T22:55:00.0000000-03:00"
+last_activity: 2026-04-14 -- Archived milestone v1.2 Code Hygiene and Dead Code Reduction
 progress:
-  total_phases: 15
-  completed_phases: 15
-  total_plans: 45
-  completed_plans: 45
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 12
+  completed_plans: 12
   percent: 100
 ---
 
@@ -24,22 +24,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Start Phase 20 planning for dead-code tooling, cleanup safety, and staged enforcement.
+**Current focus:** No active milestone. Ready to start the next planning cycle.
 
 ## Current Position
 
-Current Phase: 20
-Current Phase Name: Dead-Code Tooling and Safety Baseline
-Current Plan: Not started
+Current Phase: 23
+Current Phase Name: Dependency Cleanup and Sustained Enforcement
+Current Plan: Archived
 Total Plans in Phase: 3
-Status: Ready to plan phase
-Last activity: 2026-04-15 -- Started milestone v1.2 Code Hygiene and Dead Code Reduction
-Last Activity Description: Archived v1.1 phase directories, defined v1.2 requirements, and created the new roadmap starting at Phase 20.
+Status: Ready for next milestone
+Last activity: 2026-04-14 -- Archived milestone v1.2 Code Hygiene and Dead Code Reduction
+Last Activity Description: Archived roadmap and requirements for v1.2, updated project state and milestone history, and reset planning state for the next milestone.
 
-Phase: 20 (Dead-Code Tooling and Safety Baseline)
-Plan: 0 of 3
-Status: Ready to plan phase
-Last activity: 2026-04-15 -- Awaiting `/gsd-plan-phase 20`
+Phase: 23 (Dependency Cleanup and Sustained Enforcement)
+Plan: 3 of 3
+Status: Archived
+Last activity: 2026-04-14 -- Awaiting `/gsd-new-milestone`
 
 Progress: [##########] 100%
 
@@ -57,6 +57,11 @@ Baseline carried forward from the completed v1.0 milestone:
 - v1.0 archived: Launch Hardening for the Core Funnel
 - v1.1 archived: Agent Reliability and Response Continuity
 - v1.2 started: Code Hygiene and Dead Code Reduction
+- Phase 20 executed: Dead-Code Tooling and Safety Baseline
+- Phase 21 executed: Import and Local Cleanup Sweep
+- Phase 22 executed: Dead Exports and Orphan File Reduction
+- Phase 23 executed: Dependency Cleanup and Sustained Enforcement
+- v1.2 archived: Code Hygiene and Dead Code Reduction
 
 ### Decisions
 
@@ -66,6 +71,12 @@ Recent decisions affecting the next cycle:
 - Critical resume transformation logic now lives in deterministic backend pipelines instead of optional chat decisions.
 - `cvState` remains canonical truth and `agentState` remains operational context.
 - Security, billing, file-access, and JSON persistence work now prefer route-level proof plus explicit non-claims over implicit trust.
+- Dead-code cleanup remains staged: tooling baseline first, then imports/locals, then exports/files, then dependencies.
+- The approved Phase 21 cleanup slices currently produce no import or low-risk local cleanup diff under the staged lint baseline.
+- Raw `ts-prune` and `madge` output must be classified before deletion because App Router pages, tests, and middleware appear as expected false positives.
+- The reviewed inventory proves only a small subset of current dead-code findings are safe deletion candidates; most remaining output is framework or test noise.
+- `depcheck` currently mixes at least one likely real cleanup (`autoprefixer`/`postcss`), one likely missing dependency (`@clerk/types`), and one tool-specific false positive (`server-only`).
+- The sustained hygiene baseline keeps scoped lint enforcement, configured dependency inventory, and CI-aligned checks while explicitly deferring global TS unused enforcement.
 
 ### Pending Todos
 
@@ -74,16 +85,13 @@ None yet.
 ### Blockers/Concerns
 
 - No active implementation blocker remains from v1.1.
-- OpenAI breaker state is still process-local, not cross-instance coordinated.
-- Async PDF import work still relies on in-process execution plus reclaim-on-poll rather than a dedicated queue worker.
-- Canonical LGPD deletion remains an operator-supported workflow, not a self-serve product flow.
 - No standalone `v1.1` milestone audit artifact was produced before archive; run `/gsd-audit-milestone` later if retrospective verification is needed.
-- Static dead-code tools may produce false positives around Next.js routes, dynamic imports, string-driven handlers, and background jobs.
+- Static dead-code findings still require manual review around Next.js routes, dynamic imports, string-driven handlers, and background jobs.
 
 ## Session Continuity
 
-Last session: 2026-04-15T21:35:00.0000000-03:00
-Stopped at: Milestone v1.2 initialized; Phase 20 ready for planning
+Last session: 2026-04-14T22:55:00.0000000-03:00
+Stopped at: Milestone v1.2 archived; ready for next milestone
 Resume file: None
 
 ## Quick Tasks Completed

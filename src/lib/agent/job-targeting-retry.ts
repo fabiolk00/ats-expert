@@ -2,7 +2,6 @@ import { executeWithStageRetry, shapeRewriteCurrentContent } from '@/lib/agent/a
 import type { CVState } from '@/types/cv'
 import type { RewriteSectionInput } from '@/types/agent'
 
-export const MAX_JOB_TARGETING_STAGE_RETRIES = 2
 export const MAX_TARGET_JOB_DESCRIPTION_CHARS = 4500
 export const MAX_TARGETING_PLAN_ITEMS = 6
 

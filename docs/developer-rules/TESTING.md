@@ -167,10 +167,20 @@ Changes should pass:
 - `npm run lint`
 - `pnpm format:check` for docs/config-heavy changes
 
+For dead-code hygiene phases, also run the relevant inventory commands for the affected scope:
+
+- `pnpm unused`
+- `pnpm depcheck`
+- `pnpm orphans`
+
+These are discovery tools, not proof that a deletion is safe by itself.
+
 ## Evolving the Baseline
 
 - The staged TypeScript-aware lint scope is documented in [QUALITY_BASELINE.md](./QUALITY_BASELINE.md).
 - Expand lint or formatting scope only when the added directories stay low-noise under local verification.
+- Dead-code cleanup must stay staged: imports first, then exports/files, then dependencies, with focused regression proof after each step.
+- The configured `pnpm depcheck` command is the maintained dependency-hygiene entrypoint; do not substitute raw defaults without updating the inventory and repo ignores.
 
 ## E2E Auth Safety
 
