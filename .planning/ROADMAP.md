@@ -31,9 +31,9 @@ Any optional work that does not improve verification closure, archive integrity,
 **Plans**: 3 plans
 
 Plans:
-- [ ] 32-01: Define and implement the required phase verification shape for recently shipped phases
-- [ ] 32-02: Backfill verification artifacts for the v1.4 implementation phases and reconcile requirement evidence
-- [ ] 32-03: Rerun audit-style proof and close the requirement-evidence contract gaps
+- [x] 32-01: Define and implement the required phase verification shape for recently shipped phases
+- [x] 32-02: Backfill verification artifacts for the v1.4 implementation phases and reconcile requirement evidence
+- [x] 32-03: Rerun audit-style proof and close the requirement-evidence contract gaps
 
 ### Phase 33: Milestone Archive and Traceability Integrity
 **Goal**: Keep roadmap, traceability, archive, and state metadata aligned during milestone closeout so future archives do not require manual repair.
@@ -73,7 +73,7 @@ The intended operating mode for this milestone is:
 
 Recommended entrypoint:
 
-`/gsd-plan-phase 32`
+`/gsd-plan-phase 33`
 
 ## Current Milestone
 
@@ -86,13 +86,13 @@ Phases execute in numeric order: 32 -> 33 -> 34
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 32. Phase Verification Backfill and Audit Contract | 0/3 | Not started | - |
+| 32. Phase Verification Backfill and Audit Contract | 3/3 | Complete | 2026-04-15 |
 | 33. Milestone Archive and Traceability Integrity | 0/2 | Not started | - |
 | 34. Non-E2E Runtime Residual Budgeting | 0/2 | Not started | - |
 
 ## Archived Milestones
 
-- [v1.4 Agent Core Modularization, Security Hardening, and Release Stability](./milestones/v1.4-ROADMAP.md) - shipped 2026-04-15, 5 phases, 13 plans, archived with accepted audit debt
+- [v1.4 Agent Core Modularization, Security Hardening, and Release Stability](./milestones/v1.4-ROADMAP.md) - shipped 2026-04-15, 5 phases, 13 plans, verification backfilled with accepted runtime debt
 - [v1.3 Agent Response Time and Runtime Performance](./milestones/v1.3-ROADMAP.md)
 - [v1.2 Code Hygiene and Dead Code Reduction](./milestones/v1.2-ROADMAP.md)
 - [v1.1 Agent Reliability and Response Continuity](./milestones/v1.1-ROADMAP.md)

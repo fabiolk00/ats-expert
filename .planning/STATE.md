@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: milestone
-current_phase: 32
-current_phase_name: Phase Verification Backfill and Audit Contract
+current_phase: 33
+current_phase_name: Milestone Archive and Traceability Integrity
 current_plan: None
-status: executing
-stopped_at: Milestone v1.5 initialized; Phase 32 ready for planning
-last_updated: "2026-04-15T18:57:55.711Z"
-last_activity: 2026-04-15 -- Phase 32 planning complete
+status: ready
+stopped_at: Phase 32 completed; Phase 33 ready for planning
+last_updated: "2026-04-16T00:05:00.000Z"
+last_activity: 2026-04-15 -- Phase 32 execution complete
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 3
+  percent: 33
 ---
 
 # Project State
@@ -24,25 +24,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Phase 32 planning for verification closure and audit-contract repair
+**Current focus:** Phase 33 planning for archive and traceability integrity after the `v1.4` verification backfill
 
 ## Current Position
 
-Current Phase: 32
-Current Phase Name: Phase Verification Backfill and Audit Contract
+Current Phase: 33
+Current Phase Name: Milestone Archive and Traceability Integrity
 Current Plan: None
-Total Plans in Phase: 3
-Status: Ready to execute
-Last activity: 2026-04-15 -- Phase 32 planning complete
-Last Activity Description: Phase 32 planning complete — 3 plans ready
+Total Plans in Phase: 2
+Status: Ready to plan
+Last activity: 2026-04-15 -- Phase 32 execution complete
+Last Activity Description: Phase 32 completed - archived `v1.4` verification artifacts and refreshed milestone audit
 
-Progress: [----------] 0%
+Progress: [###-------] 33%
 
 ## Performance Metrics
 
 Baseline carried forward from earlier shipped milestones:
 
-- Total plans completed: 58
+- Total plans completed: 61
 - Milestones archived: 4
 
 ## Accumulated Context
@@ -63,6 +63,7 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 31.1 completed: runtime baseline fixes shipped, hot UI suites reduced, and non-E2E profiling is now exposed in CI with explicit residual timing evidence
 - v1.4 archived: milestone history moved to `.planning/milestones/` and the audit debt was accepted explicitly instead of being hidden
 - v1.5 started: verification closure, archive metadata integrity, and residual non-E2E runtime budgeting are now the active milestone focus
+- Phase 32 completed: the `v1.4` archive now includes committed `VERIFICATION.md` artifacts and the archived milestone audit no longer fails on missing-proof fallback
 
 ### Decisions
 
@@ -81,21 +82,22 @@ Recent decisions affecting the next cycle:
 - Repeated long-vacancy generation now has committed browser proof, the remaining mojibake expectations were cleaned, and CI exposes the repaired workspace flow as an explicit release-critical gate.
 - Non-E2E tests now default to `node` unless they explicitly need `jsdom`, recovery tests can bypass production backoff safely, and CI uses the same named profiling command as local runtime proof.
 - Archive quality now matters enough that missing phase verification artifacts should be treated as milestone debt, not silently ignored.
+- The `v1.4` archive now treats backfilled phase verification as canonical audit input, while the remaining non-E2E runtime ceiling issue stays explicit accepted debt.
 
 ### Pending Todos
 
-- Plan Phase 32.
+- Plan Phase 33.
 
 ### Blockers or Concerns
 
 - No active implementation blocker is currently known.
-- `v1.4` was archived with accepted audit debt because phases 28, 29, 30, 31, and 31.1 still lack `VERIFICATION.md` artifacts.
+- `v1.4` no longer lacks archived `VERIFICATION.md` artifacts, but it still carries accepted runtime debt from Phase `31.1`.
 - The full non-E2E suite still exceeded a local 2-minute ceiling in final profiling, but the residual cost is now narrowed and documented rather than hidden behind structural waste.
 
 ## Session Continuity
 
 Last session: 2026-04-15T23:30:00.0000000-03:00
-Stopped at: Milestone v1.5 initialized; Phase 32 ready for planning
+Stopped at: Phase 32 completed; Phase 33 ready for planning
 Resume file: None
 
 ## Quick Tasks Completed

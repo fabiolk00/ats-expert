@@ -40,8 +40,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VER-01 | Phase 32 | Pending |
-| VER-02 | Phase 32 | Pending |
+| VER-01 | Phase 32 | Complete |
+| VER-02 | Phase 32 | Complete |
 | DOC-01 | Phase 33 | Pending |
 | DOC-02 | Phase 33 | Pending |
 | PERF-04 | Phase 34 | Pending |
