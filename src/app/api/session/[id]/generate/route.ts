@@ -7,6 +7,7 @@ import { dispatchTool } from '@/lib/agent/tools'
 import { getSession } from '@/lib/db/sessions'
 import { hasConfirmedCareerFitOverride, requiresCareerFitWarning } from '@/lib/agent/profile-review'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
+import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
 
 const BodySchema = z.discriminatedUnion('scope', [
   z.object({
@@ -49,6 +50,22 @@ export async function POST(
       latencyMs: Date.now() - requestStartedAt,
     })
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const trust = validateTrustedMutationRequest(req)
+  if (!trust.ok) {
+    logWarn('api.session.generate.untrusted_request', {
+      requestMethod: req.method,
+      requestPath,
+      requestedSessionId: params.id,
+      sessionId: session.id,
+      appUserId: appUser.id,
+      success: false,
+      latencyMs: Date.now() - requestStartedAt,
+      trustSignal: trust.signal,
+      trustReason: trust.reason,
+    })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const body = BodySchema.safeParse(await req.json())

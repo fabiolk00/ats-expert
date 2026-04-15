@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 30
 current_phase_name: Authenticated Route and Billing Boundary Hardening
 current_plan: 0
-status: planned
-stopped_at: Milestone v1.4 started; requirements and roadmap initialized
-last_updated: "2026-04-15T15:14:57.483Z"
-last_activity: 2026-04-15 -- Phase 30 planning complete
+status: completed
+stopped_at: Phase 30 completed after trust-boundary hardening and billing boundary verification
+last_updated: "2026-04-15T15:24:30.000Z"
+last_activity: 2026-04-15 -- Phase 30 completed
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State
@@ -24,7 +24,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Phase 30 - Authenticated Route and Billing Boundary Hardening
+**Current focus:** Phase 31 - Workspace and Release Stability
 
 ## Current Position
 
@@ -32,16 +32,16 @@ Current Phase: 30
 Current Phase Name: Authenticated Route and Billing Boundary Hardening
 Current Plan: 0
 Total Plans in Phase: 2
-Status: Phase 30 planned
-Last activity: 2026-04-15 -- Phase 30 planning complete
-Last Activity Description: Phase 30 planning complete — 2 plans ready
+Status: Phase 30 completed
+Last activity: 2026-04-15 -- Phase 30 completed
+Last Activity Description: Phase 30 completed - canonical checkout trust, authenticated mutation trust helper, and billing-boundary regression proof shipped
 
-Phase: 30 (Authenticated Route and Billing Boundary Hardening) - PLANNED
-Plan: 0 of 2
-Status: Ready to execute
-Last activity: 2026-04-15 -- Phase 30 planning complete
+Phase: 30 (Authenticated Route and Billing Boundary Hardening) - COMPLETED
+Plan: 2 of 2
+Status: Completed
+Last activity: 2026-04-15 -- Phase 30 completed
 
-Progress: [----------] 0%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
@@ -77,6 +77,7 @@ Recent decisions affecting the next cycle:
 - The latency evidence and deterministic fast-path seams from v1.3 should be preserved while extracting smaller agent services.
 - Canonical host configuration and explicit origin or CSRF validation are now the preferred trust model for sensitive authenticated mutations and checkout flows.
 - Release confidence should come from committed regression gates around workspace, preview, generation, and encoding-sensitive user surfaces.
+- Shared authenticated-mutation trust validation now gates canonical profile edits, session edits, resume generation, and checkout, while webhook billing callbacks remain explicitly token-authenticated server-to-server flows.
 
 ### Pending Todos
 
@@ -85,13 +86,12 @@ Recent decisions affecting the next cycle:
 ### Blockers or Concerns
 
 - No active implementation blocker is currently known for v1.4.
-- The long vacancy generation regression and broken encoding artifacts should be treated as milestone-defining reliability concerns, not incidental cleanup.
-- External return flows and billing-sensitive redirects should be reviewed carefully before any release that expands scope.
+- The remaining milestone-defining work is Phase 31: long vacancy generation stability, encoding cleanup, and stronger release gates.
 
 ## Session Continuity
 
 Last session: 2026-04-15T23:30:00.0000000-03:00
-Stopped at: Milestone v1.4 started; requirements and roadmap initialized
+Stopped at: Phase 30 completed after trust-boundary hardening and billing boundary verification
 Resume file: None
 
 ## Quick Tasks Completed

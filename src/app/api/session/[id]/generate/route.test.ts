@@ -81,6 +81,13 @@ function buildSession() {
   }
 }
 
+function buildTrustedHeaders() {
+  return {
+    'content-type': 'application/json',
+    origin: 'https://example.com',
+  }
+}
+
 describe('generate route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -100,6 +107,7 @@ describe('generate route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ scope: 'base' }),
       }),
       { params: { id: 'sess_123' } },
@@ -143,6 +151,7 @@ describe('generate route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ scope: 'target', targetId: 'target_123' }),
       }),
       { params: { id: 'sess_123' } },
@@ -198,6 +207,7 @@ describe('generate route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ scope: 'target', targetId: 'target_123' }),
       }),
       { params: { id: 'sess_123' } },
@@ -234,6 +244,7 @@ describe('generate route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ scope: 'base', clientRequestId: 'req_existing' }),
       }),
       { params: { id: 'sess_123' } },
@@ -270,6 +281,7 @@ describe('generate route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ scope: 'base', clientRequestId: 'req_inflight' }),
       }),
       { params: { id: 'sess_123' } },
@@ -301,6 +313,7 @@ describe('generate route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           scope: 'target',
           targetId: 'target_123',
@@ -333,6 +346,7 @@ describe('generate route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ scope: 'base' }),
       }),
       { params: { id: 'sess_123' } },
@@ -358,6 +372,7 @@ describe('generate route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ scope: 'base' }),
       }),
       { params: { id: 'sess_123' } },
@@ -369,5 +384,35 @@ describe('generate route', () => {
       code: 'VALIDATION_ERROR',
       error: 'summary is required.',
     })
+  })
+
+  it('rejects cross-origin generation requests and logs the trust failure', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/generate', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: 'https://evil.example',
+        },
+        body: JSON.stringify({ scope: 'base' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Forbidden' })
+    expect(dispatchTool).not.toHaveBeenCalled()
+    expect(logWarn).toHaveBeenCalledWith(
+      'api.session.generate.untrusted_request',
+      expect.objectContaining({
+        sessionId: 'sess_123',
+        appUserId: 'usr_123',
+        trustSignal: 'origin',
+        trustReason: 'invalid_origin',
+      }),
+    )
   })
 })

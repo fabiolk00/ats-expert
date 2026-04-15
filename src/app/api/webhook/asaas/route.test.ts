@@ -170,6 +170,25 @@ describe('Asaas webhook route', () => {
     expect(handlePaymentSettlement).toHaveBeenCalledWith(payload, 'fp_123')
   })
 
+  it('keeps trusting the webhook token contract even when an Origin header is present', async () => {
+    const response = await POST(new NextRequest('http://localhost/api/webhook/asaas', {
+      method: 'POST',
+      headers: {
+        'asaas-access-token': 'test-token',
+        'content-type': 'application/json',
+        origin: 'https://evil.example',
+      },
+      body: JSON.stringify({
+        event: 'PAYMENT_RECEIVED',
+        payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', value: 19.9 },
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ success: true })
+    expect(handlePaymentSettlement).toHaveBeenCalledTimes(1)
+  })
+
   it('returns structured validation failures from billing handlers', async () => {
     vi.mocked(handlePaymentSettlement).mockRejectedValue(
       Object.assign(new Error('Billing checkout record not found for externalReference.'), {

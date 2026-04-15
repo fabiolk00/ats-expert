@@ -121,6 +121,13 @@ function buildSession(targets?: ResumeTarget[]): Session & { resumeTargets?: Res
   }
 }
 
+function buildTrustedHeaders() {
+  return {
+    'content-type': 'application/json',
+    origin: 'https://example.com',
+  }
+}
+
 describe('manual edit route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -134,6 +141,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           section: 'summary',
           value: 'Backend engineer focused on platform reliability.',
@@ -167,6 +175,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           section: 'summary',
           value: 'Backend engineer',
@@ -192,6 +201,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           section: 'experience',
           value: [{ company: 'Acme' }],
@@ -218,6 +228,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           section: 'summary',
           value: 'Backend engineer focused on platform reliability.',
@@ -243,6 +254,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           section: 'skills',
           value: ['TypeScript', 'PostgreSQL'],
@@ -262,6 +274,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           scope: 'base',
           cvState: {
@@ -298,6 +311,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           scope: 'base',
           cvState: session.cvState,
@@ -331,6 +345,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           scope: 'target',
           targetId: 'target_123',
@@ -368,6 +383,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           scope: 'target',
           targetId: 'target_missing',
@@ -388,6 +404,7 @@ describe('manual edit route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({
           scope: 'base',
           cvState: {
@@ -400,5 +417,30 @@ describe('manual edit route', () => {
 
     expect(response.status).toBe(400)
     expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+  })
+
+  it('rejects cross-origin manual edits before touching session state', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: 'https://evil.example',
+        },
+        body: JSON.stringify({
+          section: 'summary',
+          value: 'Blocked cross-origin edit.',
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Forbidden' })
+    expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+    expect(updateResumeTargetCvStateWithVersion).not.toHaveBeenCalled()
   })
 })

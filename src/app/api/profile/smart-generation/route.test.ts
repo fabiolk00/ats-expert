@@ -80,6 +80,13 @@ function buildSession() {
   }
 }
 
+function buildTrustedHeaders() {
+  return {
+    'content-type': 'application/json',
+    origin: 'https://example.com',
+  }
+}
+
 describe('POST /api/profile/smart-generation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -130,6 +137,7 @@ describe('POST /api/profile/smart-generation', () => {
 
     const response = await POST(new NextRequest('https://example.com/api/profile/smart-generation', {
       method: 'POST',
+      headers: buildTrustedHeaders(),
       body: JSON.stringify(buildCvState()),
     }))
 
@@ -176,6 +184,7 @@ describe('POST /api/profile/smart-generation', () => {
 
     const response = await POST(new NextRequest('https://example.com/api/profile/smart-generation', {
       method: 'POST',
+      headers: buildTrustedHeaders(),
       body: JSON.stringify({
         ...buildCvState(),
         targetJobDescription: 'Vaga para analista de dados senior com foco em produto e SQL.',
@@ -210,6 +219,7 @@ describe('POST /api/profile/smart-generation', () => {
   it('keeps ATS readiness validation before starting any generation mode', async () => {
     const response = await POST(new NextRequest('https://example.com/api/profile/smart-generation', {
       method: 'POST',
+      headers: buildTrustedHeaders(),
       body: JSON.stringify({
         fullName: '',
         email: '',
@@ -234,5 +244,21 @@ describe('POST /api/profile/smart-generation', () => {
     expect(createSession).not.toHaveBeenCalled()
     expect(runAtsEnhancementPipeline).not.toHaveBeenCalled()
     expect(runJobTargetingPipeline).not.toHaveBeenCalled()
+  })
+
+  it('rejects cross-origin smart generation requests', async () => {
+    const response = await POST(new NextRequest('https://example.com/api/profile/smart-generation', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example',
+      },
+      body: JSON.stringify(buildCvState()),
+    }))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Forbidden' })
+    expect(createSession).not.toHaveBeenCalled()
+    expect(dispatchToolWithContext).not.toHaveBeenCalled()
   })
 })

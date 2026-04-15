@@ -5,7 +5,9 @@ import { getHttpStatusForToolError } from '@/lib/agent/tool-errors'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession } from '@/lib/db/sessions'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
+import { logWarn } from '@/lib/observability/structured-log'
 import { createTargetResumeVariant } from '@/lib/resume-targets/create-target-resume'
+import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
 
 const BodySchema = z.object({
   targetJobDescription: z.string().min(1).max(20000),
@@ -45,6 +47,20 @@ export async function POST(
   const session = await getSession(params.id, appUser.id)
   if (!session) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const trust = validateTrustedMutationRequest(req)
+  if (!trust.ok) {
+    logWarn('api.session.targets.untrusted_request', {
+      appUserId: appUser.id,
+      requestMethod: req.method,
+      requestPath: req.nextUrl.pathname,
+      sessionId: params.id,
+      success: false,
+      trustSignal: trust.signal,
+      trustReason: trust.reason,
+    })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const body = BodySchema.safeParse(await req.json())

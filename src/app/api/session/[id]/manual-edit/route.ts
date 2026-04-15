@@ -10,6 +10,8 @@ import {
   updateResumeTargetCvStateWithVersion,
 } from '@/lib/db/resume-targets'
 import { applyToolPatchWithVersion, getSession, mergeToolPatch } from '@/lib/db/sessions'
+import { logWarn } from '@/lib/observability/structured-log'
+import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
 
 function didCanonicalStateChange(previous: string, next: string): boolean {
   return previous !== next
@@ -43,6 +45,20 @@ export async function POST(
   const session = await getSession(params.id, appUser.id)
   if (!session) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const trust = validateTrustedMutationRequest(req)
+  if (!trust.ok) {
+    logWarn('api.session.manual_edit.untrusted_request', {
+      appUserId: appUser.id,
+      requestMethod: req.method,
+      requestPath: req.nextUrl.pathname,
+      sessionId: params.id,
+      success: false,
+      trustSignal: trust.signal,
+      trustReason: trust.reason,
+    })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const body = ManualEditRequestSchema.safeParse(await req.json())

@@ -104,7 +104,7 @@ describe('checkout route billing sequencing', () => {
   })
 
   it('creates a pending record before calling Asaas and marks it created on success', async () => {
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
       body: JSON.stringify(mockBillingBody),
@@ -134,7 +134,7 @@ describe('checkout route billing sequencing', () => {
   })
 
   it('rejects a 7-digit cep before saving billing info', async () => {
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
       body: JSON.stringify({
@@ -149,7 +149,7 @@ describe('checkout route billing sequencing', () => {
   })
 
   it('normalizes a country-coded phone number and lowercase state before saving billing info', async () => {
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
       body: JSON.stringify({
@@ -172,7 +172,7 @@ describe('checkout route billing sequencing', () => {
       message: 'relation "customer_billing_info" does not exist',
     })
 
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
       body: JSON.stringify(mockBillingBody),
@@ -188,9 +188,9 @@ describe('checkout route billing sequencing', () => {
   it('marks the checkout failed when Asaas creation fails', async () => {
     vi.mocked(createCheckoutLink).mockRejectedValueOnce(new Error('asaas down'))
 
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
       body: JSON.stringify(mockBillingBody),
     }))
 
@@ -201,7 +201,7 @@ describe('checkout route billing sequencing', () => {
   it('returns unauthorized when no active app user is available', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValueOnce(null)
 
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(mockBillingBody),
@@ -215,7 +215,7 @@ describe('checkout route billing sequencing', () => {
   it('returns a json error when resolving the app user throws', async () => {
     vi.mocked(getCurrentAppUser).mockRejectedValueOnce(new Error('bootstrap failed'))
 
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(mockBillingBody),
@@ -229,7 +229,7 @@ describe('checkout route billing sequencing', () => {
   it('continues checkout when Clerk profile lookup fails', async () => {
     vi.mocked(currentUser).mockRejectedValueOnce(new Error('clerk profile unavailable'))
 
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
       body: JSON.stringify(mockBillingBody),
@@ -244,8 +244,8 @@ describe('checkout route billing sequencing', () => {
     }))
   })
 
-  it('ignores a spoofed origin header and still uses the canonical app URL for callbacks', async () => {
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+  it('rejects a spoofed origin header before creating a checkout session', async () => {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -254,18 +254,27 @@ describe('checkout route billing sequencing', () => {
       body: JSON.stringify(mockBillingBody),
     }))
 
-    expect(response.status).toBe(200)
-    expect(createCheckoutLink).toHaveBeenCalledWith(expect.objectContaining({
-      successUrl: 'https://app.curria.com.br/dashboard',
-      cancelUrl: 'https://app.curria.com.br/pricing',
-      expiredUrl: 'https://app.curria.com.br/pricing',
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Forbidden' })
+    expect(createCheckoutLink).not.toHaveBeenCalled()
+  })
+
+  it('rejects checkout when browser trust signals are missing', async () => {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(mockBillingBody),
     }))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Forbidden' })
+    expect(createCheckoutRecordPending).not.toHaveBeenCalled()
   })
 
   it('marks the checkout failed when persisting the created state fails after Asaas succeeds', async () => {
     vi.mocked(markCheckoutCreated).mockRejectedValueOnce(new Error('failed to mark created'))
 
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
       body: JSON.stringify(mockBillingBody),
@@ -286,7 +295,7 @@ describe('checkout route billing sequencing', () => {
       creditAccount: null,
     } as never)
 
-    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+    const response = await POST(new NextRequest('http://localhost:3000/api/checkout', {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
       body: JSON.stringify(mockBillingBody),
@@ -308,9 +317,9 @@ describe('checkout route billing sequencing', () => {
     })
 
     const response = await POST(
-      new NextRequest('http://localhost/api/checkout', {
+      new NextRequest('http://localhost:3000/api/checkout', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
         body: JSON.stringify({ ...mockBillingBody, plan: 'pro' }),
       }),
     )
@@ -327,7 +336,7 @@ describe('checkout route billing sequencing', () => {
     vi.mocked(getActiveRecurringSubscription).mockResolvedValueOnce(null)
 
     const response = await POST(
-      new NextRequest('http://localhost/api/checkout', {
+      new NextRequest('http://localhost:3000/api/checkout', {
         method: 'POST',
         headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
         body: JSON.stringify({ ...mockBillingBody, plan: 'pro' }),
@@ -344,9 +353,9 @@ describe('checkout route billing sequencing', () => {
     )
 
     const response = await POST(
-      new NextRequest('http://localhost/api/checkout', {
+      new NextRequest('http://localhost:3000/api/checkout', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
         body: JSON.stringify(mockBillingBody),
       }),
     )

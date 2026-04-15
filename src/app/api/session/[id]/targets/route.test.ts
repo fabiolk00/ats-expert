@@ -80,6 +80,13 @@ function buildAppUser(id: string) {
   }
 }
 
+function buildTrustedHeaders() {
+  return {
+    'content-type': 'application/json',
+    origin: 'https://example.com',
+  }
+}
+
 describe('session targets route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -92,6 +99,7 @@ describe('session targets route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/targets', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ targetJobDescription: 'AWS backend role' }),
       }),
       { params: { id: 'sess_123' } },
@@ -154,6 +162,7 @@ describe('session targets route', () => {
     const postResponse = await POST(
       new NextRequest('https://example.com/api/session/sess_123/targets', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ targetJobDescription: 'AWS backend role' }),
       }),
       { params: { id: 'sess_123' } },
@@ -203,6 +212,7 @@ describe('session targets route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/targets', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ targetJobDescription: 'AWS backend role' }),
       }),
       { params: { id: 'sess_123' } },
@@ -214,5 +224,28 @@ describe('session targets route', () => {
       code: 'LLM_INVALID_OUTPUT',
       error: 'Invalid target resume payload.',
     })
+  })
+
+  it('rejects cross-origin target creation requests', async () => {
+    const session = buildSession()
+
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(session)
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/targets', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: 'https://evil.example',
+        },
+        body: JSON.stringify({ targetJobDescription: 'AWS backend role' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Forbidden' })
+    expect(createTargetResumeVariant).not.toHaveBeenCalled()
   })
 })

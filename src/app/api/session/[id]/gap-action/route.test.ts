@@ -71,6 +71,13 @@ function buildSession() {
   }
 }
 
+function buildTrustedHeaders() {
+  return {
+    'content-type': 'application/json',
+    origin: 'https://example.com',
+  }
+}
+
 describe('gap action route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -83,6 +90,7 @@ describe('gap action route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/gap-action', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ itemType: 'missing_skill', itemValue: 'AWS' }),
       }),
       { params: { id: 'sess_123' } },
@@ -108,6 +116,7 @@ describe('gap action route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/gap-action', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ itemType: 'missing_skill', itemValue: 'AWS' }),
       }),
       { params: { id: 'sess_123' } },
@@ -132,6 +141,7 @@ describe('gap action route', () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/gap-action', {
         method: 'POST',
+        headers: buildTrustedHeaders(),
         body: JSON.stringify({ itemType: 'missing_skill', itemValue: 'AWS' }),
       }),
       { params: { id: 'sess_123' } },
@@ -143,5 +153,26 @@ describe('gap action route', () => {
       code: 'NOT_FOUND',
       error: 'Selected gap item was not found in the current structured gap analysis.',
     })
+  })
+
+  it('rejects cross-origin gap actions before dispatching tools', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/gap-action', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          origin: 'https://evil.example',
+        },
+        body: JSON.stringify({ itemType: 'missing_skill', itemValue: 'AWS' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Forbidden' })
+    expect(dispatchTool).not.toHaveBeenCalled()
   })
 })

@@ -28,6 +28,7 @@ import { getActiveRecurringSubscription } from '@/lib/asaas/quota'
 import { buildAppUrl } from '@/lib/config/app-url'
 import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
 import { getPlan } from '@/lib/plans'
+import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
 
 export const runtime = 'nodejs'
 
@@ -117,6 +118,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       })
 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const trust = validateTrustedMutationRequest(req)
+    if (!trust.ok) {
+      logWarn('checkout.untrusted_request', {
+        requestMethod: req.method,
+        requestPath: req.nextUrl.pathname,
+        appUserId: appUser.id,
+        success: false,
+        trustSignal: trust.signal,
+        trustReason: trust.reason,
+      })
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     let rawBody: unknown

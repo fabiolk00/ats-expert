@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { CVStateSchema } from '@/lib/cv/schema'
@@ -6,6 +6,7 @@ import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { logError, logInfo } from '@/lib/observability/structured-log'
 import { getExistingUserProfile, type UserProfileRow } from '@/lib/profile/user-profiles'
+import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
 import type { CVState } from '@/types/cv'
 
 function mapProfileResponse(data: UserProfileRow) {
@@ -77,7 +78,7 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   const appUser = await getCurrentAppUser()
   if (!appUser) {
     logError('[api/profile] Unauthorized PUT attempt')
@@ -85,6 +86,17 @@ export async function PUT(request: Request) {
       { error: 'Você precisa estar autenticado para salvar seu perfil.' },
       { status: 401 },
     )
+  }
+
+  const trust = validateTrustedMutationRequest(request)
+  if (!trust.ok) {
+    logError('[api/profile] Rejected untrusted PUT request', {
+      appUserId: appUser.id,
+      requestPath: request.nextUrl.pathname,
+      trustSignal: trust.signal,
+      trustReason: trust.reason,
+    })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   let rawBody: unknown

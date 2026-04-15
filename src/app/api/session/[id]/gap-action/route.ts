@@ -5,6 +5,8 @@ import { getHttpStatusForToolError, isToolFailure } from '@/lib/agent/tool-error
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession } from '@/lib/db/sessions'
 import { dispatchTool } from '@/lib/agent/tools'
+import { logWarn } from '@/lib/observability/structured-log'
+import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
 
 const BodySchema = z.object({
   itemType: z.enum(['missing_skill', 'weak_area', 'suggestion']),
@@ -23,6 +25,20 @@ export async function POST(
   const session = await getSession(params.id, appUser.id)
   if (!session) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  const trust = validateTrustedMutationRequest(req)
+  if (!trust.ok) {
+    logWarn('api.session.gap_action.untrusted_request', {
+      appUserId: appUser.id,
+      requestMethod: req.method,
+      requestPath: req.nextUrl.pathname,
+      sessionId: params.id,
+      success: false,
+      trustSignal: trust.signal,
+      trustReason: trust.reason,
+    })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const body = BodySchema.safeParse(await req.json())

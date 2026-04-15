@@ -75,6 +75,13 @@ function buildSession() {
   }
 }
 
+function buildTrustedHeaders() {
+  return {
+    'content-type': 'application/json',
+    origin: 'https://example.com',
+  }
+}
+
 describe('POST /api/profile/ats-enhancement', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -149,6 +156,7 @@ describe('POST /api/profile/ats-enhancement', () => {
   it('creates an ATS enhancement session from the current profile snapshot', async () => {
     const response = await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
       method: 'POST',
+      headers: buildTrustedHeaders(),
       body: JSON.stringify(buildCvState()),
     }))
 
@@ -180,6 +188,7 @@ describe('POST /api/profile/ats-enhancement', () => {
   it('runs the shared ATS enhancement pipeline before generating artifacts', async () => {
     await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
       method: 'POST',
+      headers: buildTrustedHeaders(),
       body: JSON.stringify(buildCvState()),
     }))
 
@@ -191,6 +200,7 @@ describe('POST /api/profile/ats-enhancement', () => {
   it('rejects incomplete profiles before creating the ATS version', async () => {
     const response = await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
       method: 'POST',
+      headers: buildTrustedHeaders(),
       body: JSON.stringify({
         fullName: '',
         email: '',
@@ -218,6 +228,7 @@ describe('POST /api/profile/ats-enhancement', () => {
   it('rejects partially filled education entries with user-friendly missing items', async () => {
     const response = await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
       method: 'POST',
+      headers: buildTrustedHeaders(),
       body: JSON.stringify({
         ...buildCvState(),
         education: [{
@@ -241,6 +252,7 @@ describe('POST /api/profile/ats-enhancement', () => {
   it('rejects profiles that leave required ATS sections empty', async () => {
     const response = await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
       method: 'POST',
+      headers: buildTrustedHeaders(),
       body: JSON.stringify({
         ...buildCvState(),
         summary: '',
@@ -310,6 +322,7 @@ describe('POST /api/profile/ats-enhancement', () => {
 
     const response = await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
       method: 'POST',
+      headers: buildTrustedHeaders(),
       body: JSON.stringify(buildCvState()),
     }))
 
@@ -325,5 +338,21 @@ describe('POST /api/profile/ats-enhancement', () => {
       cv_state: expect.objectContaining({ fullName: 'Ana Silva' }),
       idempotency_key: 'profile-ats:sess_ats_123',
     }, expect.objectContaining({ id: 'sess_ats_123' }))
+  })
+
+  it('rejects cross-origin ATS enhancement requests before creating a session', async () => {
+    const response = await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example',
+      },
+      body: JSON.stringify(buildCvState()),
+    }))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: 'Forbidden' })
+    expect(createSession).not.toHaveBeenCalled()
+    expect(dispatchToolWithContext).not.toHaveBeenCalled()
   })
 })

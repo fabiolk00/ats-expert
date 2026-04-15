@@ -5,11 +5,13 @@ import { validateGenerationCvState } from '@/lib/agent/tools/generate-file'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { CVStateSchema } from '@/lib/cv/schema'
 import { checkUserQuota } from '@/lib/db/sessions'
+import { logWarn } from '@/lib/observability/structured-log'
 import {
   assessAtsEnhancementReadiness,
   buildResumeTextFromCvState,
   getAtsEnhancementBlockingItems,
 } from '@/lib/profile/ats-enhancement'
+import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
 import { createSession, applyToolPatchWithVersion } from '@/lib/db/sessions'
 import { runAtsEnhancementPipeline } from '@/lib/agent/ats-enhancement-pipeline'
 
@@ -17,6 +19,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const appUser = await getCurrentAppUser()
   if (!appUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const trust = validateTrustedMutationRequest(request)
+  if (!trust.ok) {
+    logWarn('api.profile.ats_enhancement.untrusted_request', {
+      appUserId: appUser.id,
+      requestMethod: request.method,
+      requestPath: request.nextUrl.pathname,
+      success: false,
+      trustSignal: trust.signal,
+      trustReason: trust.reason,
+    })
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const parsed = CVStateSchema.safeParse(await request.json())
