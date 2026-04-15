@@ -228,6 +228,8 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     targetingPlan,
   })
   const optimizedAt = new Date().toISOString()
+  const validationIssueMessages = validation.issues.map((issue) => issue.message)
+  const validationIssueSections = Array.from(new Set(validation.issues.map((issue) => issue.section).filter(Boolean)))
 
   const nextAgentState: Session['agentState'] = {
     ...session.agentState,
@@ -253,7 +255,11 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
         compactedSections: rewriteResult.diagnostics?.compactedSections.length ?? 0,
       },
       lastFailureStage: validation.valid ? undefined : 'validation',
-      lastFailureReason: validation.valid ? undefined : 'Job targeting rewrite validation failed.',
+      lastFailureReason: validation.valid
+        ? undefined
+        : validationIssueMessages[0]
+          ? `Job targeting rewrite validation failed: ${validationIssueMessages[0]}`
+          : 'Job targeting rewrite validation failed.',
     }),
   }
   await persistAgentState(session, nextAgentState)
@@ -264,6 +270,9 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
       createJobTargetingLogContext(session, 'validation', {
         success: false,
         issueCount: validation.issues.length,
+        issueSections: validationIssueSections.join(', ') || undefined,
+        issueMessages: validationIssueMessages.join(' | ') || undefined,
+        targetRole: targetingPlan.targetRole,
       }),
     )
 

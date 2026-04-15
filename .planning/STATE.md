@@ -6,9 +6,9 @@ current_phase: 35
 current_phase_name: Harden rewrite state coherence between ATS optimized state, chat follow-up rewrites, and target resume derivation
 current_plan: None
 status: ready
-stopped_at: Phase 35 completed; milestone v1.5 ready for audit
-last_updated: "2026-04-15T18:20:00.000Z"
-last_activity: 2026-04-15 -- Phase 35 execution complete
+stopped_at: Quick task 260415-r14 completed
+last_updated: "2026-04-15T22:35:00.000Z"
+last_activity: 2026-04-15 -- Completed quick task 260415-r14: Improve job-targeting validation observability, harden targetRole extraction, and cover the validation failure path with tests
 progress:
   total_phases: 4
   completed_phases: 4
@@ -117,3 +117,4 @@ Resume file: None
 | 2026-04-13 | 260413-up5 | Standardize CurrIA brand pattern across landing page and public pages | Complete |
 | 2026-04-15 | 260414-u6l | Fix pnpm frozen lockfile drift and classify pdf_import_jobs in database convention audit | Complete |
 | 2026-04-15 | 260414-u9d | Make package scripts package-manager agnostic so lint works when CI invokes npm scripts without pnpm on PATH | Complete |
+| 2026-04-15 | 260415-r14 | Improve job-targeting validation observability, harden targetRole extraction, and cover the validation failure path with tests | Complete |

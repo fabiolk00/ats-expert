@@ -60,6 +60,20 @@ describe('buildTargetingPlan', () => {
     expect(plan.targetRole).toBe('Analytics Engineer')
   })
 
+  it('falls back to richer prose when the explicit role label is too weak', () => {
+    const plan = buildTargetingPlan({
+      cvState: buildCvState(),
+      targetJobDescription: [
+        'Cargo: BI.',
+        'Responsabilidades',
+        'Estamos contratando Analista de BI para atuar com dashboards, SQL e indicadores.',
+      ].join('\n'),
+      gapAnalysis,
+    })
+
+    expect(plan.targetRole).toBe('Analista De BI')
+  })
+
   it('does not treat weak areas as invented missing requirements', () => {
     const plan = buildTargetingPlan({
       cvState: buildCvState(),

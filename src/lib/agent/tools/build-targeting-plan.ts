@@ -17,8 +17,18 @@ function toTitleCase(value: string): string {
 function cleanExtractedRole(value: string): string {
   return value
     .replace(/\s+(para\s+atuar|para\s+liderar|para\s+trabalhar|com\s+foco|atuando\s+em|working\s+on|to\s+work).*/i, '')
-    .replace(/[|:;-]+$/g, '')
+    .replace(/[|:;.,-]+$/g, '')
     .trim()
+}
+
+function isWeakTargetRole(value: string): boolean {
+  const normalized = normalize(cleanExtractedRole(value))
+
+  if (!normalized || isSectionHeading(normalized)) {
+    return true
+  }
+
+  return /^(bi)$/.test(normalized)
 }
 
 function isSectionHeading(line: string): boolean {
@@ -38,20 +48,28 @@ function extractTargetRole(targetJobDescription: string): string {
     /^(cargo|position|role|vaga|titulo|title)\s*:/i.test(line),
   )
   if (explicitRoleLine) {
-    return explicitRoleLine.replace(/^[^:]+:\s*/i, '').trim()
+    const explicitRole = explicitRoleLine.replace(/^[^:]+:\s*/i, '').trim()
+    if (!isWeakTargetRole(explicitRole)) {
+      return explicitRole
+    }
   }
 
-  const rolePattern = /\b(analista|engenheir[oa]|developer|desenvolvedor(?:a)?|cientista|gerente|coordenador(?:a)?|consultor(?:a)?|product manager|designer|arquiteto(?:a)?|devops|sre|qa|analytics engineer|data engineer|data analyst|business intelligence|bi)\b[^,\n|]*/i
+  const rolePattern = /\b(analista|engenheir[oa]|developer|desenvolvedor(?:a)?|cientista|gerente|coordenador(?:a)?|consultor(?:a)?|product manager|designer|arquiteto(?:a)?|devops|sre|qa|analytics engineer|data engineer|data analyst|business intelligence)\b[^,\n|]*/i
   const candidateLines = lines.filter((line) => !isSectionHeading(line))
 
   for (const line of candidateLines) {
     const roleMatch = line.match(rolePattern)
-    if (roleMatch?.[0]) {
-      return cleanExtractedRole(roleMatch[0])
+    const matchedRole = roleMatch?.[0] ? cleanExtractedRole(roleMatch[0]) : ''
+    if (matchedRole && !isWeakTargetRole(matchedRole)) {
+      return matchedRole
     }
   }
 
-  return cleanExtractedRole(candidateLines[0] || lines[0] || 'Target role')
+  const fallbackRole = candidateLines
+    .map((line) => cleanExtractedRole(line))
+    .find((line) => line && !isWeakTargetRole(line))
+
+  return fallbackRole || cleanExtractedRole(lines[0] || 'Target role')
 }
 
 function extractJobKeywords(targetJobDescription: string): string[] {

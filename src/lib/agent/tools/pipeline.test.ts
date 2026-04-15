@@ -461,4 +461,49 @@ describe('ATS enhancement reliability hardening', () => {
       success: true,
     }))
   })
+
+  it('logs the exact validation issues when job_targeting validation fails', async () => {
+    const session = buildSession()
+    session.agentState.workflowMode = 'job_targeting'
+    session.agentState.targetJobDescription = [
+      'Cargo: BI.',
+      'Responsabilidades: construir dashboards e automacoes de dados.',
+      'Estamos contratando Analista de BI para atuar com SQL, Power BI e indicadores.',
+    ].join('\n')
+    session.agentState.rewriteStatus = 'pending'
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput({
+        ...buildCvState(),
+        summary: 'Analista de BI com foco em SQL, Power BI e alinhamento completo com a vaga.',
+      }, section),
+    }))
+
+    mockValidateRewrite.mockReturnValue({
+      valid: false,
+      issues: [{
+        severity: 'medium',
+        message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidência equivalente no currículo original.',
+        section: 'summary',
+      }],
+    })
+
+    const result = await runJobTargetingPipeline(session)
+
+    expect(result.success).toBe(false)
+    expect(session.agentState.rewriteStatus).toBe('failed')
+    expect(session.agentState.atsWorkflowRun).toMatchObject({
+      status: 'failed',
+      currentStage: 'validation',
+      lastFailureStage: 'validation',
+      lastFailureReason: expect.stringContaining('O resumo targetizado passou a se apresentar diretamente como o cargo alvo'),
+    })
+    expect(mockLogWarn).toHaveBeenCalledWith('agent.job_targeting.validation_failed', expect.objectContaining({
+      workflowMode: 'job_targeting',
+      issueCount: 1,
+      issueSections: 'summary',
+      issueMessages: expect.stringContaining('O resumo targetizado passou a se apresentar diretamente como o cargo alvo'),
+      targetRole: 'Analista De BI',
+    }))
+  })
 })
