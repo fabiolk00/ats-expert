@@ -1259,9 +1259,16 @@ describe('runAgentLoop streaming', () => {
 
   it('uses optimizedCvState experience as the rewrite source during chat follow-up rewrites', async () => {
     const baseSession = buildSession()
+    const originalExperience = {
+      title: 'Engenheiro de Dados',
+      company: 'Acme',
+      startDate: '2024',
+      endDate: 'Atual',
+      bullets: ['ExperiÃªncia base antiga.'],
+    }
     const optimizedExperience = [
       {
-        ...baseSession.cvState.experience[0],
+        ...originalExperience,
         bullets: ['Otimizei pipelines ETL no Databricks e reduzi o tempo de processamento em 40%.'],
       },
     ]
@@ -1273,7 +1280,7 @@ describe('runAgentLoop streaming', () => {
         ...baseSession.cvState,
         experience: [
           {
-            ...baseSession.cvState.experience[0],
+            ...originalExperience,
             bullets: ['Experiência base antiga.'],
           },
         ],
