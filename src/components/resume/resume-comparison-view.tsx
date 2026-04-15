@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Download, Loader2, Pencil } from "lucide-react"
+import { ArrowLeft, Download, Loader2, Pencil } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ResumeEditorModal } from "@/components/dashboard/resume-editor-modal"
@@ -360,6 +360,7 @@ export function ResumeComparisonView({
             onClick={onContinue}
             className="gap-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
+            <ArrowLeft className="h-4 w-4" />
             Voltar ao Perfil
           </Button>
         </div>
@@ -410,6 +411,7 @@ export function ResumeComparisonView({
           onClick={onContinue}
           className="w-full gap-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
         >
+          <ArrowLeft className="h-4 w-4" />
           Voltar ao Perfil
         </Button>
       </div>
