@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ImportResumeModal } from "./resume-builder"
 
@@ -35,6 +35,10 @@ function createDeferred<T>() {
 describe("ImportResumeModal", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it("uploads a PDF and forwards the imported profile data", async () => {
@@ -121,6 +125,132 @@ describe("ImportResumeModal", () => {
         "Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.",
       )
     })
+  })
+
+  it("polls queued PDF imports until the async job completes", async () => {
+    vi.useRealTimers()
+    const user = userEvent.setup()
+    const onImportSuccess = vi.fn()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        status: 202,
+        json: async () => ({
+          success: true,
+          jobId: "job_pdf_123",
+          status: "pending",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          jobId: "job_pdf_123",
+          status: "processing",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          jobId: "job_pdf_123",
+          status: "completed",
+          warningMessage: "Revise os dados importados antes de salvar. A confianca desta leitura foi baixa.",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          profile: {
+            cvState: {
+              fullName: "Ana Silva",
+              email: "ana@example.com",
+              phone: "",
+              summary: "Backend engineer",
+              experience: [],
+              skills: [],
+              education: [],
+            },
+            profilePhotoUrl: null,
+            source: "pdf",
+          },
+        }),
+      })
+
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+
+    render(
+      <ImportResumeModal
+        isOpen
+        onClose={vi.fn()}
+        onImportSuccess={onImportSuccess}
+      />,
+    )
+
+    const input = screen.getByLabelText(/clique para selecionar um pdf/i)
+    const file = new File(["pdf"], "resume.pdf", { type: "application/pdf" })
+
+    await user.upload(input, file)
+    await user.click(screen.getAllByRole("button", { name: /importar arquivo/i })[0])
+
+    expect(await screen.findByText(/status da importacao: aguardando processamento/i)).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(onImportSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({ fullName: "Ana Silva" }),
+        null,
+        "pdf",
+      )
+    }, { timeout: 8000 })
+
+    expect(toastWarning).toHaveBeenCalledWith(
+      "Revise os dados importados antes de salvar. A confianca desta leitura foi baixa.",
+    )
+    expect(toastSuccess).toHaveBeenCalledWith("Curriculo importado com sucesso.")
+  })
+
+  it("shows a failed async PDF import status when the background job fails", async () => {
+    vi.useRealTimers()
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        status: 202,
+        json: async () => ({
+          success: true,
+          jobId: "job_pdf_123",
+          status: "pending",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          jobId: "job_pdf_123",
+          status: "failed",
+          errorMessage:
+            "Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.",
+        }),
+      })
+
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+
+    render(
+      <ImportResumeModal
+        isOpen
+        onClose={vi.fn()}
+        onImportSuccess={vi.fn()}
+      />,
+    )
+
+    const input = screen.getByLabelText(/clique para selecionar um pdf/i)
+    const file = new File(["pdf"], "resume.pdf", { type: "application/pdf" })
+
+    await user.upload(input, file)
+    await user.click(screen.getAllByRole("button", { name: /importar arquivo/i })[0])
+
+    expect(await screen.findByText(/status da importacao: aguardando processamento/i)).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        "Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.",
+      )
+    }, { timeout: 5000 })
   })
 
   it("asks for confirmation before replacing a LinkedIn-imported profile with PDF data", async () => {

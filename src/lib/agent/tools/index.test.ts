@@ -680,8 +680,13 @@ describe('agent tool dispatch', () => {
     )
   })
 
-  it('reads generate_file input from canonical session cvState', async () => {
+  it('reads generate_file input from optimizedCvState when available for base generation', async () => {
     const session = buildSession()
+    session.agentState.optimizedCvState = {
+      ...session.cvState,
+      summary: 'Optimized ATS summary',
+      skills: ['TypeScript', 'AWS'],
+    }
 
     vi.mocked(generateBillableResume).mockResolvedValue({
       output: {
@@ -714,7 +719,11 @@ describe('agent tool dispatch', () => {
     expect(generateBillableResume).toHaveBeenCalledWith({
       userId: session.userId,
       sessionId: session.id,
-      sourceCvState: session.cvState,
+      sourceCvState: {
+        ...session.cvState,
+        summary: 'Optimized ATS summary',
+        skills: ['TypeScript', 'AWS'],
+      },
       targetId: undefined,
       idempotencyKey: undefined,
       templateTargetSource: session.agentState,

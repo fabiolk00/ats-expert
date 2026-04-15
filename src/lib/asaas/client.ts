@@ -1,3 +1,5 @@
+import 'server-only'
+
 import { logError, logInfo } from '@/lib/observability/structured-log'
 
 const BASE_URL = process.env.ASAAS_SANDBOX === 'true'

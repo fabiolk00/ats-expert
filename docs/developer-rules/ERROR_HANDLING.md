@@ -15,6 +15,7 @@ Back to [Developer Rules](./README.md) | [All Docs](../INDEX.md)
 Use the structured error system consistently so tools, dispatcher logs, and route adapters all behave the same way.
 
 Primary references:
+
 - `src/lib/agent/tool-errors.ts`
 - `docs/error-codes.md`
 - `docs/logging.md`
@@ -37,14 +38,12 @@ Good:
 
 ```ts
 return {
-  output: toolFailure(
-    TOOL_ERROR_CODES.VALIDATION_ERROR,
-    'fullName is required.',
-  ),
+  output: toolFailure(TOOL_ERROR_CODES.VALIDATION_ERROR, 'fullName is required.'),
 }
 ```
 
 Why:
+
 - keeps code values centralized
 - prevents typos
 - preserves route/log consistency
@@ -54,6 +53,7 @@ Why:
 Use the decision tree in `docs/error-codes.md`.
 
 Quick mapping:
+
 - `VALIDATION_ERROR`: bad input or invalid structured state
 - `PARSE_ERROR`: file extraction/parsing problem
 - `LLM_INVALID_OUTPUT`: model output did not match schema
@@ -86,27 +86,32 @@ catch (error) {
 ## Rule 3: Messages must be user-facing and specific
 
 Bad:
+
 - `schema validation failed`
 - `tool error`
 - `VALIDATION_ERROR`
 
 Good:
+
 - `fullName is required.`
 - `At least one work experience entry is required.`
 - `Invalid rewrite payload for section "summary".`
 
 Why:
+
 - users and support staff see these messages
 - specific messages reduce retries and debugging time
 
 ## Rule 4: Keep messages short
 
 Current behavior:
+
 - `toolFailureFromUnknown(...)` caps messages at 500 chars
 - `generate_file` validation messages also cap at 500 chars
 - truncation uses `499 chars + U+2026`
 
 Guidance:
+
 - prefer concise summaries under 200 chars
 - do not pass large third-party stack traces into tool output
 - if you call `toolFailure(...)` directly, summarize long library errors yourself first
@@ -119,15 +124,13 @@ Pattern:
 const parsed = MyInputSchema.safeParse(input)
 if (!parsed.success) {
   return {
-    output: toolFailure(
-      TOOL_ERROR_CODES.VALIDATION_ERROR,
-      'Invalid input for myTool.',
-    ),
+    output: toolFailure(TOOL_ERROR_CODES.VALIDATION_ERROR, 'Invalid input for myTool.'),
   }
 }
 ```
 
 Do validation before:
+
 - API calls
 - storage writes
 - model calls
@@ -163,9 +166,11 @@ return {
 ## Rule 7: Failed tools normally should not persist patches
 
 Default rule:
+
 - if a tool returns `ToolFailure`, do not persist `cvState` or `agentState` changes
 
 Current exception:
+
 - `generate_file` may persist `generatedOutput` failure metadata through the dispatcher so users can see that generation was attempted and failed
 
 Do not generalize that exception casually.
@@ -185,6 +190,7 @@ try {
 ```
 
 Why:
+
 - resolves `RATE_LIMITED` from upstream `429`
 - falls back safely to `INTERNAL_ERROR`
 - extracts a usable message when needed
@@ -198,19 +204,15 @@ Follow this pattern:
 const validation = validateGenerationCvState(input.cv_state)
 if (!validation.success) {
   return {
-    output: toolFailure(
-      TOOL_ERROR_CODES.VALIDATION_ERROR,
-      validation.errorMessage,
-    ),
-    patch: scope.type === 'session'
-      ? createFailurePatch(validation.errorMessage)
-      : undefined,
+    output: toolFailure(TOOL_ERROR_CODES.VALIDATION_ERROR, validation.errorMessage),
+    patch: scope.type === 'session' ? createFailurePatch(validation.errorMessage) : undefined,
     generatedOutput: createGeneratedOutput('failed', validation.errorMessage),
   }
 }
 ```
 
 Why:
+
 - prevents wasted generation work
 - avoids storage/signing side effects on invalid input
 - lets the dispatcher persist generation failure metadata safely
@@ -218,6 +220,7 @@ Why:
 ## Rule 10: Route adapters should preserve tool failures
 
 When a tool returns a structured failure, routes should preserve:
+
 - `success: false`
 - `code`
 - `error`
@@ -236,6 +239,7 @@ if (isToolFailure(result)) {
 ## Checklist For A New Tool
 
 When adding a tool:
+
 - define typed input/output in `src/types/agent.ts`
 - validate input with Zod
 - return `VALIDATION_ERROR` on schema/state validation failures
@@ -253,10 +257,7 @@ When adding a tool:
 
 ```ts
 return {
-  output: toolFailure(
-    TOOL_ERROR_CODES.PARSE_ERROR,
-    'Could not extract text from file.',
-  ),
+  output: toolFailure(TOOL_ERROR_CODES.PARSE_ERROR, 'Could not extract text from file.'),
 }
 ```
 
@@ -275,10 +276,7 @@ return {
 
 ```ts
 return {
-  output: toolFailure(
-    TOOL_ERROR_CODES.NOT_FOUND,
-    'Target resume not found.',
-  ),
+  output: toolFailure(TOOL_ERROR_CODES.NOT_FOUND, 'Target resume not found.'),
 }
 ```
 

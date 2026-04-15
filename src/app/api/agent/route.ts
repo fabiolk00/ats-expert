@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 
 import { runAgentLoop } from '@/lib/agent/agent-loop'
+import { runAtsEnhancementPipeline } from '@/lib/agent/ats-enhancement-pipeline'
+import { runJobTargetingPipeline } from '@/lib/agent/job-targeting-pipeline'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
   getSession,
@@ -19,7 +21,7 @@ import { extractUrl } from '@/lib/agent/url-extractor'
 import { scrapeJobPosting } from '@/lib/agent/scraper'
 import { logInfo, logWarn } from '@/lib/observability/structured-log'
 import { getAgentReleaseMetadata, type AgentReleaseMetadata } from '@/lib/runtime/release-metadata'
-import type { AgentSessionCreatedChunk, Session } from '@/types/agent'
+import type { AgentSessionCreatedChunk, Session, WorkflowMode } from '@/types/agent'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -223,6 +225,44 @@ function hasResumeContextForAutoGap(session: Pick<Session, 'cvState' | 'agentSta
   )
 }
 
+function resolveWorkflowMode(
+  session: Pick<Session, 'cvState' | 'agentState'>,
+): WorkflowMode {
+  const hasResumeContext = hasResumeContextForAutoGap(session)
+  const hasTargetJobDescription = Boolean(session.agentState.targetJobDescription?.trim())
+
+  if (hasResumeContext && hasTargetJobDescription) {
+    return 'job_targeting'
+  }
+
+  if (hasResumeContext) {
+    return 'ats_enhancement'
+  }
+
+  return 'resume_review'
+}
+
+async function persistWorkflowMode(
+  session: Pick<Session, 'id' | 'cvState' | 'agentState'> & { agentState: Session['agentState'] },
+): Promise<void> {
+  const workflowMode = resolveWorkflowMode(session)
+
+  if (session.agentState.workflowMode === workflowMode) {
+    return
+  }
+
+  const nextAgentState: Session['agentState'] = {
+    ...session.agentState,
+    workflowMode,
+  }
+
+  await updateSession(session.id, {
+    agentState: nextAgentState,
+  })
+
+  session.agentState = nextAgentState
+}
+
 function shouldAdvanceDetectedTargetToAnalysis(
   session: Pick<Session, 'phase' | 'cvState' | 'agentState'>,
   detection: TargetJobDetection | undefined,
@@ -243,7 +283,30 @@ function buildDetectedTargetJobAgentState(
     targetJobDescription: detection.targetJobDescription,
     gapAnalysis: undefined,
     targetFitAssessment: undefined,
+    targetingPlan: undefined,
+    rewriteStatus: 'pending',
+    optimizedCvState: undefined,
+    optimizedAt: undefined,
+    optimizationSummary: undefined,
+    rewriteValidation: undefined,
+    atsWorkflowRun: undefined,
+    lastRewriteMode: session.agentState.lastRewriteMode === 'job_targeting'
+      ? undefined
+      : session.agentState.lastRewriteMode,
   }
+}
+
+function shouldRunJobTargetingPipeline(session: Session): boolean {
+  return Boolean(
+    session.agentState.workflowMode === 'job_targeting'
+    && hasResumeContextForAutoGap(session)
+    && session.agentState.targetJobDescription?.trim()
+    && (
+      !session.agentState.optimizedCvState
+      || session.agentState.rewriteStatus !== 'completed'
+      || session.agentState.lastRewriteMode !== 'job_targeting'
+    )
+  )
 }
 
 async function persistTargetJobAgentState(
@@ -716,6 +779,18 @@ export async function POST(req: NextRequest) {
         message = await handleFileAttachment(message, file, fileMime, session!, appUserId, requestId, req.signal)
       }
 
+      await persistWorkflowMode(session!)
+      if (
+        session!.agentState.workflowMode === 'ats_enhancement'
+        && hasResumeContextForAutoGap(session!)
+        && (!session!.agentState.optimizedCvState || session!.agentState.rewriteStatus !== 'completed')
+      ) {
+        await runAtsEnhancementPipeline(session!)
+      }
+      if (shouldRunJobTargetingPipeline(session!)) {
+        await runJobTargetingPipeline(session!)
+      }
+
       await incrementMessageCount(session!.id)
     } catch (err) {
       const isAbort = (err instanceof Error || err instanceof DOMException) && err.name === 'AbortError'
@@ -769,6 +844,18 @@ export async function POST(req: NextRequest) {
           // message count until attachment preprocessing has succeeded.
           if (file && fileMime) {
             message = await handleFileAttachment(message, file, fileMime, session!, appUserId, requestId, req.signal)
+          }
+
+          await persistWorkflowMode(session!)
+          if (
+            session!.agentState.workflowMode === 'ats_enhancement'
+            && hasResumeContextForAutoGap(session!)
+            && (!session!.agentState.optimizedCvState || session!.agentState.rewriteStatus !== 'completed')
+          ) {
+            await runAtsEnhancementPipeline(session!)
+          }
+          if (shouldRunJobTargetingPipeline(session!)) {
+            await runJobTargetingPipeline(session!)
           }
 
           await incrementMessageCount(session!.id)

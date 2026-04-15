@@ -10,9 +10,9 @@ This runbook covers diagnosis and recovery for the current Asaas billing flow.
 - `SUBSCRIPTION_CREATED` is informational only.
 - Cancellations and inactivations update metadata only and do not revoke credits.
 
-## Phase 3 operator entrypoint
+## Phase 17 operator entrypoint
 
-Before ad hoc SQL or manual webhook replay, start with the committed Phase 3 workflow:
+Before ad hoc SQL or manual webhook replay, start with the committed billing proof path:
 
 ```bash
 bash scripts/verify-staging.sh
@@ -30,7 +30,7 @@ Prerequisites:
   - `psql` plus `STAGING_DB_URL`
   - or `NEXT_PUBLIC_SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY`
 
-Phase 3 also needs to validate the live `externalReference` shape. Current webhook docs favor `curria:v1:c:<checkoutReference>`, while checkout creation still emits `curria:v1:u:<appUserId>:c:<checkoutReference>`. Use the replay helper with or without `--app-user` to prove which shape staging currently accepts.
+Phase 17 also needs to validate the live trust-anchor shape. Current production intent is `curria:v1:c:<checkoutReference>`, while the parser still accepts the older `curria:v1:u:<appUserId>:c:<checkoutReference>` format for compatibility. Use the replay helper with or without `--app-user` only to prove which shape staging still receives; do not emit new checkout links in the legacy format.
 
 ## Quick health check
 
@@ -241,7 +241,40 @@ HAVING COUNT(*) > 1;
 
 Expected: zero rows.
 
-## 8. Pre-cutover legacy subscription issue
+## 8. Resume generation replay or duplicate-charge incident
+
+### What should be true
+
+- identical logical replay should return the existing `resume_generations` row with `creditsUsed = 0`
+- an in-flight replay should return `inProgress = true`
+- a failed generation replay by the same idempotency key should surface the previous failure instead of charging again
+- `credit_consumptions` must contain at most one spend row per successful `resume_generations.id`
+
+### Checks
+
+```sql
+SELECT id, session_id, resume_target_id, type, status, idempotency_key, output_pdf_path, created_at, updated_at
+FROM resume_generations
+WHERE user_id = '<user_id>'
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+```sql
+SELECT generation_id, user_id, credits_used, created_at
+FROM credit_consumptions
+WHERE user_id = '<user_id>'
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+### Recovery
+
+- if two `credit_consumptions` rows point to the same logical generation intent, escalate to engineering immediately
+- if `resume_generations.status = 'failed'` after file rendering but before credit finalization, verify whether a PDF path was created and avoid replaying blindly
+- if the user retries with the same client request id and still sees a new charge, capture the duplicated `idempotency_key`, `generation_id`, and affected `credit_consumptions` rows before any manual refund
+
+## 9. Pre-cutover legacy subscription issue
 
 Legacy recurring flows still resolve by `user_quotas.asaas_subscription_id`.
 
@@ -257,7 +290,7 @@ If the row is missing or malformed:
 - confirm the plan is correct
 - then replay the renewal webhook
 
-## 9. Manual webhook replay
+## 10. Manual webhook replay
 
 Use the original webhook payload whenever possible. When you are following the committed Phase 3 proof path, prefer the replay helper over hand-crafted curl commands so the evidence stays repeatable.
 
@@ -284,9 +317,19 @@ For evidence capture, pair every replay with:
 npx tsx scripts/check-staging-billing-state.ts --checkout <checkout_reference>
 ```
 
+## Billing invariant checklist
+
+- `billing_checkouts` is the trust anchor for new paid checkout settlement and initial recurring activation
+- `processed_events` must dedupe economic webhook mutations
+- `credit_accounts` is the authoritative runtime balance
+- `user_quotas` is metadata plus UI display state, not the spend authority
+- `resume_generations` plus `credit_consumptions` prove whether a paid artifact was already generated or charged
+- paid artifact ownership checks are necessary but not sufficient; billing replay safety depends on generation state and credit mutation state together
+
 ## Escalate to engineering when
 
 - duplicate grants are observed
+- duplicate billable generations are observed for the same `idempotency_key`
 - `processed_events` still stores old event names like `PAYMENT_RECEIVED`
 - checkout status cannot be reconciled from authoritative Asaas data
 - trust-anchor validation fails for apparently valid current-state rows

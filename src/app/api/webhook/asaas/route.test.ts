@@ -76,6 +76,26 @@ describe('Asaas webhook route', () => {
     })
   })
 
+  it('rejects webhook requests when the auth token header is missing', async () => {
+    const response = await POST(new NextRequest('http://localhost/api/webhook/asaas', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        event: 'PAYMENT_RECEIVED',
+        payment: { id: 'pay_123', externalReference: 'curria:v1:c:chk_123', value: 19.9 },
+      }),
+    }))
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'UNAUTHORIZED',
+      error: 'Unauthorized',
+    })
+  })
+
   it('returns 500 when ASAAS_WEBHOOK_TOKEN is missing', async () => {
     delete process.env.ASAAS_WEBHOOK_TOKEN
 
@@ -101,6 +121,21 @@ describe('Asaas webhook route', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ success: true, ignored: true })
+    expect(computeEventFingerprint).not.toHaveBeenCalled()
+    expect(handlePaymentSettlement).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for malformed webhook payloads before any billing handler runs', async () => {
+    const response = await POST(createRequest({
+      event: 'PAYMENT_CONFIRMED',
+    }))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'PAYMENT_CONFIRMED events require a payment object.',
+    })
     expect(computeEventFingerprint).not.toHaveBeenCalled()
     expect(handlePaymentSettlement).not.toHaveBeenCalled()
   })

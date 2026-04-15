@@ -132,6 +132,26 @@ afterEach(() => {
 })
 
 describe('clerk webhook route', () => {
+  it('returns 400 when Svix headers are missing', async () => {
+    mockHeaders.mockReturnValue(new Headers())
+
+    const { POST } = await loadRoute()
+    const response = await POST(new Request('http://localhost/api/webhook/clerk', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Missing svix headers' })
+    expect(mockWebhookConstructor).not.toHaveBeenCalled()
+    expect(mockRedisSet).not.toHaveBeenCalled()
+    expect(mockLogWarn).toHaveBeenCalledWith('clerk.webhook.headers_missing', expect.objectContaining({
+      requestMethod: 'POST',
+      requestPath: '/api/webhook/clerk',
+      success: false,
+    }))
+  })
+
   it('returns 500 when CLERK_WEBHOOK_SECRET is missing', async () => {
     delete process.env.CLERK_WEBHOOK_SECRET
 
@@ -190,13 +210,63 @@ describe('clerk webhook route', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true, duplicate: true })
     expect(mockWebhookConstructor).toHaveBeenCalledWith('whsec_123')
-    expect(mockWebhookVerify).not.toHaveBeenCalled()
+    expect(mockWebhookVerify).toHaveBeenCalled()
     expect(mockLogInfo).toHaveBeenCalledWith('clerk.webhook.duplicate', expect.objectContaining({
       requestMethod: 'POST',
       requestPath: '/api/webhook/clerk',
       svixId: 'evt_123',
       success: true,
       duplicate: true,
+    }))
+  })
+
+  it('returns 400 when the webhook signature is invalid', async () => {
+    mockWebhookVerify.mockImplementation(() => {
+      throw new Error('bad signature')
+    })
+
+    const { POST } = await loadRoute()
+    const response = await POST(new Request('http://localhost/api/webhook/clerk', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Invalid signature' })
+    expect(mockRedisSet).not.toHaveBeenCalled()
+    expect(mockRedisDel).not.toHaveBeenCalled()
+    expect(mockLogWarn).toHaveBeenCalledWith('clerk.webhook.signature_invalid', expect.objectContaining({
+      requestMethod: 'POST',
+      requestPath: '/api/webhook/clerk',
+      svixId: 'evt_123',
+      success: false,
+      errorMessage: 'bad signature',
+    }))
+  })
+
+  it('returns 400 when the webhook timestamp is malformed', async () => {
+    mockHeaders.mockReturnValue(new Headers({
+      'svix-id': 'evt_123',
+      'svix-timestamp': 'not-a-number',
+      'svix-signature': 'sig_123',
+    }))
+
+    const { POST } = await loadRoute()
+    const response = await POST(new Request('http://localhost/api/webhook/clerk', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Webhook timestamp out of tolerance' })
+    expect(mockWebhookVerify).not.toHaveBeenCalled()
+    expect(mockRedisSet).not.toHaveBeenCalled()
+    expect(mockLogWarn).toHaveBeenCalledWith('clerk.webhook.timestamp_out_of_tolerance', expect.objectContaining({
+      requestMethod: 'POST',
+      requestPath: '/api/webhook/clerk',
+      svixId: 'evt_123',
+      success: false,
+      eventAgeSeconds: null,
     }))
   })
 

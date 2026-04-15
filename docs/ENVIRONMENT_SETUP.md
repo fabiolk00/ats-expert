@@ -48,6 +48,9 @@ Optional variables:
 - `OPENAI_DIALOG_MODEL`
 - `ASAAS_SANDBOX`
 - `LINKDAPI_API_KEY`
+- `E2E_AUTH_ENABLED`
+- `E2E_AUTH_BYPASS_SECRET`
+- `E2E_AUTH_ALLOW_LOCAL_DEV`
 
 Do not use legacy provider aliases. CI and runtime are intentionally aligned on the canonical names above.
 
@@ -58,6 +61,13 @@ OpenAI model selection works as follows:
 - `OPENAI_MODEL` is still accepted as a compatibility alias for `OPENAI_AGENT_MODEL`.
 - `OPENAI_DIALOG_MODEL` is an explicit override for dialog and confirm turns only.
 - When `OPENAI_DIALOG_MODEL` is unset, dialog and confirm turns follow the resolved agent model.
+
+E2E auth bypass is test-only:
+
+- `E2E_AUTH_ENABLED=true` requests the bypass seam
+- `E2E_AUTH_BYPASS_SECRET` signs and authorizes the cookie bootstrap route
+- `E2E_AUTH_ALLOW_LOCAL_DEV=true` is required for local development usage
+- CI does not need `E2E_AUTH_ALLOW_LOCAL_DEV=true` because `CI=true` satisfies the runtime guard automatically
 
 ## Local Setup
 
@@ -121,6 +131,7 @@ Deploy environments must use the same canonical runtime names listed above. Befo
 - If a secret rotates, update only your local file or deployment platform entry unless the contract name itself changed.
 - If you add a new required variable, update the template and docs in the same change.
 - CI runs `npm run audit:secrets` to block tracked `.env*` files outside the committed root templates, private keys, and obvious committed secret values for launch-critical env names.
+- Do not enable `E2E_AUTH_ENABLED` outside CI, `NODE_ENV=test`, or explicit local development with `E2E_AUTH_ALLOW_LOCAL_DEV=true`.
 
 ## Quick Checks
 
@@ -153,5 +164,6 @@ npm run audit:secrets
 - [README.md](../README.md)
 - [staging/SETUP_GUIDE.md](./staging/SETUP_GUIDE.md)
 - [staging/VALIDATION_PLAN.md](./staging/VALIDATION_PLAN.md)
+- [operations/secret-boundaries-and-e2e-auth.md](./operations/secret-boundaries-and-e2e-auth.md)
 - [.env.example](../.env.example)
 - [.env.staging.example](../.env.staging.example)

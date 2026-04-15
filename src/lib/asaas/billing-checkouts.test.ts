@@ -4,6 +4,8 @@ import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 
 import {
   createCheckoutRecordPending,
+  getCheckoutByAsaasSessionId,
+  getCheckoutBySubscriptionId,
   getCheckoutRecord,
   markCheckoutCreated,
   markCheckoutFailed,
@@ -22,13 +24,16 @@ const updateEq = vi.fn()
 const update = vi.fn(() => ({ eq: updateEq }))
 const maybeSingle = vi.fn()
 const selectEq = vi.fn(() => ({ maybeSingle }))
-const select = vi.fn(() => ({ eq: selectEq }))
+const selectIlike = vi.fn(() => ({ maybeSingle }))
 
 const mockSupabase = {
   from: vi.fn(() => ({
     insert,
     update,
-    select,
+    select: vi.fn(() => ({
+      eq: selectEq,
+      ilike: selectIlike,
+    })),
   })),
 }
 
@@ -84,6 +89,14 @@ describe('billing checkout lifecycle helpers', () => {
     expect(insert).toHaveBeenCalled()
   })
 
+  it('rejects free or non-positive checkout bootstrap attempts', async () => {
+    await expect(createCheckoutRecordPending('usr_123', 'free', 0)).rejects.toThrowError(
+      'billing_checkouts only supports paid Asaas plans: free',
+    )
+
+    expect(insert).not.toHaveBeenCalled()
+  })
+
   it('updates checkout lifecycle states', async () => {
     await markCheckoutCreated('chk_123', 'https://asaas.test/pay')
     await markCheckoutFailed('chk_123', 'provider failed')
@@ -98,5 +111,19 @@ describe('billing checkout lifecycle helpers', () => {
 
     expect(result?.checkoutReference).toBe('chk_123')
     expect(selectEq).toHaveBeenCalledWith('checkout_reference', 'chk_123')
+  })
+
+  it('loads a checkout record by subscription id', async () => {
+    const result = await getCheckoutBySubscriptionId('sub_123')
+
+    expect(result?.checkoutReference).toBe('chk_123')
+    expect(selectEq).toHaveBeenCalledWith('asaas_subscription_id', 'sub_123')
+  })
+
+  it('loads a checkout record by Asaas hosted session id', async () => {
+    const result = await getCheckoutByAsaasSessionId('session_123')
+
+    expect(result?.checkoutReference).toBe('chk_123')
+    expect(selectIlike).toHaveBeenCalledWith('asaas_link', '%show?id=session_123')
   })
 })

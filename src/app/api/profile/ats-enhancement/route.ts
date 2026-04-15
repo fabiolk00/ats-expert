@@ -5,81 +5,13 @@ import { validateGenerationCvState } from '@/lib/agent/tools/generate-file'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { CVStateSchema } from '@/lib/cv/schema'
 import { checkUserQuota } from '@/lib/db/sessions'
-import { ATS_SECTION_HEADINGS } from '@/lib/templates/cv-state-to-template-data'
 import {
   assessAtsEnhancementReadiness,
   buildResumeTextFromCvState,
   getAtsEnhancementBlockingItems,
 } from '@/lib/profile/ats-enhancement'
 import { createSession, applyToolPatchWithVersion } from '@/lib/db/sessions'
-import type { ToolFailure } from '@/types/agent'
-
-function buildAtsResumeStyleGuide(): string {
-  return [
-    'Act as a senior ATS resume strategist for Brazilian job seekers.',
-    'Write in Brazilian Portuguese (pt-BR) with professional, concise, recruiter-friendly language.',
-    'Never invent employers, tools, certifications, projects, metrics, or results.',
-    'Optimize for ATS parsing, semantic keyword matching, and human readability at the same time.',
-    `Prefer a predictable ATS structure: ${ATS_SECTION_HEADINGS.summary.toLowerCase()}, ${ATS_SECTION_HEADINGS.skills.toLowerCase()}, ${ATS_SECTION_HEADINGS.experience.toLowerCase()}, ${ATS_SECTION_HEADINGS.education.toLowerCase()}, ${ATS_SECTION_HEADINGS.certifications.toLowerCase()}, ${ATS_SECTION_HEADINGS.languages.toLowerCase()}.`,
-    'Avoid keyword stuffing, vague cliches, decorative language, and anything that sounds inflated or fictional.',
-  ].join('\n')
-}
-
-function buildSummaryInstructions(): string {
-  return [
-    buildAtsResumeStyleGuide(),
-    'Rewrite only the resumo profissional for generic ATS enhancement without a specific vacancy.',
-    'Use 3 to 5 lines with this logic: profissao + senioridade/anos + especialidade + stack principal + tipo de impacto.',
-    'Prioritize clarity, positioning, technologies already supported by the resume, and credible business impact.',
-    'Do not use empty cliches such as proativo, dedicado, comunicativo, apaixonado por desafios.',
-  ].join('\n\n')
-}
-
-function buildExperienceInstructions(): string {
-  return [
-    buildAtsResumeStyleGuide(),
-    'Rewrite only the experiencia profissional section for generic ATS enhancement without a specific vacancy.',
-    'Preserve the same cargos, empresas, datas, and factual scope.',
-    'Rewrite each bullet with the logic acao + contexto + resultado ou finalidade legitima.',
-    'Start bullets with strong verbs, keep them objective, and remove weak phrasing such as responsavel por.',
-    'Do not invent achievements, metrics, tools, or responsibilities that are not grounded in the existing resume.',
-  ].join('\n\n')
-}
-
-function buildSkillsInstructions(): string {
-  return [
-    buildAtsResumeStyleGuide(),
-    `Rewrite and reorder only the ${ATS_SECTION_HEADINGS.skills.toLowerCase()} section for generic ATS enhancement without a specific vacancy.`,
-    'Keep only real skills already supported by the resume or clearly informed by the user.',
-    'Prioritize stronger market signals first and remove redundancy.',
-    'Think in ATS-friendly groups such as analise de dados, business intelligence, cloud, programacao, engenharia de dados, ferramentas, and metodologias when relevant.',
-  ].join('\n\n')
-}
-
-function isToolFailure(value: unknown): value is ToolFailure {
-  return Boolean(
-    value
-    && typeof value === 'object'
-    && 'success' in value
-    && (value as { success?: unknown }).success === false,
-  )
-}
-
-function shouldSkipRewriteFailure(failure: ToolFailure | undefined): boolean {
-  return failure?.code === 'LLM_INVALID_OUTPUT'
-}
-
-function buildFriendlyRewriteError(failure: ToolFailure | undefined): string {
-  if (!failure) {
-    return 'Nao foi possivel melhorar sua versao ATS agora.'
-  }
-
-  if (failure.code === 'LLM_INVALID_OUTPUT') {
-    return 'Nao foi possivel estruturar uma das secoes reescritas. Tentamos manter seu conteudo original para concluir a geracao.'
-  }
-
-  return 'Nao foi possivel melhorar sua versao ATS agora. Tente novamente em instantes.'
-}
+import { runAtsEnhancementPipeline } from '@/lib/agent/ats-enhancement-pipeline'
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const appUser = await getCurrentAppUser()
@@ -125,63 +57,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     agentState: {
       parseStatus: 'parsed',
       sourceResumeText: buildResumeTextFromCvState(parsed.data),
+      workflowMode: 'ats_enhancement',
     },
   }, 'manual')
 
-  const summaryResult = await dispatchToolWithContext('rewrite_section', {
-    section: 'summary',
-    current_content: parsed.data.summary.trim() || buildResumeTextFromCvState(parsed.data),
-    instructions: buildSummaryInstructions(),
-    target_keywords: parsed.data.skills.slice(0, 8),
-  }, session)
-
-  if (summaryResult.outputFailure) {
-    if (!shouldSkipRewriteFailure(summaryResult.outputFailure)) {
-      return NextResponse.json({
-        error: buildFriendlyRewriteError(summaryResult.outputFailure),
-        code: summaryResult.outputFailure.code,
-      }, { status: 500 })
-    }
+  const pipeline = await runAtsEnhancementPipeline(session)
+  if (!pipeline.success || !pipeline.optimizedCvState) {
+    return NextResponse.json({
+      error: pipeline.error ?? 'Nao foi possivel melhorar sua versao ATS agora.',
+      reasons: pipeline.validation?.issues.map((issue) => issue.message),
+    }, { status: 500 })
   }
-
-  const experienceResult = await dispatchToolWithContext('rewrite_section', {
-    section: 'experience',
-    current_content: JSON.stringify(session.cvState.experience),
-    instructions: buildExperienceInstructions(),
-    target_keywords: session.cvState.skills.slice(0, 10),
-  }, session)
-
-  if (experienceResult.outputFailure) {
-    if (!shouldSkipRewriteFailure(experienceResult.outputFailure)) {
-      return NextResponse.json({
-        error: buildFriendlyRewriteError(experienceResult.outputFailure),
-        code: experienceResult.outputFailure.code,
-      }, { status: 500 })
-    }
-  }
-
-  const skillsResult = await dispatchToolWithContext('rewrite_section', {
-    section: 'skills',
-    current_content: session.cvState.skills.join(', '),
-    instructions: buildSkillsInstructions(),
-    target_keywords: session.cvState.skills.slice(0, 12),
-  }, session)
-
-  if (skillsResult.outputFailure) {
-    if (!shouldSkipRewriteFailure(skillsResult.outputFailure)) {
-      return NextResponse.json({
-        error: buildFriendlyRewriteError(skillsResult.outputFailure),
-        code: skillsResult.outputFailure.code,
-      }, { status: 500 })
-    }
-  }
-
-  await dispatchToolWithContext('score_ats', {
-    resume_text: buildResumeTextFromCvState(session.cvState),
-  }, session)
 
   const generationResult = await dispatchToolWithContext('generate_file', {
-    cv_state: session.cvState,
+    cv_state: pipeline.optimizedCvState,
     idempotency_key: `profile-ats:${session.id}`,
   }, session)
 

@@ -1,3 +1,38 @@
 {
-  "extends": ["next/core-web-vitals"]
+  "extends": ["next/core-web-vitals", "prettier"],
+  "overrides": [
+    {
+      "files": [
+        "src/app/api/cron/**/*.{ts,tsx}",
+        "src/app/api/e2e/**/*.{ts,tsx}",
+        "src/lib/auth/**/*.{ts,tsx}",
+        "src/lib/db/supabase-admin.ts",
+        "src/lib/db/supabase-admin.test.ts",
+        "src/lib/openai/**/*.{ts,tsx}",
+        "src/lib/asaas/client.ts",
+        "src/lib/asaas/client.test.ts"
+      ],
+      "parser": "@typescript-eslint/parser",
+      "plugins": ["@typescript-eslint"],
+      "extends": ["plugin:@typescript-eslint/recommended", "prettier"],
+      "rules": {
+        "@typescript-eslint/consistent-type-imports": [
+          "error",
+          {
+            "prefer": "type-imports",
+            "fixStyle": "inline-type-imports"
+          }
+        ],
+        "@typescript-eslint/no-unused-vars": [
+          "error",
+          {
+            "argsIgnorePattern": "^_",
+            "varsIgnorePattern": "^_",
+            "caughtErrorsIgnorePattern": "^_"
+          }
+        ],
+        "@typescript-eslint/no-explicit-any": "off"
+      }
+    }
+  ]
 }

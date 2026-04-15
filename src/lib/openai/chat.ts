@@ -1,7 +1,94 @@
-import OpenAI, { APIError } from 'openai'
-import { Stream } from 'openai/streaming'
+import type OpenAI from 'openai'
+import { APIError } from 'openai'
+import type { Stream } from 'openai/streaming'
+
+import type { WorkflowMode } from '@/types/agent'
+import { logInfo, logWarn } from '@/lib/observability/structured-log'
 
 const OPENAI_RETRYABLE_STATUS_CODES = [429, 500, 502, 503] as const
+const DEFAULT_OPENAI_CIRCUIT_FAILURE_THRESHOLD = 3
+const DEFAULT_OPENAI_CIRCUIT_OPEN_MS = 30_000
+const DEFAULT_OPENAI_MAX_BACKOFF_MS = 30_000
+
+type CircuitState = 'closed' | 'open' | 'half_open'
+
+export type OpenAIProtectionContext = {
+  operation?: string
+  workflowMode?: WorkflowMode
+  stage?: string
+  requestKind?: 'completion' | 'stream'
+  model?: string
+  sessionId?: string
+  userId?: string
+}
+
+type OpenAICircuitSnapshot = {
+  state: CircuitState
+  consecutiveFailures: number
+  openedAt?: number
+  openUntil?: number
+  halfOpenProbeActive: boolean
+}
+
+type CircuitLease = {
+  halfOpenProbe: boolean
+}
+
+type OpenAIProtectionConfig = {
+  circuitFailureThreshold: number
+  circuitOpenMs: number
+  maxBackoffMs: number
+}
+
+function parsePositiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? '', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+export function resolveOpenAIProtectionConfig(env: NodeJS.ProcessEnv = process.env): OpenAIProtectionConfig {
+  return {
+    circuitFailureThreshold: parsePositiveInteger(
+      env.OPENAI_CIRCUIT_FAILURE_THRESHOLD,
+      DEFAULT_OPENAI_CIRCUIT_FAILURE_THRESHOLD,
+    ),
+    circuitOpenMs: parsePositiveInteger(
+      env.OPENAI_CIRCUIT_OPEN_MS,
+      DEFAULT_OPENAI_CIRCUIT_OPEN_MS,
+    ),
+    maxBackoffMs: parsePositiveInteger(
+      env.OPENAI_MAX_BACKOFF_MS,
+      DEFAULT_OPENAI_MAX_BACKOFF_MS,
+    ),
+  }
+}
+
+function getOpenAIProtectionConfig(): OpenAIProtectionConfig {
+  return resolveOpenAIProtectionConfig()
+}
+
+let openAICircuitState: OpenAICircuitSnapshot = {
+  state: 'closed',
+  consecutiveFailures: 0,
+  halfOpenProbeActive: false,
+}
+
+export class OpenAIRequestTimeoutError extends Error {
+  readonly code = 'OPENAI_TIMEOUT'
+
+  constructor(message = 'OpenAI request timed out.') {
+    super(message)
+    this.name = 'OpenAIRequestTimeoutError'
+  }
+}
+
+export class OpenAICircuitOpenError extends Error {
+  readonly code = 'OPENAI_CIRCUIT_OPEN'
+
+  constructor(message = 'OpenAI circuit breaker is open.') {
+    super(message)
+    this.name = 'OpenAICircuitOpenError'
+  }
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -9,10 +96,23 @@ function sleep(ms: number): Promise<void> {
   })
 }
 
-/**
- * Parses a Retry-After header value into milliseconds.
- * Returns null if the header is missing, unparsable, or non-positive.
- */
+function getContextFields(context?: OpenAIProtectionContext): Record<string, string | number | boolean | undefined> {
+  const config = getOpenAIProtectionConfig()
+
+  return {
+    provider: 'openai',
+    operation: context?.operation,
+    workflowMode: context?.workflowMode,
+    stage: context?.stage,
+    requestKind: context?.requestKind ?? 'completion',
+    model: context?.model,
+    sessionId: context?.sessionId,
+    userId: context?.userId,
+    breakerThreshold: config.circuitFailureThreshold,
+    breakerCooldownMs: config.circuitOpenMs,
+  }
+}
+
 function parseRetryAfterMs(error: unknown): number | null {
   if (!(error instanceof APIError)) return null
 
@@ -25,76 +125,154 @@ function parseRetryAfterMs(error: unknown): number | null {
   return seconds * 1000
 }
 
-/**
- * Wraps an OpenAI API call with exponential backoff retry logic.
- * Supports per-attempt timeout via AbortController, Retry-After header,
- * and an external abort signal (e.g. client disconnect).
- * @param fn - Function that makes the OpenAI API call (receives an AbortSignal for timeout)
- * @param maxRetries - Maximum number of retry attempts (default: 3)
- * @param timeoutMs - Per-attempt timeout in milliseconds (optional)
- * @param externalSignal - External AbortSignal (e.g. from req.signal) to cancel on client disconnect
- * @returns Promise resolving to ChatCompletion
- */
-export async function callOpenAIWithRetry(
-  fn: (signal?: AbortSignal) => Promise<OpenAI.Chat.Completions.ChatCompletion>,
-  maxRetries = 3,
-  timeoutMs?: number,
-  externalSignal?: AbortSignal,
-): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-  let lastError: Error | null = null
+function isExternalAbort(error: unknown, externalSignal?: AbortSignal): boolean {
+  return Boolean(
+    externalSignal?.aborted
+    && (error instanceof Error || error instanceof DOMException)
+    && error.name === 'AbortError',
+  )
+}
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    // Check if already cancelled before starting an attempt
-    if (externalSignal?.aborted) {
-      throw new DOMException('Request aborted', 'AbortError')
+function isRetryableProviderError(error: unknown): boolean {
+  return error instanceof OpenAIRequestTimeoutError
+    || (
+      error instanceof APIError
+      && OPENAI_RETRYABLE_STATUS_CODES.includes(error.status as (typeof OPENAI_RETRYABLE_STATUS_CODES)[number])
+    )
+}
+
+function getRetryDelayMs(error: unknown, attempt: number): number {
+  const config = getOpenAIProtectionConfig()
+  const exponentialDelay = Math.pow(2, attempt - 1) * 1000
+  const retryAfterMs = parseRetryAfterMs(error)
+
+  return Math.min(
+    retryAfterMs != null ? Math.max(retryAfterMs, exponentialDelay) : exponentialDelay,
+    config.maxBackoffMs,
+  )
+}
+
+function enterOpenAICircuit(context?: OpenAIProtectionContext): CircuitLease {
+  const now = Date.now()
+
+  if (openAICircuitState.state === 'open') {
+    if ((openAICircuitState.openUntil ?? 0) > now) {
+      logWarn('openai.circuit.short_circuit', {
+        ...getContextFields(context),
+        breakerState: openAICircuitState.state,
+        consecutiveFailures: openAICircuitState.consecutiveFailures,
+        openUntil: openAICircuitState.openUntil,
+      })
+      throw new OpenAICircuitOpenError()
     }
 
-    let controller: AbortController | undefined
-    let timer: ReturnType<typeof setTimeout> | undefined
-    let onExternalAbort: (() => void) | undefined
-
-    try {
-      controller = new AbortController()
-
-      if (timeoutMs) {
-        timer = setTimeout(() => controller!.abort(), timeoutMs)
-      }
-
-      // Forward external signal (client disconnect) to the per-attempt controller
-      if (externalSignal) {
-        onExternalAbort = () => controller!.abort()
-        externalSignal.addEventListener('abort', onExternalAbort)
-      }
-
-      const result = await fn(controller.signal)
-      return result
-    } catch (error) {
-      lastError = error as Error
-
-      const isRetryable =
-        error instanceof APIError &&
-        OPENAI_RETRYABLE_STATUS_CODES.includes(error.status as (typeof OPENAI_RETRYABLE_STATUS_CODES)[number])
-
-      if (!isRetryable || attempt === maxRetries) {
-        throw error
-      }
-
-      const exponentialDelay = Math.pow(2, attempt - 1) * 1000
-      const retryAfterMs = parseRetryAfterMs(error)
-      const delay = Math.min(
-        retryAfterMs != null ? Math.max(retryAfterMs, exponentialDelay) : exponentialDelay,
-        30_000,
-      )
-      await sleep(delay)
-    } finally {
-      if (timer) clearTimeout(timer)
-      if (onExternalAbort && externalSignal) {
-        externalSignal.removeEventListener('abort', onExternalAbort)
-      }
+    openAICircuitState = {
+      ...openAICircuitState,
+      state: 'half_open',
+      halfOpenProbeActive: false,
     }
+
+    logInfo('openai.circuit.half_open', {
+      ...getContextFields(context),
+      breakerState: 'half_open',
+      consecutiveFailures: openAICircuitState.consecutiveFailures,
+    })
   }
 
-  throw lastError
+  if (openAICircuitState.state === 'half_open') {
+    if (openAICircuitState.halfOpenProbeActive) {
+      logWarn('openai.circuit.short_circuit', {
+        ...getContextFields(context),
+        breakerState: 'half_open',
+        consecutiveFailures: openAICircuitState.consecutiveFailures,
+        openUntil: openAICircuitState.openUntil,
+      })
+      throw new OpenAICircuitOpenError('OpenAI circuit breaker is probing recovery.')
+    }
+
+    openAICircuitState = {
+      ...openAICircuitState,
+      halfOpenProbeActive: true,
+    }
+
+    return { halfOpenProbe: true }
+  }
+
+  return { halfOpenProbe: false }
+}
+
+function recordOpenAICircuitSuccess(lease: CircuitLease, context?: OpenAIProtectionContext): void {
+  const previousState = openAICircuitState.state
+  const previousFailures = openAICircuitState.consecutiveFailures
+
+  openAICircuitState = {
+    state: 'closed',
+    consecutiveFailures: 0,
+    halfOpenProbeActive: false,
+  }
+
+  if (lease.halfOpenProbe || previousState !== 'closed' || previousFailures > 0) {
+    logInfo('openai.circuit.closed', {
+      ...getContextFields(context),
+      previousState,
+      previousFailures,
+      breakerState: 'closed',
+    })
+  }
+}
+
+function recordOpenAICircuitFailure(error: unknown, lease: CircuitLease, context?: OpenAIProtectionContext): void {
+  const config = getOpenAIProtectionConfig()
+  const now = Date.now()
+
+  if (lease.halfOpenProbe || openAICircuitState.state === 'half_open') {
+    openAICircuitState = {
+      state: 'open',
+      consecutiveFailures: config.circuitFailureThreshold,
+      openedAt: now,
+      openUntil: now + config.circuitOpenMs,
+      halfOpenProbeActive: false,
+    }
+
+    logWarn('openai.circuit.open', {
+      ...getContextFields(context),
+      breakerState: 'open',
+      consecutiveFailures: openAICircuitState.consecutiveFailures,
+      reason: error instanceof Error ? error.name : 'half_open_probe_failed',
+      openForMs: config.circuitOpenMs,
+      openUntil: openAICircuitState.openUntil,
+    })
+    return
+  }
+
+  const consecutiveFailures = openAICircuitState.consecutiveFailures + 1
+  const shouldOpen = consecutiveFailures >= config.circuitFailureThreshold
+
+  openAICircuitState = shouldOpen
+    ? {
+        state: 'open',
+        consecutiveFailures,
+        openedAt: now,
+        openUntil: now + config.circuitOpenMs,
+        halfOpenProbeActive: false,
+      }
+    : {
+        ...openAICircuitState,
+        state: 'closed',
+        consecutiveFailures,
+        halfOpenProbeActive: false,
+      }
+
+  if (shouldOpen) {
+    logWarn('openai.circuit.open', {
+      ...getContextFields(context),
+      breakerState: 'open',
+      consecutiveFailures,
+      reason: error instanceof Error ? error.name : 'retryable_provider_failure',
+      openForMs: config.circuitOpenMs,
+      openUntil: openAICircuitState.openUntil,
+    })
+  }
 }
 
 async function callOpenAIWithRetryGeneric<T>(
@@ -102,7 +280,9 @@ async function callOpenAIWithRetryGeneric<T>(
   maxRetries = 3,
   timeoutMs?: number,
   externalSignal?: AbortSignal,
+  protectionContext?: OpenAIProtectionContext,
 ): Promise<T> {
+  const lease = enterOpenAICircuit(protectionContext)
   let lastError: Error | null = null
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -113,38 +293,68 @@ async function callOpenAIWithRetryGeneric<T>(
     let controller: AbortController | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
     let onExternalAbort: (() => void) | undefined
+    let timedOut = false
 
     try {
       controller = new AbortController()
 
       if (timeoutMs) {
-        timer = setTimeout(() => controller!.abort(), timeoutMs)
+        timer = setTimeout(() => {
+          timedOut = true
+          controller?.abort()
+        }, timeoutMs)
       }
 
       if (externalSignal) {
-        onExternalAbort = () => controller!.abort()
+        onExternalAbort = () => controller?.abort()
         externalSignal.addEventListener('abort', onExternalAbort)
       }
 
       const result = await fn(controller.signal)
+      recordOpenAICircuitSuccess(lease, protectionContext)
       return result
     } catch (error) {
-      lastError = error as Error
+      const normalizedError = timedOut
+        ? new OpenAIRequestTimeoutError()
+        : error as Error
+      lastError = normalizedError
 
-      const isRetryable =
-        error instanceof APIError &&
-        OPENAI_RETRYABLE_STATUS_CODES.includes(error.status as (typeof OPENAI_RETRYABLE_STATUS_CODES)[number])
-
-      if (!isRetryable || attempt === maxRetries) {
-        throw error
+      if (isExternalAbort(normalizedError, externalSignal)) {
+        throw normalizedError
       }
 
-      const exponentialDelay = Math.pow(2, attempt - 1) * 1000
-      const retryAfterMs = parseRetryAfterMs(error)
-      const delay = Math.min(
-        retryAfterMs != null ? Math.max(retryAfterMs, exponentialDelay) : exponentialDelay,
-        30_000,
-      )
+      if (timedOut) {
+        logWarn('openai.request.timeout', {
+          ...getContextFields(protectionContext),
+          attempt,
+          timeoutMs,
+          breakerState: openAICircuitState.state,
+        })
+      }
+
+      const retryable = isRetryableProviderError(normalizedError)
+      if (!retryable || attempt === maxRetries) {
+        if (retryable) {
+          recordOpenAICircuitFailure(normalizedError, lease, protectionContext)
+        } else if (lease.halfOpenProbe) {
+          openAICircuitState = {
+            ...openAICircuitState,
+            halfOpenProbeActive: false,
+          }
+        }
+        throw normalizedError
+      }
+
+      const delay = getRetryDelayMs(normalizedError, attempt)
+      logWarn('openai.request.retry', {
+        ...getContextFields(protectionContext),
+        attempt,
+        nextAttempt: attempt + 1,
+        delayMs: delay,
+        breakerState: openAICircuitState.state,
+        errorName: normalizedError.name,
+        errorStatus: normalizedError instanceof APIError ? normalizedError.status : undefined,
+      })
       await sleep(delay)
     } finally {
       if (timer) clearTimeout(timer)
@@ -154,30 +364,52 @@ async function callOpenAIWithRetryGeneric<T>(
     }
   }
 
+  if (lease.halfOpenProbe) {
+    openAICircuitState = {
+      ...openAICircuitState,
+      halfOpenProbeActive: false,
+    }
+  }
+
   throw lastError
 }
 
-/**
- * Calls OpenAI chat completion API with retry logic.
- * This is the primary method used by API routes.
- * @param openaiClient - OpenAI client instance
- * @param params - ChatCompletion creation parameters
- * @param maxRetries - Maximum number of retry attempts (default: 3)
- * @param timeoutMs - Per-attempt timeout in milliseconds (optional)
- * @returns Promise resolving to ChatCompletion
- */
+export async function callOpenAIWithRetry(
+  fn: (signal?: AbortSignal) => Promise<OpenAI.Chat.Completions.ChatCompletion>,
+  maxRetries = 3,
+  timeoutMs?: number,
+  externalSignal?: AbortSignal,
+  protectionContext?: OpenAIProtectionContext,
+): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+  return callOpenAIWithRetryGeneric(
+    fn,
+    maxRetries,
+    timeoutMs,
+    externalSignal,
+    {
+      requestKind: 'completion',
+      ...protectionContext,
+    },
+  )
+}
+
 async function createChatCompletionWithRetry(
   openaiClient: OpenAI,
   params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
   maxRetries = 3,
   timeoutMs?: number,
   externalSignal?: AbortSignal,
+  protectionContext?: OpenAIProtectionContext,
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
   return callOpenAIWithRetryGeneric(
     (signal) => openaiClient.chat.completions.create(params, { signal }),
     maxRetries,
     timeoutMs,
     externalSignal,
+    {
+      requestKind: 'completion',
+      ...protectionContext,
+    },
   )
 }
 
@@ -187,12 +419,17 @@ export async function createChatCompletionStreamWithRetry(
   maxRetries = 3,
   timeoutMs?: number,
   externalSignal?: AbortSignal,
+  protectionContext?: OpenAIProtectionContext,
 ): Promise<Stream<OpenAI.Chat.Completions.ChatCompletionChunk>> {
   return callOpenAIWithRetryGeneric(
     (signal) => openaiClient.chat.completions.create(params, { signal }) as Promise<Stream<OpenAI.Chat.Completions.ChatCompletionChunk>>,
     maxRetries,
     timeoutMs,
     externalSignal,
+    {
+      requestKind: 'stream',
+      ...protectionContext,
+    },
   )
 }
 
@@ -209,3 +446,17 @@ export function getChatCompletionUsage(response: OpenAI.Chat.Completions.ChatCom
     outputTokens: response.usage?.completion_tokens ?? 0,
   }
 }
+
+export function resetOpenAICircuitBreakerForTest(): void {
+  openAICircuitState = {
+    state: 'closed',
+    consecutiveFailures: 0,
+    halfOpenProbeActive: false,
+  }
+}
+
+export function getOpenAICircuitSnapshotForTest(): OpenAICircuitSnapshot {
+  return { ...openAICircuitState }
+}
+
+export { createChatCompletionWithRetry }

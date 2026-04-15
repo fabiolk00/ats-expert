@@ -76,6 +76,22 @@ describe('GET /api/file/[sessionId]', () => {
     vi.mocked(getResumeTargetForSession).mockResolvedValue(null)
   })
 
+  it('returns 401 before any session or storage lookup when unauthenticated', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(null)
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123?targetId=target_123'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    expect(getSession).not.toHaveBeenCalled()
+    expect(getResumeTargetForSession).not.toHaveBeenCalled()
+    expect(createSignedResumeArtifactUrls).not.toHaveBeenCalled()
+    expect(updateSession).not.toHaveBeenCalled()
+  })
+
   it('allows the owner to retrieve fresh signed URLs', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
@@ -120,6 +136,146 @@ describe('GET /api/file/[sessionId]', () => {
       'usr_123/sess_123/resume.pdf',
     )
     expect(updateSession).not.toHaveBeenCalled()
+  })
+
+  it('keeps serving the last valid base artifact when a newer ATS rewrite attempt failed validation', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSession).mockResolvedValue({
+      ...buildSession(),
+      agentState: {
+        ...buildSession().agentState,
+        workflowMode: 'ats_enhancement',
+        rewriteStatus: 'failed',
+        optimizedCvState: undefined,
+        atsWorkflowRun: {
+          status: 'failed',
+          currentStage: 'validation',
+          attemptCount: 2,
+          retriedSections: ['experience'],
+          compactedSections: ['experience'],
+          sectionAttempts: { experience: 2 },
+          usageTotals: {
+            sectionAttempts: 2,
+            retriedSections: 1,
+            compactedSections: 1,
+          },
+          lastFailureStage: 'validation',
+          lastFailureReason: 'ATS rewrite validation failed.',
+          updatedAt: '2026-03-27T12:40:00.000Z',
+        },
+        rewriteValidation: {
+          valid: false,
+          issues: [{ severity: 'medium', message: 'Resumo sem suporte factual.', section: 'summary' }],
+        },
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        generatedAt: '2026-03-27T12:30:00.000Z',
+      },
+    } as Session)
+    vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
+      docxUrl: 'https://cdn.example.com/signed/docx',
+      pdfUrl: 'https://cdn.example.com/signed/pdf',
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      docxUrl: null,
+      pdfUrl: 'https://cdn.example.com/signed/pdf',
+    })
+    expect(createSignedResumeArtifactUrls).toHaveBeenCalledWith(
+      undefined,
+      'usr_123/sess_123/resume.pdf',
+    )
+  })
+
+  it('serves the latest valid base artifact for a completed job_targeting rewrite', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSession).mockResolvedValue({
+      ...buildSession(),
+      agentState: {
+        ...buildSession().agentState,
+        workflowMode: 'job_targeting',
+        rewriteStatus: 'completed',
+        lastRewriteMode: 'job_targeting',
+        targetJobDescription: 'Senior Analytics Engineer com foco em dbt e BigQuery.',
+        optimizedCvState: {
+          ...buildSession().cvState,
+          summary: 'Analytics engineer com foco em dbt, SQL e BigQuery.',
+          skills: ['TypeScript', 'dbt', 'BigQuery'],
+        },
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume-targeted.pdf',
+        generatedAt: '2026-03-27T12:35:00.000Z',
+      },
+    } as Session)
+    vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
+      docxUrl: 'https://cdn.example.com/signed/docx',
+      pdfUrl: 'https://cdn.example.com/signed/pdf-targeted',
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      docxUrl: null,
+      pdfUrl: 'https://cdn.example.com/signed/pdf-targeted',
+    })
+    expect(createSignedResumeArtifactUrls).toHaveBeenCalledWith(
+      undefined,
+      'usr_123/sess_123/resume-targeted.pdf',
+    )
   })
 
   it('retrieves fresh signed URLs for a selected target variant', async () => {
@@ -211,6 +367,7 @@ describe('GET /api/file/[sessionId]', () => {
 
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ error: 'Not found' })
+    expect(getResumeTargetForSession).not.toHaveBeenCalled()
     expect(createSignedResumeArtifactUrls).not.toHaveBeenCalled()
   })
 

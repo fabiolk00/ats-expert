@@ -34,9 +34,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
 import { assessAtsEnhancementReadiness, getAtsEnhancementBlockingItems } from "@/lib/profile/ats-enhancement"
 import { cvStateToTemplateData } from "@/lib/templates/cv-state-to-template-data"
 import { cn } from "@/lib/utils"
+import type { ResumeGenerationType } from "@/types/agent"
 import type { CVState } from "@/types/cv"
 
 import { ImportResumeModal, type ResumeData } from "./resume-builder"
@@ -66,9 +68,56 @@ type AtsFeature = {
   icon: typeof FileSearch
 }
 
+type SetupGenerationMode = "ats_enhancement" | "job_targeting"
+
+type SetupGenerationCopy = {
+  badge: string
+  title: string
+  description: string
+  helper: string
+  incomplete: string
+  buttonIdle: string
+  buttonRunning: string
+  success: string
+  failure: string
+  modalTitle: string
+  modalDescription: string
+}
+
 function trimOptional(value?: string): string | undefined {
   const trimmed = value?.trim()
   return trimmed ? trimmed : undefined
+}
+
+function extractErrorMessage(
+  error: unknown,
+  fallback: string,
+): string {
+  if (typeof error === "string" && error.trim()) {
+    return error
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message
+  }
+
+  if (
+    error
+    && typeof error === "object"
+    && "fieldErrors" in error
+    && error.fieldErrors
+    && typeof error.fieldErrors === "object"
+  ) {
+    const firstFieldError = Object.values(error.fieldErrors as Record<string, unknown>)
+      .flatMap((value) => Array.isArray(value) ? value : [])
+      .find((value): value is string => typeof value === "string" && value.trim().length > 0)
+
+    if (firstFieldError) {
+      return firstFieldError
+    }
+  }
+
+  return fallback
 }
 
 function sanitizeResumeData(value: CVState): CVState {
@@ -130,10 +179,55 @@ function sanitizeResumeData(value: CVState): CVState {
 
 const atsFeatures: AtsFeature[] = [
   { id: "analysis", label: "parse e leitura estruturada do curriculo", icon: FileSearch },
-  { id: "keywords", label: "keyword matching e gap analysis quando houver vaga", icon: Target },
+  { id: "keywords", label: "score ATS geral, clareza e legibilidade do curriculo", icon: Target },
   { id: "structure", label: "reescrita estrategica de resumo e bullets", icon: PenLine },
   { id: "rewrite", label: "template ATS em PDF textual, simples e pt-BR", icon: FileOutput },
 ]
+
+const targetJobFeatures: AtsFeature[] = [
+  { id: "analysis", label: "deteccao da vaga e gap analysis antes da reescrita", icon: FileSearch },
+  { id: "keywords", label: "priorizacao de keywords e requisitos da vaga alvo", icon: Target },
+  { id: "structure", label: "reescrita completa por secao com foco no cargo", icon: PenLine },
+  { id: "rewrite", label: "versao targetizada pronta para preview e export", icon: FileOutput },
+]
+
+function getGenerationCopy(mode: SetupGenerationMode): SetupGenerationCopy {
+  if (mode === "job_targeting") {
+    return {
+      badge: "Target Job - Adaptar para Vaga",
+      title: "Adaptar meu curriculo para esta vaga",
+      description:
+        "Usa o seu curriculo base e a descricao da vaga para fazer gap analysis, montar um plano de targeting e reescrever o curriculo inteiro com foco no cargo alvo sem inventar fatos.",
+      helper:
+        "Cole a descricao da vaga abaixo. Se voce remover a vaga, esta entrada volta automaticamente para melhoria ATS geral.",
+      incomplete: "Complete seu curriculo para adaptar sua versao para a vaga.",
+      buttonIdle: "Adaptar para vaga (1 credito)",
+      buttonRunning: "Adaptando para vaga",
+      success: "Versao adaptada para a vaga criada com sucesso.",
+      failure: "Erro ao adaptar o curriculo para a vaga.",
+      modalTitle: "Complete seu perfil antes de adaptar para a vaga",
+      modalDescription:
+        "Faltam alguns pontos importantes para gerar uma versao targetizada com qualidade. Preencha estes itens no formulario e tente novamente.",
+    }
+  }
+
+  return {
+    badge: "ATS - Aprimorar Curriculo",
+    title: "Melhorar meu curriculo para ATS",
+    description:
+      "Usa o seu perfil base para gerar uma versao ATS em pt-BR seguindo o modelo padrao da plataforma: estrutura linear, sem elementos que atrapalham parsing, linguagem objetiva e foco em verdade, matching e clareza.",
+    helper:
+      "Se voce adicionar uma vaga alvo abaixo, esta entrada muda para adaptacao estrategica por vaga sem precisar ir para o chat.",
+    incomplete: "Complete seu curriculo para gerar uma versao ATS.",
+    buttonIdle: "Melhorar para ATS (1 credito)",
+    buttonRunning: "Gerando versao ATS",
+    success: "Versao ATS criada com sucesso.",
+    failure: "Erro ao gerar a versao ATS.",
+    modalTitle: "Complete seu perfil antes de melhorar para ATS",
+    modalDescription:
+      "Faltam alguns pontos importantes para gerar uma versao ATS com qualidade. Preencha estes itens no formulario e tente novamente.",
+  }
+}
 
 function formatUpdatedLabel(lastUpdatedAt: string | null): string {
   if (!lastUpdatedAt) {
@@ -174,6 +268,7 @@ export default function UserDataPage({
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isRunningAtsEnhancement, setIsRunningAtsEnhancement] = useState(false)
+  const [targetJobDescription, setTargetJobDescription] = useState("")
   const [allSectionsClosed, setAllSectionsClosed] = useState(false)
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false)
   const [isAtsRequirementsOpen, setIsAtsRequirementsOpen] = useState(false)
@@ -278,7 +373,11 @@ export default function UserDataPage({
     }
   }
 
-  const handleAtsEnhancement = async (): Promise<void> => {
+  const generationMode: SetupGenerationMode = targetJobDescription.trim() ? "job_targeting" : "ats_enhancement"
+  const generationCopy = getGenerationCopy(generationMode)
+  const generationFeatures = generationMode === "job_targeting" ? targetJobFeatures : atsFeatures
+
+  const handleSetupGeneration = async (): Promise<void> => {
     const missingItems = getAtsEnhancementBlockingItems(sanitizeResumeData(resumeData))
     if (missingItems.length > 0) {
       setAtsMissingItems(missingItems)
@@ -291,18 +390,22 @@ export default function UserDataPage({
     try {
       await persistProfile()
 
-      const response = await fetch("/api/profile/ats-enhancement", {
+      const response = await fetch("/api/profile/smart-generation", {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(sanitizeResumeData(resumeData)),
+        body: JSON.stringify({
+          ...sanitizeResumeData(resumeData),
+          targetJobDescription: trimOptional(targetJobDescription),
+        }),
       })
 
       const data = (await response.json()) as {
         success?: boolean
         sessionId?: string
+        generationType?: ResumeGenerationType
         error?: string
         reasons?: string[]
         missingItems?: string[]
@@ -315,13 +418,17 @@ export default function UserDataPage({
       }
 
       if (!response.ok || !data.success || !data.sessionId) {
-        throw new Error(data.error ?? "Nao foi possivel gerar a versao ATS.")
+        throw new Error(extractErrorMessage(data.error, generationCopy.failure))
       }
 
-      toast.success("Versao ATS criada com sucesso.")
+      toast.success(
+        data.generationType === "JOB_TARGETING"
+          ? "Versao adaptada para a vaga criada com sucesso."
+          : "Versao ATS criada com sucesso.",
+      )
       router.push(`/dashboard?session=${encodeURIComponent(data.sessionId)}`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao gerar a versao ATS.")
+      toast.error(extractErrorMessage(error, generationCopy.failure))
     } finally {
       setIsRunningAtsEnhancement(false)
     }
@@ -399,7 +506,7 @@ export default function UserDataPage({
   )
   const updatedLabel = formatUpdatedLabel(lastUpdatedAt)
   const isBusy = isLoadingProfile || isSaving || isRunningAtsEnhancement
-  const atsButtonDisabled = isBusy || currentCredits < 1
+  const setupGenerationButtonDisabled = isBusy || currentCredits < 1
   const initials = buildInitials(template.fullName)
   const avatarSrc = profilePhotoUrl ?? userImageUrl ?? undefined
 
@@ -717,21 +824,42 @@ export default function UserDataPage({
                     data-testid="ats-panel-badge"
                     className="bg-foreground px-3 py-1 font-medium text-background hover:bg-foreground/90"
                   >
-                    ATS - Aprimorar Curriculo
+                    {generationCopy.badge}
                   </Badge>
                 </div>
 
                 <div className="mb-5">
                   <h2 className="mb-2 text-lg font-semibold text-foreground">
-                    Melhorar meu curriculo para ATS
+                    {generationCopy.title}
                   </h2>
                   <p className="text-sm leading-relaxed text-muted-foreground">
-                    Usa o seu perfil base para gerar uma versao ATS em pt-BR seguindo o modelo padrao da plataforma: estrutura linear, sem elementos que atrapalham parsing, linguagem objetiva e foco em verdade, matching e clareza.
+                    {generationCopy.description}
+                  </p>
+                </div>
+
+                <div className="mb-5 space-y-2">
+                  <label
+                    htmlFor="target-job-description"
+                    className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                  >
+                    Vaga alvo opcional
+                  </label>
+                  <Textarea
+                    id="target-job-description"
+                    data-testid="target-job-description-input"
+                    value={targetJobDescription}
+                    onChange={(event) => setTargetJobDescription(event.target.value)}
+                    disabled={isBusy}
+                    rows={8}
+                    placeholder="Cole aqui a descricao da vaga para adaptar o curriculo a um cargo especifico."
+                  />
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {generationCopy.helper}
                   </p>
                 </div>
 
                 <div className="mb-6 space-y-3">
-                  {atsFeatures.map((feature) => {
+                  {generationFeatures.map((feature) => {
                     const Icon = feature.icon
 
                     return (
@@ -768,7 +896,7 @@ export default function UserDataPage({
                   </div>
                   {!atsReadiness.isReady ? (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Complete seu curriculo para gerar uma versao ATS.
+                      {generationCopy.incomplete}
                     </p>
                   ) : null}
                   {atsReadiness.reasons.length > 0 ? (
@@ -787,8 +915,8 @@ export default function UserDataPage({
                 <div className="space-y-3">
               <Button
                 type="button"
-                disabled={atsButtonDisabled}
-                onClick={() => void handleAtsEnhancement()}
+                disabled={setupGenerationButtonDisabled}
+                onClick={() => void handleSetupGeneration()}
                 className="h-12 w-full gap-2 rounded-lg bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 disabled:bg-emerald-600/60"
                 size="lg"
                 data-testid="ats-panel-cta"
@@ -796,11 +924,11 @@ export default function UserDataPage({
                 {isRunningAtsEnhancement ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Gerando versao ATS
+                    {generationCopy.buttonRunning}
                   </>
                 ) : (
                     <>
-                    Melhorar para ATS (1 credito)
+                    {generationCopy.buttonIdle}
                     <ArrowRight className="ml-auto h-4 w-4" />
                   </>
                   )}
@@ -822,9 +950,9 @@ export default function UserDataPage({
       <Dialog open={isAtsRequirementsOpen} onOpenChange={setIsAtsRequirementsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Complete seu perfil antes de melhorar para ATS</DialogTitle>
+            <DialogTitle>{generationCopy.modalTitle}</DialogTitle>
             <DialogDescription>
-              Faltam alguns pontos importantes para gerar uma versao ATS com qualidade. Preencha estes itens no formulario e tente novamente.
+              {generationCopy.modalDescription}
             </DialogDescription>
           </DialogHeader>
 

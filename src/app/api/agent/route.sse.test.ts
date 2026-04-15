@@ -21,11 +21,15 @@ const {
   mockDispatchToolWithContext,
   mockGetToolDefinitionsForPhase,
   mockDeriveTargetResumeCvState,
+  mockRunAtsEnhancementPipeline,
+  mockRunJobTargetingPipeline,
 } = vi.hoisted(() => ({
   mockDispatchTool: vi.fn(),
   mockDispatchToolWithContext: vi.fn(),
   mockGetToolDefinitionsForPhase: vi.fn(() => []),
   mockDeriveTargetResumeCvState: vi.fn(),
+  mockRunAtsEnhancementPipeline: vi.fn(),
+  mockRunJobTargetingPipeline: vi.fn(),
 }))
 
 vi.mock('@/lib/openai/client', () => ({
@@ -71,6 +75,14 @@ vi.mock('@/lib/agent/tools', () => ({
 
 vi.mock('@/lib/resume-targets/create-target-resume', () => ({
   deriveTargetResumeCvState: mockDeriveTargetResumeCvState,
+}))
+
+vi.mock('@/lib/agent/ats-enhancement-pipeline', () => ({
+  runAtsEnhancementPipeline: mockRunAtsEnhancementPipeline,
+}))
+
+vi.mock('@/lib/agent/job-targeting-pipeline', () => ({
+  runJobTargetingPipeline: mockRunJobTargetingPipeline,
 }))
 
 vi.mock('@/lib/agent/usage-tracker', () => ({
@@ -338,6 +350,14 @@ describe('/api/agent SSE fallback coverage', () => {
       success: false,
       code: 'LLM_INVALID_OUTPUT',
       error: 'Invalid target resume payload.',
+    })
+    mockRunAtsEnhancementPipeline.mockResolvedValue({
+      success: true,
+      optimizedCvState: undefined,
+    })
+    mockRunJobTargetingPipeline.mockResolvedValue({
+      success: true,
+      optimizedCvState: undefined,
     })
   })
 
@@ -873,5 +893,77 @@ describe('/api/agent SSE fallback coverage', () => {
     expect(finalText).toContain('Preciso ser honesto:')
     expect(finalText).toContain('A aderencia estimada para esta vaga esta em 61/100.')
     expect(finalText).toContain('Aceito')
+  })
+
+  it('persists workflowMode as ats_enhancement before streaming a resume-only session', async () => {
+    const session = buildDialogSession({
+      id: 'sess_workflow_resume_only',
+      agentState: {
+        targetJobDescription: undefined,
+      },
+    })
+
+    vi.mocked(getSession).mockResolvedValue(session)
+    vi.mocked(createChatCompletionStreamWithRetry).mockImplementation(
+      async () => emptyStopStream() as never,
+    )
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: session.id,
+        message: 'oi',
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(updateSession).toHaveBeenCalledWith(
+      session.id,
+      expect.objectContaining({
+        agentState: expect.objectContaining({
+          workflowMode: 'ats_enhancement',
+        }),
+      }),
+    )
+    expect(mockRunAtsEnhancementPipeline).toHaveBeenCalledWith(session)
+    expect(mockRunJobTargetingPipeline).not.toHaveBeenCalled()
+  })
+
+  it('persists workflowMode as job_targeting and runs the deterministic rewrite pipeline before streaming', async () => {
+    const session = buildDialogSession({
+      id: 'sess_workflow_target_job',
+      agentState: {
+        targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
+        rewriteStatus: 'pending',
+        optimizedCvState: undefined,
+      },
+    })
+
+    vi.mocked(getSession).mockResolvedValue(session)
+    vi.mocked(createChatCompletionStreamWithRetry).mockImplementation(
+      async () => emptyStopStream() as never,
+    )
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: session.id,
+        message: 'pode seguir com a vaga que colei antes',
+      }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(updateSession).toHaveBeenCalledWith(
+      session.id,
+      expect.objectContaining({
+        agentState: expect.objectContaining({
+          workflowMode: 'job_targeting',
+        }),
+      }),
+    )
+    expect(mockRunJobTargetingPipeline).toHaveBeenCalledWith(session)
+    expect(mockRunAtsEnhancementPipeline).not.toHaveBeenCalled()
   })
 })

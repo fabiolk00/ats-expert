@@ -16,6 +16,7 @@ These are the discoverable copies of the core rules that also remain available u
 
 - [API Conventions](./API_CONVENTIONS.md)
 - [Code Style](./CODE_STYLE.md)
+- [Quality Baseline](./QUALITY_BASELINE.md)
 - [Error Handling](./ERROR_HANDLING.md)
 - [Testing](./TESTING.md)
 

@@ -4,6 +4,8 @@ const { mockCreateClient } = vi.hoisted(() => ({
   mockCreateClient: vi.fn(() => ({ __brand: 'supabase-admin-client' })),
 }))
 
+vi.mock('server-only', () => ({}))
+
 vi.mock('@supabase/supabase-js', () => ({
   createClient: mockCreateClient,
 }))
@@ -54,5 +56,22 @@ describe('supabase admin client config', () => {
       'Missing required environment variable SUPABASE_SERVICE_ROLE_KEY for Supabase admin client.',
     )
     expect(mockCreateClient).not.toHaveBeenCalled()
+  })
+
+  it('trims env values and caches the admin client instance', async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = ' https://project.supabase.co '
+    process.env.SUPABASE_SERVICE_ROLE_KEY = ' service-role-key '
+
+    const { getSupabaseAdminClient } = await import('./supabase-admin')
+
+    const first = getSupabaseAdminClient()
+    const second = getSupabaseAdminClient()
+
+    expect(first).toBe(second)
+    expect(mockCreateClient).toHaveBeenCalledTimes(1)
+    expect(mockCreateClient).toHaveBeenCalledWith(
+      'https://project.supabase.co',
+      'service-role-key',
+    )
   })
 })

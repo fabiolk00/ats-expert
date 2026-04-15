@@ -1,28 +1,29 @@
+import type { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { POST } from './route'
+
 import { getCurrentAppUser } from '@/lib/auth/app-user'
-import { parseFile } from '@/lib/agent/tools/parse-file'
-import { ingestResumeText } from '@/lib/agent/tools/resume-ingestion'
+import { importPdfProfile } from '@/lib/profile/pdf-import'
 import {
-  getExistingUserProfile,
-  saveImportedUserProfile,
-} from '@/lib/profile/user-profiles'
+  createPdfImportJob,
+} from '@/lib/profile/pdf-import-jobs'
+import { getExistingUserProfile } from '@/lib/profile/user-profiles'
+
+import { POST } from './route'
 
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn(),
 }))
 
-vi.mock('@/lib/agent/tools/parse-file', () => ({
-  parseFile: vi.fn(),
-}))
-
-vi.mock('@/lib/agent/tools/resume-ingestion', () => ({
-  ingestResumeText: vi.fn(),
-}))
-
 vi.mock('@/lib/profile/user-profiles', () => ({
   getExistingUserProfile: vi.fn(),
-  saveImportedUserProfile: vi.fn(),
+}))
+
+vi.mock('@/lib/profile/pdf-import', () => ({
+  importPdfProfile: vi.fn(),
+}))
+
+vi.mock('@/lib/profile/pdf-import-jobs', () => ({
+  createPdfImportJob: vi.fn(),
 }))
 
 vi.mock('@/lib/observability/structured-log', () => ({
@@ -38,17 +39,43 @@ const appUser = {
   email: 'ana@example.com',
 } as unknown as NonNullable<Awaited<ReturnType<typeof getCurrentAppUser>>>
 
-function makeRequest(file?: File): NextRequest {
+function makeRequest(file?: File, replaceLinkedinImport = false): NextRequest {
   const formData = new FormData()
 
   if (file) {
     formData.append('file', file)
   }
 
+  if (replaceLinkedinImport) {
+    formData.append('replaceLinkedinImport', 'true')
+  }
+
   return {
     formData: async () => formData,
     signal: new AbortController().signal,
   } as NextRequest
+}
+
+function buildImportedProfile(source: 'pdf' | 'linkedin' = 'pdf') {
+  return {
+    id: 'profile_123',
+    user_id: 'usr_123',
+    cv_state: {
+      fullName: 'Ana Silva',
+      email: 'ana@example.com',
+      phone: '',
+      summary: 'Backend engineer',
+      experience: [],
+      skills: [],
+      education: [],
+    },
+    source,
+    linkedin_url: source === 'linkedin' ? 'https://linkedin.com/in/ana' : null,
+    profile_photo_url: null,
+    extracted_at: '2026-04-13T16:00:00.000Z',
+    created_at: '2026-04-13T16:00:00.000Z',
+    updated_at: '2026-04-13T16:00:00.000Z',
+  }
 }
 
 describe('POST /api/profile/upload', () => {
@@ -102,16 +129,33 @@ describe('POST /api/profile/upload', () => {
 
     expect(res.status).toBe(400)
     expect(json.error).toBe('Envie um arquivo PDF.')
-    expect(parseFile).not.toHaveBeenCalled()
-    expect(ingestResumeText).not.toHaveBeenCalled()
+    expect(importPdfProfile).not.toHaveBeenCalled()
   })
 
-  it('returns 400 for scanned PDFs with too little extracted text', async () => {
+  it('requires confirmation before replacing a LinkedIn-imported profile', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValueOnce(appUser)
-    vi.mocked(parseFile).mockResolvedValueOnce({
+    vi.mocked(getExistingUserProfile).mockResolvedValueOnce(buildImportedProfile('linkedin'))
+
+    const res = await POST(
+      makeRequest(new File(['pdf'], 'resume.pdf', { type: 'application/pdf' })),
+    )
+    const json = await res.json()
+
+    expect(res.status).toBe(409)
+    expect(json.requiresConfirmation).toBe(true)
+    expect(json.error).toBe(
+      'Voce ja importou seu perfil pelo LinkedIn. Confirme se deseja substituir essas informacoes pelo PDF.',
+    )
+    expect(importPdfProfile).not.toHaveBeenCalled()
+  })
+
+  it('returns a scanned-pdf failure from the shared import service', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValueOnce(appUser)
+    vi.mocked(getExistingUserProfile).mockResolvedValueOnce(null)
+    vi.mocked(importPdfProfile).mockResolvedValueOnce({
       success: false,
-      code: 'PARSE_ERROR',
-      error: 'PDF_SCANNED - very little text extracted. The file may be image-based.',
+      code: 'SCANNED_PDF',
+      error: 'Nao conseguimos extrair texto desse PDF. Se ele for escaneado, tente outro PDF com texto selecionavel ou preencha manualmente.',
     })
 
     const res = await POST(
@@ -125,90 +169,16 @@ describe('POST /api/profile/upload', () => {
     )
   })
 
-  it('requires confirmation before replacing a LinkedIn-imported profile', async () => {
+  it('imports a small PDF synchronously', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValueOnce(appUser)
-    vi.mocked(parseFile).mockResolvedValueOnce({
-      success: true,
-      text: 'Ana Silva\nana@example.com\nBackend engineer',
-      pageCount: 1,
-    })
-    vi.mocked(getExistingUserProfile).mockResolvedValueOnce({
-      id: 'profile_123',
-      user_id: 'usr_123',
-      cv_state: {
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        phone: '',
-        summary: 'Imported from LinkedIn',
-        experience: [],
-        skills: [],
-        education: [],
-      },
-      source: 'linkedin',
-      linkedin_url: 'https://linkedin.com/in/ana',
-      profile_photo_url: 'https://cdn.example.com/profile.jpg',
-      extracted_at: '2026-04-13T16:00:00.000Z',
-      created_at: '2026-04-13T16:00:00.000Z',
-      updated_at: '2026-04-13T16:00:00.000Z',
-    })
-
-    const res = await POST(
-      makeRequest(new File(['pdf'], 'resume.pdf', { type: 'application/pdf' })),
-    )
-    const json = await res.json()
-
-    expect(res.status).toBe(409)
-    expect(json.requiresConfirmation).toBe(true)
-    expect(json.error).toBe(
-      'Voce ja importou seu perfil pelo LinkedIn. Confirme se deseja substituir essas informacoes pelo PDF.',
-    )
-    expect(ingestResumeText).not.toHaveBeenCalled()
-    expect(saveImportedUserProfile).not.toHaveBeenCalled()
-  })
-
-  it('imports a PDF into an empty profile', async () => {
-    vi.mocked(getCurrentAppUser).mockResolvedValueOnce(appUser)
-    vi.mocked(parseFile).mockResolvedValueOnce({
-      success: true,
-      text: 'Ana Silva\nana@example.com\nBackend engineer',
-      pageCount: 1,
-    })
     vi.mocked(getExistingUserProfile).mockResolvedValueOnce(null)
-    vi.mocked(ingestResumeText).mockResolvedValueOnce({
+    vi.mocked(importPdfProfile).mockResolvedValueOnce({
+      success: true,
+      profile: buildImportedProfile('pdf'),
       strategy: 'populate_empty',
-      confidenceScore: 0.82,
       changedFields: ['fullName', 'email', 'summary'],
       preservedFields: [],
-      patch: {
-        cvState: {
-          fullName: 'Ana Silva',
-          email: 'ana@example.com',
-          summary: 'Backend engineer',
-          phone: '',
-          experience: [],
-          skills: [],
-          education: [],
-        },
-      },
-    })
-    vi.mocked(saveImportedUserProfile).mockResolvedValueOnce({
-      id: 'profile_123',
-      user_id: 'usr_123',
-      cv_state: {
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        summary: 'Backend engineer',
-        phone: '',
-        experience: [],
-        skills: [],
-        education: [],
-      },
-      source: 'pdf',
-      linkedin_url: null,
-      profile_photo_url: null,
-      extracted_at: '2026-04-13T16:00:00.000Z',
-      created_at: '2026-04-13T16:00:00.000Z',
-      updated_at: '2026-04-13T16:00:00.000Z',
+      warning: undefined,
     })
 
     const res = await POST(
@@ -219,338 +189,21 @@ describe('POST /api/profile/upload', () => {
     expect(res.status).toBe(200)
     expect(json.profile.source).toBe('pdf')
     expect(json.changedFields).toEqual(['fullName', 'email', 'summary'])
-    expect(saveImportedUserProfile).toHaveBeenCalledWith({
+    expect(importPdfProfile).toHaveBeenCalledWith({
       appUserId: 'usr_123',
-      cvState: expect.objectContaining({
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-      }),
-      source: 'pdf',
-    })
-  })
-
-  it('merges imported data into an existing profile without overwriting trusted fields', async () => {
-    vi.mocked(getCurrentAppUser).mockResolvedValueOnce(appUser)
-    vi.mocked(parseFile).mockResolvedValueOnce({
-      success: true,
-      text: 'resume text',
-      pageCount: 1,
-    })
-    vi.mocked(getExistingUserProfile).mockResolvedValueOnce({
-      id: 'profile_123',
-      user_id: 'usr_123',
-      cv_state: {
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        phone: '',
-        summary: 'Trusted summary',
-        experience: [],
-        skills: ['TypeScript'],
-        education: [],
-      },
-      source: 'manual',
-      linkedin_url: null,
-      profile_photo_url: null,
-      extracted_at: '2026-04-13T16:00:00.000Z',
-      created_at: '2026-04-13T16:00:00.000Z',
-      updated_at: '2026-04-13T16:00:00.000Z',
-    })
-    vi.mocked(ingestResumeText).mockResolvedValueOnce({
-      strategy: 'merge_preserving_existing',
-      confidenceScore: 0.71,
-      changedFields: ['phone', 'skills'],
-      preservedFields: ['summary'],
-      patch: {
-        cvState: {
-          phone: '+55 11 99999-9999',
-          skills: ['TypeScript', 'PostgreSQL'],
-        },
-      },
-    })
-    vi.mocked(saveImportedUserProfile).mockResolvedValueOnce({
-      id: 'profile_123',
-      user_id: 'usr_123',
-      cv_state: {
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        phone: '+55 11 99999-9999',
-        summary: 'Trusted summary',
-        experience: [],
-        skills: ['TypeScript', 'PostgreSQL'],
-        education: [],
-      },
-      source: 'pdf',
-      linkedin_url: null,
-      profile_photo_url: null,
-      extracted_at: '2026-04-13T16:00:00.000Z',
-      created_at: '2026-04-13T16:00:00.000Z',
-      updated_at: '2026-04-13T16:00:00.000Z',
-    })
-
-    const res = await POST(
-      makeRequest(new File(['pdf'], 'resume.pdf', { type: 'application/pdf' })),
-    )
-    const json = await res.json()
-
-    expect(res.status).toBe(200)
-    expect(json.preservedFields).toEqual(['summary'])
-    expect(saveImportedUserProfile).toHaveBeenCalledWith({
-      appUserId: 'usr_123',
-      cvState: {
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        phone: '+55 11 99999-9999',
-        summary: 'Trusted summary',
-        experience: [],
-        skills: ['TypeScript', 'PostgreSQL'],
-        education: [],
-      },
-      source: 'pdf',
-    })
-  })
-
-  it('replaces LinkedIn-imported data with a clean PDF import after confirmation', async () => {
-    vi.mocked(getCurrentAppUser).mockResolvedValueOnce(appUser)
-    vi.mocked(parseFile).mockResolvedValueOnce({
-      success: true,
-      text: 'resume text',
-      pageCount: 1,
-    })
-    vi.mocked(getExistingUserProfile).mockResolvedValueOnce({
-      id: 'profile_123',
-      user_id: 'usr_123',
-      cv_state: {
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        phone: '',
-        linkedin: 'https://linkedin.com/in/ana',
-        summary: 'Imported from LinkedIn',
-        experience: [{ title: 'Role', company: 'Acme', startDate: '2020', endDate: '2023', bullets: [] }],
-        skills: ['LinkedIn skill'],
-        education: [],
-      },
-      source: 'linkedin',
-      linkedin_url: 'https://linkedin.com/in/ana',
-      profile_photo_url: 'https://cdn.example.com/profile.jpg',
-      extracted_at: '2026-04-13T16:00:00.000Z',
-      created_at: '2026-04-13T16:00:00.000Z',
-      updated_at: '2026-04-13T16:00:00.000Z',
-    })
-    vi.mocked(ingestResumeText).mockResolvedValueOnce({
-      strategy: 'populate_empty',
-      confidenceScore: 0.8,
-      changedFields: ['fullName', 'summary'],
-      preservedFields: [],
-      patch: {
-        cvState: {
-          fullName: 'Bruna Costa',
-          email: '',
-          phone: '',
-          summary: 'Product designer',
-          experience: [],
-          skills: [],
-          education: [],
-        },
-      },
-    })
-    vi.mocked(saveImportedUserProfile).mockResolvedValueOnce({
-      id: 'profile_123',
-      user_id: 'usr_123',
-      cv_state: {
-        fullName: 'Bruna Costa',
-        email: '',
-        phone: '',
-        summary: 'Product designer',
-        experience: [],
-        skills: [],
-        education: [],
-      },
-      source: 'pdf',
-      linkedin_url: null,
-      profile_photo_url: null,
-      extracted_at: '2026-04-13T16:00:00.000Z',
-      created_at: '2026-04-13T16:00:00.000Z',
-      updated_at: '2026-04-13T16:00:00.000Z',
-    })
-
-    const formData = new FormData()
-    formData.append('file', new File(['pdf'], 'resume.pdf', { type: 'application/pdf' }))
-    formData.append('replaceLinkedinImport', 'true')
-    const req = {
-      formData: async () => formData,
-      signal: new AbortController().signal,
-    } as NextRequest
-
-    const res = await POST(req)
-
-    expect(res.status).toBe(200)
-    expect(ingestResumeText).toHaveBeenCalledWith(
-      'resume text',
-      {
-        fullName: '',
-        email: '',
-        phone: '',
-        summary: '',
-        experience: [],
-        skills: [],
-        education: [],
-      },
-      'usr_123',
-      undefined,
-      expect.any(AbortSignal),
-    )
-    expect(saveImportedUserProfile).toHaveBeenCalledWith({
-      appUserId: 'usr_123',
-      cvState: {
-        fullName: 'Bruna Costa',
-        email: '',
-        phone: '',
-        summary: 'Product designer',
-        experience: [],
-        skills: [],
-        education: [],
-      },
-      source: 'pdf',
-      linkedinUrl: null,
-      profilePhotoUrl: null,
-    })
-  })
-
-  it('replaces an existing PDF import from a clean cvState instead of merging old imported data', async () => {
-    vi.mocked(getCurrentAppUser).mockResolvedValueOnce(appUser)
-    vi.mocked(parseFile).mockResolvedValueOnce({
-      success: true,
-      text: 'resume text',
-      pageCount: 1,
-    })
-    vi.mocked(getExistingUserProfile).mockResolvedValueOnce({
-      id: 'profile_123',
-      user_id: 'usr_123',
-      cv_state: {
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        phone: '',
-        linkedin: 'https://linkedin.com/in/ana',
-        summary: 'Old imported summary',
-        experience: [{ title: 'Role', company: 'Acme', startDate: '2020', endDate: '2023', bullets: [] }],
-        skills: ['Old imported skill'],
-        education: [],
-      },
-      source: 'pdf',
-      linkedin_url: 'https://linkedin.com/in/ana',
-      profile_photo_url: 'https://cdn.example.com/profile.jpg',
-      extracted_at: '2026-04-13T16:00:00.000Z',
-      created_at: '2026-04-13T16:00:00.000Z',
-      updated_at: '2026-04-13T16:00:00.000Z',
-    })
-    vi.mocked(ingestResumeText).mockResolvedValueOnce({
-      strategy: 'populate_empty',
-      confidenceScore: 0.8,
-      changedFields: ['fullName', 'summary', 'skills'],
-      preservedFields: [],
-      patch: {
-        cvState: {
-          fullName: 'Bruna Costa',
-          email: '',
-          phone: '',
-          summary: 'New imported summary',
-          experience: [],
-          skills: ['New imported skill'],
-          education: [],
-        },
-      },
-    })
-    vi.mocked(saveImportedUserProfile).mockResolvedValueOnce({
-      id: 'profile_123',
-      user_id: 'usr_123',
-      cv_state: {
-        fullName: 'Bruna Costa',
-        email: '',
-        phone: '',
-        summary: 'New imported summary',
-        experience: [],
-        skills: ['New imported skill'],
-        education: [],
-      },
-      source: 'pdf',
-      linkedin_url: null,
-      profile_photo_url: null,
-      extracted_at: '2026-04-13T16:00:00.000Z',
-      created_at: '2026-04-13T16:00:00.000Z',
-      updated_at: '2026-04-13T16:00:00.000Z',
-    })
-
-    const res = await POST(
-      makeRequest(new File(['pdf'], 'resume.pdf', { type: 'application/pdf' })),
-    )
-
-    expect(res.status).toBe(200)
-    expect(ingestResumeText).toHaveBeenCalledWith(
-      'resume text',
-      {
-        fullName: '',
-        email: '',
-        phone: '',
-        summary: '',
-        experience: [],
-        skills: [],
-        education: [],
-      },
-      'usr_123',
-      undefined,
-      expect.any(AbortSignal),
-    )
-    expect(saveImportedUserProfile).toHaveBeenCalledWith({
-      appUserId: 'usr_123',
-      cvState: {
-        fullName: 'Bruna Costa',
-        email: '',
-        phone: '',
-        summary: 'New imported summary',
-        experience: [],
-        skills: ['New imported skill'],
-        education: [],
-      },
-      source: 'pdf',
-      linkedinUrl: null,
-      profilePhotoUrl: null,
+      fileBuffer: expect.any(Buffer),
+      replaceLinkedinImport: false,
+      signal: expect.any(AbortSignal),
     })
   })
 
   it('returns 409 without saving when an existing profile would not change', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValueOnce(appUser)
-    vi.mocked(parseFile).mockResolvedValueOnce({
-      success: true,
-      text: 'resume text',
-      pageCount: 1,
-    })
-    vi.mocked(getExistingUserProfile).mockResolvedValueOnce({
-      id: 'profile_123',
-      user_id: 'usr_123',
-      cv_state: {
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        phone: '',
-        summary: 'Trusted summary',
-        experience: [],
-        skills: ['TypeScript'],
-        education: [],
-      },
-      source: 'manual',
-      linkedin_url: null,
-      profile_photo_url: null,
-      extracted_at: '2026-04-13T16:00:00.000Z',
-      created_at: '2026-04-13T16:00:00.000Z',
-      updated_at: '2026-04-13T16:00:00.000Z',
-    })
-    vi.mocked(ingestResumeText).mockResolvedValueOnce({
-      strategy: 'merge_preserving_existing',
-      confidenceScore: 0.76,
-      changedFields: [],
-      preservedFields: ['fullName', 'email', 'summary', 'skills'],
-      patch: {
-        cvState: {},
-      },
+    vi.mocked(getExistingUserProfile).mockResolvedValueOnce(buildImportedProfile('pdf'))
+    vi.mocked(importPdfProfile).mockResolvedValueOnce({
+      success: false,
+      code: 'NO_PROFILE_CHANGES',
+      error: 'Esse arquivo nao trouxe novas informacoes para o seu perfil atual.',
     })
 
     const res = await POST(
@@ -560,7 +213,33 @@ describe('POST /api/profile/upload', () => {
 
     expect(res.status).toBe(409)
     expect(json.error).toBe('Esse arquivo nao trouxe novas informacoes para o seu perfil atual.')
-    expect(saveImportedUserProfile).not.toHaveBeenCalled()
+  })
+
+  it('queues larger PDFs for async processing instead of parsing inline', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValueOnce(appUser)
+    vi.mocked(getExistingUserProfile).mockResolvedValueOnce(null)
+    vi.mocked(createPdfImportJob).mockResolvedValueOnce({ jobId: 'job_pdf_123' })
+
+    const largePdf = new File([new Uint8Array(1_500_000)], 'resume.pdf', {
+      type: 'application/pdf',
+    })
+
+    const res = await POST(makeRequest(largePdf))
+    const json = await res.json()
+
+    expect(res.status).toBe(202)
+    expect(json).toEqual({
+      success: true,
+      jobId: 'job_pdf_123',
+      status: 'pending',
+    })
+    expect(createPdfImportJob).toHaveBeenCalledWith({
+      appUserId: 'usr_123',
+      fileName: 'resume.pdf',
+      fileSize: 1_500_000,
+      replaceLinkedinImport: false,
+      fileBuffer: expect.any(Buffer),
+    })
+    expect(importPdfProfile).not.toHaveBeenCalled()
   })
 })
-import type { NextRequest } from 'next/server'

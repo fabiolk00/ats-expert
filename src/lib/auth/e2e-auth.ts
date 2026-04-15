@@ -1,3 +1,5 @@
+import 'server-only'
+
 import type { AppUser } from '@/types/user'
 
 const textEncoder = new TextEncoder()
@@ -7,6 +9,9 @@ export const E2E_AUTH_COOKIE_NAME = 'curria_e2e_auth'
 
 const DEFAULT_CREDITS_REMAINING = 5
 const E2E_AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8
+const E2E_AUTH_LOCAL_DEV_FLAG = 'E2E_AUTH_ALLOW_LOCAL_DEV'
+const E2E_AUTH_ENABLED_FLAG = 'E2E_AUTH_ENABLED'
+const E2E_AUTH_SECRET_FLAG = 'E2E_AUTH_BYPASS_SECRET'
 
 export type E2EAuthPayload = {
   appUserId: string
@@ -167,6 +172,28 @@ async function getSigningKey(secret: string): Promise<CryptoKey> {
 }
 
 export function isE2EAuthEnabled(envValue = process.env.E2E_AUTH_ENABLED): boolean {
+  return envValue?.trim().toLowerCase() === 'true' && isE2EAuthRuntimeAllowed()
+}
+
+export function isE2EAuthRuntimeAllowed(
+  nodeEnv = process.env.NODE_ENV,
+  ciEnvValue = process.env.CI,
+  localDevEnvValue = process.env.E2E_AUTH_ALLOW_LOCAL_DEV,
+): boolean {
+  if (nodeEnv?.trim().toLowerCase() === 'test') {
+    return true
+  }
+
+  if (ciEnvValue?.trim().toLowerCase() === 'true') {
+    return true
+  }
+
+  return localDevEnvValue?.trim().toLowerCase() === 'true'
+}
+
+export function isExplicitlyRequestingE2EAuth(
+  envValue = process.env.E2E_AUTH_ENABLED,
+): boolean {
   return envValue?.trim().toLowerCase() === 'true'
 }
 
@@ -185,12 +212,42 @@ export function getRequiredE2EAuthSecret(envValue = process.env.E2E_AUTH_BYPASS_
 export function assertE2EAuthConfigured(
   enabledEnvValue = process.env.E2E_AUTH_ENABLED,
   secretEnvValue = process.env.E2E_AUTH_BYPASS_SECRET,
+  nodeEnv = process.env.NODE_ENV,
+  ciEnvValue = process.env.CI,
+  localDevEnvValue = process.env.E2E_AUTH_ALLOW_LOCAL_DEV,
 ): void {
-  if (!isE2EAuthEnabled(enabledEnvValue)) {
+  if (!isExplicitlyRequestingE2EAuth(enabledEnvValue)) {
     return
   }
 
+  if (!isE2EAuthRuntimeAllowed(nodeEnv, ciEnvValue, localDevEnvValue)) {
+    throw new Error(
+      `E2E auth bypass can only be enabled in CI, NODE_ENV=test, or local development with ${E2E_AUTH_LOCAL_DEV_FLAG}=true.`,
+    )
+  }
+
   getRequiredE2EAuthSecret(secretEnvValue)
+}
+
+export function getE2EAuthConfigurationSummary(): {
+  requested: boolean
+  runtimeAllowed: boolean
+  enabled: boolean
+  requiredFlags: string[]
+} {
+  const requested = isExplicitlyRequestingE2EAuth()
+  const runtimeAllowed = isE2EAuthRuntimeAllowed()
+
+  return {
+    requested,
+    runtimeAllowed,
+    enabled: requested && runtimeAllowed,
+    requiredFlags: [
+      E2E_AUTH_ENABLED_FLAG,
+      E2E_AUTH_SECRET_FLAG,
+      E2E_AUTH_LOCAL_DEV_FLAG,
+    ],
+  }
 }
 
 export async function createSignedE2EAuthCookie(

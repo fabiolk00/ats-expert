@@ -90,6 +90,16 @@ Disallowed fields:
 - resume content
 - prompt data
 
+## `user_profiles.cv_state`
+
+Purpose: imported or manually edited seed resume state outside active sessions.
+
+Rules:
+- uses the same `CVState` shape as session `cvState`
+- is profile-seed state, not the active session truth
+- should be validated at the repository boundary instead of leaking raw JSON
+- may seed a new session, but does not replace session version history
+
 ## `cv_versions`
 
 Purpose: immutable history of trusted `CVState` snapshots.
@@ -128,6 +138,28 @@ Rules:
 - multiple targets may coexist for one session
 - each `derivedCvState` must validate as a full `CVState`
 - target-generated files persist on the target row, not on the base session
+
+## `resume_generations`
+
+Purpose: immutable billing-aware generation history for base and target exports.
+
+Structured JSON fields:
+- `sourceCvSnapshot`
+- `generatedCvState?`
+
+Rules:
+- both snapshot fields should validate as full `CVState`
+- these rows preserve render-time truth for replay, billing safety, and download continuity
+- they are not a substitute for mutable session state
+
+## `processed_events.event_payload`
+
+Purpose: provider-event audit payload.
+
+Rules:
+- this is an intentionally opaque event payload seam
+- it exists for dedupe, replay support, and operator forensics
+- do not treat it as stable product state unless a dedicated domain contract is introduced
 
 ## Patch model
 

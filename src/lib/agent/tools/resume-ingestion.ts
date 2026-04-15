@@ -339,6 +339,13 @@ Rules:
     3,
     AGENT_CONFIG.timeout,
     externalSignal,
+    {
+      operation: 'resume_ingestion',
+      stage: 'structured_extraction',
+      model: MODEL_CONFIG.structuredModel,
+      sessionId,
+      userId,
+    },
   )
 
   const usage = getChatCompletionUsage(response)

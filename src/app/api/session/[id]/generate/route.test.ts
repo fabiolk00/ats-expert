@@ -261,6 +261,40 @@ describe('generate route', () => {
     })
   })
 
+  it('returns creditsUsed: 0 for a target replay without changing the generation type', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(dispatchTool).mockResolvedValue(JSON.stringify({
+      success: true,
+      docxUrl: null,
+      pdfUrl: 'https://example.com/pdf',
+      creditsUsed: 0,
+      resumeGenerationId: 'gen_target_existing_123',
+    }))
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          scope: 'target',
+          targetId: 'target_123',
+          clientRequestId: 'req_target_existing',
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      success: true,
+      scope: 'target',
+      targetId: 'target_123',
+      creditsUsed: 0,
+      generationType: 'JOB_TARGETING',
+      resumeGenerationId: 'gen_target_existing_123',
+    })
+  })
+
   it('propagates structured generation failures', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
     vi.mocked(getSession).mockResolvedValue(buildSession())

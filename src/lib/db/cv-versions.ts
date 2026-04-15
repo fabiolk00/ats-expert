@@ -131,6 +131,10 @@ function getCVVersionLabel(version: CVVersion): string {
       return 'Base Resume Updated'
     case 'manual':
       return 'Base Resume Edited'
+    case 'ats-enhancement':
+      return 'ATS Enhancement Created'
+    case 'job-targeting':
+      return 'Target Job Rewrite Created'
     case 'target-derived':
       return version.targetResumeId
         ? `Target Resume Created (${version.targetResumeId})`

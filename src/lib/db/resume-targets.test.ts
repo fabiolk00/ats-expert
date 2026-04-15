@@ -6,6 +6,7 @@ import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 
 import {
   createResumeTarget,
+  getResumeTargetsForSession,
   updateResumeTargetCvStateWithVersion,
   updateResumeTargetGeneratedOutput,
 } from './resume-targets'
@@ -212,5 +213,41 @@ describe('resume targets', () => {
       userId: 'usr_123',
       derivedCvState: buildDerivedCvState(),
     })).rejects.toThrow('Failed to update resume target')
+  })
+
+  it('rejects malformed derived_cv_state rows when listing targets', async () => {
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      rpc: vi.fn(),
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            order: vi.fn(() => ({
+              returns: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: 'target_123',
+                    session_id: 'sess_123',
+                    target_job_description: 'AWS backend role',
+                    derived_cv_state: {
+                      fullName: 'Ana Silva',
+                      phone: '555-0100',
+                      summary: 'Invalid missing email',
+                      experience: [],
+                      skills: [],
+                      education: [],
+                    },
+                    created_at: '2026-03-27T12:00:00.000Z',
+                    updated_at: '2026-03-27T12:00:00.000Z',
+                  },
+                ],
+                error: null,
+              }),
+            })),
+          })),
+        })),
+      })),
+    } as unknown as ReturnType<typeof getSupabaseAdminClient>)
+
+    await expect(getResumeTargetsForSession('sess_123')).rejects.toThrow()
   })
 })

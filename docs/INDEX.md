@@ -26,6 +26,7 @@ This index is the main directory for the active documentation set.
 ## Architecture and Runtime
 
 - [architecture-overview.md](./architecture-overview.md)
+- [session-persistence-boundaries.md](./session-persistence-boundaries.md)
 - [agent-runtime-parity.md](./agent-runtime-parity.md)
 - [database-conventions.md](./database-conventions.md)
 - [agent-approach.md](./agent-approach.md)
@@ -61,11 +62,18 @@ This index is the main directory for the active documentation set.
 - [PRODUCTION-READINESS-CHECKLIST.md](./PRODUCTION-READINESS-CHECKLIST.md)
 - [launch-readiness.md](./launch-readiness.md)
 
+## Operations, Compliance, and Safety
+
+- [operations/openai-resilience-and-pdf-import.md](./operations/openai-resilience-and-pdf-import.md)
+- [operations/lgpd-data-handling.md](./operations/lgpd-data-handling.md)
+- [operations/secret-boundaries-and-e2e-auth.md](./operations/secret-boundaries-and-e2e-auth.md)
+
 ## Developer Rules
 
 - [developer-rules/README.md](./developer-rules/README.md)
 - [developer-rules/API_CONVENTIONS.md](./developer-rules/API_CONVENTIONS.md)
 - [developer-rules/CODE_STYLE.md](./developer-rules/CODE_STYLE.md)
+- [developer-rules/QUALITY_BASELINE.md](./developer-rules/QUALITY_BASELINE.md)
 - [developer-rules/ERROR_HANDLING.md](./developer-rules/ERROR_HANDLING.md)
 - [developer-rules/TESTING.md](./developer-rules/TESTING.md)
 

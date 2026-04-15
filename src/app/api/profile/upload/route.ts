@@ -2,19 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
-import { parseFile } from '@/lib/agent/tools/parse-file'
-import { ingestResumeText } from '@/lib/agent/tools/resume-ingestion'
 import { logError, logInfo, serializeError } from '@/lib/observability/structured-log'
 import {
   getExistingUserProfile,
-  saveImportedUserProfile,
   type UserProfileRow,
 } from '@/lib/profile/user-profiles'
-import type { CVState } from '@/types/cv'
+import { importPdfProfile } from '@/lib/profile/pdf-import'
+import {
+  createPdfImportJob,
+} from '@/lib/profile/pdf-import-jobs'
 
 export const runtime = 'nodejs'
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
+const DEFAULT_ASYNC_PDF_IMPORT_THRESHOLD_BYTES = 1 * 1024 * 1024
 
 const FileMetadataSchema = z.object({
   type: z.literal('application/pdf'),
@@ -31,6 +32,13 @@ const NO_PROFILE_CHANGES_MESSAGE = 'Esse arquivo nao trouxe novas informacoes pa
 const REPLACE_LINKEDIN_CONFIRMATION_MESSAGE = 'Voce ja importou seu perfil pelo LinkedIn. Confirme se deseja substituir essas informacoes pelo PDF.'
 const START_IMPORT_FAILURE_MESSAGE = 'Nao foi possivel importar seu curriculo agora. Tente novamente em instantes.'
 
+function resolveAsyncPdfImportThresholdBytes(): number {
+  const parsed = Number.parseInt(process.env.PDF_IMPORT_ASYNC_THRESHOLD_BYTES ?? '', 10)
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_ASYNC_PDF_IMPORT_THRESHOLD_BYTES
+}
+
 function mapProfileResponse(data: UserProfileRow) {
   return {
     id: data.id,
@@ -42,42 +50,6 @@ function mapProfileResponse(data: UserProfileRow) {
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   }
-}
-
-function createEmptyCvState(): CVState {
-  return {
-    fullName: '',
-    email: '',
-    phone: '',
-    summary: '',
-    experience: [],
-    skills: [],
-    education: [],
-  }
-}
-
-function mergeCvState(currentCvState: CVState, patch?: Partial<CVState>): CVState {
-  if (!patch) {
-    return currentCvState
-  }
-
-  return {
-    ...currentCvState,
-    ...patch,
-    certifications: patch.certifications ?? currentCvState.certifications,
-  }
-}
-
-function shouldReplaceImportedProfile(
-  existingProfile: Pick<UserProfileRow, 'source'> | null,
-  replaceLinkedinImport: boolean,
-) {
-  if (!existingProfile) {
-    return false
-  }
-
-  return existingProfile.source === 'pdf'
-    || (existingProfile.source === 'linkedin' && replaceLinkedinImport)
 }
 
 export async function POST(req: NextRequest) {
@@ -120,25 +92,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const fileBuffer = Buffer.from(await uploadedFile.arrayBuffer())
-    const parsedFile = await parseFile(
-      {
-        file_base64: fileBuffer.toString('base64'),
-        mime_type: metadata.data.type,
-      },
-      appUser.id,
-      undefined,
-      req.signal,
-    )
-
-    if (!parsedFile.success) {
-      const errorMessage = parsedFile.error.startsWith('PDF_SCANNED')
-        ? SCANNED_PDF_MESSAGE
-        : EXTRACTION_FAILURE_MESSAGE
-
-      return NextResponse.json({ error: errorMessage }, { status: 400 })
-    }
-
     const existingProfile = await getExistingUserProfile(appUser.id)
     if (existingProfile?.source === 'linkedin' && !replaceLinkedinImport) {
       return NextResponse.json(
@@ -150,72 +103,87 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const replaceImportedProfile = shouldReplaceImportedProfile(
-      existingProfile,
-      replaceLinkedinImport,
-    )
-    const currentCvState = existingProfile
-      ? (
-        replaceImportedProfile
-          ? createEmptyCvState()
-          : existingProfile.cv_state as CVState
-      )
-      : createEmptyCvState()
+    const fileBuffer = Buffer.from(await uploadedFile.arrayBuffer())
 
-    const ingestionResult = await ingestResumeText(
-      parsedFile.text,
-      currentCvState,
-      appUser.id,
-      undefined,
-      req.signal,
-    )
+    const asyncThresholdBytes = resolveAsyncPdfImportThresholdBytes()
 
-    const nextCvState = mergeCvState(currentCvState, ingestionResult.patch?.cvState)
-
-    if (ingestionResult.changedFields.length === 0 && !existingProfile) {
-      return NextResponse.json({ error: EXTRACTION_FAILURE_MESSAGE }, { status: 400 })
-    }
-
-    if (ingestionResult.changedFields.length === 0) {
-      logInfo('[api/profile/upload] Resume import skipped because no profile fields changed', {
+    if (uploadedFile.size > asyncThresholdBytes) {
+      const { jobId } = await createPdfImportJob({
         appUserId: appUser.id,
-        fileType: metadata.data.type,
+        fileName: uploadedFile.name,
         fileSize: uploadedFile.size,
-        strategy: ingestionResult.strategy,
-        preservedFields: ingestionResult.preservedFields.join(','),
-        existingProfileSource: existingProfile?.source ?? null,
+        replaceLinkedinImport,
+        fileBuffer,
       })
 
-      return NextResponse.json({ error: NO_PROFILE_CHANGES_MESSAGE }, { status: 409 })
+      logInfo('[api/profile/upload] PDF import queued', {
+        appUserId: appUser.id,
+        jobId,
+        fileSize: uploadedFile.size,
+        fileName: uploadedFile.name,
+        status: 'pending',
+        processingMode: 'async_job',
+        asyncThresholdBytes,
+      })
+
+      return NextResponse.json(
+        {
+          success: true,
+          jobId,
+          status: 'pending',
+        },
+        { status: 202 },
+      )
     }
 
-    const profile = await saveImportedUserProfile({
+    const result = await importPdfProfile({
       appUserId: appUser.id,
-      cvState: nextCvState,
-      source: 'pdf',
-      linkedinUrl: replaceImportedProfile ? nextCvState.linkedin ?? null : undefined,
-      profilePhotoUrl: replaceImportedProfile ? null : undefined,
+      fileBuffer,
+      replaceLinkedinImport,
+      signal: req.signal,
     })
+
+    if (!result.success) {
+      if (result.error === SCANNED_PDF_MESSAGE || result.error === EXTRACTION_FAILURE_MESSAGE) {
+        return NextResponse.json({ error: result.error }, { status: 400 })
+      }
+
+      if (result.error === NO_PROFILE_CHANGES_MESSAGE) {
+        return NextResponse.json({ error: result.error }, { status: 409 })
+      }
+
+      if (result.error === REPLACE_LINKEDIN_CONFIRMATION_MESSAGE) {
+        return NextResponse.json(
+          {
+            error: result.error,
+            requiresConfirmation: true,
+          },
+          { status: 409 },
+        )
+      }
+
+      return NextResponse.json({ error: result.error }, { status: 500 })
+    }
 
     logInfo('[api/profile/upload] Resume imported', {
       appUserId: appUser.id,
       fileType: metadata.data.type,
       fileSize: uploadedFile.size,
       replaceLinkedinImport,
-      strategy: ingestionResult.strategy,
-      changedFields: ingestionResult.changedFields.join(','),
-      preservedFields: ingestionResult.preservedFields.join(','),
+      processingMode: 'inline_sync',
+      asyncThresholdBytes,
+      strategy: result.strategy,
+      changedFields: result.changedFields.join(','),
+      preservedFields: result.preservedFields.join(','),
     })
 
     return NextResponse.json({
       success: true,
-      profile: mapProfileResponse(profile),
-      strategy: ingestionResult.strategy,
-      changedFields: ingestionResult.changedFields,
-      preservedFields: ingestionResult.preservedFields,
-      warning: ingestionResult.confidenceScore !== undefined && ingestionResult.confidenceScore < 0.55
-        ? 'Revise os dados importados antes de salvar. A confianca desta leitura foi baixa.'
-        : undefined,
+      profile: mapProfileResponse(result.profile),
+      strategy: result.strategy,
+      changedFields: result.changedFields,
+      preservedFields: result.preservedFields,
+      warning: result.warning,
     })
   } catch (error) {
     logError('[api/profile/upload] Failed to import profile', {

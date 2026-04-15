@@ -177,7 +177,7 @@ async function findAppUserIdByClerkUserId(clerkUserId: string): Promise<string |
   return data?.user_id ?? null
 }
 
-async function resolveAppUserIdFromReference(referenceUserId: string): Promise<string | null> {
+async function _resolveAppUserIdFromReference(referenceUserId: string): Promise<string | null> {
   const supabase = getSupabaseAdminClient()
 
   const { data: directUser, error: directUserError } = await supabase

@@ -95,6 +95,13 @@ async function parseImageOCR(
     3,
     AGENT_CONFIG.timeout,
     externalSignal,
+    {
+      operation: 'resume_ocr',
+      stage: 'parse_file',
+      model: MODEL_CONFIG.visionModel,
+      sessionId,
+      userId,
+    },
   )
 
   if (userId) {

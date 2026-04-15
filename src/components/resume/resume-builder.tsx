@@ -37,7 +37,8 @@ import type { CVState } from "@/types/cv"
 
 export type ResumeData = Partial<CVState>
 type JobStatus = "active" | "completed" | "failed" | "delayed" | "waiting"
-type FileImportStage = "idle" | "uploading" | "extracting" | "completed" | "failed"
+type FileImportStage = "idle" | "uploading" | "queued" | "extracting" | "completed" | "failed"
+type PdfImportJobStatus = "pending" | "processing" | "completed" | "failed"
 
 type ImportResumeModalProps = {
   isOpen: boolean
@@ -60,6 +61,13 @@ type ImportStatusResponse = {
   errorMessage?: string
 }
 
+type PdfImportStatusResponse = {
+  jobId: string
+  status: PdfImportJobStatus
+  errorMessage?: string
+  warningMessage?: string
+}
+
 type FileUploadResponse = {
   profile?: {
     cvState: ResumeData
@@ -69,6 +77,8 @@ type FileUploadResponse = {
   error?: string
   warning?: string
   requiresConfirmation?: boolean
+  jobId?: string
+  status?: PdfImportJobStatus
 }
 
 function statusLabel(status: JobStatus): string {
@@ -92,6 +102,8 @@ function fileImportLabel(stage: FileImportStage): string {
       return "Pronto para importar"
     case "uploading":
       return "Enviando arquivo"
+    case "queued":
+      return "Aguardando processamento"
     case "extracting":
       return "Extraindo e organizando dados"
     case "completed":
@@ -116,6 +128,7 @@ export function ImportResumeModal({
   const [activeFileImportId, setActiveFileImportId] = useState<number | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null)
+  const [pdfImportJobId, setPdfImportJobId] = useState<string | null>(null)
   const [fileImportStage, setFileImportStage] = useState<FileImportStage>("idle")
   const [fileImportMessage, setFileImportMessage] = useState<string | null>(null)
   const [isReplaceConfirmOpen, setIsReplaceConfirmOpen] = useState(false)
@@ -128,6 +141,7 @@ export function ImportResumeModal({
 
   const resetFileImportState = (): void => {
     setSelectedFile(null)
+    setPdfImportJobId(null)
     setFileImportStage("idle")
     setFileImportMessage(null)
     setIsReplaceConfirmOpen(false)
@@ -211,6 +225,84 @@ export function ImportResumeModal({
     return () => window.clearInterval(interval)
   }, [jobId, onImportSuccess])
 
+  useEffect(() => {
+    if (!pdfImportJobId) {
+      return
+    }
+
+    const interval = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/profile/upload/status/${pdfImportJobId}`, {
+          credentials: "include",
+        })
+        if (!response.ok) {
+          const failure = (await response.json().catch(() => null)) as { error?: string } | null
+          throw new Error(failure?.error ?? "Nao foi possivel acompanhar a importacao do curriculo.")
+        }
+
+        const data = (await response.json()) as PdfImportStatusResponse
+
+        if (data.status === "pending") {
+          setFileImportStage("queued")
+          setFileImportMessage("Seu PDF entrou na fila segura de processamento.")
+          return
+        }
+
+        if (data.status === "processing") {
+          setFileImportStage("extracting")
+          setFileImportMessage("Extraindo o texto e preenchendo as secoes automaticamente.")
+          return
+        }
+
+        if (data.status === "completed") {
+          window.clearInterval(interval)
+
+          const profileResponse = await fetch("/api/profile", {
+            credentials: "include",
+          })
+          if (!profileResponse.ok) {
+            throw new Error("A importacao terminou, mas o perfil nao pode ser carregado.")
+          }
+
+          const profileData = (await profileResponse.json()) as ProfileResponse
+          if (!profileData.profile) {
+            throw new Error("A importacao terminou sem retornar dados de perfil.")
+          }
+
+          onImportSuccess(
+            profileData.profile.cvState,
+            profileData.profile.profilePhotoUrl ?? null,
+            profileData.profile.source ?? "pdf",
+          )
+          resetFileImportState()
+          setFileImportStage("completed")
+          setFileImportMessage("Os dados importados ja foram aplicados ao formulario.")
+          if (data.warningMessage) {
+            toast.warning(data.warningMessage)
+          }
+          toast.success("Curriculo importado com sucesso.")
+          return
+        }
+
+        if (data.status === "failed") {
+          window.clearInterval(interval)
+          setPdfImportJobId(null)
+          setFileImportStage("failed")
+          setFileImportMessage(null)
+          toast.error(data.errorMessage ?? "Nao foi possivel importar seu curriculo.")
+        }
+      } catch (error) {
+        window.clearInterval(interval)
+        setPdfImportJobId(null)
+        setFileImportStage("failed")
+        setFileImportMessage(null)
+        toast.error(error instanceof Error ? error.message : "Erro ao acompanhar a importacao do curriculo.")
+      }
+    }, 1500)
+
+    return () => window.clearInterval(interval)
+  }, [pdfImportJobId, onImportSuccess])
+
   const handleLinkedInImport = async (): Promise<void> => {
     setIsLinkedinSubmitting(true)
 
@@ -276,6 +368,21 @@ export function ImportResumeModal({
         return
       }
 
+      if (response.status === 202 && data.jobId) {
+        if (activeFileImportIdRef.current !== importId || !isOpen) {
+          return
+        }
+
+        setPdfImportJobId(data.jobId)
+        setFileImportStage(data.status === "processing" ? "extracting" : "queued")
+        setFileImportMessage(
+          data.status === "processing"
+            ? "Extraindo o texto e preenchendo as secoes automaticamente."
+            : "Seu PDF entrou na fila segura de processamento.",
+        )
+        return
+      }
+
       if (!response.ok || !data.profile) {
         throw new Error(data.error ?? "Nao foi possivel importar seu curriculo.")
       }
@@ -321,7 +428,7 @@ export function ImportResumeModal({
     await runFileImport(false)
   }
 
-  const isBusy = isLinkedinSubmitting || activeFileImportId !== null || jobId !== null
+  const isBusy = isLinkedinSubmitting || activeFileImportId !== null || jobId !== null || pdfImportJobId !== null
   const showFileStatus = fileImportStage !== "idle"
 
   return (

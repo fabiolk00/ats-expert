@@ -1,19 +1,27 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('server-only', () => ({}))
 
 import {
   assertE2EAuthConfigured,
   createSignedE2EAuthCookie,
+  getE2EAuthConfigurationSummary,
+  isE2EAuthRuntimeAllowed,
   resolveE2EAppUser,
   verifySignedE2EAuthCookie,
 } from '@/lib/auth/e2e-auth'
 
 const originalEnabled = process.env.E2E_AUTH_ENABLED
 const originalSecret = process.env.E2E_AUTH_BYPASS_SECRET
+const originalNodeEnv = process.env.NODE_ENV
+const originalCi = process.env.CI
+const originalLocalDev = process.env.E2E_AUTH_ALLOW_LOCAL_DEV
 
 describe('e2e auth helpers', () => {
   beforeEach(() => {
     process.env.E2E_AUTH_ENABLED = 'true'
     process.env.E2E_AUTH_BYPASS_SECRET = 'test-e2e-secret'
+    delete process.env.E2E_AUTH_ALLOW_LOCAL_DEV
   })
 
   afterAll(() => {
@@ -28,6 +36,31 @@ describe('e2e auth helpers', () => {
     } else {
       process.env.E2E_AUTH_BYPASS_SECRET = originalSecret
     }
+
+    if (originalNodeEnv === undefined) {
+      delete (process.env as Record<string, string | undefined>).NODE_ENV
+    } else {
+      ;(process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv
+    }
+
+    if (originalCi === undefined) {
+      delete process.env.CI
+    } else {
+      process.env.CI = originalCi
+    }
+
+    if (originalLocalDev === undefined) {
+      delete process.env.E2E_AUTH_ALLOW_LOCAL_DEV
+    } else {
+      process.env.E2E_AUTH_ALLOW_LOCAL_DEV = originalLocalDev
+    }
+  })
+
+  it('allows the bypass in test, CI, or explicit local-dev mode only', () => {
+    expect(isE2EAuthRuntimeAllowed('test', undefined, undefined)).toBe(true)
+    expect(isE2EAuthRuntimeAllowed('production', 'true', undefined)).toBe(true)
+    expect(isE2EAuthRuntimeAllowed('development', 'false', 'true')).toBe(true)
+    expect(isE2EAuthRuntimeAllowed('production', 'false', 'false')).toBe(false)
   })
 
   it('creates and resolves a signed synthetic app user', async () => {
@@ -81,5 +114,27 @@ describe('e2e auth helpers', () => {
     expect(() => assertE2EAuthConfigured()).toThrow(
       'Missing required environment variable E2E_AUTH_BYPASS_SECRET when E2E auth is enabled.',
     )
+  })
+
+  it('fails fast when bypass is requested in a disallowed runtime', () => {
+    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'production'
+    process.env.CI = 'false'
+    delete process.env.E2E_AUTH_ALLOW_LOCAL_DEV
+
+    expect(() => assertE2EAuthConfigured()).toThrow(
+      'E2E auth bypass can only be enabled in CI, NODE_ENV=test, or local development with E2E_AUTH_ALLOW_LOCAL_DEV=true.',
+    )
+  })
+
+  it('summarizes whether the bypass is active in the current runtime', () => {
+    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'development'
+    process.env.CI = 'false'
+    process.env.E2E_AUTH_ALLOW_LOCAL_DEV = 'true'
+
+    expect(getE2EAuthConfigurationSummary()).toMatchObject({
+      requested: true,
+      runtimeAllowed: true,
+      enabled: true,
+    })
   })
 })

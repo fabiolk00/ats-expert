@@ -402,4 +402,38 @@ describe('session state versioning', () => {
       pdfPath: 'usr_123/sess_legacy/resume.pdf',
     })
   })
+
+  it('rejects malformed persisted cv_state rows instead of returning weak session data', async () => {
+    single.mockResolvedValue({
+      data: {
+        id: 'sess_invalid',
+        user_id: 'usr_123',
+        phase: 'dialog',
+        cv_state: {
+          fullName: 'Ana Silva',
+          phone: '555-0100',
+          summary: 'Backend engineer',
+          experience: [],
+          skills: ['TypeScript'],
+          education: [],
+        },
+        agent_state: {
+          parseStatus: 'parsed',
+          rewriteHistory: {},
+        },
+        generated_output: {
+          status: 'ready',
+        },
+        ats_score: null,
+        credits_used: 0,
+        message_count: 0,
+        credit_consumed: false,
+        created_at: '2026-03-27T12:00:00.000Z',
+        updated_at: '2026-03-27T12:05:00.000Z',
+      },
+      error: null,
+    })
+
+    await expect(getSession('sess_invalid', 'usr_123')).rejects.toThrow()
+  })
 })

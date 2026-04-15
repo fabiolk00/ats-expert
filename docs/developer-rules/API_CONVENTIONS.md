@@ -3,7 +3,7 @@ title: CurrIA API Conventions
 audience: [developers]
 related: [README.md, CODE_STYLE.md, ERROR_HANDLING.md]
 status: current
-updated: 2026-04-12
+updated: 2026-04-15
 ---
 
 # API Conventions
@@ -11,6 +11,7 @@ updated: 2026-04-12
 Back to [Developer Rules](./README.md) | [All Docs](../INDEX.md)
 
 ## Current Route Surface
+
 - `POST /api/agent`
 - `GET /api/session`
 - `POST /api/session` returns `403`
@@ -25,6 +26,7 @@ Back to [Developer Rules](./README.md) | [All Docs](../INDEX.md)
 - `GET /api/cron/cleanup`
 
 ## Default route pattern
+
 Use this pattern for authenticated JSON routes when applicable:
 
 ```ts
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest) {
 ```
 
 ## `/api/agent`
+
 - Requires an authenticated app user
 - Applies Upstash rate limiting
 - Validates `{ sessionId?, message, file?, fileMime? }`
@@ -73,64 +76,79 @@ export async function POST(req: NextRequest) {
 - Executes the tool loop and persists tool patches centrally
 
 ## `/api/session`
+
 - `GET` returns the current app user's sessions
 - `POST` is intentionally blocked to prevent bypassing the `/api/agent` session/bootstrap flow and related billing guards
 
 ## `/api/session/[id]/messages`
+
 - Requires auth
 - Verifies ownership through `getSession()`
 - Returns recent message history
 
 ## `/api/session/[id]/versions`
+
 - Requires auth
 - Verifies ownership through `getSession()`
 - Returns immutable CV snapshots for that session
 
 ## `/api/session/[id]/targets`
+
 - Requires auth
 - Verifies ownership through `getSession()`
 - `GET` lists target-specific derived resumes
 - `POST` creates a target-derived resume without overwriting base `cvState`
 
 ## `/api/file/[sessionId]`
+
 - Requires auth
-- Verifies ownership through `getSession()`
+- Verifies ownership through `getSession(sessionId, appUserId)` before any signed URL generation
 - Returns transient signed URLs as JSON: `{ docxUrl, pdfUrl }`
 - Accepts `?targetId=<id>` for target-specific generated files
 - Must not persist signed URLs in session state or target state
 - Must only return downloadable URLs for artifacts whose persisted generation status is `ready`
+- App-code ownership is the proven authorization boundary in the repo; do not assume this route is protected by middleware alone
+- Signed URLs are a delivery mechanism, not the source authorization check
+- Do not imply RLS or storage policy proved the access when the route actually used the admin storage seam
 
 ## `/api/checkout`
+
 - Requires auth
 - Validates the requested plan with Zod
 - Creates an Asaas checkout link
 
 ## `/api/webhook/asaas`
+
 - Public webhook
 - Verifies `asaas-access-token`
 - Parses and validates payload before processing
 - Uses processed-event deduplication
+- Treats verification failure as fail-closed before any billing side effects
 - Marks events processed only after successful side effects
 
 ## `/api/webhook/clerk`
+
 - Public webhook
 - Verifies Svix signature
+- Rejects missing Svix headers and malformed timestamps
 - Deduplicates with Upstash Redis
 - Bootstraps or syncs internal users
 
 ## `/api/cron/cleanup`
+
 - Protected by `Authorization: Bearer ${CRON_SECRET}`
 - Deletes old `processed_events` rows
 
 ## Common status codes
-| Situation | Status |
-|---|---|
-| Success | 200 |
-| Created | 201 |
-| Bad input | 400 |
-| Unauthenticated | 401 |
-| Quota exhausted | 402 |
-| Forbidden | 403 |
-| Not found | 404 |
-| Rate limited | 429 |
-| Server error | 500 |
+
+| Situation       | Status |
+| --------------- | ------ |
+| Success         | 200    |
+| Created         | 201    |
+| Bad input       | 400    |
+| Unauthenticated | 401    |
+| Quota exhausted | 402    |
+| Forbidden       | 403    |
+| Not found       | 404    |
+| Rate limited    | 429    |
+| Server error    | 500    |

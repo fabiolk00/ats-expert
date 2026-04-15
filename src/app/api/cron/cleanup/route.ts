@@ -1,12 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { logInfo, logWarn, logError } from '@/lib/observability/structured-log'
+import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { cleanupOldImportJobs } from '@/lib/linkedin/import-jobs'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-)
+import { cleanupOldPdfImportJobs } from '@/lib/profile/pdf-import-jobs'
 
 /**
  * Cleanup old processed webhook events (>30 days).
@@ -26,10 +23,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let results: { processedEvents: number; linkedInJobs: number } = {
+  const results: { processedEvents: number; linkedInJobs: number; pdfImportJobs: number } = {
     processedEvents: 0,
     linkedInJobs: 0,
+    pdfImportJobs: 0,
   }
+  const supabase = getSupabaseAdminClient()
 
   // Cleanup processed webhook events (>30 days)
   const { data, error } = await supabase.rpc(
@@ -58,7 +57,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // Log it but continue
   }
 
-  const totalDeleted = results.processedEvents + results.linkedInJobs
+  try {
+    results.pdfImportJobs = await cleanupOldPdfImportJobs(1)
+  } catch (error) {
+    logError('cron.cleanup.pdf_import_jobs_failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+
+  const totalDeleted = results.processedEvents + results.linkedInJobs + results.pdfImportJobs
 
   if (totalDeleted > 0) {
     logInfo('cron.cleanup.completed', {

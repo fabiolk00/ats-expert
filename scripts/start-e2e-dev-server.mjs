@@ -12,6 +12,7 @@ const rawEnv = {
   CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY ?? 'sk_test_dummy',
   CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET ?? 'whsec_dummy',
   E2E_AUTH_BYPASS_SECRET: process.env.E2E_AUTH_BYPASS_SECRET ?? 'curria-e2e-secret',
+  E2E_AUTH_ALLOW_LOCAL_DEV: process.env.E2E_AUTH_ALLOW_LOCAL_DEV ?? 'true',
   E2E_AUTH_ENABLED: 'true',
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? baseURL,
   NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL ?? baseURL,

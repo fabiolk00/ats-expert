@@ -2,13 +2,32 @@
 
 ## What This Is
 
-CurrIA is an AI-powered resume optimization platform for Brazilian job seekers. It already ships the core funnel for profile seeding, conversational resume analysis, job-targeted rewriting, file generation, and paid usage, and the current milestone focuses on making the agent experience reliable under real dialog pressure after the launch-hardening baseline shipped.
+CurrIA is an AI-powered resume optimization platform for Brazilian job seekers. It now ships the core funnel for profile seeding, conversational analysis, deterministic ATS enhancement, deterministic target-job rewriting, artifact generation, and paid usage, with the latest milestone focused on making that flow reliable, observable, and safer to operate.
 
 ## Core Value
 
 A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
 
-## Current Milestone: v1.1 Agent Reliability and Response Continuity
+## Current State
+
+**Shipped version:** `v1.1 Agent Reliability and Response Continuity` on 2026-04-15.
+
+**What is now true:**
+- live `/api/agent` traffic exposes provenance and follows a documented parity contract
+- resume-only flows run a deterministic ATS-enhancement pipeline
+- resume-plus-job flows run a deterministic target-job rewrite pipeline
+- `/dashboard/resume/new` branches by context instead of forcing ATS only
+- OpenAI and PDF ingestion paths have stronger resilience and clearer failure modes
+- security, billing, file-access, and JSON persistence boundaries are more explicit and test-backed
+
+## Next Milestone Goals
+
+- define the next milestone with fresh requirements instead of carrying forward stale v1.1 planning context
+- decide whether the next priority is user-facing depth, operational hardening follow-ups, or new workflow breadth
+- start from a clean requirement set via `/gsd-new-milestone`
+
+<details>
+<summary>Archived milestone focus: v1.1 Agent Reliability and Response Continuity</summary>
 
 **Goal:** Prove what code and model configuration the live `/api/agent` route is serving, eliminate truncation-driven repetition, and verify that the final user-visible transcript stays trustworthy end to end.
 
@@ -17,6 +36,8 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - Dialog-turn hardening so requests like `reescreva` produce an actual rewrite or a non-repetitive continuation instead of reusing the vacancy bootstrap.
 - End-to-end transcript and SSE verification that proves the user-visible chat output matches the backend recovery behavior.
 - Operator replay tooling that captures release headers, SSE events, and final assistant text for the representative vacancy -> `reescreva` incident flow.
+
+</details>
 
 ## Requirements
 
@@ -36,60 +57,62 @@ A job seeker can reliably turn their real profile and a target role into an hone
 - [x] Phase 5: `/api/agent` now exposes release provenance, a safe parity CLI and runbook exist, and automated coverage protects the runtime evidence contract.
 - [x] Phase 6: Dialog follow-ups now preserve rewrite intent, degraded recovery avoids stale vacancy-bootstrap repetition, and `dialog` plus `confirm` share one explicit model-routing contract.
 - [x] Phase 7: The visible chat transcript now stays coherent through recovery paths, route-to-UI and Chromium transcript regressions are committed, and operators can replay the representative incident with provenance-aware evidence.
+- [x] Phase 8: Resume-only sessions now run deterministic ATS enhancement with persisted optimized snapshots and export-aware versioning.
+- [x] Phase 9: ATS enhancement now has section-aware retries, stronger validation, and structured observability.
+- [x] Phase 10: Resume-plus-job sessions now run deterministic target-job rewriting with targeting plans, factual validation, and target-linked persistence.
+- [x] Phase 11: `/dashboard/resume/new` now chooses ATS enhancement or target-job adaptation by context through one smart generation entrypoint.
+- [x] Phase 12: OpenAI and PDF import paths now fail more safely through circuit-breaker protections and async PDF processing.
+- [x] Phase 13: LGPD handling, secret boundaries, and the E2E auth bypass now have stronger contracts and verification.
+- [x] Phase 14: TypeScript-aware quality gates and test visibility are documented and enforced at a useful baseline.
+- [x] Phase 15: Session persistence is split across narrower internal modules instead of one large orchestration file.
+- [x] Phase 16: Middleware, webhook, and file-access security boundaries now have committed fail-closed proof.
+- [x] Phase 17: Billing settlement, replay, and webhook invariants now have focused regression proof.
+- [x] Phase 18: File-access ownership and storage or RLS boundary claims are now explicitly separated and documented.
+- [x] Phase 19: High-value JSON persistence seams now have an explicit contract matrix and narrower typed repository boundaries.
 
 ### Active
 
-- None. Milestone v1.1 is fully satisfied and ready for archive.
+- None. The next milestone has not been defined yet.
 
 ### Out of Scope
 
-- PDF and DOCX profile upload onboarding - still valuable, but secondary to fixing trust-eroding agent continuity in the existing funnel.
-- New premium feature pillars or broad prompt redesign - this milestone is about reliability and debuggability of the current agent, not widening scope.
-- Native mobile apps and non-Brazilian localization - not needed to diagnose or harden the current web agent experience.
+- Broad new feature breadth before the next milestone is defined
+- Carrying forward archived v1.1 requirement scope without a fresh planning pass
 
 ## Context
 
-- The existing codebase is a Next.js 14 App Router monolith with Clerk auth, Supabase/Postgres persistence, Prisma migrations, OpenAI agent orchestration, Asaas billing, and LinkdAPI profile import.
-- v1.0 already hardened launch-critical configuration, browser verification, billing settlement validation, and structured observability around the existing funnel.
-- Phase 5 proved the repo can identify the serving `/api/agent` build and model contract, and the parity check remains the first live incident step.
-- Phase 6 hardened the backend seam behind the `reescreva` incident: terse rewrite follow-ups now preserve rewrite intent, stale bootstrap fragments can be replaced by better continuity text, and `dialog` plus `confirm` share one explicit resolved-model contract.
-- Phase 7 closed the remaining risk by hardening transcript assembly, proving route-to-visible transcript continuity, adding a focused Chromium regression, and shipping an operator replay workflow for the representative incident.
+- The codebase is a Next.js 14 App Router monolith with Clerk auth, Supabase/Postgres persistence, Prisma migrations, OpenAI agent orchestration, Asaas billing, and LinkdAPI profile import.
+- v1.0 hardened launch-critical configuration, browser verification, billing settlement validation, and structured observability around the existing funnel.
+- v1.1 extended that baseline into deterministic ATS and target-job resume pipelines, smart dashboard generation entrypoints, stronger resilience, and explicit persistence contracts.
+- The system now depends on documented versioning and repository boundaries to keep `cvState` canonical while operational JSON remains explicit and test-backed.
 
 ## Constraints
 
-- **Tech stack**: Stay within Next.js 14, React 18, TypeScript, Clerk, Supabase/Postgres, Prisma, OpenAI, Asaas, and the existing docs/testing toolchain - minimize architecture churn in a brownfield repo.
-- **Deployment parity**: Any fix must make it obvious which commit, config, and model selection reached the live route - otherwise repeated-chat reports stay ambiguous.
-- **Reliability**: Changes must preserve canonical `cvState`, persisted session history, and existing billing/session contracts while hardening the dialog flow.
-- **Testing**: v1.0 already established Vitest plus Playwright as repo contracts, so agent fixes should land with route-level and transcript-level regression proof instead of local-only reasoning.
-- **Scope**: This milestone should improve confidence in the current agent experience, not reopen launch-hardening work that is already validated or add major new product pillars.
+- **Tech stack**: Stay within Next.js 14, React 18, TypeScript, Clerk, Supabase/Postgres, Prisma, OpenAI, Asaas, and the existing docs/testing toolchain.
+- **Reliability**: Preserve canonical `cvState`, billing safety, and trusted artifact delivery when evolving resume flows.
+- **Verification**: New milestone work should continue to land with explicit route-level, pipeline-level, or browser-level proof.
+- **Scope discipline**: Start the next milestone from explicit priorities instead of letting the archived v1.1 scope leak forward.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Focus v1.1 on agent reliability and response continuity before new product breadth | The most visible live issue is user trust erosion from repeated or truncated agent replies, not missing surface area | Good |
+| Focus v1.1 on agent reliability and response continuity before new product breadth | The most visible live issue was user trust erosion from repeated or truncated agent replies | Good |
 | Continue phase numbering from 5 | Preserves continuity with the shipped v1.0 roadmap and keeps milestone history easy to follow | Good |
-| Include milestone research before defining requirements | The issue spans deployment parity, model routing, truncation recovery, and transcript rendering, so a small research pass reduces guesswork | Good |
-| Treat v1.0 launch hardening as the validated baseline | The next milestone should build on the shipped reliability work instead of re-planning it | Good |
-| Require end-to-end transcript proof, not only loop-level tests | The user-facing bug is about what appears in chat, so backend correctness alone is not enough | Good |
-| Treat terse rewrite requests as explicit rewrite intent during degraded dialog recovery | Short follow-ups like `reescreva` were the concrete live failure mode and needed a dedicated continuity path | Good |
-| Let `dialog` and `confirm` inherit the resolved agent model unless `OPENAI_DIALOG_MODEL` is explicitly set | Avoids hidden stronger defaults and keeps runtime behavior aligned with the documented env contract | Good |
+| Require end-to-end transcript proof, not only loop-level tests | The user-facing bug was about what appeared in chat, so backend correctness alone was not enough | Good |
+| Move critical resume transformation logic out of optional chat decisions and into deterministic backend pipelines | Reliability and export correctness matter more than conversational flexibility for ATS and target-job generation | Good |
+| Keep canonical resume truth in `cvState` and use `agentState` only as operational context | Preserves durable product truth while allowing orchestration metadata to evolve faster | Good |
+| Favor route-level security and billing proof plus explicit non-claims over implicit confidence in external RLS or provider behavior | Brownfield safety improved more from concrete proof boundaries than from hand-wavy guarantees | Good |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements validated? -> Move to Validated with phase reference
-2. Remaining blockers? -> Keep in Active
-3. Decisions to log? -> Add to Key Decisions
-4. Context drifted? -> Update What This Is and Context
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check - still the right priority?
-3. Audit Out of Scope - reasons still valid?
-4. Update Context with current state
+**After each milestone**:
+1. Review current shipped state
+2. Validate whether Core Value still holds
+3. Start the next milestone from fresh requirements
+4. Archive prior roadmap and requirements before expanding scope again
 
 ---
-*Last updated: 2026-04-10 after completing Phase 7*
+*Last updated: 2026-04-15 after completing the v1.1 milestone*

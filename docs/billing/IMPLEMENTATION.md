@@ -3,7 +3,7 @@ title: CurrIA Billing Implementation
 audience: [developers, operations]
 related: [../INDEX.md, README.md, MIGRATION_GUIDE.md, OPS_RUNBOOK.md]
 status: current
-updated: 2026-04-12
+updated: 2026-04-14
 ---
 
 # Billing Implementation
@@ -329,6 +329,7 @@ Operational expectations:
 | Pre-cutover recurring metadata gaps are visible | `src/lib/asaas/credit-grants.ts` -> `getPersistedSubscriptionMetadata()` | Logs `billing.pre_cutover_missing_metadata` and `billing.pre_cutover_invalid_plan_metadata` | Automated: recurring resolution tests cover the positive path; anomaly logging is operationally verified | Run `SELECT * FROM user_quotas WHERE plan IN ('monthly', 'pro') AND status != 'canceled' AND asaas_subscription_id IS NULL;` and treat any row or matching warning log as a migration blocker |
 | Partial-success exceptions are detectable and recoverable | `src/app/api/checkout/route.ts`; `src/lib/asaas/event-handlers.ts` | If post-provider or post-RPC marking fails, the request errors instead of silently succeeding; processed state may already exist | Automated: `src/app/api/checkout/route.test.ts` covers `markCheckoutCreated()` and `formatExternalReference()` failures after pending row creation; `src/lib/asaas/event-handlers.test.ts` covers `markCheckoutPaid()` and `markCheckoutSubscriptionActive()` failures after successful grant | Look for `processed_events` entries where the corresponding `billing_checkouts.status` is still `created`; reconcile by checking the provider object and manually updating the checkout lifecycle if the economic event already succeeded |
 | Dashboard credit denominators stay aligned with preserved balances | `src/lib/asaas/quota.ts`; `apply_billing_credit_grant_event`; `20260407_persist_billing_display_totals.sql` | Stores a UI-facing display total in `user_quotas.credits_remaining` while runtime checks still use `credit_accounts` | Automated: `src/lib/asaas/quota.test.ts` covers preserved-credit totals larger than the base plan allocation | Compare `user_quotas.credits_remaining` to `credit_accounts.credits_remaining`; the display total should never be lower than the runtime balance |
+| Billable resume replay never double-charges the same logical generation | `src/lib/resume-generation/generate-billable-resume.ts`; `src/app/api/session/[id]/generate/route.ts` | Reuses completed generations for matching CV snapshots, short-circuits in-flight requests by idempotency key, and only consumes credit after successful file generation | Automated: `src/lib/resume-generation/generate-billable-resume.test.ts` covers completed replay, failed replay, in-flight replay, pre-charge insufficient-credit stop, and post-render credit-finalization failure; `src/app/api/session/[id]/generate/route.test.ts` covers route-visible `creditsUsed: 0` replay semantics for base and target scope | Query `resume_generations` and `credit_consumptions` by `idempotency_key` or `generation_id`; the same logical replay should reuse the existing row or return `inProgress`, never create a second consumption record |
 
 ## Related Documentation
 

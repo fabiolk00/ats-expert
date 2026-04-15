@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('server-only', () => ({}))
+
 const originalAsaasAccessToken = process.env.ASAAS_ACCESS_TOKEN
 const originalFetch = global.fetch
 
@@ -29,5 +31,28 @@ describe('asaas client config', () => {
       'Missing required environment variable ASAAS_ACCESS_TOKEN for Asaas client.',
     )
     expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('uses the trimmed server token on outbound provider requests', async () => {
+    process.env.ASAAS_ACCESS_TOKEN = '  token_123  '
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: vi.fn().mockResolvedValue('{}'),
+    } as unknown as Response)
+
+    const { asaas } = await import('./client')
+
+    await asaas.get('/customers')
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://www.asaas.com/api/v3/customers',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          access_token: 'token_123',
+        }),
+      }),
+    )
   })
 })

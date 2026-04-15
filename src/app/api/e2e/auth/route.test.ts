@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('server-only', () => ({}))
 
 import { E2E_AUTH_COOKIE_NAME, verifySignedE2EAuthCookie } from '@/lib/auth/e2e-auth'
 
@@ -7,6 +9,9 @@ import { DELETE, POST } from './route'
 
 const originalEnabled = process.env.E2E_AUTH_ENABLED
 const originalSecret = process.env.E2E_AUTH_BYPASS_SECRET
+const originalNodeEnv = process.env.NODE_ENV
+const originalCi = process.env.CI
+const originalLocalDev = process.env.E2E_AUTH_ALLOW_LOCAL_DEV
 
 function buildRequest(
   method: 'POST' | 'DELETE',
@@ -28,6 +33,9 @@ describe('e2e auth route', () => {
   beforeEach(() => {
     process.env.E2E_AUTH_ENABLED = 'true'
     process.env.E2E_AUTH_BYPASS_SECRET = 'test-e2e-secret'
+    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'test'
+    process.env.CI = 'false'
+    delete process.env.E2E_AUTH_ALLOW_LOCAL_DEV
   })
 
   afterAll(() => {
@@ -41,6 +49,24 @@ describe('e2e auth route', () => {
       delete process.env.E2E_AUTH_BYPASS_SECRET
     } else {
       process.env.E2E_AUTH_BYPASS_SECRET = originalSecret
+    }
+
+    if (originalNodeEnv === undefined) {
+      delete (process.env as Record<string, string | undefined>).NODE_ENV
+    } else {
+      ;(process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv
+    }
+
+    if (originalCi === undefined) {
+      delete process.env.CI
+    } else {
+      process.env.CI = originalCi
+    }
+
+    if (originalLocalDev === undefined) {
+      delete process.env.E2E_AUTH_ALLOW_LOCAL_DEV
+    } else {
+      process.env.E2E_AUTH_ALLOW_LOCAL_DEV = originalLocalDev
     }
   })
 
@@ -74,6 +100,17 @@ describe('e2e auth route', () => {
     expect(await response.json()).toEqual({ error: 'Not found' })
   })
 
+  it('rejects requests when bypass is requested outside CI, test, or explicit local dev', async () => {
+    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'production'
+    process.env.CI = 'false'
+    delete process.env.E2E_AUTH_ALLOW_LOCAL_DEV
+
+    const response = await POST(buildRequest('POST'))
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'Not found' })
+  })
+
   it('rejects invalid secrets', async () => {
     const response = await POST(new NextRequest('http://localhost:3000/api/e2e/auth', {
       method: 'POST',
@@ -94,6 +131,15 @@ describe('e2e auth route', () => {
 
     expect(response.status).toBe(403)
     expect(await response.json()).toEqual({ error: 'Forbidden' })
+  })
+
+  it('rejects requests when the bypass secret is missing even in an allowed runtime', async () => {
+    delete process.env.E2E_AUTH_BYPASS_SECRET
+
+    const response = await POST(buildRequest('POST'))
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'Not found' })
   })
 
   it('clears the auth cookie on DELETE', async () => {

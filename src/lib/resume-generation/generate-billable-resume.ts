@@ -33,7 +33,7 @@ type BillableGenerationResult = {
   resumeGeneration?: ResumeGeneration
 }
 
-const BILLABLE_CV_VERSION_SOURCES = new Set(['rewrite', 'target-derived'])
+const BILLABLE_CV_VERSION_SOURCES = new Set(['rewrite', 'ats-enhancement', 'job-targeting', 'target-derived'])
 
 function resolveGenerationType(scope: ArtifactScope): ResumeGenerationType {
   return scope.type === 'target' ? 'JOB_TARGETING' : 'ATS_ENHANCEMENT'

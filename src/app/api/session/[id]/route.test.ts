@@ -48,6 +48,20 @@ describe('session workspace route', () => {
     vi.clearAllMocks()
   })
 
+  it('returns 401 before any session or target lookup when unauthenticated', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(null)
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_123'),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+    expect(getSession).not.toHaveBeenCalled()
+    expect(getResumeTargetsForSession).not.toHaveBeenCalled()
+  })
+
   it('rejects non-owners', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_other'))
     vi.mocked(getSession).mockResolvedValue(null)
@@ -59,6 +73,7 @@ describe('session workspace route', () => {
 
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ error: 'Not found' })
+    expect(getResumeTargetsForSession).not.toHaveBeenCalled()
   })
 
   it('returns the owned workspace read model', async () => {
@@ -78,9 +93,16 @@ describe('session workspace route', () => {
         education: [],
       },
       agentState: {
+        workflowMode: 'job_targeting',
         parseStatus: 'parsed',
         parseConfidenceScore: 0.9,
         targetJobDescription: 'AWS role',
+        targetFitAssessment: {
+          level: 'partial',
+          summary: 'The current profile appears partially aligned with the target role, with relevant overlap but meaningful gaps still present.',
+          reasons: ['Missing or underrepresented skill: AWS'],
+          assessedAt: '2026-03-27T12:00:00.000Z',
+        },
         gapAnalysis: {
           result: {
             matchScore: 70,
@@ -89,6 +111,76 @@ describe('session workspace route', () => {
             improvementSuggestions: ['Add AWS to summary'],
           },
           analyzedAt: '2026-03-27T12:00:00.000Z',
+        },
+        targetingPlan: {
+          targetRole: 'Aws Backend Engineer',
+          mustEmphasize: ['TypeScript'],
+          shouldDeemphasize: [],
+          missingButCannotInvent: ['AWS'],
+          sectionStrategy: {
+            summary: ['Align summary'],
+            experience: ['Align bullets'],
+            skills: ['Reorder skills'],
+            education: ['Keep factual'],
+            certifications: ['Highlight relevant items'],
+          },
+        },
+        atsAnalysis: {
+          result: {
+            overallScore: 78,
+            structureScore: 80,
+            clarityScore: 74,
+            impactScore: 72,
+            keywordCoverageScore: 79,
+            atsReadabilityScore: 83,
+            issues: [
+              {
+                code: 'summary_clarity',
+                severity: 'medium',
+                message: 'Clarify the summary positioning.',
+                section: 'summary',
+              },
+            ],
+            recommendations: ['Clarify summary focus'],
+          },
+          analyzedAt: '2026-03-27T12:01:00.000Z',
+        },
+        atsWorkflowRun: {
+          status: 'completed',
+          currentStage: 'persist_version',
+          attemptCount: 2,
+          retriedSections: ['experience'],
+          compactedSections: ['experience'],
+          sectionAttempts: {
+            summary: 1,
+            experience: 2,
+          },
+          usageTotals: {
+            sectionAttempts: 3,
+            retriedSections: 1,
+            compactedSections: 1,
+          },
+          updatedAt: '2026-03-27T12:02:30.000Z',
+        },
+        rewriteStatus: 'completed',
+        optimizedCvState: {
+          fullName: 'Ana Silva',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          summary: 'Platform-focused backend engineer with stronger ATS wording.',
+          experience: [],
+          skills: ['TypeScript', 'AWS'],
+          education: [],
+        },
+        optimizedAt: '2026-03-27T12:02:00.000Z',
+        optimizationSummary: {
+          changedSections: ['summary', 'skills'],
+          notes: ['Strengthened ATS clarity'],
+        },
+        lastRewriteMode: 'job_targeting',
+        rewriteValidation: {
+          valid: true,
+          issues: [],
         },
         rewriteHistory: {},
       },
@@ -128,10 +220,17 @@ describe('session workspace route', () => {
           education: [],
         },
         agentState: {
+          workflowMode: 'job_targeting',
           parseStatus: 'parsed',
           parseError: undefined,
           parseConfidenceScore: 0.9,
           targetJobDescription: 'AWS role',
+          targetFitAssessment: {
+            level: 'partial',
+            summary: 'The current profile appears partially aligned with the target role, with relevant overlap but meaningful gaps still present.',
+            reasons: ['Missing or underrepresented skill: AWS'],
+            assessedAt: '2026-03-27T12:00:00.000Z',
+          },
           gapAnalysis: {
             result: {
               matchScore: 70,
@@ -140,6 +239,76 @@ describe('session workspace route', () => {
               improvementSuggestions: ['Add AWS to summary'],
             },
             analyzedAt: '2026-03-27T12:00:00.000Z',
+          },
+          targetingPlan: {
+            targetRole: 'Aws Backend Engineer',
+            mustEmphasize: ['TypeScript'],
+            shouldDeemphasize: [],
+            missingButCannotInvent: ['AWS'],
+            sectionStrategy: {
+              summary: ['Align summary'],
+              experience: ['Align bullets'],
+              skills: ['Reorder skills'],
+              education: ['Keep factual'],
+              certifications: ['Highlight relevant items'],
+            },
+          },
+          atsAnalysis: {
+            result: {
+              overallScore: 78,
+              structureScore: 80,
+              clarityScore: 74,
+              impactScore: 72,
+              keywordCoverageScore: 79,
+              atsReadabilityScore: 83,
+              issues: [
+                {
+                  code: 'summary_clarity',
+                  severity: 'medium',
+                  message: 'Clarify the summary positioning.',
+                  section: 'summary',
+                },
+              ],
+              recommendations: ['Clarify summary focus'],
+            },
+            analyzedAt: '2026-03-27T12:01:00.000Z',
+          },
+          atsWorkflowRun: {
+            status: 'completed',
+            currentStage: 'persist_version',
+            attemptCount: 2,
+            retriedSections: ['experience'],
+            compactedSections: ['experience'],
+            sectionAttempts: {
+              summary: 1,
+              experience: 2,
+            },
+            usageTotals: {
+              sectionAttempts: 3,
+              retriedSections: 1,
+              compactedSections: 1,
+            },
+            updatedAt: '2026-03-27T12:02:30.000Z',
+          },
+          rewriteStatus: 'completed',
+          optimizedCvState: {
+            fullName: 'Ana Silva',
+            email: 'ana@example.com',
+            phone: '555-0100',
+            summary: 'Platform-focused backend engineer with stronger ATS wording.',
+            experience: [],
+            skills: ['TypeScript', 'AWS'],
+            education: [],
+          },
+          optimizedAt: '2026-03-27T12:02:00.000Z',
+          optimizationSummary: {
+            changedSections: ['summary', 'skills'],
+            notes: ['Strengthened ATS clarity'],
+          },
+          lastRewriteMode: 'job_targeting',
+          rewriteValidation: {
+            valid: true,
+            issues: [],
           },
         },
         generatedOutput: { status: 'idle' },

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createPendingResumeGeneration } from './resume-generations'
+import { createPendingResumeGeneration, updateResumeGeneration } from './resume-generations'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 
 vi.mock('@/lib/db/supabase-admin', () => ({
@@ -116,5 +116,60 @@ describe('createPendingResumeGeneration', () => {
     expect(result.generation.id).toBe('gen_existing')
     expect(result.generation.idempotencyKey).toBe('dup_key')
     expect(result.generation.status).toBe('pending')
+  })
+
+  it('rejects malformed generated_cv_state payloads on update mapping', async () => {
+    const single = vi.fn().mockResolvedValue({
+      data: {
+        id: 'gen_123',
+        user_id: 'usr_123',
+        session_id: 'sess_123',
+        resume_target_id: null,
+        type: 'ATS_ENHANCEMENT',
+        status: 'completed',
+        idempotency_key: null,
+        source_cv_snapshot: {
+          fullName: 'Ana Silva',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          summary: 'Backend engineer',
+          experience: [],
+          skills: ['TypeScript'],
+          education: [],
+        },
+        generated_cv_state: {
+          fullName: 'Ana Silva',
+          phone: '555-0100',
+          summary: 'Missing email should fail',
+          experience: [],
+          skills: ['TypeScript'],
+          education: [],
+        },
+        output_pdf_path: null,
+        output_docx_path: null,
+        failure_reason: null,
+        version_number: 1,
+        created_at: '2026-04-12T12:00:00.000Z',
+        updated_at: '2026-04-12T12:00:00.000Z',
+      },
+      error: null,
+    })
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single,
+            })),
+          })),
+        })),
+      })),
+    } as never)
+
+    await expect(updateResumeGeneration({
+      id: 'gen_123',
+      status: 'completed',
+    })).rejects.toThrow()
   })
 })

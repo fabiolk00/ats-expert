@@ -113,6 +113,7 @@ Current OpenAI routing is controlled in `src/lib/agent/config.ts`. The default r
 - [docs/developer-rules/README.md](docs/developer-rules/README.md)
 - [docs/developer-rules/API_CONVENTIONS.md](docs/developer-rules/API_CONVENTIONS.md)
 - [docs/developer-rules/CODE_STYLE.md](docs/developer-rules/CODE_STYLE.md)
+- [docs/developer-rules/QUALITY_BASELINE.md](docs/developer-rules/QUALITY_BASELINE.md)
 - [docs/developer-rules/ERROR_HANDLING.md](docs/developer-rules/ERROR_HANDLING.md)
 - [docs/developer-rules/TESTING.md](docs/developer-rules/TESTING.md)
 
@@ -184,6 +185,8 @@ npm run build
 npm run start
 npm run typecheck
 npm run lint
+pnpm lint:types
+pnpm format:check
 npm test
 npm run test:e2e -- --project=chromium
 npm run db:generate

@@ -11,6 +11,7 @@ updated: 2026-04-01
 Back to [Developer Rules](./README.md) | [All Docs](../INDEX.md)
 
 ## TypeScript
+
 - Use strict TypeScript.
 - No `any`.
 - No `// @ts-ignore`.
@@ -18,6 +19,7 @@ Back to [Developer Rules](./README.md) | [All Docs](../INDEX.md)
 - Validate external input explicitly with Zod or equivalent typed guards.
 
 ## Architecture-aware rules
+
 - Use internal app user IDs in domain logic, not Clerk IDs.
 - Treat `cvState` as canonical structured resume truth.
 - Treat `agentState` as operational context only.
@@ -26,32 +28,44 @@ Back to [Developer Rules](./README.md) | [All Docs](../INDEX.md)
 - Do not persist signed URLs in `generatedOutput`.
 
 ## React / Next.js
+
 - Server Components by default.
 - Add `"use client"` only when required.
 - Keep data writes in route handlers or server actions.
 - Use `react-hook-form` + Zod when forms have non-trivial validation.
 
 ## Styling
+
 - Tailwind only.
 - Use `cn()` for conditional class merging.
 - Keep breakpoints mobile-first.
 
+## Formatting
+
+- Prefer the committed Prettier baseline for touched files.
+- Run `pnpm format:check` before merge when you touch docs, config, or mixed-format files.
+- Avoid repo-wide formatting churn unless a dedicated cleanup phase explicitly scopes it.
+
 ## Imports
+
 - Use `@/` absolute imports.
 - Group imports: framework, third-party, internal.
 - Do not import from `src/` directly.
 
 ## Error handling
+
 - Route handlers should return structured JSON errors with proper status codes.
 - Agent tools should return structured failures with a stable code and user-facing error message.
 - Reject malformed model output before it reaches canonical state.
 
 ## Comments
+
 - Prefer self-documenting code.
 - Use comments only when they explain intent, invariants, or tricky behavior.
 - TODOs should include an issue number.
 
 ## Resume-State Boundaries
+
 - `cvState` is the canonical base resume only.
 - `agentState` may store structured gap analysis and operational targeting context, but not target-derived resume variants.
 - Immutable resume history belongs in `cv_versions`.

@@ -186,6 +186,14 @@ async function requestDerivedTargetResume(input: {
     3,
     AGENT_CONFIG.timeout,
     input.externalSignal,
+    {
+      operation: 'target_resume',
+      stage: input.retryReason ? 'retry' : 'initial',
+      model: MODEL_CONFIG.structuredModel,
+      sessionId: input.sessionId,
+      userId: input.userId,
+      workflowMode: 'job_targeting',
+    },
   )
 
   const usage = getChatCompletionUsage(response)

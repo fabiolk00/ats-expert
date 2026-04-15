@@ -3,7 +3,14 @@ import zlib from 'zlib'
 
 import type { CVState } from '@/types/cv'
 
-import { generateFile, generateFileDeps, validateGenerationCvState } from './generate-file'
+vi.mock('server-only', () => ({}))
+
+import {
+  createSignedResumeArtifactUrls,
+  generateFile,
+  generateFileDeps,
+  validateGenerationCvState,
+} from './generate-file'
 
 function buildCvState(): CVState {
   return {
@@ -161,6 +168,56 @@ describe('generateFile', () => {
     expect(pdfText.indexOf('EXPERIENCIA PROFISSIONAL')).toBeLessThan(pdfText.indexOf('EDUCACAO'))
     expect(pdfText.indexOf('EDUCACAO')).toBeLessThan(pdfText.indexOf('CERTIFICACOES'))
     expect(pdfText.indexOf('CERTIFICACOES')).toBeLessThan(pdfText.indexOf('IDIOMAS'))
+  })
+
+  it('creates transient signed urls from the provided storage seam only', async () => {
+    const createSignedUrl = vi.fn().mockResolvedValue({
+      data: {
+        signedUrl: 'https://cdn.example.com/usr_123/sess_123/resume.pdf',
+      },
+      error: null,
+    })
+    const supabase = {
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrl,
+        })),
+      },
+    }
+
+    const signedUrls = await createSignedResumeArtifactUrls(
+      undefined,
+      'usr_123/sess_123/resume.pdf',
+      supabase as never,
+    )
+
+    expect(supabase.storage.from).toHaveBeenCalledWith('resumes')
+    expect(createSignedUrl).toHaveBeenCalledWith('usr_123/sess_123/resume.pdf', 3600)
+    expect(signedUrls).toEqual({
+      docxUrl: null,
+      pdfUrl: 'https://cdn.example.com/usr_123/sess_123/resume.pdf',
+    })
+  })
+
+  it('fails closed when the storage seam cannot mint a signed url', async () => {
+    const supabase = {
+      storage: {
+        from: vi.fn(() => ({
+          createSignedUrl: vi.fn().mockResolvedValue({
+            data: null,
+            error: { message: 'policy denied' },
+          }),
+        })),
+      },
+    }
+
+    await expect(
+      createSignedResumeArtifactUrls(
+        undefined,
+        'usr_123/sess_123/resume.pdf',
+        supabase as never,
+      ),
+    ).rejects.toThrowError('Failed to create signed download URLs.')
   })
 
   it('persists failed status and explicit error on failure', async () => {

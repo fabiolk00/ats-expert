@@ -325,6 +325,11 @@ async function requestGapAnalysis(
     3,
     AGENT_CONFIG.timeout,
     externalSignal,
+    {
+      operation: 'gap_analysis',
+      stage: promptOverride ? 'repair' : 'initial',
+      model: MODEL_CONFIG.structuredModel,
+    },
   )
 }
 

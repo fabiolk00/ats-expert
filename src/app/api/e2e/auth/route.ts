@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
 import {
   E2E_AUTH_COOKIE_NAME,
   createSignedE2EAuthCookie,
+  getE2EAuthConfigurationSummary,
   getE2EAuthCookieOptions,
   getRequiredE2EAuthSecret,
-  isE2EAuthEnabled,
 } from '@/lib/auth/e2e-auth'
 
 type AuthRequestBody = {
@@ -88,7 +89,13 @@ async function readOptionalBody(request: NextRequest): Promise<AuthRequestBody> 
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (!isE2EAuthEnabled()) {
+  if (!getE2EAuthConfigurationSummary().enabled) {
+    return rejectWhenDisabled()
+  }
+
+  try {
+    getRequiredE2EAuthSecret()
+  } catch {
     return rejectWhenDisabled()
   }
 
@@ -121,7 +128,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
-  if (!isE2EAuthEnabled()) {
+  if (!getE2EAuthConfigurationSummary().enabled) {
+    return rejectWhenDisabled()
+  }
+
+  try {
+    getRequiredE2EAuthSecret()
+  } catch {
     return rejectWhenDisabled()
   }
 

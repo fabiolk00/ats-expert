@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { toast } from "sonner"
 
 import UserDataPage from "./user-data-page"
 
@@ -281,6 +282,291 @@ describe("UserDataPage", () => {
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/dashboard?session=sess_ats_123")
+    })
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/profile/smart-generation", expect.objectContaining({
+      method: "POST",
+    }))
+  })
+
+  it("switches to job targeting mode when a target job description is provided", async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          profile: {
+            id: "profile_123",
+            source: "manual",
+            cvState: {
+              fullName: "Ana Silva",
+              email: "ana@example.com",
+              phone: "555-0100",
+              linkedin: "https://linkedin.com/in/ana",
+              location: "Sao Paulo",
+              summary: "Analista de dados com foco em BI.",
+              experience: [{
+                title: "Analista de Dados",
+                company: "Acme",
+                location: "Sao Paulo",
+                startDate: "2022",
+                endDate: "2024",
+                bullets: ["Criei dashboards executivos."],
+              }],
+              skills: ["SQL", "Power BI", "ETL", "Excel"],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
+            },
+            linkedinUrl: null,
+            extractedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          profile: {
+            id: "profile_123",
+            source: "manual",
+            cvState: {
+              fullName: "Ana Silva",
+              email: "ana@example.com",
+              phone: "555-0100",
+              linkedin: "https://linkedin.com/in/ana",
+              location: "Sao Paulo",
+              summary: "Analista de dados com foco em BI.",
+              experience: [{
+                title: "Analista de Dados",
+                company: "Acme",
+                location: "Sao Paulo",
+                startDate: "2022",
+                endDate: "2024",
+                bullets: ["Criei dashboards executivos."],
+              }],
+              skills: ["SQL", "Power BI", "ETL", "Excel"],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
+            },
+            linkedinUrl: null,
+            extractedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          sessionId: "sess_target_123",
+          generationType: "JOB_TARGETING",
+        }),
+      })
+
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await user.type(
+      await screen.findByTestId("target-job-description-input"),
+      "Vaga para analista de dados senior com foco em produto e SQL.",
+    )
+
+    expect(screen.getByText("Adaptar meu curriculo para esta vaga")).toBeInTheDocument()
+    expect(screen.getByText("Adaptar para vaga (1 credito)")).toBeInTheDocument()
+
+    await user.click(screen.getByText("Adaptar para vaga (1 credito)"))
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/dashboard?session=sess_target_123")
+    })
+
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/profile/smart-generation", expect.objectContaining({
+      method: "POST",
+      body: expect.stringContaining("\"targetJobDescription\":\"Vaga para analista de dados senior com foco em produto e SQL.\""),
+    }))
+  })
+
+  it("returns to ATS mode when the target job description is cleared", async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        profile: {
+          id: "profile_123",
+          source: "manual",
+          cvState: {
+            fullName: "Ana Silva",
+            email: "ana@example.com",
+            phone: "555-0100",
+            linkedin: "https://linkedin.com/in/ana",
+            location: "Sao Paulo",
+            summary: "Analista de dados com foco em BI.",
+            experience: [{
+              title: "Analista de Dados",
+              company: "Acme",
+              location: "Sao Paulo",
+              startDate: "2022",
+              endDate: "2024",
+              bullets: ["Criei dashboards executivos."],
+            }],
+            skills: ["SQL", "Power BI", "ETL", "Excel"],
+            education: [{
+              degree: "Bacharel em Sistemas de Informacao",
+              institution: "USP",
+              year: "2020",
+            }],
+            certifications: [{
+              name: "AWS Cloud Practitioner",
+              issuer: "Amazon",
+              year: "2024",
+            }],
+          },
+          linkedinUrl: null,
+          extractedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    })) as unknown as typeof fetch)
+
+    render(<UserDataPage currentCredits={2} />)
+
+    const input = await screen.findByTestId("target-job-description-input")
+    await user.type(input, "Vaga para analista.")
+
+    expect(screen.getByText("Adaptar meu curriculo para esta vaga")).toBeInTheDocument()
+
+    await user.clear(input)
+
+    expect(screen.getByText("Melhorar meu curriculo para ATS")).toBeInTheDocument()
+    expect(screen.getByText("Melhorar para ATS (1 credito)")).toBeInTheDocument()
+  })
+
+  it("shows a readable message when the smart-generation route returns a schema error object", async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          profile: {
+            id: "profile_123",
+            source: "manual",
+            cvState: {
+              fullName: "Ana Silva",
+              email: "ana@example.com",
+              phone: "555-0100",
+              linkedin: "https://linkedin.com/in/ana",
+              location: "Sao Paulo",
+              summary: "Analista de dados com foco em BI.",
+              experience: [{
+                title: "Analista de Dados",
+                company: "Acme",
+                location: "Sao Paulo",
+                startDate: "2022",
+                endDate: "2024",
+                bullets: ["Criei dashboards executivos."],
+              }],
+              skills: ["SQL", "Power BI", "ETL", "Excel"],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
+            },
+            linkedinUrl: null,
+            extractedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          profile: {
+            id: "profile_123",
+            source: "manual",
+            cvState: {
+              fullName: "Ana Silva",
+              email: "ana@example.com",
+              phone: "555-0100",
+              linkedin: "https://linkedin.com/in/ana",
+              location: "Sao Paulo",
+              summary: "Analista de dados com foco em BI.",
+              experience: [{
+                title: "Analista de Dados",
+                company: "Acme",
+                location: "Sao Paulo",
+                startDate: "2022",
+                endDate: "2024",
+                bullets: ["Criei dashboards executivos."],
+              }],
+              skills: ["SQL", "Power BI", "ETL", "Excel"],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
+            },
+            linkedinUrl: null,
+            extractedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: {
+            fieldErrors: {
+              targetJobDescription: ["Descricao da vaga muito longa."],
+            },
+          },
+        }),
+      })
+
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await user.type(
+      await screen.findByTestId("target-job-description-input"),
+      "Vaga para analista de dados senior com foco em produto e SQL.",
+    )
+    await user.click(screen.getByText("Adaptar para vaga (1 credito)"))
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Descricao da vaga muito longa.")
     })
   })
 
@@ -707,13 +993,14 @@ describe("UserDataPage", () => {
       ),
     ).toBeInTheDocument()
     expect(screen.getByText("parse e leitura estruturada do curriculo")).toBeInTheDocument()
-    expect(screen.getByText("keyword matching e gap analysis quando houver vaga")).toBeInTheDocument()
+    expect(screen.getByText("score ATS geral, clareza e legibilidade do curriculo")).toBeInTheDocument()
     expect(screen.getByText("reescrita estrategica de resumo e bullets")).toBeInTheDocument()
     expect(screen.getByText("template ATS em PDF textual, simples e pt-BR")).toBeInTheDocument()
     expect(screen.getByTestId("ats-panel-badge")).toHaveClass("bg-foreground", "text-background")
     expect(screen.getByTestId("ats-feature-analysis")).toHaveClass("border-emerald-500/50", "bg-emerald-50")
     expect(screen.getByTestId("ats-panel-cta")).toHaveClass("bg-emerald-600", "text-white")
     expect(screen.getByText("Melhorar para ATS (1 credito)")).toBeInTheDocument()
+    expect(screen.getByTestId("target-job-description-input")).toBeInTheDocument()
   })
 
   it("renders the base preview sections in the requested order", async () => {

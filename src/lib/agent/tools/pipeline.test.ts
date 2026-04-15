@@ -1,329 +1,460 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type {
-  GenerateFileOutput,
-  ParseFileOutput,
-  RewriteSectionOutput,
-  Session,
-} from '@/types/agent'
-import type { CVState, ExperienceEntry } from '@/types/cv'
+import type { Session } from '@/types/agent'
+import type { CVState } from '@/types/cv'
 
-import { CURRENT_SESSION_STATE_VERSION } from '@/lib/db/sessions'
-import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
-import { generateBillableResume } from '@/lib/resume-generation/generate-billable-resume'
+import { runAtsEnhancementPipeline } from '@/lib/agent/ats-enhancement-pipeline'
+import { runJobTargetingPipeline } from '@/lib/agent/job-targeting-pipeline'
+import { rewriteResumeFull } from '@/lib/agent/tools/rewrite-resume-full'
 
-import { dispatchTool } from './index'
-
-const { createCompletion, pdfParse } = vi.hoisted(() => ({
-  createCompletion: vi.fn(),
-  pdfParse: vi.fn(),
+const {
+  mockAnalyzeAtsGeneral,
+  mockAnalyzeGap,
+  mockRewriteSection,
+  mockValidateRewrite,
+  mockCreateCvVersion,
+  mockUpdateSession,
+  mockLogInfo,
+  mockLogWarn,
+  mockLogError,
+} = vi.hoisted(() => ({
+  mockAnalyzeAtsGeneral: vi.fn(),
+  mockAnalyzeGap: vi.fn(),
+  mockRewriteSection: vi.fn(),
+  mockValidateRewrite: vi.fn(),
+  mockCreateCvVersion: vi.fn(),
+  mockUpdateSession: vi.fn(),
+  mockLogInfo: vi.fn(),
+  mockLogWarn: vi.fn(),
+  mockLogError: vi.fn(),
 }))
 
-vi.mock('@/lib/openai/client', () => ({
-  openai: {
-    chat: {
-      completions: {
-        create: createCompletion,
+vi.mock('@/lib/agent/tools/ats-analysis', () => ({
+  analyzeAtsGeneral: mockAnalyzeAtsGeneral,
+}))
+
+vi.mock('@/lib/agent/tools/gap-analysis', () => ({
+  analyzeGap: mockAnalyzeGap,
+}))
+
+vi.mock('@/lib/agent/tools/rewrite-section', () => ({
+  rewriteSection: mockRewriteSection,
+}))
+
+vi.mock('@/lib/agent/tools/validate-rewrite', () => ({
+  validateRewrite: mockValidateRewrite,
+}))
+
+vi.mock('@/lib/db/cv-versions', () => ({
+  createCvVersion: mockCreateCvVersion,
+}))
+
+vi.mock('@/lib/db/sessions', () => ({
+  updateSession: mockUpdateSession,
+}))
+
+vi.mock('@/lib/observability/structured-log', () => ({
+  logInfo: mockLogInfo,
+  logWarn: mockLogWarn,
+  logError: mockLogError,
+  serializeError: (error: unknown) => ({
+    errorMessage: error instanceof Error ? error.message : String(error),
+  }),
+}))
+
+function buildCvState(): CVState {
+  return {
+    fullName: 'Ana Silva',
+    email: 'ana@example.com',
+    phone: '555-0100',
+    summary: 'Analista de dados com foco em BI e SQL.',
+    experience: [
+      {
+        title: 'Analista de Dados',
+        company: 'Acme',
+        startDate: '2022',
+        endDate: '2024',
+        bullets: Array.from({ length: 8 }, (_, index) =>
+          `Bullet muito longa ${index} ${'resultado e contexto '.repeat(20)}`),
       },
-    },
-  },
-}))
-
-vi.mock('pdf-parse', () => ({
-  default: pdfParse,
-}))
-
-vi.mock('@/lib/agent/usage-tracker', () => ({
-  trackApiUsage: vi.fn(() => Promise.resolve(undefined)),
-}))
-
-vi.mock('@/lib/db/supabase-admin', () => ({
-  getSupabaseAdminClient: vi.fn(),
-}))
-
-vi.mock('@/lib/resume-generation/generate-billable-resume', () => ({
-  generateBillableResume: vi.fn(),
-}))
-
-const rpc = vi.fn()
+    ],
+    skills: ['SQL', 'Power BI', 'ETL'],
+    education: [
+      { degree: 'Bacharel em Sistemas', institution: 'USP', year: '2020' },
+    ],
+    certifications: [
+      { name: 'AWS Cloud Practitioner', issuer: 'AWS', year: '2024' },
+    ],
+  }
+}
 
 function buildSession(): Session {
   return {
-    id: 'sess_pipeline',
+    id: 'sess_ats_123',
     userId: 'usr_123',
-    stateVersion: CURRENT_SESSION_STATE_VERSION,
+    stateVersion: 1,
     phase: 'dialog',
-    cvState: {
-      fullName: 'Ana Silva',
-      email: 'ana@example.com',
-      phone: '555-0100',
-      linkedin: 'linkedin.com/in/ana-silva',
-      location: 'Sao Paulo, BR',
-      summary: 'Backend engineer focused on APIs.',
-      experience: [
-        {
-          title: 'Backend Engineer',
-          company: 'Acme',
-          startDate: '2022',
-          endDate: 'present',
-          bullets: ['Built billing APIs'],
-        },
-      ],
-      skills: ['TypeScript', 'PostgreSQL'],
-      education: [
-        {
-          degree: 'BSc Computer Science',
-          institution: 'USP',
-          year: '2021',
-        },
-      ],
-      certifications: [
-        {
-          name: 'AWS SAA',
-          issuer: 'AWS',
-          year: '2024',
-        },
-      ],
-    },
+    cvState: buildCvState(),
     agentState: {
-      parseStatus: 'attached',
+      parseStatus: 'parsed',
       rewriteHistory: {},
+      workflowMode: 'ats_enhancement',
     },
-    generatedOutput: {
-      status: 'idle',
-    },
+    generatedOutput: { status: 'idle' },
     creditsUsed: 0,
-    messageCount: 0,
+    messageCount: 1,
     creditConsumed: false,
-    createdAt: new Date('2026-03-25T12:00:00.000Z'),
-    updatedAt: new Date('2026-03-25T12:00:00.000Z'),
+    createdAt: new Date('2026-04-14T12:00:00.000Z'),
+    updatedAt: new Date('2026-04-14T12:00:00.000Z'),
   }
 }
 
-function buildOpenAIResponse(text: string) {
-  return {
-    choices: [{ message: { content: text } }],
-    usage: {
-      prompt_tokens: 10,
-      completion_tokens: 20,
-    },
+function buildSuccessfulRewriteOutput(cvState: CVState, section: string) {
+  switch (section) {
+    case 'summary':
+      return {
+        success: true,
+        rewritten_content: `${cvState.summary} com foco em impacto.`,
+        section_data: `${cvState.summary} com foco em impacto.`,
+        keywords_added: ['SQL'],
+        changes_made: ['Resumo fortalecido'],
+      }
+    case 'experience':
+      return {
+        success: true,
+        rewritten_content: 'Experiencia reestruturada.',
+        section_data: cvState.experience,
+        keywords_added: ['Power BI'],
+        changes_made: ['Bullets consolidados'],
+      }
+    case 'skills':
+      return {
+        success: true,
+        rewritten_content: cvState.skills.join(', '),
+        section_data: cvState.skills,
+        keywords_added: [],
+        changes_made: ['Skills agrupadas'],
+      }
+    case 'education':
+      return {
+        success: true,
+        rewritten_content: 'Educacao padronizada.',
+        section_data: cvState.education,
+        keywords_added: [],
+        changes_made: ['Educacao padronizada'],
+      }
+    default:
+      return {
+        success: true,
+        rewritten_content: 'Certificacoes padronizadas.',
+        section_data: cvState.certifications ?? [],
+        keywords_added: [],
+        changes_made: ['Certificacoes padronizadas'],
+      }
   }
 }
 
-describe('agent pipeline session state evolution', () => {
+describe('ATS enhancement reliability hardening', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      rpc,
-    } as unknown as ReturnType<typeof getSupabaseAdminClient>)
-    rpc.mockImplementation((fn: string) => {
-      if (fn === 'apply_session_patch_with_version') {
-        return Promise.resolve({
-          data: true,
-          error: null,
-        })
-      }
-
-      throw new Error(`Unexpected RPC: ${fn}`)
-    })
-    vi.mocked(generateBillableResume).mockResolvedValue({
+    mockUpdateSession.mockResolvedValue(undefined)
+    mockCreateCvVersion.mockResolvedValue(undefined)
+    mockValidateRewrite.mockReturnValue({ valid: true, issues: [] })
+    mockAnalyzeGap.mockResolvedValue({
       output: {
         success: true,
-        docxUrl: 'https://cdn.example.com/usr_123/sess_pipeline/resume.docx',
-        pdfUrl: 'https://cdn.example.com/usr_123/sess_pipeline/resume.pdf',
-      },
-      patch: {
-        generatedOutput: {
-          status: 'ready',
-          docxPath: 'usr_123/sess_pipeline/resume.docx',
-          pdfPath: 'usr_123/sess_pipeline/resume.pdf',
-          generatedAt: '2026-03-25T12:00:00.000Z',
+        result: {
+          matchScore: 68,
+          missingSkills: ['BigQuery'],
+          weakAreas: ['summary'],
+          improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
         },
+      },
+      result: {
+        matchScore: 68,
+        missingSkills: ['BigQuery'],
+        weakAreas: ['summary'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
       },
     })
   })
 
-  it('evolves session state correctly across parse, rewrite, and generate', async () => {
-    const session = buildSession()
-    const originalExperience: ExperienceEntry[] = structuredClone(session.cvState.experience)
-    const originalEducation = structuredClone(session.cvState.education)
-    const originalCertifications = structuredClone(session.cvState.certifications ?? [])
-    const parsedResumeText = 'Ana Silva backend resume text with metrics and APIs. '.repeat(4)
-    const rewrittenSummary = 'Led backend billing modernization, improving reliability and delivery speed.'
-    const canonicalCvStateBeforeGeneration: CVState = structuredClone({
-      ...session.cvState,
-      summary: rewrittenSummary,
-    })
-    pdfParse.mockResolvedValue({
-      text: parsedResumeText,
-      numpages: 2,
-    })
-
-    createCompletion
-      .mockResolvedValueOnce(buildOpenAIResponse(JSON.stringify({
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        phone: '555-0100',
-        linkedin: 'linkedin.com/in/ana-silva',
-        location: 'Sao Paulo, BR',
-        summary: 'Backend engineer focused on APIs, billing systems, and measurable delivery.',
-        experience: [
-          {
-            title: 'Backend Engineer',
-            company: 'Acme',
-            startDate: '2022',
-            endDate: 'present',
-            bullets: ['Built billing APIs'],
+  it('retries a malformed section rewrite and compacts large experience payloads', async () => {
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => {
+      if (section === 'experience' && mockRewriteSection.mock.calls.filter(([input]: [{ section: string }]) => input.section === 'experience').length === 1) {
+        return {
+          output: {
+            success: false,
+            error: 'Invalid rewrite payload for section "experience".',
+            code: 'LLM_INVALID_OUTPUT',
           },
-        ],
-        skills: ['TypeScript', 'PostgreSQL'],
-        education: [
-          {
-            degree: 'BSc Computer Science',
-            institution: 'USP',
-            year: '2021',
+        }
+      }
+
+      if (section === 'summary') {
+        return {
+          output: {
+            success: true,
+            rewritten_content: 'Analista de dados com foco em BI, SQL e automacao.',
+            section_data: 'Analista de dados com foco em BI, SQL e automacao.',
+            keywords_added: ['SQL'],
+            changes_made: ['Resumo fortalecido'],
           },
-        ],
-        certifications: [
-          {
-            name: 'AWS SAA',
-            issuer: 'AWS',
-            year: '2024',
+        }
+      }
+
+      if (section === 'experience') {
+        return {
+          output: {
+            success: true,
+            rewritten_content: 'Experiencia reestruturada.',
+            section_data: [{
+              title: 'Analista de Dados',
+              company: 'Acme',
+              startDate: '2022',
+              endDate: '2024',
+              bullets: ['Estruturei dashboards e automacoes com Power BI e SQL.'],
+            }],
+            keywords_added: ['Power BI'],
+            changes_made: ['Bullets consolidados'],
           },
-        ],
-        confidenceScore: 0.9,
-      })))
-      .mockResolvedValueOnce(buildOpenAIResponse(JSON.stringify({
-        rewritten_content: rewrittenSummary,
-        section_data: rewrittenSummary,
-        keywords_added: ['billing modernization'],
-        changes_made: ['Added clearer business impact'],
-      })))
+        }
+      }
 
-    const parseResult = JSON.parse(await dispatchTool('parse_file', {
-      file_base64: Buffer.from('fake pdf bytes').toString('base64'),
-      mime_type: 'application/pdf',
-    }, session)) as ParseFileOutput
+      if (section === 'skills') {
+        return {
+          output: {
+            success: true,
+            rewritten_content: 'SQL, Power BI, ETL',
+            section_data: ['SQL', 'Power BI', 'ETL'],
+            keywords_added: [],
+            changes_made: ['Skills agrupadas'],
+          },
+        }
+      }
 
-    expect(parseResult).toEqual({
-      success: true,
-      text: parsedResumeText.trim(),
-      pageCount: 2,
+      if (section === 'education') {
+        return {
+          output: {
+            success: true,
+            rewritten_content: 'USP - Bacharel em Sistemas (2020)',
+            section_data: [{ degree: 'Bacharel em Sistemas', institution: 'USP', year: '2020' }],
+            keywords_added: [],
+            changes_made: ['Educacao padronizada'],
+          },
+        }
+      }
+
+      return {
+        output: {
+          success: true,
+          rewritten_content: 'AWS Cloud Practitioner - AWS (2024)',
+          section_data: [{ name: 'AWS Cloud Practitioner', issuer: 'AWS', year: '2024' }],
+          keywords_added: [],
+          changes_made: ['Certificacao padronizada'],
+        },
+      }
     })
-    expect(session.agentState.parseStatus).toBe('parsed')
-    expect(session.agentState.parseConfidenceScore).toBe(0.9)
-    expect(session.agentState.sourceResumeText).toBe(parsedResumeText.trim())
-    expect(session.cvState.summary).toBe('Backend engineer focused on APIs.')
-    expect('rawText' in session.cvState).toBe(false)
-    expect('targetJobDescription' in session.cvState).toBe(false)
 
-    const rewriteResult = JSON.parse(await dispatchTool('rewrite_section', {
-      section: 'summary',
-      current_content: session.cvState.summary,
-      instructions: 'Make it stronger and more ATS-friendly.',
-      target_keywords: ['billing modernization'],
-    }, session)) as RewriteSectionOutput
-
-    expect(rewriteResult).toEqual({
-      success: true,
-      rewritten_content: rewrittenSummary,
-      section_data: rewrittenSummary,
-      keywords_added: ['billing modernization'],
-      changes_made: ['Added clearer business impact'],
-    })
-    expect(session.cvState.summary).toBe(rewrittenSummary)
-    expect(session.cvState.experience).toEqual(originalExperience)
-    expect(session.cvState.education).toEqual(originalEducation)
-    expect(session.cvState.certifications).toEqual(originalCertifications)
-    expect(session.agentState.rewriteHistory.summary).toMatchObject({
-      rewrittenContent: rewrittenSummary,
-      keywordsAdded: ['billing modernization'],
-      changesMade: ['Added clearer business impact'],
-    })
-    expect(session.agentState.rewriteHistory.summary?.updatedAt).toEqual(expect.any(String))
-    expect(session.agentState.sourceResumeText).toBe(parsedResumeText.trim())
-
-    const generateResult = JSON.parse(await dispatchTool('generate_file', {
-      cv_state: {
-        ...session.cvState,
-        summary: 'wrong summary from transient input',
+    const result = await rewriteResumeFull({
+      mode: 'ats_enhancement',
+      cvState: buildCvState(),
+      atsAnalysis: {
+        overallScore: 78,
+        structureScore: 80,
+        clarityScore: 77,
+        impactScore: 74,
+        keywordCoverageScore: 79,
+        atsReadabilityScore: 82,
+        issues: [],
+        recommendations: ['Clareza', 'Power BI', 'SQL'],
       },
-    }, session)) as GenerateFileOutput
-
-    expect(generateBillableResume).toHaveBeenCalledWith({
-      userId: session.userId,
-      sessionId: session.id,
-      sourceCvState: canonicalCvStateBeforeGeneration,
-      targetId: undefined,
-      idempotencyKey: undefined,
-      templateTargetSource: session.agentState,
+      userId: 'usr_123',
+      sessionId: 'sess_ats_123',
     })
-    expect(generateResult).toEqual({
+
+    expect(result.success).toBe(true)
+    expect(result.diagnostics).toMatchObject({
+      retriedSections: ['experience'],
+      compactedSections: ['experience'],
+      sectionAttempts: expect.objectContaining({
+        summary: 1,
+        experience: 2,
+      }),
+    })
+  })
+
+  it('persists stage-aware ATS workflow metadata and logs completion', async () => {
+    const session = buildSession()
+    const optimizedCvState = {
+      ...buildCvState(),
+      summary: 'Analista de dados com foco em BI, SQL e automacao orientada a impacto.',
+    }
+
+    mockAnalyzeAtsGeneral.mockResolvedValue({
       success: true,
-      docxUrl: 'https://cdn.example.com/usr_123/sess_pipeline/resume.docx',
-      pdfUrl: 'https://cdn.example.com/usr_123/sess_pipeline/resume.pdf',
+      result: {
+        overallScore: 80,
+        structureScore: 82,
+        clarityScore: 78,
+        impactScore: 76,
+        keywordCoverageScore: 81,
+        atsReadabilityScore: 84,
+        issues: [],
+        recommendations: ['SQL', 'Power BI'],
+      },
     })
-    expect(session.generatedOutput).toMatchObject({
-      status: 'ready',
-      docxPath: 'usr_123/sess_pipeline/resume.docx',
-      pdfPath: 'usr_123/sess_pipeline/resume.pdf',
-    })
-    expect(session.generatedOutput.generatedAt).toEqual(expect.any(String))
-    expect(session.generatedOutput).not.toHaveProperty('docxUrl')
-    expect(session.generatedOutput).not.toHaveProperty('pdfUrl')
 
-    expect(rpc).toHaveBeenCalledTimes(3)
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput(optimizedCvState, section),
+    }))
 
-    const rpcCalls = rpc.mock.calls as unknown as Array<[string, Record<string, unknown>]>
-    const firstPersistedUpdate = rpcCalls[0]?.[1]
-    const secondPersistedUpdate = rpcCalls[1]?.[1]
-    const thirdPersistedUpdate = rpcCalls[2]?.[1]
+    const result = await runAtsEnhancementPipeline(session)
 
-    expect(firstPersistedUpdate).toEqual({
-      p_session_id: 'sess_pipeline',
-      p_user_id: 'usr_123',
-      p_phase: 'dialog',
-      p_cv_state: expect.any(Object),
-      p_agent_state: expect.objectContaining({
-        parseStatus: 'parsed',
-        parseConfidenceScore: 0.9,
-        sourceResumeText: parsedResumeText.trim(),
-      }),
-      p_generated_output: expect.any(Object),
-      p_ats_score: null,
-      p_version_source: null,
+    expect(result.success).toBe(true)
+    expect(session.agentState.atsWorkflowRun).toMatchObject({
+      status: 'completed',
+      currentStage: 'persist_version',
     })
-    expect(secondPersistedUpdate).toEqual({
-      p_session_id: 'sess_pipeline',
-      p_user_id: 'usr_123',
-      p_phase: 'dialog',
-      p_cv_state: expect.objectContaining({
-        summary: rewrittenSummary,
-      }),
-      p_agent_state: expect.objectContaining({
-        rewriteHistory: expect.objectContaining({
-          summary: expect.objectContaining({
-            rewrittenContent: rewrittenSummary,
-          }),
-        }),
-      }),
-      p_generated_output: expect.any(Object),
-      p_ats_score: null,
-      p_version_source: 'rewrite',
+    expect(mockCreateCvVersion).toHaveBeenCalledTimes(1)
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.started', expect.any(Object))
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.completed', expect.objectContaining({
+      workflowMode: 'ats_enhancement',
+      success: true,
+    }))
+  })
+
+  it('keeps the last valid optimized source unset when validation fails', async () => {
+    const session = buildSession()
+
+    mockAnalyzeAtsGeneral.mockResolvedValue({
+      success: true,
+      result: {
+        overallScore: 80,
+        structureScore: 82,
+        clarityScore: 78,
+        impactScore: 76,
+        keywordCoverageScore: 81,
+        atsReadabilityScore: 84,
+        issues: [],
+        recommendations: ['SQL'],
+      },
     })
-    expect(thirdPersistedUpdate).toEqual({
-      p_session_id: 'sess_pipeline',
-      p_user_id: 'usr_123',
-      p_phase: 'dialog',
-      p_cv_state: expect.any(Object),
-      p_agent_state: expect.any(Object),
-      p_generated_output: expect.objectContaining({
-        status: 'ready',
-        docxPath: 'usr_123/sess_pipeline/resume.docx',
-        pdfPath: 'usr_123/sess_pipeline/resume.pdf',
-      }),
-      p_ats_score: null,
-      p_version_source: null,
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: section === 'summary'
+        ? {
+            success: true,
+            rewritten_content: 'Resumo com claim sem suporte.',
+            section_data: 'Resumo com claim sem suporte.',
+            keywords_added: [],
+            changes_made: ['Resumo ajustado'],
+          }
+        : buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    mockValidateRewrite.mockReturnValue({
+      valid: false,
+      issues: [{ severity: 'medium', message: 'Resumo sem suporte factual.', section: 'summary' }],
     })
+
+    const result = await runAtsEnhancementPipeline(session)
+
+    expect(result.success).toBe(false)
+    expect(session.agentState.optimizedCvState).toBeUndefined()
+    expect(session.agentState.rewriteStatus).toBe('failed')
+    expect(session.agentState.atsWorkflowRun).toMatchObject({
+      status: 'failed',
+      currentStage: 'validation',
+      lastFailureStage: 'validation',
+    })
+    expect(mockCreateCvVersion).not.toHaveBeenCalled()
+    expect(mockLogWarn).toHaveBeenCalledWith('agent.ats_enhancement.validation_failed', expect.objectContaining({
+      workflowMode: 'ats_enhancement',
+      issueCount: 1,
+    }))
+  })
+
+  it('builds a full job_targeting rewrite with plan-driven keyword emphasis', async () => {
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput({
+        ...buildCvState(),
+        summary: 'Analytics engineer com foco em SQL, Power BI e BigQuery para suportar decisoes de negocio.',
+        skills: ['SQL', 'Power BI', 'BigQuery'],
+      }, section),
+    }))
+
+    const result = await rewriteResumeFull({
+      mode: 'job_targeting',
+      cvState: buildCvState(),
+      targetJobDescription: [
+        'Cargo: Analytics Engineer',
+        'Responsabilidades: construir modelos, dashboards e analises em BigQuery.',
+        'Requisitos: SQL, BigQuery, comunicacao com negocio.',
+      ].join('\n'),
+      gapAnalysis: {
+        matchScore: 68,
+        missingSkills: ['BigQuery'],
+        weakAreas: ['summary'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
+      },
+      targetingPlan: {
+        targetRole: 'Analytics Engineer',
+        mustEmphasize: ['SQL', 'BigQuery'],
+        shouldDeemphasize: ['ETL'],
+        missingButCannotInvent: ['BigQuery'],
+        sectionStrategy: {
+          summary: ['Aproxime o posicionamento do cargo alvo sem afirmar dominio inexistente.'],
+          experience: ['Priorize contexto analitico e stack relevante.'],
+          skills: ['Reordene por aderencia a vaga.'],
+          education: ['Mantenha factual.'],
+          certifications: ['Destaque somente o que ajuda na vaga.'],
+        },
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_job_123',
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.summary).toMatchObject({
+      changedSections: ['summary', 'experience', 'skills', 'education', 'certifications'],
+      keywordCoverageImprovement: ['SQL', 'BigQuery'],
+    })
+  })
+
+  it('persists a completed job_targeting rewrite and logs target-role workflow completion', async () => {
+    const session = buildSession()
+    session.agentState.workflowMode = 'job_targeting'
+    session.agentState.targetJobDescription = [
+      'Cargo: Analytics Engineer',
+      'Responsabilidades: construir dashboards e automacoes de dados.',
+      'Requisitos: SQL, Power BI, BigQuery.',
+    ].join('\n')
+    session.agentState.rewriteStatus = 'pending'
+    session.agentState.optimizedCvState = undefined
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput({
+        ...buildCvState(),
+        summary: 'Analytics engineer com foco em SQL, Power BI e automacao orientada a negocio.',
+      }, section),
+    }))
+
+    const result = await runJobTargetingPipeline(session)
+
+    expect(result.success).toBe(true)
+    expect(session.agentState.workflowMode).toBe('job_targeting')
+    expect(session.agentState.targetingPlan).toMatchObject({
+      targetRole: expect.any(String),
+    })
+    expect(session.agentState.lastRewriteMode).toBe('job_targeting')
+    expect(mockCreateCvVersion).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: session.id,
+      source: 'job-targeting',
+    }))
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.job_targeting.completed', expect.objectContaining({
+      workflowMode: 'job_targeting',
+      success: true,
+    }))
   })
 })

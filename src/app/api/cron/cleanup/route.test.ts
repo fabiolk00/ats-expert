@@ -3,19 +3,24 @@ import { NextRequest } from 'next/server'
 import { GET } from './route'
 
 // Use vi.hoisted to create mock at module scope
-const { mockRpcFn, mockCleanupImportJobs } = vi.hoisted(() => ({
+const { mockRpcFn, mockCleanupImportJobs, mockCleanupPdfImportJobs } = vi.hoisted(() => ({
   mockRpcFn: vi.fn(),
   mockCleanupImportJobs: vi.fn(),
+  mockCleanupPdfImportJobs: vi.fn(),
 }))
 
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({
+vi.mock('@/lib/db/supabase-admin', () => ({
+  getSupabaseAdminClient: () => ({
     rpc: mockRpcFn,
   }),
 }))
 
 vi.mock('@/lib/linkedin/import-jobs', () => ({
   cleanupOldImportJobs: mockCleanupImportJobs,
+}))
+
+vi.mock('@/lib/profile/pdf-import-jobs', () => ({
+  cleanupOldPdfImportJobs: mockCleanupPdfImportJobs,
 }))
 
 describe('GET /api/cron/cleanup', () => {
@@ -25,6 +30,7 @@ describe('GET /api/cron/cleanup', () => {
     process.env.CRON_SECRET = 'test-secret-123'
     vi.clearAllMocks()
     mockCleanupImportJobs.mockResolvedValue(0)
+    mockCleanupPdfImportJobs.mockResolvedValue(0)
   })
 
   afterEach(() => {
@@ -89,6 +95,7 @@ describe('GET /api/cron/cleanup', () => {
       const body = await res.json()
       expect(body.processedEvents).toBe(1500)
       expect(body.linkedInJobs).toBe(0)
+      expect(body.pdfImportJobs).toBe(0)
     })
 
     it('returns 0 when no records are deleted', async () => {
@@ -108,6 +115,7 @@ describe('GET /api/cron/cleanup', () => {
       const body = await res.json()
       expect(body.processedEvents).toBe(0)
       expect(body.linkedInJobs).toBe(0)
+      expect(body.pdfImportJobs).toBe(0)
     })
 
     it('handles gracefully when deleted_count is missing', async () => {
@@ -127,6 +135,7 @@ describe('GET /api/cron/cleanup', () => {
       const body = await res.json()
       expect(body.processedEvents).toBe(0)
       expect(body.linkedInJobs).toBe(0)
+      expect(body.pdfImportJobs).toBe(0)
     })
   })
 

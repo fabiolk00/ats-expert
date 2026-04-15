@@ -12,6 +12,7 @@ enum CVVersionSource {
   ingestion
   rewrite
   manual
+  atsEnhancement @map("ats-enhancement")
   targetDerived @map("target-derived")
 
   @@map("cv_version_source")
@@ -38,9 +39,13 @@ model Session {
   userId         String    @map("user_id")
   stateVersion   Int       @default(1) @map("state_version")
   phase          String    @default("intake")
+  // Canonical product contract: full base-session CVState snapshot.
   cvState        Json      @map("cv_state")
+  // Operational contract: agent workflow state, not canonical resume truth.
   agentState     Json      @default("{}") @map("agent_state")
+  // Operational contract: durable artifact metadata only.
   generatedOutput Json     @default("{}") @map("generated_output")
+  // Operational contract: latest structured ATS analysis output.
   atsScore       Json?     @map("ats_score")
   creditsUsed    Int       @default(0) @map("credits_used")
   messageCount   Int       @default(0) @map("message_count")
@@ -62,6 +67,7 @@ model CVVersion {
   id             String       @id @default(cuid())
   sessionId      String       @map("session_id")
   targetResumeId String?      @map("target_resume_id")
+  // Canonical product contract: immutable CVState history snapshot.
   snapshot       Json
   source         CVVersionSource
   createdAt      DateTime     @default(now()) @map("created_at")
@@ -78,8 +84,11 @@ model ResumeTarget {
   id                   String      @id @default(cuid())
   sessionId            String      @map("session_id")
   targetJobDescription String      @map("target_job_description")
+  // Canonical product contract: full target-derived CVState snapshot.
   derivedCvState       Json        @map("derived_cv_state")
+  // Operational contract: structured targeting analysis.
   gapAnalysis          Json?       @map("gap_analysis")
+  // Operational contract: durable target artifact metadata.
   generatedOutput      Json?       @map("generated_output")
   createdAt            DateTime    @default(now()) @map("created_at")
   updatedAt            DateTime    @updatedAt @map("updated_at")
@@ -100,6 +109,7 @@ model JobApplication {
   status             JobApplicationStatus @default(aguardando)
   salary             String?
   location           String?
+  // Operational contract: structured benefit list, still flexible.
   benefits           Json                 @default("[]")
   resumeVersionLabel String               @map("resume_version_label")
   jobDescription     String?              @map("job_description")
@@ -175,6 +185,7 @@ model ProcessedEvent {
   eventId          String   @map("event_id")
   eventFingerprint String   @unique @map("event_fingerprint")
   eventType        String   @map("event_type")
+  // Opaque event payload: audit/replay support, not stable product state.
   eventPayload     Json?    @map("event_payload")
   processedAt      DateTime @default(now()) @map("processed_at")
   createdAt        DateTime @default(now()) @map("created_at")
@@ -220,6 +231,7 @@ model User {
   jobApplications JobApplication[]
   billingInfo    CustomerBillingInfo?
   profile        UserProfile?
+  pdfImportJobs  PdfImportJob[]
   linkedInImportJobs LinkedInImportJob[]
   resumeGenerations ResumeGeneration[]
   creditConsumptions CreditConsumption[]
@@ -230,6 +242,7 @@ model User {
 model UserProfile {
   id          String   @id @default(cuid())
   userId      String   @unique @map("user_id")
+  // Canonical product contract: imported or manually edited profile CVState.
   cvState     Json
   source      String   // 'linkedin' | 'pdf'
   linkedinUrl String?  @map("linkedin_url")
@@ -242,6 +255,28 @@ model UserProfile {
 
   @@index([userId])
   @@map("user_profiles")
+}
+
+model PdfImportJob {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  userId                String    @map("user_id")
+  storagePath           String    @map("storage_path")
+  sourceFileName        String    @map("source_file_name")
+  sourceFileSize        Int       @map("source_file_size")
+  replaceLinkedinImport Boolean   @default(false) @map("replace_linkedin_import")
+  status                String    @default("pending")
+  errorMessage          String?   @map("error_message")
+  warningMessage        String?   @map("warning_message")
+  claimedAt             DateTime? @map("claimed_at")
+  completedAt           DateTime? @map("completed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("pdf_import_jobs")
 }
 
 model LinkedInImportJob {
@@ -317,7 +352,9 @@ model ResumeGeneration {
   type             ResumeGenerationType
   status           String               @default("pending")
   idempotencyKey   String?              @unique @map("idempotency_key")
+  // Canonical product contract: immutable source CVState snapshot.
   sourceCvSnapshot Json                 @map("source_cv_snapshot")
+  // Canonical product contract: immutable generated CVState snapshot when present.
   generatedCvState Json?                @map("generated_cv_state")
   outputPdfPath    String?              @map("output_pdf_path")
   outputDocxPath   String?              @map("output_docx_path")

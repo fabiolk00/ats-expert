@@ -1180,6 +1180,14 @@ async function* streamAssistantTurn(params: {
     3,
     AGENT_CONFIG.timeout,
     params.signal,
+    {
+      operation: 'agent_stream',
+      stage: params.session.phase,
+      model: selectedModel,
+      sessionId: params.session.id,
+      userId: params.appUserId,
+      workflowMode: params.session.agentState.workflowMode,
+    },
   )
 
   const toolCalls: AccumulatedToolCall[] = []

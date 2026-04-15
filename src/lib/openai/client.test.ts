@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('server-only', () => ({}))
+
 import { resolveOpenAIBaseUrl } from './client'
 
 const originalOpenAIKey = process.env.OPENAI_API_KEY

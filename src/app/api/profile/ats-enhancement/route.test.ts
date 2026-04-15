@@ -5,6 +5,7 @@ import { POST } from './route'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { dispatchToolWithContext } from '@/lib/agent/tools'
 import { applyToolPatchWithVersion, checkUserQuota, createSession } from '@/lib/db/sessions'
+import { runAtsEnhancementPipeline } from '@/lib/agent/ats-enhancement-pipeline'
 
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn(),
@@ -18,6 +19,10 @@ vi.mock('@/lib/db/sessions', () => ({
   createSession: vi.fn(),
   checkUserQuota: vi.fn(),
   applyToolPatchWithVersion: vi.fn(),
+}))
+
+vi.mock('@/lib/agent/ats-enhancement-pipeline', () => ({
+  runAtsEnhancementPipeline: vi.fn(),
 }))
 
 function buildCvState() {
@@ -96,23 +101,35 @@ describe('POST /api/profile/ats-enhancement', () => {
     } as never)
     vi.mocked(checkUserQuota).mockResolvedValue(true)
     vi.mocked(createSession).mockResolvedValue(buildSession() as never)
+    vi.mocked(runAtsEnhancementPipeline).mockResolvedValue({
+      success: true,
+      optimizedCvState: {
+        ...buildCvState(),
+        summary: 'Analista de dados com foco em BI, SQL e automacao orientada a impacto.',
+      },
+      optimizationSummary: {
+        changedSections: ['summary', 'experience', 'skills'],
+        notes: ['Strengthened ATS wording'],
+      },
+      atsAnalysis: {
+        result: {
+          overallScore: 79,
+          structureScore: 80,
+          clarityScore: 78,
+          impactScore: 76,
+          keywordCoverageScore: 79,
+          atsReadabilityScore: 82,
+          issues: [],
+          recommendations: ['Strengthen ATS wording'],
+        },
+        analyzedAt: '2026-04-14T12:00:00.000Z',
+      },
+      validation: {
+        valid: true,
+        issues: [],
+      },
+    })
     vi.mocked(dispatchToolWithContext)
-      .mockResolvedValueOnce({
-        output: { success: true },
-        outputJson: JSON.stringify({ success: true }),
-      } as never)
-      .mockResolvedValueOnce({
-        output: { success: true },
-        outputJson: JSON.stringify({ success: true }),
-      } as never)
-      .mockResolvedValueOnce({
-        output: { success: true },
-        outputJson: JSON.stringify({ success: true }),
-      } as never)
-      .mockResolvedValueOnce({
-        output: { success: true, result: { total: 71 } },
-        outputJson: JSON.stringify({ success: true, result: { total: 71 } }),
-      } as never)
       .mockResolvedValueOnce({
         output: {
           success: true,
@@ -147,36 +164,28 @@ describe('POST /api/profile/ats-enhancement', () => {
       expect.objectContaining({ id: 'sess_ats_123' }),
       expect.objectContaining({
         cvState: expect.objectContaining({ fullName: 'Ana Silva' }),
+        agentState: expect.objectContaining({ workflowMode: 'ats_enhancement' }),
       }),
       'manual',
     )
-    expect(dispatchToolWithContext).toHaveBeenNthCalledWith(5, 'generate_file', {
-      cv_state: expect.objectContaining({ fullName: 'Ana Silva' }),
+    expect(dispatchToolWithContext).toHaveBeenNthCalledWith(1, 'generate_file', {
+      cv_state: expect.objectContaining({
+        fullName: 'Ana Silva',
+        summary: 'Analista de dados com foco em BI, SQL e automacao orientada a impacto.',
+      }),
       idempotency_key: 'profile-ats:sess_ats_123',
     }, expect.objectContaining({ id: 'sess_ats_123' }))
   })
 
-  it('sends PT-BR ATS rewriting guidance into the enhancement flow', async () => {
+  it('runs the shared ATS enhancement pipeline before generating artifacts', async () => {
     await POST(new NextRequest('https://example.com/api/profile/ats-enhancement', {
       method: 'POST',
       body: JSON.stringify(buildCvState()),
     }))
 
-    expect(dispatchToolWithContext).toHaveBeenNthCalledWith(1, 'rewrite_section', expect.objectContaining({
-      section: 'summary',
-      instructions: expect.stringContaining('Brazilian Portuguese (pt-BR)'),
-    }), expect.objectContaining({ id: 'sess_ats_123' }))
-    expect(dispatchToolWithContext).toHaveBeenNthCalledWith(2, 'rewrite_section', expect.objectContaining({
-      section: 'experience',
-      instructions: expect.stringContaining('acao + contexto + resultado'),
-    }), expect.objectContaining({ id: 'sess_ats_123' }))
-    expect(dispatchToolWithContext).toHaveBeenNthCalledWith(3, 'rewrite_section', expect.objectContaining({
-      section: 'skills',
-      instructions: expect.stringContaining('habilidades section'),
-    }), expect.objectContaining({ id: 'sess_ats_123' }))
-    expect(dispatchToolWithContext).toHaveBeenNthCalledWith(3, 'rewrite_section', expect.objectContaining({
-      instructions: expect.stringContaining('resumo profissional, habilidades, experiencia profissional, educacao, certificacoes, idiomas'),
-    }), expect.objectContaining({ id: 'sess_ats_123' }))
+    expect(runAtsEnhancementPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sess_ats_123' }),
+    )
   })
 
   it('rejects incomplete profiles before creating the ATS version', async () => {
@@ -257,37 +266,33 @@ describe('POST /api/profile/ats-enhancement', () => {
   })
 
   it('keeps generating the ATS version when the experience rewrite payload is malformed', async () => {
+    vi.mocked(runAtsEnhancementPipeline).mockResolvedValue({
+      success: true,
+      optimizedCvState: buildCvState(),
+      optimizationSummary: {
+        changedSections: ['summary', 'skills'],
+        notes: ['Fallback kept original experience'],
+      },
+      atsAnalysis: {
+        result: {
+          overallScore: 71,
+          structureScore: 75,
+          clarityScore: 70,
+          impactScore: 68,
+          keywordCoverageScore: 70,
+          atsReadabilityScore: 72,
+          issues: [],
+          recommendations: [],
+        },
+        analyzedAt: '2026-04-14T12:00:00.000Z',
+      },
+      validation: {
+        valid: true,
+        issues: [],
+      },
+    })
     vi.mocked(dispatchToolWithContext).mockReset()
     vi.mocked(dispatchToolWithContext)
-      .mockResolvedValueOnce({
-        output: { success: true },
-        outputJson: JSON.stringify({ success: true }),
-      } as never)
-      .mockResolvedValueOnce({
-        output: {
-          success: false,
-          code: 'LLM_INVALID_OUTPUT',
-          error: 'Invalid rewrite payload for section "experience".',
-        },
-        outputJson: JSON.stringify({
-          success: false,
-          code: 'LLM_INVALID_OUTPUT',
-          error: 'Invalid rewrite payload for section "experience".',
-        }),
-        outputFailure: {
-          success: false,
-          code: 'LLM_INVALID_OUTPUT',
-          error: 'Invalid rewrite payload for section "experience".',
-        },
-      } as never)
-      .mockResolvedValueOnce({
-        output: { success: true },
-        outputJson: JSON.stringify({ success: true }),
-      } as never)
-      .mockResolvedValueOnce({
-        output: { success: true, result: { total: 71 } },
-        outputJson: JSON.stringify({ success: true, result: { total: 71 } }),
-      } as never)
       .mockResolvedValueOnce({
         output: {
           success: true,
@@ -316,7 +321,7 @@ describe('POST /api/profile/ats-enhancement', () => {
       resumeGenerationId: 'gen_ats_123',
       generationType: 'ATS_ENHANCEMENT',
     })
-    expect(dispatchToolWithContext).toHaveBeenNthCalledWith(5, 'generate_file', {
+    expect(dispatchToolWithContext).toHaveBeenNthCalledWith(1, 'generate_file', {
       cv_state: expect.objectContaining({ fullName: 'Ana Silva' }),
       idempotency_key: 'profile-ats:sess_ats_123',
     }, expect.objectContaining({ id: 'sess_ats_123' }))

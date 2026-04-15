@@ -84,12 +84,12 @@ export async function POST(req: Request): Promise<Response> {
 
   const eventTime = parseInt(svixTimestamp, 10)
   const now = Math.floor(Date.now() / 1000)
-  if (Math.abs(now - eventTime) > TOLERANCE_SECONDS) {
+  if (!Number.isFinite(eventTime) || Math.abs(now - eventTime) > TOLERANCE_SECONDS) {
     logWarn('clerk.webhook.timestamp_out_of_tolerance', {
       requestMethod: req.method,
       requestPath: new URL(req.url).pathname,
       svixId,
-      eventAgeSeconds: now - eventTime,
+      eventAgeSeconds: Number.isFinite(eventTime) ? now - eventTime : null,
       success: false,
     })
 
@@ -97,24 +97,6 @@ export async function POST(req: Request): Promise<Response> {
       { error: 'Webhook timestamp out of tolerance' },
       { status: 400 },
     )
-  }
-
-  const idempotencyKey = `clerk:webhook:${svixId}`
-  const setResult = await redis.set(idempotencyKey, '1', {
-    ex: IDEMPOTENCY_TTL,
-    nx: true,
-  })
-
-  if (setResult !== 'OK') {
-    logInfo('clerk.webhook.duplicate', {
-      requestMethod: req.method,
-      requestPath: new URL(req.url).pathname,
-      svixId,
-      success: true,
-      duplicate: true,
-    })
-
-    return Response.json({ ok: true, duplicate: true }, { status: 200 })
   }
 
   const body = await req.text()
@@ -135,8 +117,25 @@ export async function POST(req: Request): Promise<Response> {
       ...serializeError(error),
     })
 
-    await redis.del(idempotencyKey)
     return Response.json({ error: 'Invalid signature' }, { status: 400 })
+  }
+
+  const idempotencyKey = `clerk:webhook:${svixId}`
+  const setResult = await redis.set(idempotencyKey, '1', {
+    ex: IDEMPOTENCY_TTL,
+    nx: true,
+  })
+
+  if (setResult !== 'OK') {
+    logInfo('clerk.webhook.duplicate', {
+      requestMethod: req.method,
+      requestPath: new URL(req.url).pathname,
+      svixId,
+      success: true,
+      duplicate: true,
+    })
+
+    return Response.json({ ok: true, duplicate: true }, { status: 200 })
   }
 
   try {

@@ -480,6 +480,13 @@ Rules:
       3,
       AGENT_CONFIG.timeout,
       externalSignal,
+      {
+        operation: 'rewrite_section',
+        stage: input.section,
+        model: MODEL_CONFIG.structuredModel,
+        sessionId,
+        userId,
+      },
     )
 
     const usage = getChatCompletionUsage(response)

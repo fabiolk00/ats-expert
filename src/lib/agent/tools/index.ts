@@ -236,6 +236,10 @@ function resolveCvVersionSource(
   return undefined
 }
 
+function getEffectiveBaseCvState(session: Session): Session['cvState'] {
+  return session.agentState.optimizedCvState ?? session.cvState
+}
+
 export async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
@@ -429,7 +433,7 @@ export async function executeTool(
       const result = await generateBillableResume({
         userId: session.userId,
         sessionId: session.id,
-        sourceCvState: target?.derivedCvState ?? session.cvState,
+        sourceCvState: target?.derivedCvState ?? getEffectiveBaseCvState(session),
         targetId,
         idempotencyKey,
         templateTargetSource: target?.targetJobDescription ?? session.agentState,

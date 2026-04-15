@@ -346,7 +346,7 @@ test.describe('manual profile setup', () => {
       sessionId,
     })
 
-    await page.route('**/api/profile/ats-enhancement', async (route) => {
+    await page.route('**/api/profile/smart-generation', async (route) => {
       atsPayload = route.request().postDataJSON() as Record<string, unknown>
       await route.fulfill({
         status: 200,
@@ -397,6 +397,176 @@ test.describe('manual profile setup', () => {
       phone: '+55 11 99999-0000',
       skills: ['TypeScript', 'Node.js', 'AWS', 'PostgreSQL'],
       summary: 'Backend engineer focused on platform reliability.',
+      targetJobDescription: undefined,
     })
+  })
+
+  test('switches to job targeting from the setup page when a target job is provided', async ({ page }) => {
+    const sessionId = 'sess_target_profile_setup'
+    let targetingPayload: Record<string, unknown> | null = null
+
+    await bootstrapProfileSetupPage(page, {
+      creditsRemaining: 2,
+      profile: buildReadyProfileResponse(),
+      sessionId,
+    })
+
+    await page.route('**/api/profile/smart-generation', async (route) => {
+      targetingPayload = route.request().postDataJSON() as Record<string, unknown>
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          sessionId,
+          generationType: 'JOB_TARGETING',
+        }),
+      })
+    })
+
+    await page.getByTestId('target-job-description-input').fill(
+      'Vaga para senior backend engineer com foco em AWS, arquitetura distribuida e confiabilidade.',
+    )
+
+    await expect(page.getByText('Adaptar meu curriculo para esta vaga')).toBeVisible()
+    await page.getByRole('button', { name: /Adaptar para vaga/i }).click()
+
+    await expect(page).toHaveURL(new RegExp(`/dashboard\\?session=${sessionId}$`))
+    await expect(page.getByTestId('chat-interface')).toBeVisible()
+    await expect(page.getByTestId('resume-workspace')).toHaveAttribute('data-session-id', sessionId)
+
+    expect(targetingPayload).toEqual({
+      certifications: [
+        {
+          issuer: 'Amazon',
+          name: 'AWS Cloud Practitioner',
+          year: '2024',
+        },
+      ],
+      education: [
+        {
+          degree: 'Bacharel em Ciencia da Computacao',
+          institution: 'USP',
+          year: '2020',
+        },
+      ],
+      email: 'ana@example.com',
+      experience: [
+        {
+          bullets: ['Liderei a plataforma principal da empresa.'],
+          company: 'CurrIA',
+          endDate: 'Atual',
+          location: 'Sao Paulo, BR',
+          startDate: '2022',
+          title: 'Senior Backend Engineer',
+        },
+      ],
+      fullName: 'Ana Silva',
+      linkedin: 'https://linkedin.com/in/ana-silva',
+      location: 'Sao Paulo, BR',
+      phone: '+55 11 99999-0000',
+      skills: ['TypeScript', 'Node.js', 'AWS', 'PostgreSQL'],
+      summary: 'Backend engineer focused on platform reliability.',
+      targetJobDescription:
+        'Vaga para senior backend engineer com foco em AWS, arquitetura distribuida e confiabilidade.',
+    })
+  })
+
+  test('returns to ATS mode when the target job field is cleared before submitting', async ({ page }) => {
+    const sessionId = 'sess_cleared_target_profile_setup'
+    let generationPayload: Record<string, unknown> | null = null
+
+    await bootstrapProfileSetupPage(page, {
+      creditsRemaining: 2,
+      profile: buildReadyProfileResponse(),
+      sessionId,
+    })
+
+    await page.route('**/api/profile/smart-generation', async (route) => {
+      generationPayload = route.request().postDataJSON() as Record<string, unknown>
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          sessionId,
+          generationType: 'ATS_ENHANCEMENT',
+        }),
+      })
+    })
+
+    const targetInput = page.getByTestId('target-job-description-input')
+    await targetInput.fill('Vaga temporaria para backend engineer.')
+    await expect(page.getByText('Adaptar meu curriculo para esta vaga')).toBeVisible()
+
+    await targetInput.fill('')
+    await expect(page.getByText('Melhorar meu curriculo para ATS')).toBeVisible()
+
+    await page.getByRole('button', { name: /Melhorar para ATS/i }).click()
+
+    await expect(page).toHaveURL(new RegExp(`/dashboard\\?session=${sessionId}$`))
+    expect(generationPayload).toEqual({
+      certifications: [
+        {
+          issuer: 'Amazon',
+          name: 'AWS Cloud Practitioner',
+          year: '2024',
+        },
+      ],
+      education: [
+        {
+          degree: 'Bacharel em Ciencia da Computacao',
+          institution: 'USP',
+          year: '2020',
+        },
+      ],
+      email: 'ana@example.com',
+      experience: [
+        {
+          bullets: ['Liderei a plataforma principal da empresa.'],
+          company: 'CurrIA',
+          endDate: 'Atual',
+          location: 'Sao Paulo, BR',
+          startDate: '2022',
+          title: 'Senior Backend Engineer',
+        },
+      ],
+      fullName: 'Ana Silva',
+      linkedin: 'https://linkedin.com/in/ana-silva',
+      location: 'Sao Paulo, BR',
+      phone: '+55 11 99999-0000',
+      skills: ['TypeScript', 'Node.js', 'AWS', 'PostgreSQL'],
+      summary: 'Backend engineer focused on platform reliability.',
+      targetJobDescription: undefined,
+    })
+  })
+
+  test('shows target-job validation copy when the profile is incomplete and a target job is present', async ({ page }) => {
+    await bootstrapProfileSetupPage(page, {
+      creditsRemaining: 2,
+      profile: {
+        profile: {
+          ...buildReadyProfileResponse().profile,
+          cvState: {
+            ...buildReadyProfileResponse().profile.cvState,
+            education: [{
+              degree: 'Bacharel em Ciencia da Computacao',
+              institution: '',
+              year: '2020',
+            }],
+          },
+        },
+      },
+    })
+
+    await page.getByTestId('target-job-description-input').fill(
+      'Vaga para senior backend engineer com foco em confiabilidade.',
+    )
+    await page.getByRole('button', { name: /Adaptar para vaga/i }).click()
+
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expect(page.getByText('Complete seu perfil antes de adaptar para a vaga')).toBeVisible()
+    await expect(page.getByText('Formacao 1: adicione a instituicao.')).toBeVisible()
+    await expect(page).toHaveURL(/\/dashboard\/resumes\/new(?:\?.*)?$/)
   })
 })

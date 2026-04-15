@@ -1,3 +1,4 @@
+import { CVStateSchema } from '@/lib/cv/schema'
 import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import type { ResumeGeneration, ResumeGenerationType } from '@/types/agent'
@@ -11,8 +12,8 @@ type ResumeGenerationRow = {
   type: ResumeGenerationType
   status: ResumeGeneration['status']
   idempotency_key?: string | null
-  source_cv_snapshot: CVState
-  generated_cv_state?: CVState | null
+  source_cv_snapshot: unknown
+  generated_cv_state?: unknown
   output_pdf_path?: string | null
   output_docx_path?: string | null
   failure_reason?: string | null
@@ -35,8 +36,10 @@ function mapResumeGenerationRow(row: ResumeGenerationRow): ResumeGeneration {
     type: row.type,
     status: row.status,
     idempotencyKey: row.idempotency_key ?? undefined,
-    sourceCvSnapshot: structuredClone(row.source_cv_snapshot),
-    generatedCvState: row.generated_cv_state ? structuredClone(row.generated_cv_state) : undefined,
+    sourceCvSnapshot: structuredClone(CVStateSchema.parse(row.source_cv_snapshot)),
+    generatedCvState: row.generated_cv_state == null
+      ? undefined
+      : structuredClone(CVStateSchema.parse(row.generated_cv_state)),
     outputPdfPath: row.output_pdf_path ?? undefined,
     outputDocxPath: row.output_docx_path ?? undefined,
     failureReason: row.failure_reason ?? undefined,

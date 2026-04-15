@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.1 Agent Reliability and Response Continuity (Shipped: 2026-04-15)
+
+**Phases completed:** 15 phases, 45 plans, 72 tasks
+
+**Key accomplishments:**
+
+- Proved live `/api/agent` provenance and shipped operator parity tooling so runtime drift can be diagnosed from real requests instead of guesswork.
+- Hardened dialog continuity for terse rewrite follow-ups like `reescreva`, then verified transcript integrity from backend SSE through the user-visible chat.
+- Added deterministic ATS enhancement and target-job rewrite pipelines that analyze, rewrite, validate, persist, and export optimized resumes without relying on optional chat decisions.
+- Unified `/dashboard/resume/new` into a smart entrypoint that branches between ATS enhancement and target-job adaptation with clearer setup UX.
+- Added OpenAI timeout, retry, and circuit-breaker protection, plus async PDF import jobs, to reduce cascading failures in resume flows.
+- Closed the milestone with LGPD and secret-boundary hardening, billing and webhook invariant proof, file-access and RLS boundary proof, and stronger JSON persistence contracts.
+
+**Known gaps:**
+
+- No standalone `v1.1` milestone audit file was produced before archive. The milestone was closed with committed phase summaries and focused verification, but without a separate `/gsd-audit-milestone` artifact.
+
+---
+
 ## v1.0 Launch Hardening for the Core Funnel (Shipped: 2026-04-10)
 
 **Phases completed:** 4 phases, 12 plans, 28 tasks

@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   BorderStyle,
   Document,
@@ -12,6 +12,7 @@ import { z } from 'zod'
 
 import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
 import { CVStateSchema } from '@/lib/cv/schema'
+import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { ATS_SECTION_HEADINGS, cvStateToTemplateData, type TemplateData } from '@/lib/templates/cv-state-to-template-data'
 import type { AgentState, GenerateFileInput, GenerateFileOutput, GeneratedOutput, ToolPatch } from '@/types/agent'
 import type { CVState } from '@/types/cv'
@@ -344,14 +345,7 @@ export function validateGenerationCvState(cvState: GenerateFileInput['cv_state']
 }
 
 function getSupabase(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!url || !serviceRoleKey) {
-    throw new Error('Supabase admin environment variables are not configured.')
-  }
-
-  return createClient(url, serviceRoleKey)
+  return getSupabaseAdminClient()
 }
 
 function createSuccessPatch(pdfPath: string): ToolPatch {

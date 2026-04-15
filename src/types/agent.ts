@@ -11,8 +11,91 @@ import type { ToolErrorCode, ToolFailure } from '@/lib/agent/tool-errors'
 
 export type { Phase }
 
+export type WorkflowMode =
+  | 'resume_review'
+  | 'ats_enhancement'
+  | 'job_targeting'
+
+export type RewriteStatus = 'idle' | 'pending' | 'running' | 'completed' | 'failed'
+export type AtsWorkflowStage =
+  | 'gap_analysis'
+  | 'analysis'
+  | 'targeting_plan'
+  | 'rewrite_plan'
+  | 'rewrite_section'
+  | 'validation'
+  | 'persist_version'
+
+export type AtsWorkflowRun = {
+  status: 'idle' | 'running' | 'completed' | 'failed'
+  currentStage?: AtsWorkflowStage
+  currentSection?: RewriteSectionInput['section']
+  attemptCount: number
+  retriedSections: RewriteSectionInput['section'][]
+  compactedSections: RewriteSectionInput['section'][]
+  sectionAttempts: Partial<Record<RewriteSectionInput['section'], number>>
+  usageTotals?: {
+    sectionAttempts: number
+    retriedSections: number
+    compactedSections: number
+  }
+  lastFailureStage?: AtsWorkflowStage
+  lastFailureSection?: RewriteSectionInput['section']
+  lastFailureReason?: string
+  updatedAt: string
+}
+
+export type AtsAnalysisSection =
+  | 'summary'
+  | 'experience'
+  | 'skills'
+  | 'education'
+  | 'certifications'
+
+export type AtsAnalysisIssue = {
+  code: string
+  severity: 'low' | 'medium' | 'high'
+  message: string
+  section?: AtsAnalysisSection
+}
+
+export type AtsAnalysisResult = {
+  overallScore: number
+  structureScore: number
+  clarityScore: number
+  impactScore: number
+  keywordCoverageScore: number
+  atsReadabilityScore: number
+  issues: AtsAnalysisIssue[]
+  recommendations: string[]
+}
+
+export type RewriteValidationResult = {
+  valid: boolean
+  issues: Array<{
+    severity: 'high' | 'medium'
+    message: string
+    section?: string
+  }>
+}
+
+export type TargetingPlan = {
+  targetRole: string
+  mustEmphasize: string[]
+  shouldDeemphasize: string[]
+  missingButCannotInvent: string[]
+  sectionStrategy: {
+    summary: string[]
+    experience: string[]
+    skills: string[]
+    education: string[]
+    certifications: string[]
+  }
+}
+
 export type AgentState = {
   sourceResumeText?: string
+  workflowMode?: WorkflowMode
   targetJobDescription?: string
   targetFitAssessment?: TargetFitAssessment
   parseConfidenceScore?: number
@@ -35,6 +118,22 @@ export type AgentState = {
     result: GapAnalysisResult
     analyzedAt: string
   }
+  targetingPlan?: TargetingPlan
+  atsAnalysis?: {
+    result: AtsAnalysisResult
+    analyzedAt: string
+  }
+  rewriteStatus?: RewriteStatus
+  atsWorkflowRun?: AtsWorkflowRun
+  optimizedCvState?: CVState
+  optimizedAt?: string
+  optimizationSummary?: {
+    changedSections: RewriteSectionInput['section'][]
+    notes: string[]
+    keywordCoverageImprovement?: string[]
+  }
+  lastRewriteMode?: Extract<WorkflowMode, 'ats_enhancement' | 'job_targeting'>
+  rewriteValidation?: RewriteValidationResult
   phaseMeta?: {
     analysisCompletedAt?: string
     confirmRequestedAt?: string
@@ -46,7 +145,7 @@ export type AgentState = {
   }
 }
 
-export type CVVersionSource = 'ingestion' | 'rewrite' | 'manual' | 'target-derived'
+export type CVVersionSource = 'ingestion' | 'rewrite' | 'manual' | 'ats-enhancement' | 'job-targeting' | 'target-derived'
 export type CVVersionScope = 'base' | 'target-derived'
 export type ResumeGenerationType = 'ATS_ENHANCEMENT' | 'JOB_TARGETING'
 export type ResumeGenerationStatus = 'pending' | 'completed' | 'failed'

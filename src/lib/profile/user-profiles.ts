@@ -1,3 +1,4 @@
+import { CVStateSchema } from '@/lib/cv/schema'
 import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { createUpdatedAtTimestamp } from '@/lib/db/timestamps'
@@ -6,13 +7,17 @@ import type { CVState } from '@/types/cv'
 export type UserProfileRow = {
   id: string
   user_id: string
-  cv_state: unknown
+  cv_state: CVState
   source: string
   linkedin_url: string | null
   profile_photo_url: string | null
   extracted_at: string
   created_at: string
   updated_at: string
+}
+
+type UserProfileRecord = Omit<UserProfileRow, 'cv_state'> & {
+  cv_state: unknown
 }
 
 type SaveImportedProfileInput = {
@@ -45,7 +50,11 @@ export async function getExistingUserProfile(appUserId: string): Promise<UserPro
     throw new Error(error.message)
   }
 
-  return (data as UserProfileRow | null) ?? null
+  if (!data) {
+    return null
+  }
+
+  return mapUserProfileRow(data as UserProfileRecord)
 }
 
 export async function saveImportedUserProfile(input: SaveImportedProfileInput): Promise<UserProfileRow> {
@@ -84,12 +93,19 @@ export async function saveImportedUserProfile(input: SaveImportedProfileInput): 
   return {
     id: payload.id,
     user_id: payload.user_id,
-    cv_state: payload.cv_state,
+    cv_state: structuredClone(payload.cv_state),
     source: payload.source,
     linkedin_url: payload.linkedin_url,
     profile_photo_url: payload.profile_photo_url,
     extracted_at: payload.extracted_at,
     created_at: existingProfile?.created_at ?? payload.extracted_at,
     updated_at: payload.updated_at,
+  }
+}
+
+function mapUserProfileRow(row: UserProfileRecord): UserProfileRow {
+  return {
+    ...row,
+    cv_state: structuredClone(CVStateSchema.parse(row.cv_state)),
   }
 }
