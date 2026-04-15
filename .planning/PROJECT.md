@@ -141,11 +141,12 @@ Current milestone: `v1.5 Verification Closure and Runtime Residuals` started on 
 - [x] Phase 31: Long-vacancy generation and release-critical browser stability are protected by committed regression and CI gates.
 - [x] Phase 31.1: Non-E2E runtime defaults, artificial delay removal, and CI-visible profiling proof now exist, with residual runtime debt explicitly documented.
 - [x] Phase 33: Milestone closeout metadata, decimal-phase archive counts, and next-cycle planning state now have repo-native proof and aligned summaries.
+- [x] Phase 34: The dominant residual non-E2E bottleneck is reduced and protected by an explicit resume-builder runtime budget gate.
 
 ### Active
 
-- [ ] The remaining non-E2E runtime outliers are either reduced further or formalized behind an explicit accepted budget and proof path.
 - [ ] The milestone metadata checker stays green as future archive and planning changes land.
+- [ ] Final milestone closure still needs audit and archive steps for `v1.5`.
 
 ### Out of Scope
 
@@ -203,4 +204,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Archive prior roadmap and requirements before expanding scope again.
 
 ---
-*Last updated: 2026-04-15 after Phase 33 archive-integrity completion*
+*Last updated: 2026-04-15 after Phase 34 runtime-budget completion*

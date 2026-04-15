@@ -60,8 +60,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 34-01: Re-profile the residual non-E2E outliers and publish the current budget evidence
-- [ ] 34-02: Reduce or explicitly gate the dominant remaining runtime bottleneck
+- [x] 34-01: Re-profile the residual non-E2E outliers and publish the current budget evidence
+- [x] 34-02: Reduce or explicitly gate the dominant remaining runtime bottleneck
 
 ## Autonomous Execution Instruction
 
@@ -73,7 +73,7 @@ The intended operating mode for this milestone is:
 
 Recommended entrypoint:
 
-`/gsd-plan-phase 34`
+`/gsd-audit-milestone v1.5`
 
 ## Current Milestone
 
@@ -88,7 +88,7 @@ Phases execute in numeric order: 32 -> 33 -> 34
 |-------|----------------|--------|-----------|
 | 32. Phase Verification Backfill and Audit Contract | 3/3 | Complete | 2026-04-15 |
 | 33. Milestone Archive and Traceability Integrity | 2/2 | Complete | 2026-04-15 |
-| 34. Non-E2E Runtime Residual Budgeting | 0/2 | Not started | - |
+| 34. Non-E2E Runtime Residual Budgeting | 2/2 | Complete | 2026-04-15 |
 
 ## Archived Milestones
 

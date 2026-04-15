@@ -5,16 +5,16 @@ milestone_name: milestone
 current_phase: 34
 current_phase_name: Non-E2E Runtime Residual Budgeting
 current_plan: None
-status: executing
-stopped_at: Phase 34 planning complete; ready for execution
-last_updated: "2026-04-16T01:05:00.000Z"
-last_activity: 2026-04-15 -- Phase 34 planning complete
+status: ready
+stopped_at: Phase 34 completed; milestone v1.5 ready for audit
+last_updated: "2026-04-16T01:20:00.000Z"
+last_activity: 2026-04-15 -- Phase 34 execution complete
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 5
-  percent: 67
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
@@ -24,7 +24,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Phase 34 execution for residual non-E2E runtime budgeting after the archive-integrity contract landed
+**Current focus:** Milestone `v1.5` audit and closeout after runtime-budget proof landed
 
 ## Current Position
 
@@ -32,17 +32,17 @@ Current Phase: 34
 Current Phase Name: Non-E2E Runtime Residual Budgeting
 Current Plan: None
 Total Plans in Phase: 2
-Status: Ready to plan
-Last activity: 2026-04-15 -- Phase 34 planning complete
-Last Activity Description: Phase 34 planned - 2 plans ready for residual runtime budgeting work
+Status: Ready for audit
+Last activity: 2026-04-15 -- Phase 34 execution complete
+Last Activity Description: Phase 34 completed - residual runtime proof and resume-builder budget gate are now committed
 
-Progress: [######----] 67%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 Baseline carried forward from earlier shipped milestones:
 
-- Total plans completed: 63
+- Total plans completed: 65
 - Milestones archived: 4
 
 ## Accumulated Context
@@ -65,6 +65,7 @@ Baseline carried forward from earlier shipped milestones:
 - v1.5 started: verification closure, archive metadata integrity, and residual non-E2E runtime budgeting are now the active milestone focus
 - Phase 32 completed: the `v1.4` archive now includes committed `VERIFICATION.md` artifacts and the archived milestone audit no longer fails on missing-proof fallback
 - Phase 33 completed: milestone summaries, decimal-phase counts, and next-cycle planning state now have a repo-native metadata checker and aligned archive narrative
+- Phase 34 completed: the dominant residual suite was reduced materially and the repo now gates it through an explicit resume-builder runtime budget check
 
 ### Decisions
 
@@ -85,21 +86,22 @@ Recent decisions affecting the next cycle:
 - Archive quality now matters enough that missing phase verification artifacts should be treated as milestone debt, not silently ignored.
 - The `v1.4` archive now treats backfilled phase verification as canonical audit input, while the remaining non-E2E runtime ceiling issue stays explicit accepted debt.
 - Milestone metadata, decimal phases, and next-cycle reset state should be checked through repo-native proof instead of manual recounting.
+- The remaining dominant non-E2E outlier should be budgeted explicitly through a targeted gate instead of rerunning a broad-suite profile as the main CI signal.
 
 ### Pending Todos
 
-- Execute Phase 34.
+- Audit milestone v1.5.
 
 ### Blockers or Concerns
 
 - No active implementation blocker is currently known.
 - `v1.4` no longer lacks archived `VERIFICATION.md` artifacts, but it still carries accepted runtime debt from Phase `31.1`.
-- The full non-E2E suite still exceeded a local 2-minute ceiling in final profiling, but the residual cost is now narrowed and documented rather than hidden behind structural waste.
+- The broad non-E2E suite is no longer the primary budget contract; the repo now tracks the dominant residual through the targeted resume-builder gate.
 
 ## Session Continuity
 
 Last session: 2026-04-15T23:30:00.0000000-03:00
-Stopped at: Phase 33 completed; Phase 34 ready for planning
+Stopped at: Phase 34 completed; milestone v1.5 ready for audit
 Resume file: None
 
 ## Quick Tasks Completed

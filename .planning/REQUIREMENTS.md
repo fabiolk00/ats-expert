@@ -44,8 +44,8 @@
 | VER-02 | Phase 32 | Complete |
 | DOC-01 | Phase 33 | Complete |
 | DOC-02 | Phase 33 | Complete |
-| PERF-04 | Phase 34 | Pending |
-| PERF-05 | Phase 34 | Pending |
+| PERF-04 | Phase 34 | Complete |
+| PERF-05 | Phase 34 | Complete |
 
 **Coverage:**
 - v1.5 requirements: 6 total
