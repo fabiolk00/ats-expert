@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.5 Verification Closure and Runtime Residuals (Active)
+
+**Planned phases:** 3 phases, 7 plans
+
+**Main focus:**
+
+- backfill or automate the missing `VERIFICATION.md` layer so milestone audit can use committed requirement evidence
+- keep roadmap, archive, traceability, and state metadata aligned during closeout, including decimal phases
+- decide or fix the remaining non-E2E runtime residual through explicit profiling and budget proof
+
+**Planned accomplishments:**
+
+- make recent shipped phases produce milestone-audit-compatible verification artifacts
+- remove manual archive repair for milestone closeout metadata and next-cycle reset
+- narrow the residual non-E2E runtime bottlenecks into either a smaller budget or an explicit accepted gate
+
+---
+
 ## v1.4 Agent Core Modularization, Security Hardening, and Release Stability (Shipped: 2026-04-15)
 
 **Phases completed:** 5 phases, 13 plans, 13 tasks

@@ -1,18 +1,18 @@
 ---
 gsd_state_version: 1.0
-milestone: none
-milestone_name: none
-current_phase: none
-current_phase_name: none
+milestone: v1.5
+milestone_name: Verification Closure and Runtime Residuals
+current_phase: 32
+current_phase_name: Phase Verification Backfill and Audit Contract
 current_plan: none
-status: ready_for_next_milestone
-stopped_at: v1.4 archived; ready to define the next milestone
-last_updated: "2026-04-15T21:35:00.000Z"
-last_activity: 2026-04-15 -- v1.4 archived with accepted audit debt
+status: ready_to_plan
+stopped_at: Milestone v1.5 initialized; Phase 32 ready for planning
+last_updated: "2026-04-15T22:05:00.000Z"
+last_activity: 2026-04-15 -- Milestone v1.5 initialized
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
-  total_plans: 0
+  total_plans: 7
   completed_plans: 0
   percent: 0
 ---
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Planning the next milestone from fresh requirements
+**Current focus:** Phase 32 planning for verification closure and audit-contract repair
 
 ## Current Position
 
-Current Phase: None
-Current Phase Name: None
+Current Phase: 32
+Current Phase Name: Phase Verification Backfill and Audit Contract
 Current Plan: None
-Total Plans in Phase: 0
-Status: Milestone archive complete
-Last activity: 2026-04-15 -- v1.4 archived
-Last Activity Description: v1.4 milestone archived, roadmap and requirements reset for next-cycle planning, and audit debt preserved in milestone history
+Total Plans in Phase: 3
+Status: Ready to plan
+Last activity: 2026-04-15 -- Milestone v1.5 initialized
+Last Activity Description: Milestone v1.5 started with verification closure, archive integrity, and runtime residual budgeting as the new brownfield focus
 
 Progress: [----------] 0%
 
@@ -62,6 +62,7 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 31.1 planned: 3 execution plans added for runtime baseline, suite optimization, and CI-friendly proof
 - Phase 31.1 completed: runtime baseline fixes shipped, hot UI suites reduced, and non-E2E profiling is now exposed in CI with explicit residual timing evidence
 - v1.4 archived: milestone history moved to `.planning/milestones/` and the audit debt was accepted explicitly instead of being hidden
+- v1.5 started: verification closure, archive metadata integrity, and residual non-E2E runtime budgeting are now the active milestone focus
 
 ### Decisions
 
@@ -83,7 +84,7 @@ Recent decisions affecting the next cycle:
 
 ### Pending Todos
 
-- Define the next milestone with fresh requirements.
+- Plan Phase 32.
 
 ### Blockers or Concerns
 
@@ -94,7 +95,7 @@ Recent decisions affecting the next cycle:
 ## Session Continuity
 
 Last session: 2026-04-15T23:30:00.0000000-03:00
-Stopped at: v1.4 archived; ready to define the next milestone
+Stopped at: Milestone v1.5 initialized; Phase 32 ready for planning
 Resume file: None
 
 ## Quick Tasks Completed

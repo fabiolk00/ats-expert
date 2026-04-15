@@ -30,15 +30,20 @@ A job seeker can reliably turn their real profile and a target role into an hone
 
 ## Current Milestone
 
-No active milestone is defined yet.
+Current milestone: `v1.5 Verification Closure and Runtime Residuals` started on 2026-04-15.
 
-**Status:** `v1.4` is archived. The next milestone should start from fresh requirements rather than extending the archived roadmap.
+**Goal:** Close the verification and archive-proof gaps left by `v1.4`, and turn the remaining non-E2E runtime residual into either a solved bottleneck or an explicit budgeted contract.
+
+**Target features:**
+- backfill or automate the phase verification layer so milestone audit can rely on committed requirement evidence instead of summary-only inference
+- keep roadmap, traceability, archive, and state metadata aligned during milestone closeout, including decimal phases like `31.1`
+- profile the remaining non-E2E runtime outliers and either reduce them further or make the accepted budget explicit in repo proof and CI
 
 ## Next Milestone Goals
 
-- backfill or replace the missing verification layer that made `v1.4` audit-incomplete, especially if future archive quality matters
+- backfill or replace the missing verification layer that made `v1.4` audit-incomplete
+- make milestone closeout and archive metadata consistent enough that inserted decimal phases do not require manual repair
 - decide whether the residual non-E2E runtime over the strict local 2-minute ceiling is acceptable debt or should become planned work
-- define the next highest-leverage brownfield milestone from fresh requirements instead of carrying forward stale roadmap state
 
 <details>
 <summary>Archived milestone focus: v1.4 Agent Core Modularization, Security Hardening, and Release Stability</summary>
@@ -138,7 +143,9 @@ No active milestone is defined yet.
 
 ### Active
 
-- [ ] Define the next milestone from fresh requirements after reviewing the residual `v1.4` audit and runtime debt.
+- [ ] Completed phases produce `VERIFICATION.md` artifacts and requirement evidence in the format expected by milestone audit.
+- [ ] Milestone closeout keeps roadmap, traceability, archive, and state metadata aligned without manual repair, including decimal phases.
+- [ ] The remaining non-E2E runtime outliers are either reduced further or formalized behind an explicit accepted budget and proof path.
 
 ### Out of Scope
 
@@ -195,4 +202,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Archive prior roadmap and requirements before expanding scope again.
 
 ---
-*Last updated: 2026-04-15 after completing milestone v1.4*
+*Last updated: 2026-04-15 after starting milestone v1.5*
