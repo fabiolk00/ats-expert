@@ -25,13 +25,32 @@ A job seeker can reliably turn their real profile and a target role into an hone
 
 ## Current Milestone
 
-No active milestone. `v1.2` is complete and the project is ready for the next planning cycle.
+Current milestone: `v1.3 Agent Response Time and Runtime Performance`.
+
+**Main focus:** Improve agent response time first, especially in ATS enhancement and chat.
+
+This milestone should optimize both perceived speed and real request latency. Optional cleanup, refactor, or secondary hardening work should only happen when it directly improves response time or is required to safely enable latency work.
 
 ## Next Milestone Goals
 
-- define the next product or engineering priority from a fresh requirements baseline
-- preserve the deterministic resume pipeline and boundary guarantees while expanding scope
-- avoid carrying archived cleanup assumptions forward without a new planning pass
+- reduce time to first useful SSE output and first useful assistant response
+- make ATS enhancement and chat feel faster without regressing correctness
+- preserve billing safety, auth guarantees, canonical `cvState`, and artifact integrity while optimizing the runtime
+- leave the roadmap ready for fully autonomous phase-by-phase execution
+
+<details>
+<summary>Active milestone focus: v1.3 Agent Response Time and Runtime Performance</summary>
+
+**Goal:** Make the agent feel faster everywhere the user notices it, with explicit priority on ATS enhancement and chat responsiveness.
+
+**Target features:**
+- latency instrumentation for the main agent request path
+- faster first response in chat and ATS enhancement flows
+- reduced synchronous request-path work
+- runtime refactor that makes further latency optimization safer
+- before/after performance proof and autonomous execution guidance
+
+</details>
 
 <details>
 <summary>Archived milestone focus: v1.2 Code Hygiene and Dead Code Reduction</summary>
@@ -144,4 +163,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Archive prior roadmap and requirements before expanding scope again
 
 ---
-*Last updated: 2026-04-14 after completing milestone v1.2*
+*Last updated: 2026-04-14 after opening milestone v1.3*

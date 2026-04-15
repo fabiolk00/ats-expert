@@ -1,20 +1,20 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Code Hygiene and Dead Code Reduction
-current_phase: 23
-current_phase_name: Dependency Cleanup and Sustained Enforcement
-current_plan: Archived
-status: ready_for_next_milestone
-stopped_at: Milestone v1.2 archived; ready for next milestone
-last_updated: "2026-04-14T21:47:14.5890000-03:00"
-last_activity: 2026-04-15 -- Completed quick task 260414-u9d
+milestone: v1.3
+milestone_name: Agent Response Time and Runtime Performance
+current_phase: 24
+current_phase_name: Agent Response Baseline and Chat/ATS Latency Instrumentation
+current_plan: 24-01
+status: ready_for_execution
+stopped_at: Phase 24 initialized with autonomous execution instructions and performance-first scope
+last_updated: "2026-04-14T22:20:00.0000000-03:00"
+last_activity: 2026-04-14 -- Opened milestone v1.3 and initialized Phase 24 performance plan
 progress:
   total_phases: 4
-  completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  completed_phases: 0
+  total_plans: 10
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -24,28 +24,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-15)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** No active milestone. Ready to start the next planning cycle.
+**Current focus:** Improve agent response time first, with highest priority on ATS enhancement and chat responsiveness.
 
 ## Current Position
 
-Current Phase: 23
-Current Phase Name: Dependency Cleanup and Sustained Enforcement
-Current Plan: Archived
-Total Plans in Phase: 3
-Status: Ready for next milestone
-Last activity: 2026-04-15 -- Completed quick task 260414-u9d
-Last Activity Description: Made package scripts package-manager-agnostic so CI lint works through npm without pnpm on PATH.
+Current Phase: 24
+Current Phase Name: Agent Response Baseline and Chat/ATS Latency Instrumentation
+Current Plan: 24-01
+Total Plans in Phase: 1
+Status: Ready for execution
+Last activity: 2026-04-14 -- Opened milestone v1.3 and initialized Phase 24 performance plan
+Last Activity Description: Created the new performance-focused milestone, active requirements, roadmap, and autonomous execution contract with agent response time as the main focus.
 
-Phase: 23 (Dependency Cleanup and Sustained Enforcement)
-Plan: 3 of 3
-Status: Archived
-Last activity: 2026-04-15 -- Completed quick task 260414-u9d
+Phase: 24 (Agent Response Baseline and Chat/ATS Latency Instrumentation)
+Plan: 0 of 1
+Status: Ready
+Last activity: 2026-04-14 -- Opened milestone v1.3 and initialized Phase 24 performance plan
 
-Progress: [##########] 100%
+Progress: [----------] 0%
 
 ## Performance Metrics
 
-Baseline carried forward from the completed v1.0 milestone:
+Baseline carried forward from earlier shipped milestones:
 
 - Total plans completed: 45
 - Milestones archived: 2
@@ -62,6 +62,8 @@ Baseline carried forward from the completed v1.0 milestone:
 - Phase 22 executed: Dead Exports and Orphan File Reduction
 - Phase 23 executed: Dependency Cleanup and Sustained Enforcement
 - v1.2 archived: Code Hygiene and Dead Code Reduction
+- v1.3 started: Agent Response Time and Runtime Performance
+- Phase 24 initialized: Agent Response Baseline and Chat/ATS Latency Instrumentation
 
 ### Decisions
 
@@ -72,6 +74,8 @@ Recent decisions affecting the next cycle:
 - `cvState` remains canonical truth and `agentState` remains operational context.
 - Security, billing, file-access, and JSON persistence work now prefer route-level proof plus explicit non-claims over implicit trust.
 - Dead-code cleanup remains staged: tooling baseline first, then imports/locals, then exports/files, then dependencies.
+- Main focus for v1.3 is agent response time first; ATS enhancement and chat latency outrank secondary cleanup or polish work.
+- The intended execution mode for v1.3 is autonomous phase progression from Phase 24 onward unless a true blocker is encountered.
 - The approved Phase 21 cleanup slices currently produce no import or low-risk local cleanup diff under the staged lint baseline.
 - Raw `ts-prune` and `madge` output must be classified before deletion because App Router pages, tests, and middleware appear as expected false positives.
 - The reviewed inventory proves only a small subset of current dead-code findings are safe deletion candidates; most remaining output is framework or test noise.
@@ -80,18 +84,18 @@ Recent decisions affecting the next cycle:
 
 ### Pending Todos
 
-None yet.
+- None yet.
 
 ### Blockers/Concerns
 
-- No active implementation blocker remains from v1.1.
-- No standalone `v1.1` milestone audit artifact was produced before archive; run `/gsd-audit-milestone` later if retrospective verification is needed.
-- Static dead-code findings still require manual review around Next.js routes, dynamic imports, string-driven handlers, and background jobs.
+- No active implementation blocker is currently known for v1.3 setup.
+- The milestone still needs execution, verification, and commits for the planned performance work.
+- Runtime optimization must avoid regressing billing, auth, ownership, and canonical state guarantees.
 
 ## Session Continuity
 
-Last session: 2026-04-14T22:55:00.0000000-03:00
-Stopped at: Milestone v1.2 archived; ready for next milestone
+Last session: 2026-04-14T22:20:00.0000000-03:00
+Stopped at: Phase 24 initialized with autonomous execution contract
 Resume file: None
 
 ## Quick Tasks Completed

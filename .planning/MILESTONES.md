@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.3 Agent Response Time and Runtime Performance (Active)
+
+**Planned phases:** 4 phases, 10 plans
+
+**Main focus:**
+
+- improve agent response time first
+- prioritize ATS enhancement and chat latency above secondary cleanup
+- reduce time to first useful SSE output and first useful assistant response
+
+**Planned accomplishments:**
+
+- establish stage-level latency visibility for the main agent path
+- remove or defer non-essential synchronous work that blocks visible chat and ATS enhancement responses
+- simplify the oversized runtime so latency work is easier to sustain
+- close the milestone with before/after proof and autonomous operator guidance
+
+---
+
 ## v1.2 Code Hygiene and Dead Code Reduction (Shipped: 2026-04-14)
 
 **Phases completed:** 4 phases, 12 plans, 12 tasks
