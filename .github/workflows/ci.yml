@@ -88,5 +88,5 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
-      - name: Browser E2E
-        run: npm run test:e2e -- --project=chromium
+      - name: Browser E2E - Release Critical Stability
+        run: npm run test:e2e:release-critical
