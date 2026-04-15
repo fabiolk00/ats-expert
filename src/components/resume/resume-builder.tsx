@@ -45,6 +45,8 @@ type ImportResumeModalProps = {
   onClose: () => void
   onImportSuccess: (data: ResumeData, profilePhotoUrl?: string | null, source?: string | null) => void
   currentProfileSource?: string | null
+  linkedinPollMs?: number
+  pdfImportPollMs?: number
 }
 
 type ProfileResponse = {
@@ -118,6 +120,8 @@ export function ImportResumeModal({
   onClose,
   onImportSuccess,
   currentProfileSource = null,
+  linkedinPollMs = 2000,
+  pdfImportPollMs = 1500,
 }: ImportResumeModalProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const activeFileImportIdRef = useRef(0)
@@ -220,10 +224,10 @@ export function ImportResumeModal({
         setJobStatus(null)
         toast.error(error instanceof Error ? error.message : "Erro ao acompanhar a importacao do LinkedIn.")
       }
-    }, 2000)
+    }, linkedinPollMs)
 
     return () => window.clearInterval(interval)
-  }, [jobId, onImportSuccess])
+  }, [jobId, linkedinPollMs, onImportSuccess])
 
   useEffect(() => {
     if (!pdfImportJobId) {
@@ -298,10 +302,10 @@ export function ImportResumeModal({
         setFileImportMessage(null)
         toast.error(error instanceof Error ? error.message : "Erro ao acompanhar a importacao do curriculo.")
       }
-    }, 1500)
+    }, pdfImportPollMs)
 
     return () => window.clearInterval(interval)
-  }, [pdfImportJobId, onImportSuccess])
+  }, [onImportSuccess, pdfImportJobId, pdfImportPollMs])
 
   const handleLinkedInImport = async (): Promise<void> => {
     setIsLinkedinSubmitting(true)

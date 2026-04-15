@@ -44,8 +44,8 @@ jobs:
           npm run depcheck
           npm run orphans -- --help
 
-      - name: Tests
-        run: npm test
+      - name: Tests - Non-E2E Runtime Profile
+        run: npm run test:profile:non-e2e
         env:
           ANTHROPIC_API_KEY: dummy
           OPENAI_API_KEY: sk-test-dummy
