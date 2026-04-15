@@ -25,6 +25,7 @@ import {
 } from '@/lib/asaas/checkout-errors'
 import { formatExternalReference } from '@/lib/asaas/external-reference'
 import { getActiveRecurringSubscription } from '@/lib/asaas/quota'
+import { buildAppUrl } from '@/lib/config/app-url'
 import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
 import { getPlan } from '@/lib/plans'
 
@@ -222,9 +223,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const userName = user?.fullName ?? user?.firstName ?? 'Usuario CurrIA'
     const userEmail = user?.emailAddresses[0]?.emailAddress ?? null
-    const origin = req.headers.get('origin') ?? 'http://localhost:3000'
-    const successUrl = `${origin}/dashboard`
-    const pricingUrl = `${origin}/pricing`
+    const successUrl = buildAppUrl('/dashboard')
+    const pricingUrl = buildAppUrl('/pricing')
     const checkout = await createCheckoutRecordPending(appUser.id, plan.slug, plan.price)
     checkoutReference = checkout.checkoutReference
 

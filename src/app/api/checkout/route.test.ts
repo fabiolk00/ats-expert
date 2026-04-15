@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 import { currentUser } from '@clerk/nextjs/server'
@@ -18,6 +18,7 @@ import {
   RECURRING_SUBSCRIPTION_VALIDATION_ERROR_MESSAGE,
 } from '@/lib/asaas/checkout-errors'
 import { getActiveRecurringSubscription } from '@/lib/asaas/quota'
+import { buildAppUrl } from '@/lib/config/app-url'
 
 vi.mock('@clerk/nextjs/server', () => ({
   currentUser: vi.fn(),
@@ -56,8 +57,11 @@ const mockBillingBody = {
 }
 
 describe('checkout route billing sequencing', () => {
+  const originalAppUrl = process.env.NEXT_PUBLIC_APP_URL
+
   beforeEach(() => {
     vi.clearAllMocks()
+    process.env.NEXT_PUBLIC_APP_URL = 'https://app.curria.com.br'
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
       status: 'active',
@@ -90,6 +94,15 @@ describe('checkout route billing sequencing', () => {
     vi.mocked(getActiveRecurringSubscription).mockResolvedValue(null)
   })
 
+  afterAll(() => {
+    if (originalAppUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_APP_URL
+      return
+    }
+
+    process.env.NEXT_PUBLIC_APP_URL = originalAppUrl
+  })
+
   it('creates a pending record before calling Asaas and marks it created on success', async () => {
     const response = await POST(new NextRequest('http://localhost/api/checkout', {
       method: 'POST',
@@ -104,6 +117,9 @@ describe('checkout route billing sequencing', () => {
     expect(vi.mocked(createCheckoutLink)).toHaveBeenCalledWith(expect.objectContaining({
       checkoutReference: 'chk_123',
       externalReference: 'curria:v1:u:usr_123:c:chk_123',
+      successUrl: buildAppUrl('/dashboard'),
+      cancelUrl: buildAppUrl('/pricing'),
+      expiredUrl: buildAppUrl('/pricing'),
       billingInfo: {
         cpfCnpj: '12345678901',
         phoneNumber: '11999999999',
@@ -223,6 +239,26 @@ describe('checkout route billing sequencing', () => {
     expect(createCheckoutLink).toHaveBeenCalledWith(expect.objectContaining({
       userName: 'Usuario CurrIA',
       userEmail: null,
+      successUrl: buildAppUrl('/dashboard'),
+      cancelUrl: buildAppUrl('/pricing'),
+    }))
+  })
+
+  it('ignores a spoofed origin header and still uses the canonical app URL for callbacks', async () => {
+    const response = await POST(new NextRequest('http://localhost/api/checkout', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example',
+      },
+      body: JSON.stringify(mockBillingBody),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(createCheckoutLink).toHaveBeenCalledWith(expect.objectContaining({
+      successUrl: 'https://app.curria.com.br/dashboard',
+      cancelUrl: 'https://app.curria.com.br/pricing',
+      expiredUrl: 'https://app.curria.com.br/pricing',
     }))
   })
 

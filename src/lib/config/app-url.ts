@@ -19,6 +19,10 @@ export function getAppOrigin(): string {
   return getAppUrl().origin
 }
 
+export function buildAppUrl(pathname: string): string {
+  return new URL(pathname, getAppUrl()).toString()
+}
+
 export function isCanonicalAppHost(hostname: string): boolean {
   return hostname === getAppUrl().hostname
 }
