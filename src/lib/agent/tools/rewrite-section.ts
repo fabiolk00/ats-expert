@@ -64,6 +64,21 @@ const CertificationEntrySchema = z.object({
   year: z.string().optional(),
 })
 
+function normalizeStringList(value: unknown, maxItems?: number): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  const normalized = value
+    .flatMap((item) => typeof item === 'string' ? item : [])
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  return typeof maxItems === 'number'
+    ? normalized.slice(0, maxItems)
+    : normalized
+}
+
 function normalizeStringValue(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
@@ -244,6 +259,76 @@ function getSectionDataDescription(section: RewriteSectionInput['section']): str
   }
 }
 
+function buildSectionPromptInstructions(section: RewriteSectionInput['section']): string[] {
+  switch (section) {
+    case 'summary':
+      return [
+        'Resumo Profissional: 4 a 6 linhas, destacando perfil real, senioridade e diferencial sem buzzwords genéricos.',
+      ]
+    case 'skills':
+      return [
+        'Habilidades Técnicas: preserve todas as ferramentas concretas e nunca substitua tecnologias específicas por rótulos vagos.',
+      ]
+    case 'experience':
+      return [
+        'Experiência: mantenha ferramentas, métricas, senioridade, escopo e contexto de negócio em cada bullet.',
+      ]
+    case 'education':
+      return [
+        'Educação: preserve instituições, grau e datas com consistência de formatação.',
+      ]
+    case 'certifications':
+      return [
+        'Certificações: preserve nome, emissor e ano sem simplificar ou generalizar.',
+      ]
+  }
+}
+
+function buildRewriteSystemPrompt(section: RewriteSectionInput['section']): string {
+  return `Você é um especialista sênior em currículos otimizados para ATS, com foco em posições técnicas (Engenharia de Dados, BI, Desenvolvimento etc.).
+
+Sempre aplique todas as guardrails antes de qualquer alteração. Se tiver dúvida entre preservar ou melhorar, priorize preservar.
+
+Siga rigorosamente estas regras na ordem de prioridade:
+
+REGRA DE OURO (nunca viole):
+- Melhore clareza, impacto e compatibilidade com ATS SEM NUNCA piorar o currículo ou perder informação relevante. Preservar especificidade técnica, métricas, ferramentas, escopo e senioridade tem prioridade absoluta.
+
+Regras obrigatórias:
+- Preserve todos os detalhes técnicos, ferramentas específicas, responsabilidades, contexto de negócio, senioridade e conquistas.
+- Mantenha TODAS as métricas reais. Nunca omita, suavize ou generalize números.
+- Não encurte, funda ou remova bullets/seções se isso causar perda de especificidade técnica, métrica, sinal de senioridade ou contexto relevante.
+- Se sua versão ficar menos detalhada, menos técnica ou menos impactante que o original, revise até ficar pelo menos tão forte quanto o original.
+- Use verbos de ação fortes no início de cada bullet (Desenvolvi, Otimizei, Liderei, Implementei, Gerenciei, etc.).
+- Prefira estrutura: Verbo forte + o que foi feito (com ferramentas e escopo) + resultado/impacto/propósito.
+- Mantenha senso crítico: melhore redação sem exagerar, inflar ou esconder gaps. Nunca invente nada.
+
+Estrutura de saída (JSON exato):
+{
+  "rewritten_content": "texto legível para exibição humana",
+  ${getSectionDataDescription(section)},
+  "keywords_added": ["lista", "de", "keywords", "adicionadas"],
+  "changes_made": ["lista curta e factual de melhorias reais"]
+}
+
+Regras de saída:
+- "rewritten_content" deve ser legível, natural e próprio para exibição humana
+- "section_data" deve ser totalmente estruturado e válido para a seção solicitada
+- "keywords_added" deve listar apenas keywords realmente adicionadas ou enfatizadas
+- "changes_made" deve listar no máximo 7 melhorias curtas, factuais e reais
+
+Instruções adicionais por seção:
+${buildSectionPromptInstructions(section).map((item) => `- ${item}`).join('\n')}
+
+Contrato compartilhado de reescrita a aplicar rigorosamente:
+${formatResumeRewriteGuardrails()}
+
+Idioma:
+- Use português brasileiro (pt-BR) profissional, objetivo e confiante.
+- Mantenha nomes próprios de ferramentas e termos técnicos em inglês quando esse for o uso correto (Azure Databricks, PySpark, Qlik Sense, Medallion, etc.).
+- Evite linguagem de marketing inflada, buzzwords vazios e traduções artificiais de termos técnicos.`
+}
+
 function extractJsonLikeObject(rawText: string): unknown {
   const trimmed = rawText.trim()
 
@@ -280,13 +365,8 @@ function normalizeRewritePayload(
 
   const record = { ...(parsed as Record<string, unknown>) }
 
-  if (!Array.isArray(record.keywords_added)) {
-    record.keywords_added = []
-  }
-
-  if (!Array.isArray(record.changes_made)) {
-    record.changes_made = []
-  }
+  record.keywords_added = normalizeStringList(record.keywords_added)
+  record.changes_made = normalizeStringList(record.changes_made, 7)
 
   if (section === 'summary') {
     if (typeof record.section_data !== 'string') {
@@ -455,29 +535,7 @@ export async function rewriteSection(
         messages: [
           {
             role: 'system',
-            content: `You are an expert ATS resume writer. Rewrite the provided resume section following the instructions.
-Output valid JSON matching this shape exactly:
-{
-  "rewritten_content": string,
-  ${getSectionDataDescription(input.section)},
-  "keywords_added": string[],
-  "changes_made": string[]
-}
-Rules:
-- "rewritten_content" must stay human-readable plain text for conversational display
-- "section_data" must be fully structured and valid for the requested section
-- "changes_made" must be a short factual list of what improved, such as clarity, stronger verbs, clearer metrics, reduced redundancy, or better ATS structure
-- apply every resume rewrite guardrail rigorously before making any change
-- preserve factual truth exactly; never invent employers, tools, certifications, metrics, projects, or achievements
-- optimize for ATS parsing, recruiter clarity, strong action verbs, and natural keyword usage
-- avoid keyword stuffing, empty cliches, decorative language, and exaggerated claims
-- if the content is in Portuguese, use Brazilian Portuguese (pt-BR) with correct accentuation, spelling, grammar, and professional resume tone
-- never use European Portuguese variants unless the user explicitly provided them
-- do not shorten this bullet or section if that would remove technical specificity, metrics, seniority context, or important recruiter-facing detail
-- never merge or compress bullets if that would remove concrete tools, scope, metrics, or meaningful business context
-- if the original content is stronger, more detailed, or more impactful than your rewrite, revise your answer until the rewritten version is at least as strong while remaining truthful
-Additional resume rewrite guardrails:
-${formatResumeRewriteGuardrails()}`,
+            content: buildRewriteSystemPrompt(input.section),
           },
           {
             role: 'user',

@@ -306,6 +306,45 @@ describe('rewriteSection', () => {
     })
   })
 
+  it('limits changes_made to a short factual list', async () => {
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      rewritten_content: 'TypeScript, PostgreSQL, Redis',
+      section_data: ['TypeScript', 'PostgreSQL', 'Redis'],
+      keywords_added: ['TypeScript', 'PostgreSQL'],
+      changes_made: [
+        'Item 1',
+        'Item 2',
+        'Item 3',
+        'Item 4',
+        'Item 5',
+        'Item 6',
+        'Item 7',
+        'Item 8',
+      ],
+    })))
+
+    const result = await rewriteSection({
+      section: 'skills',
+      current_content: 'TypeScript',
+      instructions: 'Expand skills',
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output.success).toBe(true)
+    if (!result.output.success) {
+      throw new Error('Expected rewrite to succeed')
+    }
+
+    expect(result.output.changes_made).toEqual([
+      'Item 1',
+      'Item 2',
+      'Item 3',
+      'Item 4',
+      'Item 5',
+      'Item 6',
+      'Item 7',
+    ])
+  })
+
   it('sends guardrails that preserve detail, metrics, and stronger bullet structure', async () => {
     createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       rewritten_content: 'Implementei pipelines de dados e reduzi o tempo de processamento em 30%.',
@@ -336,11 +375,11 @@ describe('rewriteSection', () => {
 
     const systemPrompt = createCompletion.mock.calls[0]?.[0]?.messages?.[0]?.content
 
-    expect(systemPrompt).toContain('apply every resume rewrite guardrail rigorously before making any change')
-    expect(systemPrompt).toContain('Sua missão principal é melhorar o currículo SEM NUNCA piorá-lo')
-    expect(systemPrompt).toContain('Mantenha TODAS as métricas reais')
-    expect(systemPrompt).toContain('Prefira clareza com densidade a brevidade excessiva.')
-    expect(systemPrompt).toContain('never merge or compress bullets if that would remove concrete tools')
-    expect(systemPrompt).toContain('Exija verbos de ação fortes no início de cada bullet de experiência')
+    expect(systemPrompt).toContain('REGRA DE OURO (nunca viole):')
+    expect(systemPrompt).toContain('Se tiver dúvida entre preservar ou melhorar, priorize preservar.')
+    expect(systemPrompt).toContain('Mantenha TODAS as métricas reais. Nunca omita, suavize ou generalize números.')
+    expect(systemPrompt).toContain('changes_made" deve listar no máximo 7 melhorias curtas, factuais e reais')
+    expect(systemPrompt).toContain('Experiência: mantenha ferramentas, métricas, senioridade, escopo e contexto de negócio em cada bullet.')
+    expect(systemPrompt).toContain('Mantenha nomes próprios de ferramentas e termos técnicos em inglês')
   })
 })
