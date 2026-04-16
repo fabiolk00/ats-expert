@@ -336,11 +336,11 @@ describe('rewriteSection', () => {
 
     const systemPrompt = createCompletion.mock.calls[0]?.[0]?.messages?.[0]?.content
 
-    expect(systemPrompt).toContain('improve resume quality, clarity, impact, and ATS compatibility without ever making the resume worse')
-    expect(systemPrompt).toContain('Never remove meaningful information just to make it shorter.')
-    expect(systemPrompt).toContain('Keep every grounded number, percentage, count, money amount, project scale, and metric.')
-    expect(systemPrompt).toContain('Prefer clarity plus density over excessive brevity.')
-    expect(systemPrompt).toContain('if the original content is stronger, more detailed, or more impactful than your rewrite')
-    expect(systemPrompt).toContain('Use strong action verbs in the correct tense, especially at the start of experience bullets.')
+    expect(systemPrompt).toContain('apply every resume rewrite guardrail rigorously before making any change')
+    expect(systemPrompt).toContain('Sua missão principal é melhorar o currículo SEM NUNCA piorá-lo')
+    expect(systemPrompt).toContain('Mantenha TODAS as métricas reais')
+    expect(systemPrompt).toContain('Prefira clareza com densidade a brevidade excessiva.')
+    expect(systemPrompt).toContain('never merge or compress bullets if that would remove concrete tools')
+    expect(systemPrompt).toContain('Exija verbos de ação fortes no início de cada bullet de experiência')
   })
 })

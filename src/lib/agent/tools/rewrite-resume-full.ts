@@ -85,6 +85,7 @@ function buildAtsResumeStyleGuide(): string {
     'Never invent employers, tools, certifications, projects, metrics, or results.',
     'Optimize for ATS parsing, semantic keyword matching, and human readability at the same time.',
     'Keep facts from the original resume intact while improving wording, structure, readability, and prioritization.',
+    'Apply every resume rewrite guardrail rigorously before making any improvement.',
     'Resume rewrite contract:',
     formatResumeRewriteGuardrails(),
   ].join('\n')
@@ -98,6 +99,7 @@ function buildJobTargetingStyleGuide(targetJobDescription: string): string {
     'Write in Brazilian Portuguese (pt-BR) with professional, concise, recruiter-friendly language.',
     'Never invent employers, titles, tools, certifications, metrics, projects, or dates.',
     'Maximize alignment to the target vacancy only with facts already present in the original resume.',
+    'Apply every resume rewrite guardrail rigorously before making any improvement.',
     'Resume rewrite contract:',
     formatResumeRewriteGuardrails(),
     shapedTargetJob.compacted

@@ -467,12 +467,14 @@ Rules:
 - "rewritten_content" must stay human-readable plain text for conversational display
 - "section_data" must be fully structured and valid for the requested section
 - "changes_made" must be a short factual list of what improved, such as clarity, stronger verbs, clearer metrics, reduced redundancy, or better ATS structure
+- apply every resume rewrite guardrail rigorously before making any change
 - preserve factual truth exactly; never invent employers, tools, certifications, metrics, projects, or achievements
 - optimize for ATS parsing, recruiter clarity, strong action verbs, and natural keyword usage
 - avoid keyword stuffing, empty cliches, decorative language, and exaggerated claims
 - if the content is in Portuguese, use Brazilian Portuguese (pt-BR) with correct accentuation, spelling, grammar, and professional resume tone
 - never use European Portuguese variants unless the user explicitly provided them
 - do not shorten this bullet or section if that would remove technical specificity, metrics, seniority context, or important recruiter-facing detail
+- never merge or compress bullets if that would remove concrete tools, scope, metrics, or meaningful business context
 - if the original content is stronger, more detailed, or more impactful than your rewrite, revise your answer until the rewritten version is at least as strong while remaining truthful
 Additional resume rewrite guardrails:
 ${formatResumeRewriteGuardrails()}`,

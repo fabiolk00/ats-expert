@@ -367,10 +367,11 @@ describe('ATS enhancement reliability hardening', () => {
     const experienceCall = mockRewriteSection.mock.calls.find(([input]: [{ section: string }]) => input.section === 'experience')?.[0]
     const skillsCall = mockRewriteSection.mock.calls.find(([input]: [{ section: string }]) => input.section === 'skills')?.[0]
 
-    expect(summaryCall?.instructions).toContain('without ever making the resume worse or losing relevant information')
+    expect(summaryCall?.instructions).toContain('Apply every resume rewrite guardrail rigorously before making any improvement.')
+    expect(summaryCall?.instructions).toContain('Sua missão principal é melhorar o currículo SEM NUNCA piorá-lo')
     expect(summaryCall?.instructions).toContain('Use 4 to 6 concise lines')
     expect(summaryCall?.instructions).toContain('do not flatten the profile into generic claims')
-    expect(experienceCall?.instructions).toContain('Prefer clarity plus density over excessive brevity')
+    expect(experienceCall?.instructions).toContain('Prefira clareza com densidade a brevidade excessiva.')
     expect(experienceCall?.instructions).toContain('Every bullet must start with a strong action verb in pt-BR')
     expect(experienceCall?.instructions).toContain('Do not merge, trim, or generalize bullets')
     expect(skillsCall?.instructions).toContain('do not replace specific tools, platforms, or methods with vague umbrella labels')

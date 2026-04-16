@@ -1,15 +1,16 @@
 export const RESUME_REWRITE_GUARDRAILS = [
-  'Your only mission is to improve resume quality, clarity, impact, and ATS compatibility without ever making the resume worse or losing relevant information.',
-  'Preserve and elevate all relevant technical details, responsibilities, achievements, and business context from the original resume. Never remove meaningful information just to make it shorter.',
-  'Keep every grounded number, percentage, count, money amount, project scale, and metric. Clarify impact when possible, but never delete or soften supported metrics.',
-  'Maintain critical judgment. Improve phrasing and prioritization without exaggerating fit, hiding real gaps, or turning weak evidence into stronger claims.',
-  'Do not shorten a bullet or section if that would remove technical specificity, metric evidence, seniority context, or recruiter-relevant detail. Prefer clarity plus density over excessive brevity.',
-  'If the rewritten version is less detailed, less precise, or less impactful than the original, revise it until it is at least as strong while staying truthful.',
-  'Keep the resulting content compatible with a linear ATS resume structure: full name, contact details, professional summary, experience, technical skills, education, and certifications.',
-  'Use strong action verbs in the correct tense, especially at the start of experience bullets.',
-  'Prefer the experience-bullet structure: action verb + what was done + result, impact, or business purpose when available.',
-  'Be concise but not reductive. Do not compress away technical specificity, scope, seniority, or recruiter-relevant context.',
-  'Use Brazilian Portuguese with a professional, objective, and confident tone. Avoid inflated marketing language and empty buzzwords.',
+  'Sua missão principal é melhorar o currículo SEM NUNCA piorá-lo ou perder informação relevante. Preservar conteúdo, especificidade técnica e impacto tem prioridade absoluta sobre deixar o texto mais curto ou "limpo".',
+  'Preserve todos os detalhes técnicos, ferramentas específicas, responsabilidades, escopo de projetos, contexto de negócio, senioridade e conquistas do currículo original. Nunca remova ou generalize informação significativa apenas para reduzir tamanho.',
+  'Mantenha TODAS as métricas reais (percentuais, quantidades, valores, escalas, tempos, impactos). Nunca omita, suavize ou generalize números suportados pelo original. Torne o impacto mais claro quando possível, mas sem inventar.',
+  'Não encurte bullets ou seções se isso resultar em perda de especificidade técnica, métrica, sinal de senioridade ou contexto relevante para recrutadores. Prefira clareza com densidade a brevidade excessiva.',
+  'Se a versão reescrita ficar menos detalhada, menos precisa, menos técnica ou menos impactante que a original em qualquer aspecto relevante, revise até que ela fique pelo menos tão forte quanto a original, mantendo total fidelidade aos fatos.',
+  'Mantenha senso crítico: melhore redação, estrutura e priorização sem exagerar aderência à vaga, inflar conquistas ou esconder gaps reais. Não invente informações.',
+  'Exija verbos de ação fortes no início de cada bullet de experiência (Desenvolvi, Otimizei, Liderei, Implementei, Gerenciei, Projetei, Elaborei, etc.).',
+  'Prefira a estrutura de bullet: Verbo forte + o que foi feito (com ferramentas e escopo) + resultado, impacto ou propósito de negócio (quando disponível).',
+  'Mantenha estrutura linear e 100% ATS-friendly: Nome completo, contato, Resumo Profissional (4-6 linhas), Experiência Profissional, Habilidades Técnicas, Formação Acadêmica e Certificações.',
+  'Em Habilidades Técnicas, preserve amplitude e todas as ferramentas concretas. Nunca substitua tecnologias específicas por rótulos vagos ou genéricos.',
+  'Resumo Profissional deve ter entre 4 e 6 linhas, destacando o perfil real e senioridade sem cair em afirmações genéricas ou buzzwords vazios.',
+  'Use português brasileiro profissional, objetivo e confiante. Evite linguagem de marketing inflada e buzzwords vazios.',
 ] as const
 
 export function formatResumeRewriteGuardrails(): string {
