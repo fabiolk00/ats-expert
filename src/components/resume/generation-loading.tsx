@@ -11,6 +11,8 @@ interface GenerationLoadingProps {
   onComplete?: () => void
 }
 
+type LoadingTone = "danger" | "warning" | "success"
+
 const loadingMessages = [
   "Analisando seu currículo...",
   "Identificando pontos de melhoria...",
@@ -20,6 +22,47 @@ const loadingMessages = [
   "Aplicando melhores práticas...",
   "Finalizando otimização...",
 ]
+
+const loadingToneStyles: Record<
+  LoadingTone,
+  {
+    bar: string
+    edge: string
+    label: string
+    dot: string
+  }
+> = {
+  danger: {
+    bar: "from-rose-400 via-red-500 to-red-600",
+    edge: "from-rose-300/60",
+    label: "text-red-600 dark:text-red-400",
+    dot: "bg-red-500/30",
+  },
+  warning: {
+    bar: "from-amber-300 via-yellow-400 to-amber-500",
+    edge: "from-yellow-200/70",
+    label: "text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-400/35",
+  },
+  success: {
+    bar: "from-emerald-400 via-emerald-500 to-emerald-600",
+    edge: "from-emerald-300/50",
+    label: "text-emerald-600 dark:text-emerald-400",
+    dot: "bg-emerald-500/30",
+  },
+}
+
+export function getLoadingTone(progress: number): LoadingTone {
+  if (progress <= 30) {
+    return "danger"
+  }
+
+  if (progress <= 50) {
+    return "warning"
+  }
+
+  return "success"
+}
 
 export function GenerationLoading({
   isLoading,
@@ -43,7 +86,7 @@ export function GenerationLoading({
       const timer = window.setTimeout(() => {
         setIsVisible(false)
         onComplete?.()
-      }, 400)
+      }, 700)
 
       return () => window.clearTimeout(timer)
     }
@@ -55,10 +98,10 @@ export function GenerationLoading({
     }
 
     const getIncrement = () => {
-      if (progress < 30) return Math.random() * 8 + 4
-      if (progress < 60) return Math.random() * 5 + 2
-      if (progress < 85) return Math.random() * 3 + 1
-      return Math.random() * 1 + 0.5
+      if (progress < 30) return Math.random() * 4 + 2.5
+      if (progress < 50) return Math.random() * 2.5 + 1.5
+      if (progress < 85) return Math.random() * 1.5 + 0.8
+      return Math.random() * 0.8 + 0.35
     }
 
     const timer = window.setTimeout(() => {
@@ -66,7 +109,7 @@ export function GenerationLoading({
         const next = previous + getIncrement()
         return next > 95 ? 95 : next
       })
-    }, 200 + Math.random() * 300)
+    }, 350 + Math.random() * 450)
 
     return () => window.clearTimeout(timer)
   }, [isLoading, progress])
@@ -86,6 +129,8 @@ export function GenerationLoading({
     return null
   }
 
+  const loadingTone = getLoadingTone(progress)
+  const toneStyles = loadingToneStyles[loadingTone]
   const title =
     generationType === "JOB_TARGETING"
       ? "Adaptando para a vaga"
@@ -116,10 +161,12 @@ export function GenerationLoading({
         <div className="relative w-full">
           <div className="h-3 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
             <div
+              data-testid="generation-loading-progress"
+              data-tone={loadingTone}
               className="relative h-full rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600" />
+              <div className={cn("absolute inset-0 bg-gradient-to-r", toneStyles.bar)} />
 
               <div className="absolute inset-0 overflow-hidden rounded-full">
                 <div
@@ -147,13 +194,13 @@ export function GenerationLoading({
                 />
               </div>
 
-              <div className="absolute right-0 top-0 h-full w-4 bg-gradient-to-l from-emerald-300/50 to-transparent" />
+              <div className={cn("absolute right-0 top-0 h-full w-4 bg-gradient-to-l to-transparent", toneStyles.edge)} />
             </div>
           </div>
 
           <div className="mt-3 flex justify-between text-xs">
             <span className="text-zinc-400 dark:text-zinc-500">Progresso</span>
-            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+            <span className={cn("font-medium", toneStyles.label)}>
               {Math.round(progress)}%
             </span>
           </div>
@@ -163,7 +210,7 @@ export function GenerationLoading({
           {[0, 1, 2].map((index) => (
             <div
               key={index}
-              className="h-2 w-2 animate-pulse rounded-full bg-emerald-500/30"
+              className={cn("h-2 w-2 animate-pulse rounded-full", toneStyles.dot)}
               style={{ animationDelay: `${index * 0.2}s` }}
             />
           ))}

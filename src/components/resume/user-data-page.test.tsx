@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { toast } from "sonner"
@@ -1224,7 +1224,7 @@ describe("UserDataPage", () => {
     expect(screen.getByText("Base salva a partir de currículo importado")).toBeInTheDocument()
   })
 
-  it("renders cancelar and salvar in the bottom action bar and keeps salvar black", async () => {
+  it("renders cancelar and salvar below the editor and keeps salvar black", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({
       ok: true,
       json: async () => ({
@@ -1235,12 +1235,11 @@ describe("UserDataPage", () => {
     render(<UserDataPage currentCredits={2} />)
 
     const editor = await screen.findByTestId("visual-resume-editor")
-    const actionsBar = screen.getByTestId("profile-actions-bar")
-    const cancelarButton = within(actionsBar).getByRole("button", { name: "Cancelar" })
-    const salvarButton = within(actionsBar).getByTestId("profile-save-button")
+    const cancelarButton = screen.getByRole("button", { name: "Cancelar" })
+    const salvarButton = screen.getByTestId("profile-save-button")
 
     expect(
-      editor.compareDocumentPosition(actionsBar) & Node.DOCUMENT_POSITION_FOLLOWING,
+      editor.compareDocumentPosition(cancelarButton) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     expect(
       cancelarButton.compareDocumentPosition(salvarButton) & Node.DOCUMENT_POSITION_FOLLOWING,

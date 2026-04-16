@@ -94,41 +94,39 @@ function SectionCard({
   compactMode?: boolean
   children: ReactNode
 }) {
-  const isDistributedLayout = compactMode && !isOpen
-
   return (
-    <Card
-      className={cn(
-        "gap-0 overflow-hidden rounded-[22px] border border-border bg-card py-0 shadow-none transition-[border-color,box-shadow] duration-200",
-        isDistributedLayout && "h-full min-h-[126px] shadow-sm",
-      )}
-    >
+    <Card className="gap-0 overflow-hidden rounded-lg border-border py-0 shadow-none">
       <button
         type="button"
         onClick={onToggle}
         className={cn(
-          "flex w-full items-center gap-4 p-5 text-left transition-colors hover:bg-muted/50",
-          isDistributedLayout && "h-full items-start py-5",
+          "flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-muted/50",
+          compactMode && !isOpen && "py-3",
         )}
         aria-expanded={isOpen}
       >
-        <div className={cn("flex min-w-0 items-start gap-4", isDistributedLayout && "flex-1")}>
+        <div className="flex items-start gap-4">
           <div
             className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/70 text-muted-foreground",
-              isDistributedLayout && "h-12 w-12",
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground",
+              compactMode && !isOpen && "h-9 w-9",
             )}
           >
             {icon}
           </div>
-          <div className="min-w-0 space-y-1.5">
-            <h2 className="text-base font-medium text-foreground">
+          <div className="space-y-1">
+            <h2
+              className={cn(
+                "font-medium text-foreground",
+                compactMode && !isOpen ? "text-base" : "text-base",
+              )}
+            >
               {title}
             </h2>
             <p
               className={cn(
-                "text-sm leading-6 text-muted-foreground",
-                isDistributedLayout ? "line-clamp-3" : "truncate",
+                "truncate text-sm text-muted-foreground",
+                compactMode && !isOpen && "text-xs",
               )}
             >
               {description}
@@ -138,8 +136,7 @@ function SectionCard({
 
         <div
           className={cn(
-            "ml-auto flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-full text-muted-foreground",
-            isDistributedLayout && "self-start",
+            "ml-auto flex h-5 w-5 items-center justify-center text-muted-foreground",
           )}
         >
           <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
@@ -147,8 +144,8 @@ function SectionCard({
       </button>
 
       {isOpen ? (
-        <CardContent className="border-t border-border px-5 pb-5 pt-0">
-          <div className="pt-5">{children}</div>
+        <CardContent className="border-t border-border px-4 pb-4 pt-0">
+          <div className="pt-4">{children}</div>
         </CardContent>
       ) : null}
     </Card>
@@ -167,7 +164,7 @@ function ItemCard({
   children: ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-border bg-muted/20 p-5">
+    <div className="rounded-lg border border-border bg-muted/30 p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {title}
@@ -262,12 +259,10 @@ export function VisualResumeEditor({
   })
   const [skillsDraft, setSkillsDraft] = useState(() => buildSkillsDraft(value.skills))
   const [isEditingSkills, setIsEditingSkills] = useState(false)
-  const areAllSectionsCollapsed = Object.values(openSections).every((isOpen) => !isOpen)
-  const isDistributedLayout = compactMode && areAllSectionsCollapsed
 
   useEffect(() => {
-    onAllSectionsClosedChange?.(areAllSectionsCollapsed)
-  }, [areAllSectionsCollapsed, onAllSectionsClosedChange])
+    onAllSectionsClosedChange?.(Object.values(openSections).every((isOpen) => !isOpen))
+  }, [onAllSectionsClosedChange, openSections])
 
   useEffect(() => {
     if (!isEditingSkills) {
@@ -297,14 +292,14 @@ export function VisualResumeEditor({
   }
 
   return (
-    <div className={cn(isDistributedLayout ? "grid h-full auto-rows-fr gap-4 lg:grid-cols-2" : "space-y-4")}>
+    <div className={cn("space-y-3", compactMode && "space-y-3")}>
       <SectionCard
         title="Dados pessoais"
         description="Estrutura visual pronta para receber seus dados manuais ou importados."
         icon={<UserRound className="h-5 w-5" />}
         isOpen={openSections.personal}
         onToggle={() => toggleSection("personal")}
-        compactMode={isDistributedLayout}
+        compactMode={compactMode}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Input
@@ -347,7 +342,7 @@ export function VisualResumeEditor({
         icon={<FileText className="h-5 w-5" />}
         isOpen={openSections.summary}
         onToggle={() => toggleSection("summary")}
-        compactMode={isDistributedLayout}
+        compactMode={compactMode}
       >
         <Textarea
           value={value.summary}
@@ -364,7 +359,7 @@ export function VisualResumeEditor({
         icon={<Wrench className="h-5 w-5" />}
         isOpen={openSections.skills}
         onToggle={() => toggleSection("skills")}
-        compactMode={isDistributedLayout}
+        compactMode={compactMode}
       >
         <Textarea
           value={skillsDraft}
@@ -383,7 +378,7 @@ export function VisualResumeEditor({
         icon={<BriefcaseBusiness className="h-5 w-5" />}
         isOpen={openSections.experience}
         onToggle={() => toggleSection("experience")}
-        compactMode={isDistributedLayout}
+        compactMode={compactMode}
       >
         <div className="space-y-4">
           {value.experience.map((item, index) => (
@@ -512,7 +507,7 @@ export function VisualResumeEditor({
         icon={<GraduationCap className="h-5 w-5" />}
         isOpen={openSections.education}
         onToggle={() => toggleSection("education")}
-        compactMode={isDistributedLayout}
+        compactMode={compactMode}
       >
         <div className="space-y-4">
           {value.education.map((item, index) => (
@@ -608,7 +603,7 @@ export function VisualResumeEditor({
         icon={<BadgeCheck className="h-5 w-5" />}
         isOpen={openSections.certifications}
         onToggle={() => toggleSection("certifications")}
-        compactMode={isDistributedLayout}
+        compactMode={compactMode}
       >
         <div className="space-y-4">
           {(value.certifications ?? []).map((item, index) => (
