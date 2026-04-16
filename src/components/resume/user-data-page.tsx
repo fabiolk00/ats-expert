@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils"
 import type { ResumeGenerationType } from "@/types/agent"
 import type { CVState } from "@/types/cv"
 
+import { GenerationLoading } from "./generation-loading"
 import { ImportResumeModal, type ResumeData } from "./resume-builder"
 import { ResumeComparisonView } from "./resume-comparison-view"
 import { VisualResumeEditor, normalizeResumeData } from "./visual-resume-editor"
@@ -283,6 +284,7 @@ export default function UserDataPage({
   const [atsMissingItems, setAtsMissingItems] = useState<string[]>([])
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null)
   const [showComparison, setShowComparison] = useState(false)
+  const [loadingGenerationType, setLoadingGenerationType] = useState<"ATS_ENHANCEMENT" | "JOB_TARGETING" | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -396,6 +398,7 @@ export default function UserDataPage({
     }
 
     setIsRunningAtsEnhancement(true)
+    setLoadingGenerationType(generationMode === "job_targeting" ? "JOB_TARGETING" : "ATS_ENHANCEMENT")
 
     try {
       await persistProfile()
@@ -455,6 +458,7 @@ export default function UserDataPage({
       router.push(`/dashboard?session=${encodeURIComponent(data.sessionId)}`)
     } catch (error) {
       toast.error(extractErrorMessage(error, generationCopy.failure))
+      setLoadingGenerationType(null)
     } finally {
       setIsRunningAtsEnhancement(false)
     }
@@ -548,6 +552,7 @@ export default function UserDataPage({
   const avatarSrc = profilePhotoUrl ?? userImageUrl ?? undefined
 
   // Mostrar tela de comparacao apos geracao
+  // Mostrar tela de comparacao apos geracao
   if (showComparison && comparisonData) {
     return (
       <ResumeComparisonView
@@ -561,6 +566,13 @@ export default function UserDataPage({
   }
 
   return (
+    <>
+      {/* Loading overlay */}
+      <GenerationLoading
+        isLoading={isRunningAtsEnhancement}
+        generationType={loadingGenerationType ?? "ATS_ENHANCEMENT"}
+        onComplete={() => setLoadingGenerationType(null)}
+      />
     <div
       data-testid="user-data-page"
       data-loading={String(isLoadingProfile)}
@@ -1020,5 +1032,6 @@ export default function UserDataPage({
         </DialogContent>
       </Dialog>
     </div>
+    </>
   )
 }

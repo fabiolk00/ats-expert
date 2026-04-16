@@ -21,6 +21,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhook/asaas(.*)',
   '/api/webhook/clerk(.*)',
   '/preview-comparison(.*)',
+  '/preview-loading(.*)',
 ])
 
 /**

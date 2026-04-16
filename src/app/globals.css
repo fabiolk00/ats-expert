@@ -123,3 +123,48 @@
     color-scheme: dark;
   }
 }
+
+/* Water loading animation */
+@keyframes wave {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(20px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes bubble {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-12px) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.animate-wave {
+  animation: wave 0.8s linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-bubble {
+  animation: bubble 1.5s ease-in-out infinite;
+}
