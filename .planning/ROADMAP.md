@@ -58,7 +58,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 39-01: Implement async ATS, targeting, and artifact processors with state-safe persistence
+- [x] 39-01: Implement async ATS, targeting, and artifact processors with state-safe persistence
 
 ### Phase 40: Integrate status flow, observability, and stabilization
 **Goal**: Wire the orchestrator and workers together, expose job status cleanly to UI or SSE consumers, and prove the new async execution model through focused regression coverage.
@@ -99,7 +99,7 @@ Phases execute in numeric order: 37 -> 38 -> 39 -> 40
 |-------|----------------|--------|-----------|
 | 37. Freeze async execution contracts and durable job foundations | 1/1 | Completed | 2026-04-16 |
 | 38. Refactor `/api/agent` into a lightweight orchestrator | 1/1 | Complete    | 2026-04-16 |
-| 39. Move ATS, targeting, and artifact work into async processors | 0/1 | Pending | — |
+| 39. Move ATS, targeting, and artifact work into async processors | 1/1 | Completed | 2026-04-16 |
 | 40. Integrate status flow, observability, and stabilization | 0/1 | Pending | — |
 
 ## Archived Milestones
