@@ -75,6 +75,10 @@ describe('ResumeEditorModal', () => {
 
     expect(screen.getByDisplayValue('Base summary')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Skills' })).toBeInTheDocument()
+    expect(useSessionCvState).toHaveBeenCalledWith('sess_123', {
+      targetId: null,
+      scope: 'base',
+    })
   })
 
   it('skips the save call when nothing changed', async () => {
@@ -122,6 +126,46 @@ describe('ResumeEditorModal', () => {
     })
 
     expect(onSaved).toHaveBeenCalledTimes(1)
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      summary: 'Updated summary',
+    }))
+  })
+
+  it('loads and saves the optimized resume scope when requested', async () => {
+    const onSaved = vi.fn()
+
+    render(
+      <ResumeEditorModal
+        sessionId="sess_123"
+        scope="optimized"
+        open
+        onOpenChange={vi.fn()}
+        onSaved={onSaved}
+      />,
+    )
+
+    expect(useSessionCvState).toHaveBeenCalledWith('sess_123', {
+      targetId: null,
+      scope: 'optimized',
+    })
+
+    const summary = screen.getByDisplayValue('Base summary')
+    await userEvent.clear(summary)
+    await userEvent.type(summary, 'Optimized summary')
+    await userEvent.click(screen.getByRole('button', { name: /save and generate pdf/i }))
+
+    await waitFor(() => {
+      expect(saveEditedResume).toHaveBeenCalledWith('sess_123', {
+        scope: 'optimized',
+        cvState: expect.objectContaining({
+          summary: 'Optimized summary',
+        }),
+      })
+    })
+
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      summary: 'Optimized summary',
+    }))
   })
 
   it('shows inline errors from failed saves', async () => {

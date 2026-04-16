@@ -25,9 +25,10 @@ import type { CVState } from '@/types/cv'
 type Props = {
   sessionId: string
   targetId?: string | null
+  scope?: 'base' | 'optimized'
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSaved: () => void
+  onSaved: (cvState: CVState) => void
 }
 
 type Tab = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'certifications'
@@ -68,8 +69,19 @@ function Section({ title, subtitle }: { title: string; subtitle: string }) {
   )
 }
 
-export function ResumeEditorModal({ sessionId, targetId = null, open, onOpenChange, onSaved }: Props) {
-  const { cvState, isLoading, error, refetch } = useSessionCvState(sessionId, targetId)
+export function ResumeEditorModal({
+  sessionId,
+  targetId = null,
+  scope = 'base',
+  open,
+  onOpenChange,
+  onSaved,
+}: Props) {
+  const effectiveScope = targetId ? 'target' : scope
+  const { cvState, isLoading, error, refetch } = useSessionCvState(sessionId, {
+    targetId,
+    scope: effectiveScope,
+  })
   const [activeTab, setActiveTab] = useState<Tab>('summary')
   const [draft, setDraft] = useState<CVState | null>(null)
   const [original, setOriginal] = useState('')
@@ -118,10 +130,14 @@ export function ResumeEditorModal({ sessionId, targetId = null, open, onOpenChan
     try {
       await saveEditedResume(
         sessionId,
-        targetId ? { scope: 'target', targetId, cvState: draft } : { scope: 'base', cvState: draft },
+        effectiveScope === 'target'
+          ? { scope: 'target', targetId: targetId as string, cvState: draft }
+          : effectiveScope === 'optimized'
+            ? { scope: 'optimized', cvState: draft }
+            : { scope: 'base', cvState: draft },
       )
       close()
-      onSaved()
+      onSaved(structuredClone(draft))
       toast.success('PDF generated successfully.')
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Unable to save your changes.')

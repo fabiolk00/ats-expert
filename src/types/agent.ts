@@ -405,6 +405,10 @@ export type ResumeEditorSaveInput =
       cvState: CVState
     }
   | {
+      scope: 'optimized'
+      cvState: CVState
+    }
+  | {
       scope: 'target'
       targetId: string
       cvState: CVState
@@ -422,7 +426,7 @@ export type ResumeEditorSaveOutput =
   | {
       success: true
       changed: boolean
-      scope: 'base' | 'target'
+      scope: 'base' | 'optimized' | 'target'
       targetId?: string
     }
   | ToolFailure

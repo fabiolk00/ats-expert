@@ -83,6 +83,14 @@ function buildTarget(): ResumeTarget {
   }
 }
 
+function buildOptimizedCvState() {
+  return {
+    ...buildSession().cvState,
+    summary: 'ATS optimized summary',
+    skills: ['TypeScript', 'PostgreSQL'],
+  }
+}
+
 function buildSession(targets?: ResumeTarget[]): Session & { resumeTargets?: ResumeTarget[] } {
   return {
     id: 'sess_123',
@@ -108,6 +116,7 @@ function buildSession(targets?: ResumeTarget[]): Session & { resumeTargets?: Res
     agentState: {
       parseStatus: 'parsed',
       rewriteHistory: {},
+      optimizedCvState: undefined,
     },
     generatedOutput: {
       status: 'idle',
@@ -373,6 +382,69 @@ describe('manual edit route', () => {
         summary: 'Updated target summary.',
       }),
     })
+  })
+
+  it('saves the optimized cvState without overwriting the canonical base cvState', async () => {
+    const session = buildSession()
+    session.agentState.optimizedCvState = buildOptimizedCvState()
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(session)
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        headers: buildTrustedHeaders(),
+        body: JSON.stringify({
+          scope: 'optimized',
+          cvState: {
+            ...buildOptimizedCvState(),
+            summary: 'Updated optimized summary.',
+          },
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      success: true,
+      scope: 'optimized',
+      changed: true,
+    })
+    expect(applyToolPatchWithVersion).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sess_123' }),
+      {
+        agentState: expect.objectContaining({
+          optimizedCvState: expect.objectContaining({
+            summary: 'Updated optimized summary.',
+          }),
+          rewriteStatus: 'completed',
+        }),
+      },
+    )
+  })
+
+  it('returns 409 when optimized editing is requested without an optimized cvState', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        headers: buildTrustedHeaders(),
+        body: JSON.stringify({
+          scope: 'optimized',
+          cvState: buildSession().cvState,
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'No optimized resume found for this session.',
+    })
+    expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
   })
 
   it('returns 404 when the requested target resume does not exist', async () => {

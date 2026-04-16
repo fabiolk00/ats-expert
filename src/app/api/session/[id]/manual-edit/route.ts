@@ -23,6 +23,10 @@ const ResumeEditorSaveSchema = z.discriminatedUnion('scope', [
     cvState: CVStateSchema,
   }),
   z.object({
+    scope: z.literal('optimized'),
+    cvState: CVStateSchema,
+  }),
+  z.object({
     scope: z.literal('target'),
     targetId: z.string().min(1),
     cvState: CVStateSchema,
@@ -100,6 +104,40 @@ export async function POST(
           success: true,
           scope: 'target',
           targetId: body.data.targetId,
+          changed: true,
+        })
+      }
+
+      if (body.data.scope === 'optimized') {
+        const currentOptimizedCvState = session.agentState.optimizedCvState
+        if (!currentOptimizedCvState) {
+          return NextResponse.json({ error: 'No optimized resume found for this session.' }, { status: 409 })
+        }
+
+        const changed = didCanonicalStateChange(
+          JSON.stringify(currentOptimizedCvState),
+          JSON.stringify(body.data.cvState),
+        )
+
+        if (!changed) {
+          return NextResponse.json({
+            success: true,
+            scope: 'optimized',
+            changed: false,
+          })
+        }
+
+        await applyToolPatchWithVersion(session, {
+          agentState: {
+            optimizedCvState: body.data.cvState,
+            optimizedAt: new Date().toISOString(),
+            rewriteStatus: 'completed',
+          },
+        })
+
+        return NextResponse.json({
+          success: true,
+          scope: 'optimized',
           changed: true,
         })
       }

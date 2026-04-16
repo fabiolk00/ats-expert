@@ -827,9 +827,9 @@ export default function UserDataPage({
                   const Icon = stat.icon
 
                   return (
-                    <Card key={stat.label} className="border-border py-0 shadow-none">
-                      <CardContent className="p-4">
-                        <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+                    <Card key={stat.label} className="border-border/80 bg-background/80 py-0 shadow-sm">
+                      <CardContent className="flex min-h-[108px] flex-col justify-between p-5">
+                        <div className="mb-3 flex items-center gap-2 text-muted-foreground">
                           <Icon className="h-4 w-4" />
                           <span className="text-xs font-medium uppercase tracking-wide">{stat.label}</span>
                         </div>
@@ -850,41 +850,61 @@ export default function UserDataPage({
                 </div>
               </div>
             ) : (
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  <div className="space-y-4 p-6">
-                    <VisualResumeEditor
-                      value={resumeData}
-                      onChange={setResumeData}
-                      disabled={isSaving || isRunningAtsEnhancement}
-                      onAllSectionsClosedChange={setAllSectionsClosed}
-                      compactMode={allSectionsClosed}
-                    />
+                <div className="flex min-h-0 flex-1 flex-col bg-muted/20">
+                  <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+                    <div className="flex min-h-full flex-col gap-6">
+                      <div className="flex-1 rounded-[28px] border border-border bg-card/95 p-4 shadow-sm md:p-5 xl:p-6">
+                        <VisualResumeEditor
+                          value={resumeData}
+                          onChange={setResumeData}
+                          disabled={isSaving || isRunningAtsEnhancement}
+                          onAllSectionsClosedChange={setAllSectionsClosed}
+                          compactMode={allSectionsClosed}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={isSaving || isRunningAtsEnhancement}
-                        onClick={() => router.push("/dashboard")}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        type="button"
-                        disabled={isSaving || isRunningAtsEnhancement}
-                        onClick={() => void handleSave()}
-                        data-testid="profile-save-button"
-                        className="bg-black text-white hover:bg-black/90"
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Salvando
-                          </>
-                        ) : (
-                          "Salvar"
-                        )}
-                      </Button>
+                  <div
+                    data-testid="profile-actions-bar"
+                    className="shrink-0 border-t border-border bg-background/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                          Finalize seu currículo base quando terminar os ajustes.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          As alterações aqui alimentam a próxima etapa de melhoria ATS e adaptação por vaga.
+                        </p>
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isSaving || isRunningAtsEnhancement}
+                          onClick={() => router.push("/dashboard")}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          disabled={isSaving || isRunningAtsEnhancement}
+                          onClick={() => void handleSave()}
+                          data-testid="profile-save-button"
+                          className="bg-black text-white hover:bg-black/90"
+                        >
+                          {isSaving ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Salvando
+                            </>
+                          ) : (
+                            "Salvar"
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -289,6 +289,10 @@ export function ResumeComparisonView({
   const [currentOptimizedCvState, setCurrentOptimizedCvState] = useState(optimizedCvState)
 
   useEffect(() => {
+    setCurrentOptimizedCvState(optimizedCvState)
+  }, [optimizedCvState])
+
+  useEffect(() => {
     const timer = window.setTimeout(() => setIsVisible(true), 50)
     return () => window.clearTimeout(timer)
   }, [])
@@ -329,9 +333,9 @@ export function ResumeComparisonView({
     }
   }
 
-  const handleEditorSaved = () => {
-    setCurrentOptimizedCvState((current) => ({ ...current }))
-    onCvStateUpdate?.(currentOptimizedCvState)
+  const handleEditorSaved = (nextCvState: CVState) => {
+    setCurrentOptimizedCvState(nextCvState)
+    onCvStateUpdate?.(nextCvState)
   }
 
   return (
@@ -457,6 +461,7 @@ export function ResumeComparisonView({
       <ResumeEditorModal
         sessionId={sessionId}
         targetId={null}
+        scope="optimized"
         open={isEditorOpen}
         onOpenChange={setIsEditorOpen}
         onSaved={handleEditorSaved}

@@ -6,15 +6,28 @@ import { getSessionWorkspace } from '@/lib/dashboard/workspace-client'
 import type { SessionWorkspace } from '@/types/dashboard'
 import type { CVState } from '@/types/cv'
 
+type SessionCvStateScope = 'base' | 'optimized' | 'target'
+
 function selectCvStateFromWorkspace(
   workspace: SessionWorkspace,
-  targetId?: string | null,
+  params?: {
+    targetId?: string | null
+    scope?: SessionCvStateScope
+  },
 ): CVState {
-  if (!targetId) {
+  if (params?.scope === 'optimized') {
+    if (!workspace.session.agentState.optimizedCvState) {
+      throw new Error('Optimized resume not found for this session.')
+    }
+
+    return workspace.session.agentState.optimizedCvState
+  }
+
+  if (params?.scope !== 'target') {
     return workspace.session.cvState
   }
 
-  const target = workspace.targets.find((entry) => entry.id === targetId)
+  const target = workspace.targets.find((entry) => entry.id === params.targetId)
   if (!target) {
     throw new Error('Target resume not found.')
   }
@@ -31,11 +44,16 @@ type UseSessionCvStateResult = {
 
 export function useSessionCvState(
   sessionId: string,
-  targetId?: string | null,
+  params?: {
+    targetId?: string | null
+    scope?: SessionCvStateScope
+  },
 ): UseSessionCvStateResult {
   const [cvState, setCvState] = useState<CVState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const targetId = params?.targetId ?? null
+  const scope = params?.scope ?? 'base'
 
   const refetch = useCallback(async () => {
     setIsLoading(true)
@@ -43,7 +61,7 @@ export function useSessionCvState(
 
     try {
       const workspace = await getSessionWorkspace(sessionId)
-      setCvState(structuredClone(selectCvStateFromWorkspace(workspace, targetId)))
+      setCvState(structuredClone(selectCvStateFromWorkspace(workspace, { targetId, scope })))
     } catch (fetchError) {
       setCvState(null)
       setError(
@@ -54,7 +72,7 @@ export function useSessionCvState(
     } finally {
       setIsLoading(false)
     }
-  }, [sessionId, targetId])
+  }, [scope, sessionId, targetId])
 
   useEffect(() => {
     void refetch()
