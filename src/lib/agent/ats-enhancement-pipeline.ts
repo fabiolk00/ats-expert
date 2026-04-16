@@ -43,7 +43,82 @@ function uniqueSections(
   ))
 }
 
-function buildConservativeAtsFallbackCvState(
+function normalize(value: string | undefined): string {
+  return (value ?? '').trim().toLowerCase()
+}
+
+function splitIntoSentences(value: string): string[] {
+  return value
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+}
+
+function buildEvidenceText(cvState: CVState): string {
+  return [
+    cvState.summary,
+    cvState.skills.join(' '),
+    ...cvState.experience.flatMap((entry) => [entry.title, entry.company, ...entry.bullets]),
+  ].join(' ').toLowerCase()
+}
+
+function extractNumbers(text: string): string[] {
+  return Array.from(text.match(/\d+(?:[.,]\d+)?%?/g) ?? [])
+}
+
+function sanitizeAtsSummary(
+  originalCvState: CVState,
+  optimizedCvState: CVState,
+  issues: NonNullable<Session['agentState']['rewriteValidation']>['issues'],
+): string {
+  const optimizedSummary = optimizedCvState.summary.trim()
+  if (!optimizedSummary) {
+    return originalCvState.summary
+  }
+
+  const summaryIssues = issues.filter((issue) => issue.section === 'summary')
+  if (summaryIssues.length === 0) {
+    return optimizedSummary
+  }
+
+  const normalizedSummary = optimizedSummary.toLowerCase()
+  const optimizedExperienceText = optimizedCvState.experience
+    .flatMap((entry) => [entry.title, ...entry.bullets])
+    .join(' ')
+    .toLowerCase()
+  const originalEvidenceText = buildEvidenceText(originalCvState)
+  const unsupportedSkills = optimizedCvState.skills.filter((skill) => {
+    const normalizedSkill = normalize(skill)
+    return normalizedSummary.includes(normalizedSkill) && !originalEvidenceText.includes(normalizedSkill)
+  })
+  const experienceMissingSkills = optimizedCvState.skills.filter((skill) => {
+    const normalizedSkill = normalize(skill)
+    return normalizedSummary.includes(normalizedSkill) && !optimizedExperienceText.includes(normalizedSkill)
+  })
+  const originalNumbers = new Set(extractNumbers(originalEvidenceText))
+  const unsupportedNumbers = extractNumbers(optimizedSummary).filter((value) => !originalNumbers.has(value))
+  const bannedTokens = Array.from(new Set([
+    ...unsupportedSkills.map(normalize),
+    ...experienceMissingSkills.map(normalize),
+    ...unsupportedNumbers.map((value) => value.toLowerCase()),
+  ]))
+
+  if (bannedTokens.length === 0) {
+    return optimizedSummary
+  }
+
+  const repairedSummary = splitIntoSentences(optimizedSummary)
+    .filter((sentence) => {
+      const normalizedSentence = sentence.toLowerCase()
+      return !bannedTokens.some((token) => normalizedSentence.includes(token))
+    })
+    .join(' ')
+    .trim()
+
+  return repairedSummary || originalCvState.summary
+}
+
+function buildSmartAtsRepairCvState(
   originalCvState: CVState,
   optimizedCvState: CVState,
   issues: NonNullable<Session['agentState']['rewriteValidation']>['issues'],
@@ -51,37 +126,43 @@ function buildConservativeAtsFallbackCvState(
   cvState: CVState
   notes: string[]
 } {
-  const fallbackCvState: CVState = structuredClone(optimizedCvState)
+  const repairedCvState: CVState = structuredClone(optimizedCvState)
   const notes: string[] = []
   const issueSections = new Set(uniqueSections(issues))
 
-  if (issueSections.has('summary')) {
-    fallbackCvState.summary = originalCvState.summary
-    notes.push('Resumo revertido para a versão original após validação conservadora.')
+  if (issueSections.has('skills')) {
+    const originalSkillSet = new Set(originalCvState.skills.map((skill) => normalize(skill)).filter(Boolean))
+    const filteredSkills = optimizedCvState.skills.filter((skill) => originalSkillSet.has(normalize(skill)))
+    repairedCvState.skills = filteredSkills.length > 0 ? filteredSkills : [...originalCvState.skills]
+    notes.push('Skills ajustadas para manter apenas ferramentas comprovadas no currículo original.')
   }
 
-  if (issueSections.has('skills')) {
-    fallbackCvState.skills = [...originalCvState.skills]
-    notes.push('Skills revertidas para a versão original após validação conservadora.')
+  if (issueSections.has('summary')) {
+    repairedCvState.summary = sanitizeAtsSummary(originalCvState, repairedCvState, issues)
+    notes.push(
+      repairedCvState.summary === originalCvState.summary
+        ? 'Resumo suavizado para remover claims sem suporte antes da validação final.'
+        : 'Resumo reescrito preservado com limpeza de menções inconsistentes.',
+    )
   }
 
   if (issueSections.has('experience')) {
-    fallbackCvState.experience = structuredClone(originalCvState.experience)
+    repairedCvState.experience = structuredClone(originalCvState.experience)
     notes.push('Experiência revertida para a versão original após validação conservadora.')
   }
 
   if (issueSections.has('education')) {
-    fallbackCvState.education = structuredClone(originalCvState.education)
+    repairedCvState.education = structuredClone(originalCvState.education)
     notes.push('Educação revertida para a versão original após validação conservadora.')
   }
 
   if (issueSections.has('certifications')) {
-    fallbackCvState.certifications = structuredClone(originalCvState.certifications)
+    repairedCvState.certifications = structuredClone(originalCvState.certifications)
     notes.push('Certificações revertidas para a versão original após validação conservadora.')
   }
 
   return {
-    cvState: fallbackCvState,
+    cvState: repairedCvState,
     notes,
   }
 }
@@ -242,22 +323,22 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
   let finalOptimizationSummary = rewriteResult.summary
 
   if (!validation.valid) {
-    const conservativeFallback = buildConservativeAtsFallbackCvState(
+    const smartRepair = buildSmartAtsRepairCvState(
       session.cvState,
       rewriteResult.optimizedCvState,
       validation.issues,
     )
-    const conservativeValidation = validateRewrite(session.cvState, conservativeFallback.cvState)
+    const smartRepairValidation = validateRewrite(session.cvState, smartRepair.cvState)
 
-    if (conservativeValidation.valid) {
-      finalOptimizedCvState = conservativeFallback.cvState
-      finalValidation = conservativeValidation
+    if (smartRepairValidation.valid) {
+      finalOptimizedCvState = smartRepair.cvState
+      finalValidation = smartRepairValidation
       finalOptimizationSummary = {
         changedSections: rewriteResult.summary?.changedSections ?? [],
         notes: Array.from(new Set([
           ...(rewriteResult.summary?.notes ?? []),
-          ...conservativeFallback.notes,
-          'Fallback conservador aplicado para garantir uma versão ATS válida.',
+          ...smartRepair.notes,
+          'Reparo automático aplicado para preservar a reescrita ATS com coerência factual.',
         ])),
         keywordCoverageImprovement: rewriteResult.summary?.keywordCoverageImprovement,
       }
@@ -267,31 +348,63 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
         sessionId: session.id,
         userId: session.userId,
         stage: 'validation',
-        recoveryKind: 'conservative_fallback',
+        recoveryKind: 'smart_repair',
         originalIssueCount: validation.issues.length,
         originalIssueSections: validationIssueSections.join(', ') || undefined,
       })
     } else {
-      finalOptimizedCvState = structuredClone(session.cvState)
-      finalValidation = validateRewrite(session.cvState, finalOptimizedCvState)
-      finalOptimizationSummary = {
-        changedSections: [],
-        notes: Array.from(new Set([
-          ...(rewriteResult.summary?.notes ?? []),
-          'Falha na validação ATS; a plataforma entregou a base original para evitar bloqueio da geração.',
-        ])),
-        keywordCoverageImprovement: rewriteResult.summary?.keywordCoverageImprovement,
-      }
+      const conservativeFallback = buildSmartAtsRepairCvState(
+        session.cvState,
+        smartRepair.cvState,
+        smartRepairValidation.issues,
+      )
+      const conservativeValidation = validateRewrite(session.cvState, conservativeFallback.cvState)
 
-      logWarn('agent.ats_enhancement.validation_recovered', {
-        workflowMode: 'ats_enhancement',
-        sessionId: session.id,
-        userId: session.userId,
-        stage: 'validation',
-        recoveryKind: 'original_cv_fallback',
-        originalIssueCount: validation.issues.length,
-        originalIssueSections: validationIssueSections.join(', ') || undefined,
-      })
+      if (conservativeValidation.valid) {
+        finalOptimizedCvState = conservativeFallback.cvState
+        finalValidation = conservativeValidation
+        finalOptimizationSummary = {
+          changedSections: rewriteResult.summary?.changedSections ?? [],
+          notes: Array.from(new Set([
+            ...(rewriteResult.summary?.notes ?? []),
+            ...smartRepair.notes,
+            ...conservativeFallback.notes,
+            'Fallback conservador aplicado para garantir uma versão ATS válida.',
+          ])),
+          keywordCoverageImprovement: rewriteResult.summary?.keywordCoverageImprovement,
+        }
+
+        logWarn('agent.ats_enhancement.validation_recovered', {
+          workflowMode: 'ats_enhancement',
+          sessionId: session.id,
+          userId: session.userId,
+          stage: 'validation',
+          recoveryKind: 'conservative_fallback',
+          originalIssueCount: validation.issues.length,
+          originalIssueSections: validationIssueSections.join(', ') || undefined,
+        })
+      } else {
+        finalOptimizedCvState = structuredClone(session.cvState)
+        finalValidation = validateRewrite(session.cvState, finalOptimizedCvState)
+        finalOptimizationSummary = {
+          changedSections: [],
+          notes: Array.from(new Set([
+            ...(rewriteResult.summary?.notes ?? []),
+            'Falha na validação ATS; a plataforma entregou a base original para evitar bloqueio da geração.',
+          ])),
+          keywordCoverageImprovement: rewriteResult.summary?.keywordCoverageImprovement,
+        }
+
+        logWarn('agent.ats_enhancement.validation_recovered', {
+          workflowMode: 'ats_enhancement',
+          sessionId: session.id,
+          userId: session.userId,
+          stage: 'validation',
+          recoveryKind: 'original_cv_fallback',
+          originalIssueCount: validation.issues.length,
+          originalIssueSections: validationIssueSections.join(', ') || undefined,
+        })
+      }
     }
   }
 

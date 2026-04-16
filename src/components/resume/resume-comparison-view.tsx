@@ -1,10 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ArrowRight, Download, Loader2, Sparkles, Target } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, Download, Loader2, Pencil } from "lucide-react"
 
+import { ResumeEditorModal } from "@/components/dashboard/resume-editor-modal"
+import Logo from "@/components/logo"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
 import { scoreATS } from "@/lib/ats/score"
 import { cn } from "@/lib/utils"
@@ -18,6 +19,8 @@ type ResumeComparisonViewProps = {
   sessionId: string
   targetJobDescription?: string
   onContinue: () => void
+  onCvStateUpdate?: (cvState: CVState) => void
+  className?: string
 }
 
 function cvStateToText(cvState: CVState): string {
@@ -65,151 +68,253 @@ function cvStateToText(cvState: CVState): string {
   return sections.join("\n")
 }
 
-function buildScoreLabel(generationType: ResumeGenerationType): string {
-  return generationType === "JOB_TARGETING" ? "Score ATS da vaga" : "Score ATS geral"
+function calculateAtsScore(cvState: CVState, targetJobDescription?: string): number {
+  return scoreATS(cvStateToText(cvState), targetJobDescription).total
 }
 
-function buildTitle(generationType: ResumeGenerationType): string {
-  return generationType === "JOB_TARGETING"
-    ? "Confira a versão adaptada para a vaga"
-    : "Confira a versão otimizada para ATS"
+function hasTextChanged(original: string, optimized: string): boolean {
+  return original?.trim() !== optimized?.trim()
 }
 
-function buildDescription(generationType: ResumeGenerationType): string {
-  return generationType === "JOB_TARGETING"
-    ? "Antes de seguir para o dashboard, compare o currículo base com a versão reescrita para os requisitos da vaga."
-    : "Antes de seguir para o dashboard, compare o currículo base com a versão reescrita para melhorar clareza, estrutura e aderência ATS."
+function hasArrayChanged<T>(original: T[], optimized: T[]): boolean {
+  return JSON.stringify(original) !== JSON.stringify(optimized)
 }
 
-function buildPrimaryCta(generationType: ResumeGenerationType): string {
-  return generationType === "JOB_TARGETING"
-    ? "Seguir com esta versão para a vaga"
-    : "Seguir com esta versão ATS"
-}
-
-function summarizeChanges(originalCvState: CVState, optimizedCvState: CVState): string[] {
-  const changes: string[] = []
-
-  if (originalCvState.summary.trim() !== optimizedCvState.summary.trim()) {
-    changes.push("Resumo profissional reescrito para ficar mais claro e objetivo.")
-  }
-
-  if (JSON.stringify(originalCvState.experience) !== JSON.stringify(optimizedCvState.experience)) {
-    changes.push("Experiências reorganizadas com bullets mais fortes e foco em impacto.")
-  }
-
-  if (JSON.stringify(originalCvState.skills) !== JSON.stringify(optimizedCvState.skills)) {
-    changes.push("Skills priorizadas para destacar melhor palavras-chave relevantes.")
-  }
-
-  if (JSON.stringify(originalCvState.education) !== JSON.stringify(optimizedCvState.education)) {
-    changes.push("Educação normalizada para manter a leitura consistente no currículo.")
-  }
-
-  if (JSON.stringify(originalCvState.certifications ?? []) !== JSON.stringify(optimizedCvState.certifications ?? [])) {
-    changes.push("Certificações padronizadas para melhorar escaneabilidade e apresentação.")
-  }
-
-  return changes.slice(0, 4)
-}
-
-function ResumeSnapshot({
-  title,
-  accentClassName,
-  score,
-  scoreLabel,
-  cvState,
-}: {
-  title: string
-  accentClassName: string
-  score: number
-  scoreLabel: string
-  cvState: CVState
-}) {
-  const topSkills = cvState.skills.slice(0, 8)
-  const topExperiences = cvState.experience.slice(0, 3)
-  const topEducation = cvState.education.slice(0, 2)
+function ChangeIndicator({ show }: { show: boolean }) {
+  if (!show) return null
 
   return (
-    <Card className="h-full border-border/70 shadow-sm">
-      <CardHeader className="space-y-4 border-b border-border/70">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <CardTitle className="text-base text-foreground">{title}</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">{cvState.fullName || "Seu nome aparece aqui"}</p>
-          </div>
-          <div className={cn("rounded-full px-3 py-1 text-xs font-semibold", accentClassName)}>
-            {scoreLabel}: {score}/100
-          </div>
-        </div>
-        <div className="space-y-1 text-xs text-muted-foreground">
-          {cvState.email ? <p>{cvState.email}</p> : null}
-          {cvState.phone ? <p>{cvState.phone}</p> : null}
-          {cvState.location ? <p>{cvState.location}</p> : null}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5 pt-5">
-        <section className="space-y-2">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Resumo</h3>
-          <p className="text-sm leading-6 text-foreground">
-            {cvState.summary || "O resumo profissional aparece aqui quando estiver preenchido."}
-          </p>
-        </section>
+    <span className="ml-1.5 inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 sm:ml-2 sm:h-2 sm:w-2" />
+  )
+}
 
-        <section className="space-y-2">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Skills</h3>
-          <div className="flex flex-wrap gap-2">
-            {(topSkills.length > 0 ? topSkills : ["As principais skills aparecem aqui"]).map((skill) => (
-              <span
-                key={skill}
-                className="rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs text-foreground"
-              >
-                {skill}
+function ResumeDocument({
+  cvState,
+  variant,
+  originalCvState,
+  onEdit,
+  onDownload,
+  isDownloading,
+}: {
+  cvState: CVState
+  variant: "original" | "optimized"
+  originalCvState?: CVState
+  onEdit?: () => void
+  onDownload?: () => void
+  isDownloading?: boolean
+}) {
+  const isOptimized = variant === "optimized"
+  const compare = originalCvState || cvState
+
+  return (
+    <div
+      className={cn(
+        "relative h-full rounded-lg border bg-white p-4 shadow-sm dark:bg-zinc-950 sm:p-6 md:p-8",
+        isOptimized
+          ? "border-emerald-200 dark:border-emerald-900/50"
+          : "border-red-200 dark:border-red-900/50",
+      )}
+    >
+      {isOptimized && (onEdit || onDownload) ? (
+        <div className="absolute right-2 top-2 flex gap-1 sm:right-4 sm:top-4">
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 sm:h-8 sm:w-8"
+              title="Editar currículo"
+            >
+              <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+          ) : null}
+          {onDownload ? (
+            <button
+              type="button"
+              onClick={onDownload}
+              disabled={isDownloading}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 sm:h-8 sm:w-8"
+              title="Baixar PDF"
+            >
+              {isDownloading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin sm:h-4 sm:w-4" />
+              ) : (
+                <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              )}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="mb-4 border-b border-zinc-100 pb-4 dark:border-zinc-800 sm:mb-6 sm:pb-6">
+        <h2 className="flex items-center pr-16 text-base font-bold text-zinc-900 dark:text-zinc-100 sm:pr-0 sm:text-xl">
+          {cvState.fullName || "Seu nome"}
+          {isOptimized ? (
+            <ChangeIndicator show={hasTextChanged(compare.fullName, cvState.fullName)} />
+          ) : null}
+        </h2>
+        <div className="mt-1.5 flex flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-400 sm:mt-2 sm:flex-row sm:flex-wrap sm:gap-x-4 sm:gap-y-1 sm:text-sm">
+          {cvState.email ? <span className="truncate">{cvState.email}</span> : null}
+          {cvState.phone ? <span>{cvState.phone}</span> : null}
+          {cvState.location ? <span className="truncate">{cvState.location}</span> : null}
+        </div>
+      </div>
+
+      {cvState.summary ? (
+        <div className="mb-4 sm:mb-6">
+          <h3 className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-2 sm:text-xs">
+            Resumo
+            {isOptimized ? (
+              <ChangeIndicator show={hasTextChanged(compare.summary, cvState.summary)} />
+            ) : null}
+          </h3>
+          <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-sm">
+            {cvState.summary}
+          </p>
+        </div>
+      ) : null}
+
+      {cvState.experience.length > 0 ? (
+        <div className="mb-4 sm:mb-6">
+          <h3 className="mb-2 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-3 sm:text-xs">
+            Experiência
+            {isOptimized ? (
+              <ChangeIndicator show={hasArrayChanged(compare.experience, cvState.experience)} />
+            ) : null}
+          </h3>
+          <div className="space-y-3 sm:space-y-4">
+            {cvState.experience.slice(0, 3).map((experience, index) => {
+              const originalExperience = compare.experience[index]
+              const experienceChanged = isOptimized
+                && originalExperience
+                && JSON.stringify(originalExperience) !== JSON.stringify(experience)
+
+              return (
+                <div key={`${experience.title}-${index}`}>
+                  <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center text-xs font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">
+                        <span className="truncate">{experience.title}</span>
+                        {experienceChanged ? <ChangeIndicator show /> : null}
+                      </p>
+                      <p className="truncate text-xs text-zinc-600 dark:text-zinc-400 sm:text-sm">
+                        {experience.company}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[10px] text-zinc-500 dark:text-zinc-500 sm:text-xs">
+                      {experience.startDate} - {experience.endDate}
+                    </span>
+                  </div>
+                  {experience.bullets.length > 0 ? (
+                    <ul className="mt-1.5 space-y-0.5 sm:mt-2 sm:space-y-1">
+                      {experience.bullets.slice(0, 2).map((bullet, bulletIndex) => {
+                        const originalBullet = originalExperience?.bullets?.[bulletIndex]
+                        const bulletChanged = isOptimized && originalBullet !== bullet
+
+                        return (
+                          <li
+                            key={bulletIndex}
+                            className="flex items-start gap-1.5 text-xs text-zinc-600 dark:text-zinc-400 sm:gap-2 sm:text-sm"
+                          >
+                            <span
+                              className={cn(
+                                "mt-1.5 h-1 w-1 shrink-0 rounded-full sm:mt-2",
+                                bulletChanged
+                                  ? "bg-emerald-500"
+                                  : "bg-zinc-400 dark:bg-zinc-600",
+                              )}
+                            />
+                            <span className="line-clamp-2">{bullet}</span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {cvState.skills.length > 0 ? (
+        <div className="mb-4 sm:mb-6">
+          <h3 className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-2 sm:text-xs">
+            Skills
+            {isOptimized ? (
+              <ChangeIndicator show={hasArrayChanged(compare.skills, cvState.skills)} />
+            ) : null}
+          </h3>
+          <div className="flex flex-wrap gap-1 sm:gap-1.5">
+            {cvState.skills.slice(0, 8).map((skill, index) => {
+              const isNew = isOptimized && !compare.skills.includes(skill)
+
+              return (
+                <span
+                  key={`${skill}-${index}`}
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium sm:px-2.5 sm:text-xs",
+                    isNew
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                      : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+                  )}
+                >
+                  {skill}
+                  {isNew ? <span className="ml-0.5 text-emerald-500 sm:ml-1">+</span> : null}
+                </span>
+              )
+            })}
+            {cvState.skills.length > 8 ? (
+              <span className="inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 sm:px-2.5 sm:text-xs">
+                +{cvState.skills.length - 8}
               </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {cvState.education.length > 0 ? (
+        <div className="mb-4 sm:mb-6">
+          <h3 className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-2 sm:text-xs">
+            Educação
+            {isOptimized ? (
+              <ChangeIndicator show={hasArrayChanged(compare.education, cvState.education)} />
+            ) : null}
+          </h3>
+          <div className="space-y-1.5 sm:space-y-2">
+            {cvState.education.slice(0, 2).map((education, index) => (
+              <div key={`${education.degree}-${index}`}>
+                <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 sm:text-sm">
+                  {education.degree}
+                </p>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 sm:text-sm">
+                  {education.institution} {education.year ? `- ${education.year}` : ""}
+                </p>
+              </div>
             ))}
           </div>
-        </section>
+        </div>
+      ) : null}
 
-        <section className="space-y-2">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Experiência</h3>
-          <div className="space-y-3">
-            {topExperiences.length > 0 ? topExperiences.map((experience, index) => (
-              <div key={`${experience.title}-${index}`} className="space-y-1">
-                <p className="text-sm font-medium text-foreground">
-                  {experience.title || "Cargo"}{experience.company ? ` · ${experience.company}` : ""}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {experience.startDate || "Início"}{experience.endDate ? ` - ${experience.endDate}` : ""}
-                </p>
-                {experience.bullets.slice(0, 2).map((bullet, bulletIndex) => (
-                  <p key={`${experience.title}-${bulletIndex}`} className="text-xs leading-5 text-muted-foreground">
-                    • {bullet}
-                  </p>
-                ))}
-              </div>
-            )) : (
-              <p className="text-sm text-muted-foreground">As experiências principais aparecem aqui.</p>
-            )}
+      {cvState.certifications && cvState.certifications.length > 0 ? (
+        <div>
+          <h3 className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-2 sm:text-xs">
+            Certificações
+            {isOptimized ? (
+              <ChangeIndicator
+                show={hasArrayChanged(compare.certifications || [], cvState.certifications)}
+              />
+            ) : null}
+          </h3>
+          <div className="space-y-0.5 sm:space-y-1">
+            {cvState.certifications.slice(0, 2).map((certification, index) => (
+              <p key={index} className="text-xs text-zinc-600 dark:text-zinc-400 sm:text-sm">
+                {certification.name} {certification.issuer ? `- ${certification.issuer}` : ""}
+              </p>
+            ))}
           </div>
-        </section>
-
-        <section className="space-y-2">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Educação</h3>
-          <div className="space-y-2">
-            {topEducation.length > 0 ? topEducation.map((education, index) => (
-              <div key={`${education.degree}-${index}`}>
-                <p className="text-sm font-medium text-foreground">{education.degree || "Formação"}</p>
-                <p className="text-xs text-muted-foreground">
-                  {education.institution || "Instituição"}{education.year ? ` · ${education.year}` : ""}
-                </p>
-              </div>
-            )) : (
-              <p className="text-sm text-muted-foreground">As formações cadastradas aparecem aqui.</p>
-            )}
-          </div>
-        </section>
-      </CardContent>
-    </Card>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -220,32 +325,36 @@ export function ResumeComparisonView({
   sessionId,
   targetJobDescription,
   onContinue,
+  onCvStateUpdate,
+  className,
 }: ResumeComparisonViewProps) {
+  const [isVisible, setIsVisible] = useState(false)
+  const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
-  const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [currentOptimizedCvState, setCurrentOptimizedCvState] = useState(optimizedCvState)
 
-  const scoreLabel = buildScoreLabel(generationType)
-  const title = buildTitle(generationType)
-  const description = buildDescription(generationType)
-  const primaryCta = buildPrimaryCta(generationType)
-  const changeHighlights = useMemo(
-    () => summarizeChanges(originalCvState, optimizedCvState),
-    [originalCvState, optimizedCvState],
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsVisible(true), 50)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  const title = useMemo(
+    () => generationType === "JOB_TARGETING" ? "Currículo adaptado para a vaga" : "Currículo otimizado para ATS",
+    [generationType],
   )
 
   const originalScore = useMemo(
-    () => scoreATS(cvStateToText(originalCvState), targetJobDescription).total,
+    () => calculateAtsScore(originalCvState, targetJobDescription),
     [originalCvState, targetJobDescription],
   )
   const optimizedScore = useMemo(
-    () => scoreATS(cvStateToText(optimizedCvState), targetJobDescription).total,
-    [optimizedCvState, targetJobDescription],
+    () => calculateAtsScore(currentOptimizedCvState, targetJobDescription),
+    [currentOptimizedCvState, targetJobDescription],
   )
 
   const handleDownload = async () => {
     try {
       setIsDownloading(true)
-      setDownloadError(null)
 
       const urls = await getDownloadUrls(sessionId)
       if (!urls.pdfUrl) {
@@ -268,76 +377,134 @@ export function ResumeComparisonView({
       anchor.remove()
       URL.revokeObjectURL(objectUrl)
     } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : "Falha ao baixar o PDF. Tente novamente.")
+      console.error("Falha ao baixar o PDF:", error)
     } finally {
       setIsDownloading(false)
     }
   }
 
-  return (
-    <div data-testid="resume-comparison-view" className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                {generationType === "JOB_TARGETING" ? <Target className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
-                {generationType === "JOB_TARGETING" ? "Comparação da vaga" : "Comparação ATS"}
-              </div>
-              <h1 className="text-2xl font-semibold tracking-[-0.02em] text-balance text-foreground">{title}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p>
-            </div>
+  const handleEditorSaved = () => {
+    setCurrentOptimizedCvState((current) => ({ ...current }))
+    onCvStateUpdate?.(currentOptimizedCvState)
+  }
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void handleDownload()}
-                disabled={isDownloading}
-                className="gap-2"
-              >
-                {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Baixar PDF
-              </Button>
-              <Button type="button" onClick={onContinue} className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700">
-                {primaryCta}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+  return (
+    <div
+      data-testid="resume-comparison-view"
+      className={cn("flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-900", className)}
+    >
+      <header
+        className={cn(
+          "shrink-0 border-b border-zinc-200 bg-white px-4 py-3 transition-all duration-500 dark:border-zinc-800 dark:bg-zinc-950 sm:px-6 sm:py-4",
+          isVisible ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
+        )}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+            <div className="shrink-0">
+              <Logo linkTo="#" size="default" />
+            </div>
+            <div className="hidden h-6 w-px bg-zinc-200 dark:bg-zinc-700 sm:block" />
+            <div className="hidden min-w-0 sm:block">
+              <h1 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100 lg:text-lg">
+                {title}
+              </h1>
+              <p className="truncate text-xs text-zinc-500 dark:text-zinc-400 lg:text-sm">
+                Compare as alterações lado a lado
+              </p>
             </div>
           </div>
 
-          {downloadError ? (
-            <p className="text-sm text-destructive">{downloadError}</p>
-          ) : null}
-
-          {changeHighlights.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {changeHighlights.map((highlight) => (
-                <div key={highlight} className="rounded-2xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
-                  {highlight}
-                </div>
-              ))}
-            </div>
-          ) : null}
+          <Button
+            onClick={onContinue}
+            size="sm"
+            className="hidden gap-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 sm:flex sm:h-9 sm:px-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden md:inline">Voltar ao Perfil</span>
+            <span className="md:hidden">Voltar</span>
+          </Button>
         </div>
 
-        <div className="grid flex-1 gap-6 lg:grid-cols-2">
-          <ResumeSnapshot
-            title="Versão base"
-            accentClassName="bg-amber-100 text-amber-800"
-            score={originalScore}
-            scoreLabel={scoreLabel}
-            cvState={originalCvState}
-          />
-          <ResumeSnapshot
-            title="Versão gerada"
-            accentClassName="bg-emerald-100 text-emerald-800"
-            score={optimizedScore}
-            scoreLabel={scoreLabel}
-            cvState={optimizedCvState}
-          />
+        <div className="mt-2 sm:hidden">
+          <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {title}
+          </h1>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Compare as alterações lado a lado
+          </p>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
+        <div
+          className={cn(
+            "mx-auto grid max-w-7xl gap-8 transition-all duration-700 sm:gap-6 lg:grid-cols-2",
+            isVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
+          )}
+        >
+          <div>
+            <div className="mb-2 flex items-center justify-between sm:mb-3">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                <span className="text-xs font-medium text-red-600 dark:text-red-400 sm:text-sm">
+                  Original
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 sm:text-xs">ATS Score:</span>
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600 dark:bg-red-900/30 dark:text-red-400 sm:text-xs">
+                  {originalScore}%
+                </span>
+              </div>
+            </div>
+            <ResumeDocument cvState={originalCvState} variant="original" />
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between sm:mb-3">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 sm:text-sm">
+                  Otimizado
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 sm:text-xs">ATS Score:</span>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 sm:text-xs">
+                  {optimizedScore}%
+                </span>
+              </div>
+            </div>
+            <ResumeDocument
+              cvState={currentOptimizedCvState}
+              variant="optimized"
+              originalCvState={originalCvState}
+              onEdit={() => setIsEditorOpen(true)}
+              onDownload={handleDownload}
+              isDownloading={isDownloading}
+            />
+          </div>
         </div>
       </div>
+
+      <div className="shrink-0 border-t border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950 sm:hidden">
+        <Button
+          onClick={onContinue}
+          className="w-full gap-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Voltar ao Perfil
+        </Button>
+      </div>
+
+      <ResumeEditorModal
+        sessionId={sessionId}
+        targetId={null}
+        open={isEditorOpen}
+        onOpenChange={setIsEditorOpen}
+        onSaved={handleEditorSaved}
+      />
     </div>
   )
 }

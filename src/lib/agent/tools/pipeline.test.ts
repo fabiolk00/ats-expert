@@ -382,7 +382,7 @@ describe('ATS enhancement reliability hardening', () => {
 
     expect(result.success).toBe(true)
     expect(session.agentState.optimizedCvState).toBeDefined()
-    expect(session.agentState.optimizedCvState?.summary).toBe(buildCvState().summary)
+    expect(session.agentState.optimizedCvState?.summary).toBe('Resumo com Power Query e Looker Studio sem suporte.')
     expect(session.agentState.optimizedCvState?.skills).toEqual(buildCvState().skills)
     expect(session.agentState.rewriteStatus).toBe('completed')
     expect(session.agentState.atsWorkflowRun).toMatchObject({
@@ -392,7 +392,7 @@ describe('ATS enhancement reliability hardening', () => {
     expect(mockCreateCvVersion).toHaveBeenCalledTimes(1)
     expect(mockLogWarn).toHaveBeenCalledWith('agent.ats_enhancement.validation_recovered', expect.objectContaining({
       workflowMode: 'ats_enhancement',
-      recoveryKind: 'conservative_fallback',
+      recoveryKind: 'smart_repair',
     }))
   })
 

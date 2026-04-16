@@ -336,15 +336,15 @@ describe("UserDataPage", () => {
     await user.click(button)
 
     expect(await screen.findByTestId("resume-comparison-view")).toBeInTheDocument()
-    expect(screen.getByText("Confira a versão otimizada para ATS")).toBeInTheDocument()
+    expect(screen.getAllByText("Currículo otimizado para ATS")).toHaveLength(2)
     expect(mockPush).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole("button", { name: "Seguir com esta versão ATS" }))
+    await user.click(screen.getAllByRole("button", { name: "Voltar ao Perfil" })[0])
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/dashboard?session=sess_ats_123")
     })
-    expect(fetchMock).toHaveBeenLastCalledWith("/api/profile/smart-generation", expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith("/api/profile/smart-generation", expect.objectContaining({
       method: "POST",
     }))
   })
@@ -509,15 +509,15 @@ describe("UserDataPage", () => {
     await user.click(screen.getByText("Adaptar para vaga (1 crédito)"))
 
     expect(await screen.findByTestId("resume-comparison-view")).toBeInTheDocument()
-    expect(screen.getByText("Confira a versão adaptada para a vaga")).toBeInTheDocument()
+    expect(screen.getAllByText("Currículo adaptado para a vaga")).toHaveLength(2)
 
-    await user.click(screen.getByRole("button", { name: "Seguir com esta versão para a vaga" }))
+    await user.click(screen.getAllByRole("button", { name: "Voltar ao Perfil" })[0])
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/dashboard?session=sess_target_123")
     })
 
-    expect(fetchMock).toHaveBeenLastCalledWith("/api/profile/smart-generation", expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith("/api/profile/smart-generation", expect.objectContaining({
       method: "POST",
       body: expect.stringContaining("\"targetJobDescription\":\"Vaga para analista de dados senior com foco em produto e SQL.\""),
     }))

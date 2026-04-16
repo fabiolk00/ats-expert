@@ -33,8 +33,8 @@ Current Phase Name: Make target job analysis robust to freeform vacancy text and
 Current Plan: None
 Total Plans in Phase: 1
 Status: Ready for audit
-Last activity: 2026-04-15 -- Phase 36 execution complete
-Last Activity Description: Job targeting now derives semantic vacancy focus under arbitrary pasted text, sanitizes unsupported skills before validation, and exposes low-confidence parsing more clearly
+Last activity: 2026-04-15 -- Completed quick task 260415-tld: restore compare-generated-resumes layout and preserve ATS rewritten content
+Last Activity Description: The resume comparison screen now mirrors the reference branch layout, including mobile behavior, and ATS smart recovery preserves rewritten content before using aggressive fallback
 
 Progress: [##########] 100%
 
@@ -120,3 +120,4 @@ Resume file: None
 | 2026-04-15 | 260414-u6l | Fix pnpm frozen lockfile drift and classify pdf_import_jobs in database convention audit | Complete |
 | 2026-04-15 | 260414-u9d | Make package scripts package-manager agnostic so lint works when CI invokes npm scripts without pnpm on PATH | Complete |
 | 2026-04-15 | 260415-r14 | Improve job-targeting validation observability, harden targetRole extraction, and cover the validation failure path with tests | Complete |
+| 2026-04-15 | 260415-tld | Restore compare-generated-resumes layout and preserve ATS rewritten content with smart fallback | Complete |
