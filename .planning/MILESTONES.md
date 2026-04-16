@@ -1,20 +1,38 @@
 # Milestones
 
-## v1.5 Verification Closure and Runtime Residuals (Active)
+## v1.6 Async Agent Orchestration and Background Job Runtime (Active)
 
-**Planned phases:** 3 phases, 7 plans
+**Planned phases:** 4 phases, 4 plans
 
 **Main focus:**
 
-- keep the newly backfilled `VERIFICATION.md` layer durable and milestone-audit-compatible
-- keep roadmap, archive, traceability, and state metadata aligned during closeout, including decimal phases
-- decide or fix the remaining non-E2E runtime residual through explicit profiling and budget proof
+- keep `/api/agent` as the public entry point while shrinking it into a lightweight orchestrator
+- move ATS enhancement, target-job rewriting, and artifact generation behind durable async jobs
+- preserve optimized-state, preview, and artifact consistency while adding queryable job status and stronger observability
 
 **Planned accomplishments:**
 
-- lock the recently backfilled milestone-audit-compatible verification artifacts into the archive contract
-- remove manual archive repair for milestone closeout metadata and next-cycle reset
-- narrow the residual non-E2E runtime bottlenecks into either a smaller budget or an explicit accepted gate
+- freeze shared action, job, lifecycle, and snapshot contracts before parallel implementation
+- extract request-boundary orchestration so lightweight chat stays synchronous and heavy work dispatches asynchronously
+- ship durable job persistence, worker processors, and integrated status proof without changing current business rules
+
+---
+
+## v1.5 Verification Closure and Runtime Residuals (Shipped: 2026-04-16)
+
+**Phases completed:** 5 phases, 10 plans, 10 tasks
+
+**Key accomplishments:**
+
+- Added committed `VERIFICATION.md` artifacts and milestone-audit-compatible coverage proof for the recently shipped hardening phases.
+- Hardened milestone archive, decimal-phase metadata, traceability, and next-cycle planning reset behavior with repo-native validation.
+- Reduced the dominant residual non-E2E suite further and turned the remaining runtime concern into an explicit budgeted contract.
+- Kept optimized-state rewrite follow-ups coherent after ATS enhancement and improved target-job robustness under freeform vacancy text.
+
+**Known gaps:**
+
+- `/api/agent` still carries too much synchronous orchestration and long-lived SSE responsibility for heavy resume work.
+- ATS enhancement, target-job rewriting, and artifact generation still need to move fully behind durable async execution to reduce request-path pressure.
 
 ---
 
@@ -33,7 +51,7 @@
 **Known gaps:**
 
 - `v1.4` now has archived `VERIFICATION.md` artifacts, but it still carries accepted runtime debt from the residual non-E2E ceiling documented in Phase `31.1`.
-- milestone closeout metadata previously required manual repair after decimal phase `31.1`, and Phase `33` is the follow-up contract hardening for that path.
+- milestone closeout metadata previously required manual repair after decimal phase `31.1`, and Phase `33` was the follow-up contract hardening for that path.
 
 ---
 

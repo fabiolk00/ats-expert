@@ -1,49 +1,49 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: milestone
-current_phase: 36
-current_phase_name: Make target job analysis robust to freeform vacancy text and reduce rewrite failures from weak target-role parsing
+milestone: v1.6
+milestone_name: async-agent-orchestration-and-background-job-runtime
+current_phase: 37
+current_phase_name: Freeze async execution contracts and durable job foundations
 current_plan: None
 status: ready
-stopped_at: Phase 36 complete
-last_updated: "2026-04-16T03:03:45.000Z"
-last_activity: 2026-04-16 -- Completed quick task 260416-025: fix the signed-url logger typing issue and clear the remaining TypeScript compile blockers
+stopped_at: Milestone v1.6 initialized
+last_updated: "2026-04-16T18:09:35.2288304-03:00"
+last_activity: 2026-04-16 -- Initialized milestone v1.6 from the async execution refactor plan
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-15)
+See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Milestone `v1.5` audit and closeout after runtime-budget proof landed
+**Current focus:** Milestone `v1.6` async agent orchestration and background-job runtime
 
 ## Current Position
 
-Current Phase: 36
-Current Phase Name: Make target job analysis robust to freeform vacancy text and reduce rewrite failures from weak target-role parsing
+Current Phase: 37
+Current Phase Name: Freeze async execution contracts and durable job foundations
 Current Plan: None
 Total Plans in Phase: 1
-Status: Ready for audit
-Last activity: 2026-04-16 -- Completed quick task 260416-025: fix the signed-url logger typing issue and clear the remaining TypeScript compile blockers
-Last Activity Description: The signed-url fallback now logs serialized error fields with the correct structured-log shape, and stale hook test calls were aligned so `npx tsc --noEmit` passes again
+Status: Ready
+Last activity: 2026-04-16 -- Initialized milestone v1.6 from the async execution refactor plan
+Last Activity Description: Archived the completed v1.5 planning surface, moved its phase history into milestone archives, and defined the v1.6 requirements plus roadmap for the async execution refactor
 
-Progress: [##########] 100%
+Progress: [----------] 0%
 
 ## Performance Metrics
 
 Baseline carried forward from earlier shipped milestones:
 
-- Total plans completed: 67
-- Milestones archived: 4
+- Total plans completed: 71
+- Milestones archived: 5
 
 ## Accumulated Context
 
@@ -52,7 +52,6 @@ Baseline carried forward from earlier shipped milestones:
 - v1.0 archived: Launch Hardening for the Core Funnel
 - v1.1 archived: Agent Reliability and Response Continuity
 - v1.2 archived: Code Hygiene and Dead Code Reduction
-- v1.3 archived: Agent Response Time and Runtime Performance
 - Phase 24 completed: baseline request timing and first-response SSE observability
 - Phase 25 completed: earlier visible chat progress and ATS request-path reduction
 - Phase 26 completed: runtime intent extraction, deterministic dialog fast paths, and phase-specific runtime budgets
@@ -62,14 +61,14 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 31.1 planned: 3 execution plans added for runtime baseline, suite optimization, and CI-friendly proof
 - Phase 31.1 completed: runtime baseline fixes shipped, hot UI suites reduced, and non-E2E profiling is now exposed in CI with explicit residual timing evidence
 - v1.4 archived: milestone history moved to `.planning/milestones/` and the audit debt was accepted explicitly instead of being hidden
-- v1.5 started: verification closure, archive metadata integrity, and residual non-E2E runtime budgeting are now the active milestone focus
+- v1.5 started: verification closure, archive metadata integrity, and residual non-E2E runtime budgeting became the active milestone focus
 - Phase 32 completed: the `v1.4` archive now includes committed `VERIFICATION.md` artifacts and the archived milestone audit no longer fails on missing-proof fallback
 - Phase 33 completed: milestone summaries, decimal-phase counts, and next-cycle planning state now have a repo-native metadata checker and aligned archive narrative
 - Phase 34 completed: the dominant residual suite was reduced materially and the repo now gates it through an explicit resume-builder runtime budget check
-- Phase 35 added: rewrite follow-up and target-resume derivation coherence will now be audited against the earlier ATS and job-targeting optimized-state contract
 - Phase 35 completed: effective optimized-state selection now keeps follow-up rewrites and target resume derivation aligned with the deterministic ATS and job-targeting contract
-- Phase 36 added: freeform vacancy text will now be treated as a semantic targeting input instead of depending on brittle role-title parsing
 - Phase 36 completed: job targeting now uses semantic vacancy focus, low-confidence role fallback, and supported-skill sanitization to stay useful under arbitrary pasted vacancy text
+- v1.5 archived: roadmap, requirements, audit, and phase directories now live under `.planning/milestones/` for historical traceability
+- v1.6 started: async agent orchestration and background-job runtime are now the active milestone focus
 
 ### Decisions
 
@@ -79,57 +78,22 @@ Recent decisions affecting the next cycle:
 - Critical resume transformation logic now lives in deterministic backend pipelines instead of optional chat decisions.
 - `cvState` remains canonical truth and `agentState` remains operational context.
 - Security, billing, file-access, and JSON persistence work now prefer route-level proof plus explicit non-claims over implicit trust.
-- Dead-code cleanup remains staged: tooling baseline first, then imports or locals, then exports or files, then dependencies.
-- Main focus for v1.4 is agent modularization, trust-boundary hardening, and release stability before new breadth.
-- The latency evidence and deterministic fast-path seams from v1.3 should be preserved while extracting smaller agent services.
-- Canonical host configuration and explicit origin or CSRF validation are now the preferred trust model for sensitive authenticated mutations and checkout flows.
-- Release confidence should come from committed regression gates around workspace, preview, generation, and encoding-sensitive user surfaces.
-- Shared authenticated-mutation trust validation now gates canonical profile edits, session edits, resume generation, and checkout, while webhook billing callbacks remain explicitly token-authenticated server-to-server flows.
-- Repeated long-vacancy generation now has committed browser proof, the remaining mojibake expectations were cleaned, and CI exposes the repaired workspace flow as an explicit release-critical gate.
-- Non-E2E tests now default to `node` unless they explicitly need `jsdom`, recovery tests can bypass production backoff safely, and CI uses the same named profiling command as local runtime proof.
-- Archive quality now matters enough that missing phase verification artifacts should be treated as milestone debt, not silently ignored.
-- The `v1.4` archive now treats backfilled phase verification as canonical audit input, while the remaining non-E2E runtime ceiling issue stays explicit accepted debt.
-- Milestone metadata, decimal phases, and next-cycle reset state should be checked through repo-native proof instead of manual recounting.
-- The remaining dominant non-E2E outlier should be budgeted explicitly through a targeted gate instead of rerunning a broad-suite profile as the main CI signal.
+- The main async refactor must preserve `/api/agent` as the public entry point and keep lightweight chat synchronous.
+- Heavy ATS, targeting, and artifact work should move behind durable async jobs instead of changing current business rules.
+- Shared async execution contracts should be frozen before the orchestrator and worker implementations diverge.
 
 ### Pending Todos
 
-- Audit milestone v1.5.
+- Start Phase 37 discussion and planning.
 
 ### Blockers or Concerns
 
 - No active implementation blocker is currently known.
-- `v1.4` no longer lacks archived `VERIFICATION.md` artifacts, but it still carries accepted runtime debt from Phase `31.1`.
-- The broad non-E2E suite is no longer the primary budget contract; the repo now tracks the dominant residual through the targeted resume-builder gate.
+- Phase 37 must freeze the shared contracts before Phase 38 and Phase 39 proceed in parallel.
+- Async failures must not clobber a previously valid `optimizedCvState` or break preview versus artifact consistency.
 
 ## Session Continuity
 
-Last session: 2026-04-15T23:30:00.0000000-03:00
-Stopped at: Phase 35 completed; milestone v1.5 ready for audit
+Last session: 2026-04-16T18:09:35.2288304-03:00
+Stopped at: Milestone v1.6 initialized; Phase 37 ready to discuss
 Resume file: None
-
-## Quick Tasks Completed
-
-| Date | ID | Task | Status |
-|------|----|------|--------|
-| 2026-04-10 | 260410-pis | Replace custom login and signup forms with embedded Clerk auth components | Complete |
-| 2026-04-12 | 260412-o24 | Migrate credits from session billing to resume generation billing | Complete |
-| 2026-04-13 | 260413-dh7 | Fix broken login and signup input box layout | Complete |
-| 2026-04-13 | 260413-u8s | Set navbar font color to black for public links | Complete |
-| 2026-04-13 | 260413-up5 | Standardize CurrIA brand pattern across landing page and public pages | Complete |
-| 2026-04-15 | 260414-u6l | Fix pnpm frozen lockfile drift and classify pdf_import_jobs in database convention audit | Complete |
-| 2026-04-15 | 260414-u9d | Make package scripts package-manager agnostic so lint works when CI invokes npm scripts without pnpm on PATH | Complete |
-| 2026-04-15 | 260415-r14 | Improve job-targeting validation observability, harden targetRole extraction, and cover the validation failure path with tests | Complete |
-| 2026-04-15 | 260415-tld | Restore compare-generated-resumes layout and preserve ATS rewritten content with smart fallback | Complete |
-| 2026-04-15 | 260415-u2g | Make resume comparison use a dedicated route, meaningful PT-BR ATS scoring, full rendering, and visible rewrite retries | Complete |
-| 2026-04-15 | 260415-gld | Add an animated loading overlay during setup generation while ATS optimization is running | Complete |
-| 2026-04-16 | 260415-v7b | Align ATS enhancement completion logs with final validation state after recovery | Complete |
-| 2026-04-16 | 260415-vuc | Fix smart generation session state clobber after successful pipeline generation | Complete |
-| 2026-04-16 | 260415-w4c | Fix resume comparison editor to load and save optimized ATS session state | Complete |
-| 2026-04-16 | 260415-w9f | Redistribute the resume setup editor layout so the center workspace feels fuller and the actions stay anchored at the bottom | Complete |
-| 2026-04-16 | 260415-wjw | Restore the previous resume setup layout and slow the loading overlay with staged red, yellow, and green progress tones | Complete |
-| 2026-04-16 | 260415-wvk | Prevent signed URL failures from breaking smart generation after file persistence | Complete |
-| 2026-04-16 | 260415-x06 | Strengthen ATS rewrite guidance to preserve technical depth, metrics, and critical judgment | Complete |
-| 2026-04-16 | 260415-x7b | Harden resume rewrite guardrails around the golden rule and anti-compression behavior | Complete |
-| 2026-04-16 | 260415-xbf | Reorganize rewrite-section prompt hierarchy and tighten short rewrite metadata | Complete |
-| 2026-04-16 | 260416-025 | Fix the signed-url logger typing issue and clear the remaining TypeScript compile blockers | Complete |
