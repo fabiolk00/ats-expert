@@ -305,4 +305,42 @@ describe('rewriteSection', () => {
       changes_made: ['Bullets fortalecidos com verbos de impacto'],
     })
   })
+
+  it('sends guardrails that preserve detail, metrics, and stronger bullet structure', async () => {
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      rewritten_content: 'Implementei pipelines de dados e reduzi o tempo de processamento em 30%.',
+      section_data: [{
+        title: 'Engineer',
+        company: 'Acme',
+        startDate: '2022',
+        endDate: 'present',
+        bullets: ['Implementei pipelines de dados e reduzi o tempo de processamento em 30%.'],
+      }],
+      keywords_added: ['pipelines de dados'],
+      changes_made: ['Bullets fortalecidos'],
+    })))
+
+    await rewriteSection({
+      section: 'experience',
+      current_content: JSON.stringify([
+        {
+          title: 'Engineer',
+          company: 'Acme',
+          startDate: '2022',
+          endDate: 'present',
+          bullets: ['Built APIs'],
+        },
+      ]),
+      instructions: 'Rewrite experience',
+    }, 'usr_123', 'sess_123')
+
+    const systemPrompt = createCompletion.mock.calls[0]?.[0]?.messages?.[0]?.content
+
+    expect(systemPrompt).toContain('improve resume quality, clarity, impact, and ATS compatibility without ever making the resume worse')
+    expect(systemPrompt).toContain('Never remove meaningful information just to make it shorter.')
+    expect(systemPrompt).toContain('Keep every grounded number, percentage, count, money amount, project scale, and metric.')
+    expect(systemPrompt).toContain('Prefer clarity plus density over excessive brevity.')
+    expect(systemPrompt).toContain('if the original content is stronger, more detailed, or more impactful than your rewrite')
+    expect(systemPrompt).toContain('Use strong action verbs in the correct tense, especially at the start of experience bullets.')
+  })
 })

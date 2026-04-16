@@ -7,8 +7,8 @@ current_phase_name: Make target job analysis robust to freeform vacancy text and
 current_plan: None
 status: ready
 stopped_at: Phase 36 complete
-last_updated: "2026-04-16T02:35:07.000Z"
-last_activity: 2026-04-16 -- Completed quick task 260415-wjw: restore the previous resume setup layout and slow the loading overlay with staged colors
+last_updated: "2026-04-16T02:49:40.000Z"
+last_activity: 2026-04-16 -- Completed quick task 260415-x06: strengthen ATS rewrite guidance to preserve technical depth, metrics, and critical judgment
 progress:
   total_phases: 5
   completed_phases: 5
@@ -33,8 +33,8 @@ Current Phase Name: Make target job analysis robust to freeform vacancy text and
 Current Plan: None
 Total Plans in Phase: 1
 Status: Ready for audit
-Last activity: 2026-04-16 -- Completed quick task 260415-wjw: restore the previous resume setup layout and slow the loading overlay with staged colors
-Last Activity Description: The resume setup screen is back on the earlier layout, while the ATS loading overlay now advances more slowly and changes from red to yellow to green as progress increases
+Last activity: 2026-04-16 -- Completed quick task 260415-x06: strengthen ATS rewrite guidance to preserve technical depth, metrics, and critical judgment
+Last Activity Description: ATS rewrite prompts now explicitly preserve grounded technical detail, metrics, stronger action-oriented bullets, and critical judgment so the optimizer does not over-compress the original resume
 
 Progress: [##########] 100%
 
@@ -128,3 +128,5 @@ Resume file: None
 | 2026-04-16 | 260415-w4c | Fix resume comparison editor to load and save optimized ATS session state | Complete |
 | 2026-04-16 | 260415-w9f | Redistribute the resume setup editor layout so the center workspace feels fuller and the actions stay anchored at the bottom | Complete |
 | 2026-04-16 | 260415-wjw | Restore the previous resume setup layout and slow the loading overlay with staged red, yellow, and green progress tones | Complete |
+| 2026-04-16 | 260415-wvk | Prevent signed URL failures from breaking smart generation after file persistence | Complete |
+| 2026-04-16 | 260415-x06 | Strengthen ATS rewrite guidance to preserve technical depth, metrics, and critical judgment | Complete |

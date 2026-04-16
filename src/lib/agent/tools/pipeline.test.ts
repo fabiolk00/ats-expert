@@ -337,6 +337,45 @@ describe('ATS enhancement reliability hardening', () => {
     expect(result.diagnostics?.retriedSections).toContain('summary')
   })
 
+  it('passes deeper ATS rewrite instructions that preserve detail instead of over-compressing the resume', async () => {
+    const cvState = buildCvState()
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput(cvState, section),
+    }))
+
+    const result = await rewriteResumeFull({
+      mode: 'ats_enhancement',
+      cvState,
+      atsAnalysis: {
+        overallScore: 78,
+        structureScore: 80,
+        clarityScore: 77,
+        impactScore: 74,
+        keywordCoverageScore: 79,
+        atsReadabilityScore: 82,
+        issues: [],
+        recommendations: ['Clareza', 'Power BI', 'SQL'],
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_ats_123',
+    })
+
+    expect(result.success).toBe(true)
+
+    const summaryCall = mockRewriteSection.mock.calls.find(([input]: [{ section: string }]) => input.section === 'summary')?.[0]
+    const experienceCall = mockRewriteSection.mock.calls.find(([input]: [{ section: string }]) => input.section === 'experience')?.[0]
+    const skillsCall = mockRewriteSection.mock.calls.find(([input]: [{ section: string }]) => input.section === 'skills')?.[0]
+
+    expect(summaryCall?.instructions).toContain('without ever making the resume worse or losing relevant information')
+    expect(summaryCall?.instructions).toContain('Use 4 to 6 concise lines')
+    expect(summaryCall?.instructions).toContain('do not flatten the profile into generic claims')
+    expect(experienceCall?.instructions).toContain('Prefer clarity plus density over excessive brevity')
+    expect(experienceCall?.instructions).toContain('Every bullet must start with a strong action verb in pt-BR')
+    expect(experienceCall?.instructions).toContain('Do not merge, trim, or generalize bullets')
+    expect(skillsCall?.instructions).toContain('do not replace specific tools, platforms, or methods with vague umbrella labels')
+  })
+
   it('persists stage-aware ATS workflow metadata and logs completion', async () => {
     const session = buildSession()
     const originalSummary = session.cvState.summary

@@ -5,6 +5,7 @@ import {
   shapeTargetingRewriteCurrentContent,
 } from '@/lib/agent/job-targeting-retry'
 import { buildRewritePlan } from '@/lib/agent/tools/build-rewrite-plan'
+import { formatResumeRewriteGuardrails } from '@/lib/agent/tools/resume-rewrite-guidelines'
 import { buildTargetingPlan } from '@/lib/agent/tools/build-targeting-plan'
 import { rewriteSection } from '@/lib/agent/tools/rewrite-section'
 import type { AtsAnalysisResult, RewriteSectionInput, TargetingPlan } from '@/types/agent'
@@ -84,6 +85,8 @@ function buildAtsResumeStyleGuide(): string {
     'Never invent employers, tools, certifications, projects, metrics, or results.',
     'Optimize for ATS parsing, semantic keyword matching, and human readability at the same time.',
     'Keep facts from the original resume intact while improving wording, structure, readability, and prioritization.',
+    'Resume rewrite contract:',
+    formatResumeRewriteGuardrails(),
   ].join('\n')
 }
 
@@ -95,6 +98,8 @@ function buildJobTargetingStyleGuide(targetJobDescription: string): string {
     'Write in Brazilian Portuguese (pt-BR) with professional, concise, recruiter-friendly language.',
     'Never invent employers, titles, tools, certifications, metrics, projects, or dates.',
     'Maximize alignment to the target vacancy only with facts already present in the original resume.',
+    'Resume rewrite contract:',
+    formatResumeRewriteGuardrails(),
     shapedTargetJob.compacted
       ? `The target job description was compacted for cost control. Use only this grounded subset as targeting context:\n${shapedTargetJob.content}`
       : `Use this target job description as context:\n${shapedTargetJob.content}`,
@@ -122,7 +127,8 @@ function buildSectionInstructions(
       return [
         ...shared,
         'Rewrite only the professional summary.',
-        'Use 3 to 5 concise lines that clarify professional positioning, seniority, core stack, and type of business impact.',
+        'Use 4 to 6 concise lines that clarify professional positioning, seniority, core stack, domain context, and type of business impact.',
+        'Preserve grounded technical scope, business context, and supported achievements that strengthen positioning; do not flatten the profile into generic claims.',
         'Avoid empty cliches and preserve factual truth.',
       ].join('\n\n')
     case 'experience':
@@ -130,13 +136,16 @@ function buildSectionInstructions(
         ...shared,
         'Rewrite only the experience section.',
         'Preserve the same companies, titles, dates, and factual scope.',
-        'Rewrite bullets using action + context + result or purpose, without inventing metrics.',
+        'Keep or clarify every grounded tool, system, responsibility, stakeholder scope, and metric already present in the original experience.',
+        'Every bullet must start with a strong action verb in pt-BR and follow action + what was done + result, impact, or purpose when available.',
+        'Do not merge, trim, or generalize bullets when that would remove relevant technical detail or business context.',
       ].join('\n\n')
     case 'skills':
       return [
         ...shared,
         'Rewrite and reorder only the skills section.',
         'Keep only real skills already evidenced by the resume and remove redundancy.',
+        'Preserve technical breadth and specificity; do not replace specific tools, platforms, or methods with vague umbrella labels.',
       ].join('\n\n')
     case 'education':
       return [
@@ -186,8 +195,9 @@ function buildTargetJobSectionInstructions(
         ...targetingPlan.sectionStrategy.summary,
         'Rewrite only the professional summary.',
         targetingPlan.targetRoleConfidence === 'high'
-          ? 'Use 3 to 5 concise lines aligned to the target role without claiming skills or experiences the candidate does not have.'
-          : 'Use 3 to 5 concise lines aligned to the vacancy context without claiming a literal role identity, skills, or experiences the candidate does not have.',
+          ? 'Use 4 to 6 concise lines aligned to the target role without claiming skills or experiences the candidate does not have.'
+          : 'Use 4 to 6 concise lines aligned to the vacancy context without claiming a literal role identity, skills, or experiences the candidate does not have.',
+        'Preserve grounded technical scope, business context, and supported achievements that help the recruiter understand the real profile.',
       ].join('\n\n')
     case 'experience':
       return [
@@ -195,7 +205,9 @@ function buildTargetJobSectionInstructions(
         ...targetingPlan.sectionStrategy.experience,
         'Rewrite only the experience section.',
         'Preserve companies, titles, dates, and factual scope.',
-        'Prioritize bullets that better match the target role and target keywords, but do not fabricate missing fit.',
+        'Keep or clarify every grounded tool, system, responsibility, stakeholder scope, and metric already present in the original experience.',
+        'Every bullet must start with a strong action verb in pt-BR and follow action + what was done + result, impact, or purpose when available.',
+        'Prioritize bullets that better match the target role and target keywords, but do not fabricate missing fit or compress away important context.',
       ].join('\n\n')
     case 'skills':
       return [
@@ -203,6 +215,7 @@ function buildTargetJobSectionInstructions(
         ...targetingPlan.sectionStrategy.skills,
         'Rewrite and reorder only the skills section.',
         'Keep only grounded skills already evidenced in the resume.',
+        'Preserve technical breadth and specificity; do not replace specific tools, platforms, or methods with vague umbrella labels.',
       ].join('\n\n')
     case 'education':
       return [

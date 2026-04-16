@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
+import { formatResumeRewriteGuardrails } from '@/lib/agent/tools/resume-rewrite-guidelines'
 import { TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
 import { openai } from '@/lib/openai/client'
@@ -465,11 +466,16 @@ Output valid JSON matching this shape exactly:
 Rules:
 - "rewritten_content" must stay human-readable plain text for conversational display
 - "section_data" must be fully structured and valid for the requested section
+- "changes_made" must be a short factual list of what improved, such as clarity, stronger verbs, clearer metrics, reduced redundancy, or better ATS structure
 - preserve factual truth exactly; never invent employers, tools, certifications, metrics, projects, or achievements
 - optimize for ATS parsing, recruiter clarity, strong action verbs, and natural keyword usage
 - avoid keyword stuffing, empty cliches, decorative language, and exaggerated claims
 - if the content is in Portuguese, use Brazilian Portuguese (pt-BR) with correct accentuation, spelling, grammar, and professional resume tone
-- never use European Portuguese variants unless the user explicitly provided them`,
+- never use European Portuguese variants unless the user explicitly provided them
+- do not shorten this bullet or section if that would remove technical specificity, metrics, seniority context, or important recruiter-facing detail
+- if the original content is stronger, more detailed, or more impactful than your rewrite, revise your answer until the rewritten version is at least as strong while remaining truthful
+Additional resume rewrite guardrails:
+${formatResumeRewriteGuardrails()}`,
           },
           {
             role: 'user',
