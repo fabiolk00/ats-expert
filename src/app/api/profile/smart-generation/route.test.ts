@@ -253,6 +253,70 @@ describe('POST /api/profile/smart-generation', () => {
     expect(runJobTargetingPipeline).not.toHaveBeenCalled()
   })
 
+  it('returns structured rewrite validation details when job targeting fails validation', async () => {
+    vi.mocked(runJobTargetingPipeline).mockResolvedValue({
+      success: false,
+      validation: {
+        valid: false,
+        issues: [{
+          severity: 'high',
+          section: 'summary',
+          message: 'O resumo otimizado menciona skills sem alinhamento com a experiência reescrita.',
+        }],
+      },
+      error: 'Job targeting rewrite validation failed.',
+    } as never)
+    vi.mocked(createSession).mockResolvedValue({
+      ...buildSession(),
+      agentState: {
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+        targetingPlan: {
+          targetRole: 'Vaga Alvo',
+          targetRoleConfidence: 'low',
+          focusKeywords: [],
+          mustEmphasize: [],
+          shouldDeemphasize: [],
+          missingButCannotInvent: [],
+          sectionStrategy: {
+            summary: [],
+            experience: [],
+            skills: [],
+            education: [],
+            certifications: [],
+          },
+        },
+      },
+    } as never)
+
+    const response = await POST(new NextRequest('https://example.com/api/profile/smart-generation', {
+      method: 'POST',
+      headers: buildTrustedHeaders(),
+      body: JSON.stringify({
+        ...buildCvState(),
+        targetJobDescription: 'Vaga para analista de dados senior com foco em produto e SQL.',
+      }),
+    }))
+
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({
+      error: 'Job targeting rewrite validation failed.',
+      sessionId: 'sess_generation_123',
+      workflowMode: 'job_targeting',
+      rewriteValidation: {
+        valid: false,
+        issues: [{
+          severity: 'high',
+          section: 'summary',
+          message: 'O resumo otimizado menciona skills sem alinhamento com a experiência reescrita.',
+        }],
+      },
+      targetRole: 'Vaga Alvo',
+      targetRoleConfidence: 'low',
+    })
+    expect(dispatchToolWithContext).not.toHaveBeenCalled()
+  })
+
   it('rejects cross-origin smart generation requests', async () => {
     const response = await POST(new NextRequest('https://example.com/api/profile/smart-generation', {
       method: 'POST',

@@ -91,6 +91,17 @@ type SmartGenerationResponse = {
   generationType?: ResumeGenerationType
   originalCvState?: CVState
   optimizedCvState?: CVState
+  workflowMode?: SetupGenerationMode
+  rewriteValidation?: {
+    valid: boolean
+    issues: Array<{
+      severity: "high" | "medium"
+      message: string
+      section?: string
+    }>
+  }
+  targetRole?: string
+  targetRoleConfidence?: "high" | "low"
   error?: string
   reasons?: string[]
   missingItems?: string[]
@@ -102,6 +113,17 @@ type ComparisonData = {
   originalCvState: CVState
   optimizedCvState: CVState
   targetJobDescription?: string
+}
+
+type RewriteValidationFailure = {
+  workflowMode: SetupGenerationMode
+  issues: Array<{
+    severity: "high" | "medium"
+    message: string
+    section?: string
+  }>
+  targetRole?: string
+  targetRoleConfidence?: "high" | "low"
 }
 
 function trimOptional(value?: string): string | undefined {
@@ -274,6 +296,41 @@ function buildInitials(fullName: string): string {
   return initials || "CV"
 }
 
+function normalizeRoleForReview(value?: string): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+}
+
+function isSuspiciousTargetRole(value?: string): boolean {
+  const normalized = normalizeRoleForReview(value)
+
+  if (!normalized) {
+    return false
+  }
+
+  return /^(responsabilidades?(?:\s+e\s+atribuicoes)?|atribuicoes|requisitos(?:\s+e\s+qualificacoes)?|qualificacoes|descricao|atividades|about\s+the\s+job|about\s+the\s+role|job\s+description|responsibilities|requirements|qualifications|vaga\s+alvo)$/.test(normalized)
+}
+
+function formatValidationSectionLabel(section?: string): string {
+  switch (section) {
+    case "summary":
+      return "Resumo"
+    case "experience":
+      return "Experiência"
+    case "skills":
+      return "Skills"
+    case "education":
+      return "Educação"
+    case "certifications":
+      return "Certificações"
+    default:
+      return "Validação"
+  }
+}
+
 export default function UserDataPage({
   currentCredits = 0,
   userImageUrl = null,
@@ -294,6 +351,7 @@ export default function UserDataPage({
   const [isAtsRequirementsOpen, setIsAtsRequirementsOpen] = useState(false)
   const [atsMissingItems, setAtsMissingItems] = useState<string[]>([])
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null)
+  const [rewriteValidationFailure, setRewriteValidationFailure] = useState<RewriteValidationFailure | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -431,6 +489,16 @@ export default function UserDataPage({
         return
       }
 
+      if (response.status === 422 && data.rewriteValidation?.issues?.length) {
+        setRewriteValidationFailure({
+          workflowMode: data.workflowMode ?? generationMode,
+          issues: data.rewriteValidation.issues,
+          targetRole: data.targetRole,
+          targetRoleConfidence: data.targetRoleConfidence,
+        })
+        return
+      }
+
       if (!response.ok || !data.success || !data.sessionId) {
         throw new Error(extractErrorMessage(data.error, generationCopy.failure))
       }
@@ -535,6 +603,11 @@ export default function UserDataPage({
   const setupGenerationButtonDisabled = isBusy || currentCredits < 1
   const initials = buildInitials(template.fullName)
   const avatarSrc = profilePhotoUrl ?? userImageUrl ?? undefined
+  const suspiciousValidationTargetRole = rewriteValidationFailure?.workflowMode === "job_targeting"
+    && (
+      rewriteValidationFailure.targetRoleConfidence === "low"
+      || isSuspiciousTargetRole(rewriteValidationFailure.targetRole)
+    )
 
   if (comparisonData) {
     return (
@@ -1003,6 +1076,69 @@ export default function UserDataPage({
 
           <DialogFooter>
             <Button type="button" onClick={() => setIsAtsRequirementsOpen(false)}>
+              Entendi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(rewriteValidationFailure)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRewriteValidationFailure(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {rewriteValidationFailure?.workflowMode === "job_targeting"
+                ? "Não concluímos essa adaptação automaticamente"
+                : "Não concluímos essa melhoria ATS automaticamente"}
+            </DialogTitle>
+            <DialogDescription>
+              {rewriteValidationFailure?.workflowMode === "job_targeting"
+                ? "A validação final encontrou inconsistências e interrompemos a adaptação para a vaga para não gerar um currículo incoerente."
+                : "A validação final encontrou inconsistências e interrompemos a melhoria ATS para não gerar um currículo incoerente."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm text-foreground">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="font-medium text-amber-900">O que bloqueou automaticamente</p>
+              <ul className="mt-2 space-y-2">
+                {rewriteValidationFailure?.issues.map((issue, index) => (
+                  <li key={`${issue.section ?? "unknown"}-${index}`} className="list-none">
+                    <span className="font-medium">{formatValidationSectionLabel(issue.section)}:</span>{" "}
+                    {issue.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {suspiciousValidationTargetRole ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                <p className="font-medium text-rose-900">Possível bug de leitura da vaga</p>
+                <p className="mt-2">
+                  Detectamos um cargo-alvo suspeito na vaga analisada:
+                  {" "}
+                  <span className="font-medium">{rewriteValidationFailure?.targetRole}</span>.
+                  Isso parece mais um título de seção ou placeholder do que o cargo real. Se isso não fizer sentido para você, trate como erro do sistema e tente reenviar a vaga.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="font-medium text-slate-900">Como interpretar esse aviso</p>
+                <p className="mt-2">
+                  Esse bloqueio é de segurança. Ele indica que a reescrita final ficou inconsistente com o seu histórico real ou com a vaga, então o sistema preferiu parar em vez de mostrar um currículo pronto como se estivesse tudo certo.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" onClick={() => setRewriteValidationFailure(null)}>
               Entendi
             </Button>
           </DialogFooter>

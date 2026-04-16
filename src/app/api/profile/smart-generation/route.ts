@@ -74,6 +74,28 @@ function buildPatchedSession(
   }
 }
 
+function buildValidationFailureResponse(
+  session: Awaited<ReturnType<typeof createSession>>,
+  params: {
+    workflowMode: WorkflowMode
+    pipeline: Awaited<ReturnType<typeof runAtsEnhancementPipeline>> | Awaited<ReturnType<typeof runJobTargetingPipeline>>
+    fallbackError: string
+  },
+): NextResponse | null {
+  if (!params.pipeline.validation || params.pipeline.validation.valid) {
+    return null
+  }
+
+  return NextResponse.json({
+    error: params.pipeline.error ?? params.fallbackError,
+    sessionId: session.id,
+    workflowMode: params.workflowMode,
+    rewriteValidation: params.pipeline.validation,
+    targetRole: session.agentState.targetingPlan?.targetRole,
+    targetRoleConfidence: session.agentState.targetingPlan?.targetRoleConfidence,
+  }, { status: 422 })
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const appUser = await getCurrentAppUser()
   if (!appUser) {
@@ -154,6 +176,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     : await runAtsEnhancementPipeline(patchedSession)
 
   if (!pipeline.success || !pipeline.optimizedCvState) {
+    const validationFailureResponse = buildValidationFailureResponse(session, {
+      workflowMode,
+      pipeline,
+      fallbackError: copy.pipelineError,
+    })
+
+    if (validationFailureResponse) {
+      return validationFailureResponse
+    }
+
     return NextResponse.json({
       error: pipeline.error ?? copy.pipelineError,
       reasons: pipeline.validation?.issues.map((issue) => issue.message),

@@ -688,6 +688,246 @@ describe("UserDataPage", () => {
     })
   })
 
+  it.skip("shows a blocking validation modal when smart generation fails factual validation", async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          profile: {
+            id: "profile_123",
+            source: "manual",
+            cvState: {
+              fullName: "Ana Silva",
+              email: "ana@example.com",
+              phone: "555-0100",
+              linkedin: "https://linkedin.com/in/ana",
+              location: "Sao Paulo",
+              summary: "Analista de dados com foco em BI.",
+              experience: [{
+                title: "Analista de Dados",
+                company: "Acme",
+                location: "Sao Paulo",
+                startDate: "2022",
+                endDate: "2024",
+                bullets: ["Criei dashboards executivos."],
+              }],
+              skills: ["SQL", "Power BI", "ETL", "Excel"],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
+            },
+            linkedinUrl: null,
+            extractedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          profile: {
+            id: "profile_123",
+            source: "manual",
+            cvState: {
+              fullName: "Ana Silva",
+              email: "ana@example.com",
+              phone: "555-0100",
+              linkedin: "https://linkedin.com/in/ana",
+              location: "Sao Paulo",
+              summary: "Analista de dados com foco em BI.",
+              experience: [{
+                title: "Analista de Dados",
+                company: "Acme",
+                location: "Sao Paulo",
+                startDate: "2022",
+                endDate: "2024",
+                bullets: ["Criei dashboards executivos."],
+              }],
+              skills: ["SQL", "Power BI", "ETL", "Excel"],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
+            },
+            linkedinUrl: null,
+            extractedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({
+          error: "Job targeting rewrite validation failed.",
+          sessionId: "sess_target_123",
+          workflowMode: "job_targeting",
+          rewriteValidation: {
+            valid: false,
+            issues: [{
+              severity: "high",
+              section: "summary",
+              message: "O resumo otimizado menciona skills sem alinhamento com a experiência reescrita.",
+            }],
+          },
+          targetRole: "Vaga Alvo",
+          targetRoleConfidence: "low",
+        }),
+      })
+
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+
+    render(<UserDataPage currentCredits={2} />)
+
+    fireEvent.change(await screen.findByTestId("target-job-description-input"), {
+      target: { value: "Vaga para analista de dados senior com foco em produto e SQL." },
+    })
+
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    expect(await screen.findByText("NÃ£o concluÃ­mos essa adaptaÃ§Ã£o automaticamente")).toBeInTheDocument()
+    expect(screen.getByText("Resumo: O resumo otimizado menciona skills sem alinhamento com a experiÃªncia reescrita.")).toBeInTheDocument()
+    expect(screen.getByText("PossÃ­vel bug de leitura da vaga")).toBeInTheDocument()
+    expect(screen.getByText(/Vaga Alvo/)).toBeInTheDocument()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it("shows a blocking validation modal when smart generation fails factual validation with structured payload", async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          profile: {
+            id: "profile_123",
+            source: "manual",
+            cvState: {
+              fullName: "Ana Silva",
+              email: "ana@example.com",
+              phone: "555-0100",
+              linkedin: "https://linkedin.com/in/ana",
+              location: "Sao Paulo",
+              summary: "Analista de dados com foco em BI.",
+              experience: [{
+                title: "Analista de Dados",
+                company: "Acme",
+                location: "Sao Paulo",
+                startDate: "2022",
+                endDate: "2024",
+                bullets: ["Criei dashboards executivos."],
+              }],
+              skills: ["SQL", "Power BI", "ETL", "Excel"],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
+            },
+            linkedinUrl: null,
+            extractedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          profile: {
+            id: "profile_123",
+            source: "manual",
+            cvState: {
+              fullName: "Ana Silva",
+              email: "ana@example.com",
+              phone: "555-0100",
+              linkedin: "https://linkedin.com/in/ana",
+              location: "Sao Paulo",
+              summary: "Analista de dados com foco em BI.",
+              experience: [{
+                title: "Analista de Dados",
+                company: "Acme",
+                location: "Sao Paulo",
+                startDate: "2022",
+                endDate: "2024",
+                bullets: ["Criei dashboards executivos."],
+              }],
+              skills: ["SQL", "Power BI", "ETL", "Excel"],
+              education: [{
+                degree: "Bacharel em Sistemas de Informacao",
+                institution: "USP",
+                year: "2020",
+              }],
+              certifications: [{
+                name: "AWS Cloud Practitioner",
+                issuer: "Amazon",
+                year: "2024",
+              }],
+            },
+            linkedinUrl: null,
+            extractedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({
+          error: "Job targeting rewrite validation failed.",
+          sessionId: "sess_target_123",
+          workflowMode: "job_targeting",
+          rewriteValidation: {
+            valid: false,
+            issues: [{
+              severity: "high",
+              section: "summary",
+              message: "O resumo otimizado menciona skills sem alinhamento com a experiência reescrita.",
+            }],
+          },
+          targetRole: "Vaga Alvo",
+          targetRoleConfidence: "low",
+        }),
+      })
+
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+
+    render(<UserDataPage currentCredits={2} />)
+
+    fireEvent.change(await screen.findByTestId("target-job-description-input"), {
+      target: { value: "Vaga para analista de dados senior com foco em produto e SQL." },
+    })
+
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    expect(await screen.findByRole("heading", { name: /não concluímos essa adaptação automaticamente/i })).toBeInTheDocument()
+    expect(screen.getByText(/O resumo otimizado menciona skills sem alinhamento com a experiência reescrita\./i)).toBeInTheDocument()
+    expect(screen.getByText(/Possível bug de leitura da vaga/i)).toBeInTheDocument()
+    expect(screen.getByText(/Vaga Alvo/)).toBeInTheDocument()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
   it("shows a friendly ATS modal when a deeper validation item is still missing", async () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn(async () => ({
