@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 38
-current_phase_name: Refactor `/api/agent` into a lightweight orchestrator
-current_plan: None
+current_phase: 39
+current_phase_name: move ats, targeting, and artifact work into async processors
+current_plan: Not started
 status: executing
-stopped_at: Phase 38 planning complete
-last_updated: "2026-04-16T22:49:17.440Z"
-last_activity: 2026-04-16 -- Phase 38 planning complete
+stopped_at: Phase 38 execution complete
+last_updated: "2026-04-16T23:09:53.769Z"
+last_activity: 2026-04-16
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 2
-  completed_plans: 1
-  percent: 50
+  completed_plans: 2
+  percent: 100
 ---
 
 # Project State
@@ -24,17 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Milestone `v1.6` async agent orchestration and background-job runtime
+**Current focus:** Phase 39 - Move ATS, targeting, and artifact work into async processors
 
 ## Current Position
 
-Current Phase: 38
-Current Phase Name: Refactor `/api/agent` into a lightweight orchestrator
-Current Plan: None
-Total Plans in Phase: 1
-Status: Ready to execute
-Last activity: 2026-04-16 -- Phase 38 planning complete
-Last Activity Description: Phase 38 planning complete — 1 plans ready
+Phase: 39 (Move ATS, targeting, and artifact work into async processors) - NEXT
+Plan: Not started
+Current Phase: 39
+Current Phase Name: move ats, targeting, and artifact work into async processors
+Current Plan: Not started
+Total Plans in Phase: Not planned yet
+Status: Phase 38 complete; Phase 39 planning is next
+Last activity: 2026-04-16
+Last Activity Description: Phase 38 complete, transitioned to Phase 39
 
 Progress: [#####-----] 50%
 
@@ -42,7 +44,7 @@ Progress: [#####-----] 50%
 
 Baseline carried forward from earlier shipped milestones:
 
-- Total plans completed: 71
+- Total plans completed: 72
 - Milestones archived: 5
 
 ## Accumulated Context
@@ -84,16 +86,16 @@ Recent decisions affecting the next cycle:
 
 ### Pending Todos
 
-- Execute Phase 38 plan 01.
+- Plan Phase 39.
 
 ### Blockers or Concerns
 
 - No active implementation blocker is currently known.
-- Phase 38 must preserve sync chat UX and session continuity while it removes heavy request-path execution.
+- Phase 39 must preserve the existing ATS, targeting, and artifact business semantics while moving execution behind durable workers.
 - Async failures must not clobber a previously valid `optimizedCvState` or break preview versus artifact consistency.
 
 ## Session Continuity
 
-Last session: 2026-04-16T21:21:02.113Z
-Stopped at: Phase 38 planning complete
-Resume file: .planning/phases/38-refactor-api-agent-into-a-lightweight-orchestrator/38-01-PLAN.md
+Last session: 2026-04-16T23:09:53.769Z
+Stopped at: Phase 38 execution complete
+Resume file: .planning/ROADMAP.md

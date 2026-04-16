@@ -45,7 +45,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 38-01: Extract request-boundary orchestration, preserve sync chat, and dispatch heavy actions asynchronously
+- [x] 38-01: Extract request-boundary orchestration, preserve sync chat, and dispatch heavy actions asynchronously
 
 ### Phase 39: Move ATS, targeting, and artifact work into async processors
 **Goal**: Execute the heavy resume pipelines through durable workers while preserving the existing business semantics, validation rules, and persistence behavior.
@@ -98,7 +98,7 @@ Phases execute in numeric order: 37 -> 38 -> 39 -> 40
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 37. Freeze async execution contracts and durable job foundations | 1/1 | Completed | 2026-04-16 |
-| 38. Refactor `/api/agent` into a lightweight orchestrator | 0/1 | Ready | — |
+| 38. Refactor `/api/agent` into a lightweight orchestrator | 1/1 | Complete    | 2026-04-16 |
 | 39. Move ATS, targeting, and artifact work into async processors | 0/1 | Pending | — |
 | 40. Integrate status flow, observability, and stabilization | 0/1 | Pending | — |
 
