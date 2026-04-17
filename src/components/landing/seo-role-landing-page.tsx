@@ -14,9 +14,14 @@ import {
   FileText,
   TrendingUp,
   Lightbulb,
+  AlertCircle,
+  Users,
+  GraduationCap,
+  Link2,
+  Code2,
 } from "lucide-react"
 
-import BrandWordmark, { BrandText } from "@/components/brand-wordmark"
+import { BrandText } from "@/components/brand-wordmark"
 import Footer from "@/components/landing/footer"
 import Header from "@/components/landing/header"
 import { Button } from "@/components/ui/button"
@@ -93,6 +98,7 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
                   <a href="#keywords">Ver palavras-chave</a>
                 </Button>
               </div>
+              <p className="mt-4 text-sm text-muted-foreground">{config.hero.ctaSubtext}</p>
             </motion.div>
           </div>
         </section>
@@ -128,6 +134,135 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
                   <p className="text-sm leading-relaxed text-muted-foreground">{point}</p>
                 </div>
               ))}
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* Common Mistakes Section */}
+        <motion.section
+          className="py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-orange-500/10 p-4 text-orange-500">
+                <AlertCircle className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                Erros mais comuns no currículo de {config.roleShort}
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                Evite esses erros que fazem currículos serem filtrados automaticamente.
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="space-y-4">
+              {config.commonMistakes.map((item, i) => (
+                <div
+                  key={i}
+                  className="grid gap-4 rounded-2xl border border-border/40 bg-card p-6 shadow-sm md:grid-cols-2"
+                >
+                  <div className="flex items-start gap-3">
+                    <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                    <div>
+                      <span className="text-xs font-medium uppercase tracking-wider text-destructive">Erro</span>
+                      <p className="text-muted-foreground">{item.mistake}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
+                    <div>
+                      <span className="text-xs font-medium uppercase tracking-wider text-green-500">Correção</span>
+                      <p className="text-foreground">{item.fix}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* Resume Sections Examples */}
+        <motion.section
+          className="bg-muted/30 py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary">
+                <Code2 className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                Exemplos de seções do currículo
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                Veja como escrever cada seção do seu currículo de forma otimizada para ATS.
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="space-y-8">
+              {/* Summary Example */}
+              <div className="rounded-[2rem] border border-border/50 bg-card p-8 shadow-sm">
+                <h3 className="mb-6 text-xl font-semibold">{config.resumeSections.summary.title}</h3>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                    <span className="mb-2 flex items-center gap-2 text-sm font-medium text-destructive">
+                      <XCircle className="h-4 w-4" /> Ruim
+                    </span>
+                    <p className="text-sm text-muted-foreground">{config.resumeSections.summary.bad}</p>
+                  </div>
+                  <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-4">
+                    <span className="mb-2 flex items-center gap-2 text-sm font-medium text-green-500">
+                      <CheckCircle2 className="h-4 w-4" /> Bom
+                    </span>
+                    <p className="text-sm text-foreground">{config.resumeSections.summary.good}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skills Example */}
+              <div className="rounded-[2rem] border border-border/50 bg-card p-8 shadow-sm">
+                <h3 className="mb-6 text-xl font-semibold">{config.resumeSections.skills.title}</h3>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                    <span className="mb-2 flex items-center gap-2 text-sm font-medium text-destructive">
+                      <XCircle className="h-4 w-4" /> Ruim
+                    </span>
+                    <p className="text-sm text-muted-foreground">{config.resumeSections.skills.bad}</p>
+                  </div>
+                  <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-4">
+                    <span className="mb-2 flex items-center gap-2 text-sm font-medium text-green-500">
+                      <CheckCircle2 className="h-4 w-4" /> Bom
+                    </span>
+                    <p className="text-sm text-foreground">{config.resumeSections.skills.good}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Experience Example */}
+              <div className="rounded-[2rem] border border-border/50 bg-card p-8 shadow-sm">
+                <h3 className="mb-6 text-xl font-semibold">{config.resumeSections.experience.title}</h3>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                    <span className="mb-2 flex items-center gap-2 text-sm font-medium text-destructive">
+                      <XCircle className="h-4 w-4" /> Ruim
+                    </span>
+                    <p className="text-sm text-muted-foreground">{config.resumeSections.experience.bad}</p>
+                  </div>
+                  <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-4">
+                    <span className="mb-2 flex items-center gap-2 text-sm font-medium text-green-500">
+                      <CheckCircle2 className="h-4 w-4" /> Bom
+                    </span>
+                    <p className="text-sm text-foreground">{config.resumeSections.experience.good}</p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
           </div>
         </motion.section>
@@ -213,6 +348,94 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
           </div>
         </motion.section>
 
+        {/* Specializations Section */}
+        <motion.section
+          className="py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary">
+                <Users className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                Currículo por Especialidade
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                Palavras-chave específicas para cada especialização da área.
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="grid gap-6 md:grid-cols-3">
+              {config.specializations.map((spec, i) => (
+                <div
+                  key={i}
+                  className="rounded-[2rem] border border-border/50 bg-card p-8 shadow-sm transition-all hover:shadow-md"
+                >
+                  <h3 className="mb-3 text-lg font-semibold">{spec.title}</h3>
+                  <p className="mb-4 text-sm text-muted-foreground">{spec.description}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {spec.keywords.map((kw, j) => (
+                      <span
+                        key={j}
+                        className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                      >
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* Seniority Levels Section */}
+        <motion.section
+          className="bg-muted/30 py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary">
+                <GraduationCap className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                Currículo por Senioridade
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                Dicas específicas para cada nível de experiência.
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="grid gap-6 md:grid-cols-3">
+              {config.seniorityLevels.map((level, i) => (
+                <div
+                  key={i}
+                  className="rounded-[2rem] border border-border/50 bg-card p-8 shadow-sm"
+                >
+                  <h3 className="mb-2 text-lg font-semibold">{level.level}</h3>
+                  <p className="mb-4 text-sm font-medium text-primary">{level.focus}</p>
+                  <ul className="space-y-3">
+                    {level.tips.map((tip, j) => (
+                      <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </motion.section>
+
         {/* Before/After CV Example */}
         <motion.section
           className="py-16 md:py-24"
@@ -227,7 +450,7 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
                 <FileText className="h-8 w-8" />
               </div>
               <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
-                Exemplo: Antes e Depois
+                Exemplo Completo: Antes e Depois
               </h2>
               <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
                 Veja como um currículo genérico se transforma em um currículo otimizado para ATS.
@@ -341,11 +564,11 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
                   <Lightbulb className="h-8 w-8" />
                 </div>
                 <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
-                  Descubra agora se seu currículo passa no ATS
+                  Descubra se seu currículo de {config.roleShort.toLowerCase()} passa no ATS
                 </h2>
                 <p className="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
                   <BrandText
-                    text="O CurrIA analisa seu currículo com IA e mostra exatamente o que melhorar para conquistar mais entrevistas."
+                    text="Receba seu score ATS e veja exatamente o que corrigir para conquistar mais entrevistas."
                     className="font-medium text-foreground"
                   />
                 </p>
@@ -353,7 +576,7 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
                   href="/signup"
                   className="group inline-flex items-center gap-3 rounded-full bg-primary px-8 py-5 text-lg font-semibold text-primary-foreground shadow-xl transition-all hover:-translate-y-1 hover:bg-primary/90 hover:shadow-primary/25"
                 >
-                  Ver meu score ATS
+                  Analisar meu currículo agora
                   <ChevronRight className="h-6 w-6 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
@@ -361,9 +584,51 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
           </div>
         </motion.section>
 
-        {/* FAQ Section */}
+        {/* Internal Links Section */}
         <motion.section
           className="bg-muted/30 py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary">
+                <Link2 className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                Outros guias de currículo
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                Explore mais recursos para otimizar seu currículo.
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {config.internalLinks.map((link, i) => (
+                <Link
+                  key={i}
+                  href={link.href}
+                  className="group rounded-2xl border border-border/40 bg-card p-6 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+                >
+                  <h3 className="mb-2 font-semibold transition-colors group-hover:text-primary">
+                    {link.label}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{link.description}</p>
+                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                    Ver guia
+                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </Link>
+              ))}
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* FAQ Section */}
+        <motion.section
+          className="py-16 md:py-24"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
@@ -401,7 +666,7 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
 
         {/* Final CTA */}
         <motion.section
-          className="py-16 text-center md:py-24"
+          className="bg-muted/30 py-16 text-center md:py-24"
           variants={itemVariants}
           initial="hidden"
           whileInView="visible"

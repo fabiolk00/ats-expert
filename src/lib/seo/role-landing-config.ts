@@ -22,6 +22,35 @@ export type RoleFaq = {
   answer: string
 }
 
+export type ResumeSection = {
+  title: string
+  bad: string
+  good: string
+}
+
+export type Specialization = {
+  title: string
+  description: string
+  keywords: string[]
+}
+
+export type SeniorityLevel = {
+  level: string
+  focus: string
+  tips: string[]
+}
+
+export type CommonMistake = {
+  mistake: string
+  fix: string
+}
+
+export type InternalLink = {
+  label: string
+  href: string
+  description: string
+}
+
 export type RoleLandingConfig = {
   slug: string
   role: string
@@ -39,16 +68,17 @@ export type RoleLandingConfig = {
     h1: string
     subtitle: string
     ctaText: string
+    ctaSubtext: string
   }
   
-  // Problem section
+  // Problem section - softened copy
   problem: {
     title: string
     description: string
     points: string[]
   }
   
-  // ATS explanation for this role
+  // ATS explanation for this role - softened copy
   atsExplanation: {
     title: string
     description: string
@@ -57,6 +87,22 @@ export type RoleLandingConfig = {
   
   // Keywords section (SEO gold)
   keywords: RoleKeyword[]
+  
+  // NEW: Common mistakes section
+  commonMistakes: CommonMistake[]
+  
+  // NEW: Resume sections examples (resumo, skills, experiência)
+  resumeSections: {
+    summary: ResumeSection
+    skills: ResumeSection
+    experience: ResumeSection
+  }
+  
+  // NEW: Specializations (frontend, backend, fullstack for dev)
+  specializations: Specialization[]
+  
+  // NEW: Seniority levels
+  seniorityLevels: SeniorityLevel[]
   
   // Before/After CV example
   cvExample: BeforeAfterExample
@@ -67,7 +113,10 @@ export type RoleLandingConfig = {
     description: string
   }[]
   
-  // FAQs
+  // NEW: Internal links for SEO
+  internalLinks: InternalLink[]
+  
+  // FAQs - expanded with full answers
   faqs: RoleFaq[]
 }
 
@@ -78,32 +127,33 @@ export const desenvolvedorConfig: RoleLandingConfig = {
   roleShort: "Desenvolvedor",
   
   meta: {
-    title: "Currículo para Desenvolvedor que Passa no ATS (Guia + Exemplo) | CurrIA",
-    description: "Aprenda como criar um currículo de desenvolvedor otimizado para ATS. Palavras-chave essenciais, exemplos práticos e dicas para passar nos filtros automáticos.",
+    title: "Currículo ATS para Desenvolvedor: Guia, Exemplo e Palavras-chave | CurrIA",
+    description: "Aprenda como criar um currículo de desenvolvedor otimizado para ATS. Exemplos de resumo profissional, skills, experiência e palavras-chave para front-end, back-end e full stack.",
     canonical: "/curriculo-desenvolvedor-ats",
   },
   
   hero: {
-    h1: "Currículo para Desenvolvedor que Passa no ATS (Guia + Exemplo)",
-    subtitle: "Seu currículo de desenvolvedor pode estar sendo rejeitado antes de ser lido. 75% dos currículos são descartados por robôs. Veja como otimizar para sistemas ATS e aumentar suas chances de entrevista.",
-    ctaText: "Analisar meu currículo grátis",
+    h1: "Currículo ATS para Desenvolvedor: Guia e Exemplo Prático",
+    subtitle: "Muitos currículos são eliminados antes mesmo de chegar a um recrutador. Um dos principais motivos é a falta de compatibilidade com sistemas ATS. Veja como otimizar seu currículo de desenvolvedor e aumentar suas chances de entrevista.",
+    ctaText: "Descubra se seu currículo passa no ATS",
+    ctaSubtext: "Receba seu score ATS e veja o que corrigir",
   },
   
   problem: {
     title: "Por que currículos de desenvolvedores são rejeitados pelo ATS?",
-    description: "Mesmo desenvolvedores experientes cometem erros que fazem seus currículos serem descartados automaticamente.",
+    description: "Mesmo desenvolvedores experientes podem ter seus currículos filtrados por erros simples de formatação ou falta de palavras-chave específicas.",
     points: [
       "Usar termos genéricos como 'programação' em vez de tecnologias específicas (React, Node.js, Python)",
       "Listar tecnologias sem contexto de aplicação ou resultados mensuráveis",
       "Formato visual com colunas ou tabelas que confundem o parser do ATS",
-      "Omitir palavras-chave exatas da descrição da vaga",
-      "Colocar habilidades técnicas em formato de ícones ou gráficos",
+      "Usar nomenclaturas diferentes da vaga (ReactJS vs React, NodeJS vs Node.js)",
+      "Colocar habilidades técnicas em formato de ícones, gráficos ou barras de progresso",
     ],
   },
   
   atsExplanation: {
     title: "Como o ATS filtra currículos de desenvolvedores",
-    description: "Os sistemas ATS para vagas de tecnologia são configurados para buscar correspondências exatas de stack técnico, frameworks e metodologias. Se você escreve 'ReactJS' e a vaga pede 'React', pode perder pontos.",
+    description: "Os sistemas ATS para vagas de tecnologia são configurados para buscar correspondências de stack técnico, frameworks e metodologias. Alguns ATS dão mais peso para correspondências exatas ou mais próximas da descrição da vaga, então padronizar termos pode ajudar.",
     whatRecruitersScan: [
       "Stack técnico completo (linguagens, frameworks, bancos de dados)",
       "Experiência com metodologias ágeis (Scrum, Kanban)",
@@ -117,7 +167,7 @@ export const desenvolvedorConfig: RoleLandingConfig = {
   keywords: [
     { term: "JavaScript/TypeScript", description: "Linguagens essenciais para desenvolvimento web moderno" },
     { term: "React/Vue/Angular", description: "Frameworks front-end mais requisitados pelo mercado" },
-    { term: "Node.js", description: "Runtime JavaScript para back-end, presente em 70% das vagas full-stack" },
+    { term: "Node.js", description: "Runtime JavaScript para back-end, presente em grande parte das vagas full-stack" },
     { term: "Python", description: "Linguagem versátil para back-end, automação e data science" },
     { term: "SQL/NoSQL", description: "PostgreSQL, MySQL, MongoDB - bancos de dados são requisitos básicos" },
     { term: "Git/GitHub", description: "Versionamento de código é obrigatório em qualquer vaga" },
@@ -125,6 +175,98 @@ export const desenvolvedorConfig: RoleLandingConfig = {
     { term: "AWS/GCP/Azure", description: "Cloud computing é diferencial competitivo" },
     { term: "REST APIs/GraphQL", description: "Arquitetura de APIs para integração de sistemas" },
     { term: "Scrum/Agile", description: "Metodologias ágeis presentes em praticamente todas as empresas" },
+  ],
+  
+  commonMistakes: [
+    { 
+      mistake: "Listar 30+ tecnologias sem contexto", 
+      fix: "Foque nas 10-15 mais relevantes para a vaga e adicione contexto de uso" 
+    },
+    { 
+      mistake: "Usar barras de progresso para skills", 
+      fix: "Liste tecnologias em texto, agrupadas por categoria (Linguagens, Frameworks, etc.)" 
+    },
+    { 
+      mistake: "Escrever 'Desenvolvedor Full Stack' sem especificar stack", 
+      fix: "Use 'Desenvolvedor Full Stack | React, Node.js, PostgreSQL'" 
+    },
+    { 
+      mistake: "Colocar apenas links do GitHub sem descrição", 
+      fix: "Descreva brevemente: 'GitHub: 15+ projetos em React e Node.js'" 
+    },
+    { 
+      mistake: "Usar tabelas ou colunas múltiplas", 
+      fix: "Use layout linear com seções claras e bullets simples" 
+    },
+  ],
+  
+  resumeSections: {
+    summary: {
+      title: "Resumo Profissional",
+      bad: "Profissional de tecnologia com experiência em desenvolvimento de sistemas e aplicações web.",
+      good: "Desenvolvedor Full Stack com 4 anos de experiência em React, Node.js, TypeScript e PostgreSQL, atuando na construção de aplicações escaláveis e integrações via APIs REST. Experiência em ambientes ágeis (Scrum) e deploy em AWS.",
+    },
+    skills: {
+      title: "Seção de Habilidades",
+      bad: "Linguagens: Várias | Frameworks: Diversos | Banco de dados: Alguns | Metodologias: Ágeis",
+      good: "Linguagens: JavaScript, TypeScript, Python | Frameworks: React, Node.js, Next.js, Express | Banco de dados: PostgreSQL, MongoDB, Redis | Cloud: AWS (EC2, S3, Lambda), Docker | Metodologias: Scrum, Kanban, CI/CD",
+    },
+    experience: {
+      title: "Experiência Profissional",
+      bad: "Desenvolvi sistemas para a empresa. Trabalhei em equipe. Participei de projetos importantes.",
+      good: "Desenvolvi 12 aplicações web usando React e TypeScript, reduzindo tempo de carregamento em 40%. Implementei microsserviços com Node.js e Docker, suportando 50K+ requisições/dia. Liderei squad de 4 devs em Scrum.",
+    },
+  },
+  
+  specializations: [
+    {
+      title: "Desenvolvedor Front-end",
+      description: "Foco em interfaces de usuário, experiência do usuário e performance de renderização.",
+      keywords: ["React", "Vue.js", "Angular", "TypeScript", "CSS/Sass", "Tailwind CSS", "Next.js", "Webpack", "Performance Web", "Acessibilidade", "Responsive Design", "Jest/Testing Library"],
+    },
+    {
+      title: "Desenvolvedor Back-end",
+      description: "Foco em APIs, bancos de dados, arquitetura de sistemas e escalabilidade.",
+      keywords: ["Node.js", "Python", "Java", "Go", "PostgreSQL", "MongoDB", "Redis", "REST APIs", "GraphQL", "Microsserviços", "Docker", "Kubernetes", "AWS/GCP"],
+    },
+    {
+      title: "Desenvolvedor Full Stack",
+      description: "Domínio de front-end e back-end, ideal para startups e equipes enxutas.",
+      keywords: ["React + Node.js", "TypeScript", "Next.js", "PostgreSQL", "MongoDB", "Docker", "AWS", "CI/CD", "Git", "Scrum", "REST APIs", "Testes automatizados"],
+    },
+  ],
+  
+  seniorityLevels: [
+    {
+      level: "Desenvolvedor Júnior",
+      focus: "Demonstre projetos pessoais, cursos e contribuições open source",
+      tips: [
+        "Inclua projetos do GitHub com descrição e tecnologias usadas",
+        "Mencione cursos e certificações (Alura, Rocketseat, freeCodeCamp)",
+        "Destaque contribuições em projetos open source, mesmo que pequenas",
+        "Foque em 3-5 tecnologias que você realmente domina",
+      ],
+    },
+    {
+      level: "Desenvolvedor Pleno",
+      focus: "Mostre impacto em projetos e capacidade de trabalhar de forma autônoma",
+      tips: [
+        "Quantifique resultados: usuários, performance, uptime",
+        "Mencione projetos completos do início ao deploy",
+        "Destaque colaboração cross-funcional (design, produto)",
+        "Inclua experiência com code review e mentoria de júniors",
+      ],
+    },
+    {
+      level: "Desenvolvedor Sênior",
+      focus: "Demonstre liderança técnica, decisões de arquitetura e mentoria",
+      tips: [
+        "Destaque decisões de arquitetura e seu impacto no negócio",
+        "Mencione equipes lideradas ou mentoradas",
+        "Inclua contribuições para processos (CI/CD, padrões de código)",
+        "Mostre visão de produto além do código técnico",
+      ],
+    },
   ],
   
   cvExample: {
@@ -141,7 +283,7 @@ export const desenvolvedorConfig: RoleLandingConfig = {
       title: "Desenvolvedor Full Stack | React, Node.js, TypeScript",
       bullets: [
         "Desenvolvi 15+ aplicações web usando React, TypeScript e Node.js, reduzindo tempo de carregamento em 40%",
-        "Implementei arquitetura de microsserviços com Docker e AWS, suportando 100k+ usuários ativos",
+        "Implementei arquitetura de microsserviços com Docker e AWS, suportando 100K+ usuários ativos",
         "Liderei equipe de 4 desenvolvedores em metodologia Scrum, entregando 95% dos sprints no prazo",
         "Integrei sistemas via REST APIs e GraphQL, processando 1M+ requisições diárias",
       ],
@@ -157,30 +299,45 @@ export const desenvolvedorConfig: RoleLandingConfig = {
     { title: "Adicione certificações", description: "AWS Certified, Google Cloud Professional, ou cursos reconhecidos agregam palavras-chave valiosas." },
   ],
   
+  internalLinks: [
+    { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Guia específico para área de dados" },
+    { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Otimização para marketing digital" },
+    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS" },
+    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente" },
+  ],
+  
   faqs: [
     {
       question: "Quais palavras-chave são essenciais para desenvolvedor?",
-      answer: "Depende da stack, mas geralmente: JavaScript/TypeScript, React ou Vue, Node.js ou Python, SQL, Git, Docker, AWS/GCP, REST APIs, e Scrum/Agile são as mais buscadas.",
+      answer: "As palavras-chave variam conforme a stack, mas geralmente incluem: JavaScript ou TypeScript, React ou Vue.js, Node.js ou Python, SQL (PostgreSQL, MySQL), Git, Docker, AWS ou GCP, REST APIs, e metodologias ágeis como Scrum. O mais importante é usar os termos exatos que aparecem na descrição da vaga.",
     },
     {
       question: "Devo listar todas as tecnologias que conheço?",
-      answer: "Não. Liste apenas tecnologias que você domina e que são relevantes para a vaga. Currículos com 30+ tecnologias parecem genéricos. Foque nas 10-15 mais importantes.",
+      answer: "Não é recomendado. Um currículo com 30+ tecnologias pode parecer genérico e dificulta a leitura. Foque nas 10-15 tecnologias mais relevantes para a vaga específica. Organize por categorias (Linguagens, Frameworks, Banco de Dados, Cloud) e inclua apenas tecnologias que você realmente domina e consegue discutir em entrevista.",
     },
     {
-      question: "GitHub conta como experiência?",
-      answer: "Sim! Projetos open source e contribuições no GitHub são valorizados, especialmente para desenvolvedores júnior. Inclua links para projetos relevantes.",
+      question: "GitHub conta como experiência profissional?",
+      answer: "Projetos no GitHub são muito valorizados, especialmente para desenvolvedores júnior ou em transição de carreira. Inclua um link para seu perfil e destaque projetos relevantes com descrição breve. Contribuições para projetos open source também contam e demonstram capacidade de colaboração e código de qualidade.",
     },
     {
       question: "Como destacar experiência com tecnologias recentes?",
-      answer: "Mencione projetos específicos, mesmo que pessoais. Por exemplo: 'Desenvolvi aplicação usando Next.js 14 e Server Components' mostra que você está atualizado.",
+      answer: "Mencione projetos específicos onde você utilizou a tecnologia, mesmo que sejam projetos pessoais ou de estudo. Por exemplo: 'Desenvolvi aplicação usando Next.js 14 com Server Components e App Router' demonstra que você está atualizado com as práticas mais recentes do mercado.",
     },
     {
       question: "O ATS diferencia React de ReactJS?",
-      answer: "Pode diferenciar sim. Use a nomenclatura oficial e mais comum. 'React' é preferível a 'ReactJS'. 'Node.js' é melhor que 'NodeJS' ou 'Node'.",
+      answer: "Alguns sistemas ATS podem diferenciar variações de nomenclatura. Para maximizar compatibilidade, use a nomenclatura oficial e mais comum: 'React' (não ReactJS), 'Node.js' (não NodeJS ou Node), 'TypeScript' (não TS). Quando possível, inclua ambas as variações no currículo.",
     },
     {
       question: "Vale colocar soft skills no currículo técnico?",
-      answer: "Sim, mas de forma contextualizada. Em vez de listar 'trabalho em equipe', escreva 'Colaborei com equipe de 5 desenvolvedores em ambiente Scrum'.",
+      answer: "Sim, mas de forma contextualizada em vez de listada. Em vez de escrever 'trabalho em equipe' como skill isolada, incorpore no contexto: 'Colaborei com equipe de 5 desenvolvedores em ambiente Scrum, participando de code reviews e pair programming'. Isso demonstra a soft skill com evidência concreta.",
+    },
+    {
+      question: "Qual o tamanho ideal do currículo de desenvolvedor?",
+      answer: "Para a maioria dos casos, 1-2 páginas é o ideal. Desenvolvedores júnior e pleno geralmente conseguem condensar em 1 página. Sêniors com muita experiência podem usar 2 páginas. O importante é que cada linha agregue valor - remova experiências antigas ou irrelevantes para a vaga.",
+    },
+    {
+      question: "Devo incluir projetos pessoais e side projects?",
+      answer: "Absolutamente. Projetos pessoais demonstram iniciativa, capacidade de aprender autonomamente e paixão por tecnologia. Inclua 2-3 projetos relevantes com: nome do projeto, tecnologias usadas, seu papel e um resultado ou aprendizado. Links para demo ou repositório são um diferencial.",
     },
   ],
 }
@@ -192,24 +349,25 @@ export const analistaDadosConfig: RoleLandingConfig = {
   roleShort: "Analista de Dados",
   
   meta: {
-    title: "Currículo para Analista de Dados que Passa no ATS (Guia + Exemplo) | CurrIA",
-    description: "Crie um currículo de analista de dados otimizado para ATS. Palavras-chave como SQL, Python, Power BI e técnicas para passar nos filtros automáticos.",
+    title: "Currículo ATS para Analista de Dados: Guia, Exemplo e Palavras-chave | CurrIA",
+    description: "Crie um currículo de analista de dados otimizado para ATS. Exemplos de SQL, Python, Power BI, resumo profissional e palavras-chave para passar nos filtros automáticos.",
     canonical: "/curriculo-analista-dados-ats",
   },
   
   hero: {
-    h1: "Currículo para Analista de Dados que Passa no ATS (Guia + Exemplo)",
-    subtitle: "Seu currículo de analista de dados pode estar sendo filtrado antes de chegar ao recrutador. Aprenda a otimizar para sistemas ATS e conquiste mais entrevistas na área de dados.",
-    ctaText: "Analisar meu currículo grátis",
+    h1: "Currículo ATS para Analista de Dados: Guia e Exemplo Prático",
+    subtitle: "Seu currículo de analista de dados pode estar sendo filtrado antes de chegar ao recrutador. Muitos candidatos qualificados perdem oportunidades por falta de otimização para sistemas ATS. Veja como melhorar.",
+    ctaText: "Descubra se seu currículo passa no ATS",
+    ctaSubtext: "Receba seu score ATS e veja o que corrigir",
   },
   
   problem: {
     title: "Por que currículos de analistas de dados são rejeitados pelo ATS?",
-    description: "A área de dados exige termos técnicos específicos. Erros comuns fazem currículos excelentes serem descartados.",
+    description: "A área de dados exige termos técnicos específicos. Pequenos erros de nomenclatura podem fazer currículos excelentes serem filtrados automaticamente.",
     points: [
       "Usar 'análise de dados' genérico em vez de ferramentas específicas (SQL, Python, Power BI)",
       "Não mencionar bibliotecas e frameworks de data science (Pandas, NumPy, Scikit-learn)",
-      "Omitir experiência com bancos de dados e data warehouses",
+      "Omitir experiência com bancos de dados e data warehouses específicos",
       "Falta de métricas e KPIs nos resultados apresentados",
       "Não incluir experiência com visualização de dados e ferramentas de BI",
     ],
@@ -217,7 +375,7 @@ export const analistaDadosConfig: RoleLandingConfig = {
   
   atsExplanation: {
     title: "Como o ATS filtra currículos de analistas de dados",
-    description: "Recrutadores de data configuram o ATS para buscar combinações específicas de ferramentas de análise, linguagens de programação e experiência com bancos de dados. A ausência de termos-chave elimina candidatos qualificados.",
+    description: "Recrutadores de data configuram o ATS para buscar combinações específicas de ferramentas de análise, linguagens de programação e experiência com bancos de dados. Usar os termos exatos da vaga aumenta suas chances.",
     whatRecruitersScan: [
       "Linguagens de análise (SQL, Python, R)",
       "Ferramentas de BI (Power BI, Tableau, Looker, Metabase)",
@@ -239,6 +397,98 @@ export const analistaDadosConfig: RoleLandingConfig = {
     { term: "Estatística", description: "Análise estatística, testes A/B, regressão e correlação" },
     { term: "Data Visualization", description: "Criação de gráficos, dashboards e storytelling com dados" },
     { term: "Machine Learning", description: "Diferencial: Scikit-learn, modelos preditivos, classificação" },
+  ],
+  
+  commonMistakes: [
+    { 
+      mistake: "Escrever apenas 'Excel' sem especificar nível", 
+      fix: "Use 'Excel Avançado: Tabelas Dinâmicas, Power Query, VLOOKUP, Macros VBA'" 
+    },
+    { 
+      mistake: "Listar 'análise de dados' sem ferramentas", 
+      fix: "Especifique: 'Análise de dados com SQL, Python (Pandas) e Power BI'" 
+    },
+    { 
+      mistake: "Não mencionar volume de dados trabalhado", 
+      fix: "Adicione escala: 'Processei datasets de 5M+ registros'" 
+    },
+    { 
+      mistake: "Usar 'dashboard' sem especificar ferramenta", 
+      fix: "Escreva: 'Criei 20+ dashboards em Power BI para equipe de vendas'" 
+    },
+    { 
+      mistake: "Omitir impacto de negócio das análises", 
+      fix: "Conecte análise a resultado: 'Análise identificou economia de R$200K'" 
+    },
+  ],
+  
+  resumeSections: {
+    summary: {
+      title: "Resumo Profissional",
+      bad: "Analista com experiência em dados e relatórios gerenciais.",
+      good: "Analista de Dados com 3 anos de experiência em SQL, Python (Pandas, NumPy) e Power BI. Especialista em ETL, dashboards executivos e análise estatística. Experiência com BigQuery e processos de data warehouse em ambiente cloud (GCP).",
+    },
+    skills: {
+      title: "Seção de Habilidades",
+      bad: "SQL, Python, Excel, BI tools, Estatística, Dados",
+      good: "SQL: PostgreSQL, BigQuery, Snowflake | Python: Pandas, NumPy, Matplotlib, Scikit-learn | BI: Power BI, Tableau, Looker | Excel: Power Query, Tabelas Dinâmicas, VBA | Estatística: Testes A/B, Regressão, Análise de Coorte",
+    },
+    experience: {
+      title: "Experiência Profissional",
+      bad: "Fiz análises de dados e criei relatórios para a diretoria. Trabalhei com planilhas e sistemas.",
+      good: "Desenvolvi 25+ dashboards em Power BI monitorando KPIs de vendas, marketing e operações. Automatizei pipeline de ETL com Python, reduzindo tempo de processamento de 4h para 20min. Conduzi análise de coorte que identificou oportunidade de R$500K em retenção.",
+    },
+  },
+  
+  specializations: [
+    {
+      title: "Analista de BI",
+      description: "Foco em dashboards, relatórios e visualização de dados para tomada de decisão.",
+      keywords: ["Power BI", "Tableau", "Looker", "Data Studio", "SQL", "DAX", "Dashboards", "KPIs", "Storytelling com Dados", "Self-service BI"],
+    },
+    {
+      title: "Analista de Dados (Analytics)",
+      description: "Análise exploratória, estatística e geração de insights para áreas de negócio.",
+      keywords: ["SQL", "Python", "Pandas", "Estatística", "Testes A/B", "Análise de Coorte", "Segmentação", "BigQuery", "Excel Avançado", "Google Analytics"],
+    },
+    {
+      title: "Engenheiro de Dados",
+      description: "Foco em pipelines, ETL, data warehouses e infraestrutura de dados.",
+      keywords: ["Python", "SQL", "Apache Airflow", "Spark", "ETL/ELT", "Data Warehouse", "BigQuery", "Snowflake", "Databricks", "dbt", "AWS/GCP"],
+    },
+  ],
+  
+  seniorityLevels: [
+    {
+      level: "Analista Júnior",
+      focus: "Demonstre conhecimento técnico e capacidade de aprender",
+      tips: [
+        "Inclua projetos com datasets públicos (Kaggle, dados governamentais)",
+        "Mencione cursos e certificações (Google Data Analytics, IBM Data Science)",
+        "Destaque SQL e pelo menos uma ferramenta de BI",
+        "Mostre familiaridade com Python básico (Pandas)",
+      ],
+    },
+    {
+      level: "Analista Pleno",
+      focus: "Mostre autonomia e impacto mensurável nas análises",
+      tips: [
+        "Quantifique o impacto: 'Análise gerou economia de R$X'",
+        "Mencione projetos end-to-end (coleta, análise, apresentação)",
+        "Destaque experiência com stakeholders de negócio",
+        "Inclua automações criadas e tempo economizado",
+      ],
+    },
+    {
+      level: "Analista Sênior / Lead",
+      focus: "Demonstre liderança técnica e visão estratégica de dados",
+      tips: [
+        "Destaque governança de dados e qualidade implementada",
+        "Mencione times orientados ou treinados",
+        "Inclua projetos de data strategy e roadmap",
+        "Mostre conexão entre dados e decisões de negócio",
+      ],
+    },
   ],
   
   cvExample: {
@@ -271,30 +521,45 @@ export const analistaDadosConfig: RoleLandingConfig = {
     { title: "Adicione certificações de dados", description: "Google Data Analytics, Microsoft Power BI, AWS Data Analytics agregam credibilidade." },
   ],
   
+  internalLinks: [
+    { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores" },
+    { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Otimização para marketing digital" },
+    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS" },
+    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente" },
+  ],
+  
   faqs: [
     {
       question: "SQL é realmente obrigatório para analista de dados?",
-      answer: "Sim, SQL aparece em 90%+ das vagas de dados. É a base para consultar qualquer banco de dados relacional e é requisito mínimo em praticamente todas as empresas.",
+      answer: "SQL aparece na grande maioria das vagas de dados e é considerado requisito básico. É a linguagem padrão para consultar bancos de dados relacionais, que são usados em praticamente todas as empresas. Mesmo que você use Python no dia a dia, SQL será necessário para extrair dados. Invista em aprender SQL avançado com CTEs, Window Functions e otimização de queries.",
     },
     {
       question: "Preciso saber programar para ser analista de dados?",
-      answer: "Depende da vaga, mas Python está cada vez mais requisitado. Para vagas mais avançadas, Python com Pandas é quase obrigatório. Excel avançado ainda é aceito em algumas posições.",
+      answer: "Depende do nível e tipo de vaga. Para posições iniciais focadas em BI, Excel Avançado e SQL podem ser suficientes. Porém, Python está cada vez mais requisitado para automação, análise exploratória e modelagem. Para posições pleno/sênior ou em empresas de tecnologia, Python com Pandas é praticamente obrigatório. R é uma alternativa válida, especialmente em áreas de pesquisa e estatística.",
     },
     {
       question: "Power BI ou Tableau: qual colocar no currículo?",
-      answer: "Idealmente, ambos. Power BI é mais comum em empresas brasileiras, Tableau em multinacionais. Se conhece apenas um, mencione e adicione 'familiar com [outro]' se tiver noção básica.",
+      answer: "Idealmente, mencione ambos se tiver conhecimento. Power BI é mais comum em empresas brasileiras e tem custo menor, enquanto Tableau é forte em multinacionais e empresas de tecnologia. Se conhece apenas um bem, mencione-o com profundidade e adicione algo como 'familiaridade com Tableau' se tiver noção básica. O importante é mostrar capacidade de criar visualizações efetivas.",
     },
     {
       question: "Devo incluir Excel no currículo de dados?",
-      answer: "Sim, mas especifique 'Excel Avançado' com detalhes: tabelas dinâmicas, Power Query, macros VBA, VLOOKUP/INDEX-MATCH. Excel básico não precisa mencionar.",
+      answer: "Sim, mas especifique 'Excel Avançado' e detalhe o que você sabe: Tabelas Dinâmicas, Power Query, Power Pivot, macros VBA, VLOOKUP/INDEX-MATCH, fórmulas complexas. Excel básico não precisa mencionar - é assumido. Para posições mais técnicas, Excel pode ser menos relevante, mas para cargos em empresas tradicionais ainda é muito valorizado.",
     },
     {
       question: "Como mostrar experiência sem ter trabalhado com Big Data?",
-      answer: "Projetos pessoais contam. Use datasets públicos (Kaggle, governo) e documente: 'Analisei dataset de 100K+ registros de vendas usando Python e Pandas'.",
+      answer: "Projetos pessoais e estudos contam muito. Use datasets públicos do Kaggle, dados abertos do governo ou APIs públicas. Documente suas análises: 'Analisei dataset de 100K+ registros de vendas usando Python e Pandas, identificando padrões sazonais'. Publique no GitHub ou em um portfólio. A metodologia e qualidade da análise importam mais que o volume absoluto de dados.",
     },
     {
       question: "Machine Learning é necessário para analista de dados?",
-      answer: "Não é obrigatório, mas é um diferencial crescente. Conhecimento básico de Scikit-learn e modelos preditivos te destaca, especialmente para posições sênior.",
+      answer: "Não é obrigatório para a maioria das vagas de analista de dados, mas é um diferencial crescente. Conhecimento básico de Scikit-learn, entendimento de modelos preditivos simples (regressão, classificação) e capacidade de interpretar resultados de ML te destacam. Para posições de Data Scientist, aí sim é requisito fundamental.",
+    },
+    {
+      question: "Certificações de dados valem a pena?",
+      answer: "Certificações ajudam, especialmente para quem está iniciando ou mudando de área. Google Data Analytics Certificate, Microsoft Power BI Data Analyst e AWS Certified Data Analytics são bem reconhecidas. Elas adicionam palavras-chave relevantes ao currículo e demonstram comprometimento com a área. Porém, não substituem experiência prática - combine certificação com projetos reais.",
+    },
+    {
+      question: "Como destacar análises que geraram impacto no negócio?",
+      answer: "Use a fórmula: Ação + Contexto + Resultado. Exemplo: 'Desenvolvi análise de churn (Ação) usando SQL e Python para identificar clientes em risco (Contexto), resultando em redução de 15% na taxa de cancelamento e economia de R$300K/ano (Resultado)'. Sempre que possível, inclua números e valores monetários para demonstrar impacto tangível.",
     },
   ],
 }
@@ -306,20 +571,21 @@ export const marketingConfig: RoleLandingConfig = {
   roleShort: "Marketing",
   
   meta: {
-    title: "Currículo para Marketing que Passa no ATS (Guia + Exemplo) | CurrIA",
-    description: "Otimize seu currículo de marketing para sistemas ATS. Palavras-chave de marketing digital, métricas e exemplos práticos para conquistar mais entrevistas.",
+    title: "Currículo ATS para Marketing: Guia, Exemplo e Palavras-chave | CurrIA",
+    description: "Otimize seu currículo de marketing digital para sistemas ATS. Exemplos de resumo profissional, métricas, palavras-chave de performance, SEO e growth para conquistar mais entrevistas.",
     canonical: "/curriculo-marketing-ats",
   },
   
   hero: {
-    h1: "Currículo para Marketing que Passa no ATS (Guia + Exemplo)",
-    subtitle: "Seu currículo de marketing pode estar sendo rejeitado automaticamente. Veja como incluir as palavras-chave certas e formatar para passar nos filtros ATS.",
-    ctaText: "Analisar meu currículo grátis",
+    h1: "Currículo ATS para Marketing: Guia e Exemplo Prático",
+    subtitle: "Profissionais de marketing sabem a importância de otimização, mas muitos esquecem de aplicar isso ao próprio currículo. Veja como incluir as palavras-chave certas e formatar para passar nos filtros ATS.",
+    ctaText: "Analise seu currículo e veja o que corrigir",
+    ctaSubtext: "Aumente suas chances de entrevista",
   },
   
   problem: {
     title: "Por que currículos de marketing são rejeitados pelo ATS?",
-    description: "Marketing é uma área ampla com muitas especialidades. Currículos genéricos são facilmente filtrados.",
+    description: "Marketing é uma área ampla com muitas especialidades. Currículos genéricos que não especificam canais, ferramentas e métricas são facilmente filtrados.",
     points: [
       "Usar termos vagos como 'gerenciei redes sociais' sem métricas ou plataformas específicas",
       "Não mencionar ferramentas de marketing digital (Google Ads, Meta Ads, HubSpot)",
@@ -331,7 +597,7 @@ export const marketingConfig: RoleLandingConfig = {
   
   atsExplanation: {
     title: "Como o ATS filtra currículos de marketing",
-    description: "Recrutadores de marketing configuram filtros por especialidade (performance, conteúdo, branding) e ferramentas específicas. Um currículo de growth hacker não deve parecer igual ao de brand manager.",
+    description: "Recrutadores de marketing configuram filtros por especialidade (performance, conteúdo, branding) e ferramentas específicas. Um currículo de growth hacker precisa de palavras-chave diferentes de um brand manager.",
     whatRecruitersScan: [
       "Ferramentas de ads (Google Ads, Meta Ads, LinkedIn Ads, TikTok Ads)",
       "Plataformas de automação (HubSpot, RD Station, Mailchimp, ActiveCampaign)",
@@ -353,6 +619,98 @@ export const marketingConfig: RoleLandingConfig = {
     { term: "Growth Hacking", description: "Experimentação e otimização para crescimento acelerado" },
     { term: "E-mail Marketing", description: "Automação, segmentação, nurturing e campanhas de e-mail" },
     { term: "Social Media", description: "Gestão de redes: Instagram, LinkedIn, TikTok, estratégia de conteúdo" },
+  ],
+  
+  commonMistakes: [
+    { 
+      mistake: "Escrever 'gerenciei redes sociais' sem detalhes", 
+      fix: "Especifique: 'Gerenciei Instagram e LinkedIn com 50K+ seguidores, alcance de 500K/mês'" 
+    },
+    { 
+      mistake: "Listar 'campanhas de marketing' sem métricas", 
+      fix: "Adicione números: 'Campanhas de Google Ads com ROAS 4.5x e CTR de 3.2%'" 
+    },
+    { 
+      mistake: "Não mencionar budget gerenciado", 
+      fix: "Contextualize: 'Gerenciei budget de R$200K/mês em mídia paga'" 
+    },
+    { 
+      mistake: "Usar 'marketing digital' sem especificar área", 
+      fix: "Seja específico: 'Marketing de Performance | Google Ads, Meta Ads, SEO'" 
+    },
+    { 
+      mistake: "Omitir ferramentas de automação", 
+      fix: "Inclua: 'Automação de marketing no HubSpot com 15 fluxos de nurturing'" 
+    },
+  ],
+  
+  resumeSections: {
+    summary: {
+      title: "Resumo Profissional",
+      bad: "Profissional de marketing com experiência em campanhas digitais e redes sociais.",
+      good: "Analista de Marketing Digital com 4 anos de experiência em performance (Google Ads, Meta Ads) e inbound marketing (HubSpot). Gerenciei budgets de até R$300K/mês com ROAS médio de 4x. Especialista em SEO, automação e análise de funil com Google Analytics 4.",
+    },
+    skills: {
+      title: "Seção de Habilidades",
+      bad: "Mídia paga, SEO, Redes sociais, E-mail marketing, Análise de dados",
+      good: "Mídia Paga: Google Ads, Meta Ads, LinkedIn Ads, TikTok Ads | SEO: On-page, Off-page, SEMrush, Ahrefs | Automação: HubSpot, RD Station, Mailchimp | Analytics: GA4, Data Studio, Tag Manager | CRM: Salesforce, Pipedrive",
+    },
+    experience: {
+      title: "Experiência Profissional",
+      bad: "Criei campanhas de marketing digital. Gerenciei as redes sociais da empresa. Trabalhei com e-mail marketing.",
+      good: "Gerenciei R$500K/mês em Google Ads e Meta Ads, alcançando ROAS de 4.5x e reduzindo CAC em 30%. Implementei estratégia de SEO que aumentou tráfego orgânico em 150% (50K → 125K visitas/mês). Estruturei automação no HubSpot com 15 fluxos, aumentando conversão de leads em 40%.",
+    },
+  },
+  
+  specializations: [
+    {
+      title: "Marketing de Performance",
+      description: "Foco em mídia paga, ROI, conversões e otimização de campanhas.",
+      keywords: ["Google Ads", "Meta Ads", "LinkedIn Ads", "TikTok Ads", "ROAS", "CAC", "LTV", "Pixel", "Conversões", "Remarketing", "A/B Testing", "CRO"],
+    },
+    {
+      title: "Marketing de Conteúdo / SEO",
+      description: "Estratégia de conteúdo, otimização para buscadores e inbound marketing.",
+      keywords: ["SEO On-page", "SEO Off-page", "Link Building", "Copywriting", "Blog", "Content Strategy", "SEMrush", "Ahrefs", "Keyword Research", "Featured Snippets"],
+    },
+    {
+      title: "Growth Marketing",
+      description: "Experimentação, métricas de crescimento e otimização de funil completo.",
+      keywords: ["Growth Hacking", "Product-Led Growth", "Experimentos A/B", "Métricas AARRR", "Funil de Conversão", "Onboarding", "Retenção", "Viral Loops", "Analytics", "SQL"],
+    },
+  ],
+  
+  seniorityLevels: [
+    {
+      level: "Analista Júnior",
+      focus: "Demonstre conhecimento técnico das ferramentas e vontade de aprender",
+      tips: [
+        "Inclua certificações Google Ads, Meta Blueprint, HubSpot",
+        "Mencione métricas mesmo de projetos pessoais ou estágios",
+        "Destaque conhecimento em pelo menos uma especialidade",
+        "Mostre familiaridade com ferramentas de analytics",
+      ],
+    },
+    {
+      level: "Analista Pleno",
+      focus: "Mostre autonomia em campanhas e impacto mensurável",
+      tips: [
+        "Quantifique budget gerenciado e resultados (ROAS, CAC, conversões)",
+        "Mencione otimizações e testes realizados",
+        "Destaque projetos liderados do início ao fim",
+        "Inclua experiência com múltiplos canais",
+      ],
+    },
+    {
+      level: "Coordenador / Gerente",
+      focus: "Demonstre liderança, estratégia e visão de negócio",
+      tips: [
+        "Destaque equipes lideradas e desenvolvidas",
+        "Mencione orçamentos anuais e planejamento estratégico",
+        "Inclua métricas de impacto no negócio (receita, market share)",
+        "Mostre visão integrada de canais e jornada do cliente",
+      ],
+    },
   ],
   
   cvExample: {
@@ -385,47 +743,62 @@ export const marketingConfig: RoleLandingConfig = {
     { title: "Mostre conhecimento de funil", description: "Mencione topo, meio e fundo de funil. Entender a jornada do cliente é valorizado." },
   ],
   
+  internalLinks: [
+    { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores" },
+    { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Otimização para área de dados" },
+    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS" },
+    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente" },
+  ],
+  
   faqs: [
     {
       question: "Quais métricas devo incluir no currículo de marketing?",
-      answer: "ROI, ROAS, CTR, CAC, LTV, taxa de conversão, crescimento de tráfego, leads gerados. Escolha as mais relevantes para sua especialidade e quantifique resultados.",
+      answer: "As métricas mais valorizadas dependem da sua especialidade. Para performance: ROAS, CAC, LTV, CTR, CPC, taxa de conversão. Para SEO: crescimento de tráfego orgânico, posições de ranking, backlinks. Para conteúdo: engajamento, alcance, leads gerados. Sempre conecte métricas a resultados de negócio - 'ROAS de 4x que gerou R$2M em vendas' é mais poderoso que apenas 'ROAS de 4x'.",
     },
     {
       question: "Marketing tradicional ainda vale no currículo?",
-      answer: "Depende da vaga. Para posições de brand ou trade marketing, sim. Para marketing digital puro, foque nas habilidades digitais mas mencione experiência offline se relevante.",
+      answer: "Depende da vaga. Para posições de brand marketing, trade marketing ou em empresas mais tradicionais, experiência com eventos, materiais impressos e mídia offline ainda é relevante. Para vagas de marketing digital puro, foque nas competências digitais. Uma boa estratégia é manter experiência tradicional de forma resumida e expandir a parte digital.",
     },
     {
-      question: "Devo me especializar ou ser generalista?",
-      answer: "Para vagas júnior/pleno, conhecimento amplo é aceito. Para sênior, especialização (SEO, performance, growth) é mais valorizada. Destaque seu diferencial.",
+      question: "Devo incluir número de seguidores que conquistei?",
+      answer: "Sim, mas contextualize. 'Cresci Instagram de 5K para 50K seguidores em 12 meses' é bom, mas melhor ainda é adicionar: 'com taxa de engajamento de 5% e conversão de 3% para leads qualificados'. Números de seguidores sem contexto de engajamento ou conversão são menos impressionantes. Mostre que você entende métricas além de vanity metrics.",
     },
     {
-      question: "Google Analytics 4 é diferente do Universal Analytics?",
-      answer: "Sim, e recrutadores notam. GA4 é o atual padrão. Se você só conhece o antigo, mencione 'Google Analytics' e busque atualização em GA4.",
+      question: "Como mostrar experiência com ferramentas de automação?",
+      answer: "Seja específico sobre a ferramenta e o que você construiu: 'Estruturei 15 fluxos de automação no HubSpot incluindo welcome series, nurturing de leads e reengajamento, resultando em aumento de 40% na taxa de conversão MQL para SQL'. Mencione integrações feitas, segmentações criadas e resultados obtidos.",
     },
     {
-      question: "Como mostrar experiência com budget pequeno?",
-      answer: "Foque em porcentagem de melhoria e eficiência: 'Otimizei campanha de R$5K/mês alcançando ROAS 5x' mostra competência independente do volume.",
+      question: "Certificações de marketing digital são importantes?",
+      answer: "Certificações ajudam, especialmente Google Ads, Meta Blueprint, HubSpot e Google Analytics. Elas adicionam palavras-chave relevantes ao currículo e mostram comprometimento com atualização profissional. Para profissionais experientes, não são essenciais se você tem resultados comprovados. Para quem está começando ou mudando de área, são muito recomendadas.",
     },
     {
-      question: "Certificações de marketing realmente importam?",
-      answer: "Sim, especialmente para quem está migrando de área ou em início de carreira. Google Ads, Meta Blueprint e HubSpot são as mais reconhecidas.",
+      question: "Como destacar experiência com budget pequeno?",
+      answer: "Foque na eficiência e nos resultados percentuais em vez de valores absolutos. 'Otimizei campanhas de Google Ads reduzindo CPA em 45% e aumentando conversões em 80%' é impressionante independente do budget. Também mencione otimizações criativas, testes realizados e learnings que demonstram pensamento estratégico.",
+    },
+    {
+      question: "Devo separar experiência B2B e B2C?",
+      answer: "Se você tem experiência em ambos, vale mencionar essa versatilidade. Destaque as diferenças de estratégia: 'Marketing B2B com ciclos de venda longos (LinkedIn Ads, ABM, nurturing de 6 meses) e B2C com foco em conversão direta (Google Shopping, Meta Ads, remarketing)'. Isso mostra amplitude de conhecimento.",
+    },
+    {
+      question: "Como incluir projetos de freelancer ou consultoria?",
+      answer: "Inclua como experiência profissional normal, especificando 'Consultor de Marketing Digital' ou 'Freelancer'. Liste clientes (ou setores, se preferir manter confidencialidade) e resultados obtidos. Exemplo: 'Consultoria para 8 clientes de e-commerce, com média de aumento de 60% em ROAS e redução de 25% em CAC'. Mostra capacidade de gerar resultados em diferentes contextos.",
     },
   ],
 }
 
-// Export all configs as a map for easy lookup
-export const roleLandingConfigs: Record<string, RoleLandingConfig> = {
-  "curriculo-desenvolvedor-ats": desenvolvedorConfig,
-  "curriculo-analista-dados-ats": analistaDadosConfig,
-  "curriculo-marketing-ats": marketingConfig,
-}
-
 // Helper to get config by slug
-export function getRoleLandingConfig(slug: string): RoleLandingConfig | undefined {
-  return roleLandingConfigs[slug]
+export function getRoleLandingConfigBySlug(slug: string): RoleLandingConfig | undefined {
+  const configs: Record<string, RoleLandingConfig> = {
+    "curriculo-desenvolvedor-ats": desenvolvedorConfig,
+    "curriculo-analista-dados-ats": analistaDadosConfig,
+    "curriculo-marketing-ats": marketingConfig,
+  }
+  return configs[slug]
 }
 
-// Get all slugs for static generation
-export function getAllRoleSlugs(): string[] {
-  return Object.keys(roleLandingConfigs)
-}
+// Export all configs for sitemap generation
+export const allRoleLandingConfigs: RoleLandingConfig[] = [
+  desenvolvedorConfig,
+  analistaDadosConfig,
+  marketingConfig,
+]
