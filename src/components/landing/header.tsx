@@ -2,10 +2,16 @@
 
 import Link from "next/link"
 import { UserButton, useAuth } from "@clerk/nextjs"
-import { Menu } from "lucide-react"
+import { Menu, ChevronDown } from "lucide-react"
 
 import Logo from "@/components/logo"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -32,6 +38,29 @@ export default function Header({ onMenuClick }: HeaderProps) {
             >
               O que é o ATS?
             </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-black hover:text-black transition-colors">
+                Currículos por Área
+                <ChevronDown className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link href="/curriculo-desenvolvedor-ats" className="cursor-pointer">
+                    Desenvolvedor de Software
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/curriculo-analista-dados-ats" className="cursor-pointer">
+                    Analista de Dados
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/curriculo-marketing-ats" className="cursor-pointer">
+                    Marketing
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <a
               href="/#pricing"
               className="text-sm font-medium text-black hover:text-black transition-colors"
