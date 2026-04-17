@@ -324,7 +324,7 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
           </motion.div>
         )}
 
-        {/* Common Mistakes Section - Split Comparison Cards */}
+        {/* Common Mistakes Section - Vertical Flow: Problem → Solution */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -332,7 +332,7 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
           viewport={{ once: true, margin: "-100px" }}
         >
           <Section>
-            <div className="container mx-auto max-w-5xl px-4">
+            <div className="container mx-auto max-w-3xl px-4">
               <motion.div variants={itemVariants}>
                 <SectionHeader
                   icon={AlertCircle}
@@ -342,35 +342,52 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
                 />
               </motion.div>
 
-              <motion.div variants={itemVariants} className="space-y-5">
+              {/* Vertical Flow of Error → Correction pairs */}
+              <div className="space-y-16">
                 {config.commonMistakes.map((item, i) => (
-                  <div
+                  <motion.div
                     key={i}
-                    className="group grid overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-300 hover:shadow-lg md:grid-cols-2"
+                    variants={itemVariants}
+                    className="relative"
                   >
-                    {/* Error Side */}
-                    <div className="border-b border-border/40 bg-gradient-to-br from-destructive/5 to-transparent p-6 md:border-b-0 md:border-r">
-                      <div className="mb-3 flex items-center gap-2">
-                        <div className="rounded-lg bg-destructive/10 p-1.5">
-                          <XCircle className="h-4 w-4 text-destructive" />
+                    {/* Error Card - Full Width */}
+                    <div 
+                      className="group relative rounded-2xl border-2 border-destructive/20 bg-gradient-to-br from-destructive/8 via-destructive/4 to-transparent p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:shadow-destructive/5 md:p-8"
+                      style={{ marginLeft: i % 2 === 0 ? '0' : '8px' }}
+                    >
+                      <div className="mb-4 flex items-center gap-3">
+                        <div className="rounded-xl bg-destructive/10 p-2.5">
+                          <XCircle className="h-5 w-5 text-destructive" />
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-wider text-destructive">Erro</span>
+                        <span className="text-sm font-bold uppercase tracking-wider text-destructive">Erro</span>
                       </div>
-                      <p className="text-[15px] leading-relaxed text-muted-foreground">{item.mistake}</p>
+                      <p className="text-base leading-relaxed text-muted-foreground md:text-lg">{item.mistake}</p>
                     </div>
-                    {/* Correction Side */}
-                    <div className="bg-gradient-to-br from-green-500/5 to-transparent p-6">
-                      <div className="mb-3 flex items-center gap-2">
-                        <div className="rounded-lg bg-green-500/10 p-1.5">
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+
+                    {/* Visual Connector - Arrow/Line */}
+                    <div className="relative flex h-14 items-center justify-center">
+                      <div className="absolute left-1/2 h-full w-px -translate-x-1/2 bg-gradient-to-b from-destructive/30 via-border to-green-500/30" />
+                      <div className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-background shadow-sm">
+                        <ChevronRight className="h-4 w-4 rotate-90 text-muted-foreground" />
+                      </div>
+                    </div>
+
+                    {/* Correction Card - Full Width, More Prominent */}
+                    <div 
+                      className="group relative rounded-2xl border-2 border-green-500/30 bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent p-6 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-green-500/10 md:p-8"
+                      style={{ marginRight: i % 2 === 0 ? '0' : '8px' }}
+                    >
+                      <div className="mb-4 flex items-center gap-3">
+                        <div className="rounded-xl bg-green-500/15 p-2.5">
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-wider text-green-500">Correção</span>
+                        <span className="text-sm font-bold uppercase tracking-wider text-green-500">Correção</span>
                       </div>
-                      <p className="text-[15px] leading-relaxed text-foreground">{item.fix}</p>
+                      <p className="text-base font-medium leading-relaxed text-foreground md:text-lg">{item.fix}</p>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </motion.div>
+              </div>
             </div>
           </Section>
         </motion.div>
