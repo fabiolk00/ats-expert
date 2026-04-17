@@ -335,58 +335,80 @@ function CustomerSuccessHero({ theme }: HeroVisualProps) {
 function DataAnalystHero({ theme }: HeroVisualProps) {
   return (
     <HeroShell theme={theme}>
-      <div className="relative grid gap-6 md:grid-cols-[1.08fr_0.92fr]">
-        <div className="flex h-full flex-col rounded-[30px] border border-slate-200/80 bg-white/92 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
+      <div className="relative grid gap-6 md:grid-cols-[1.12fr_0.88fr]">
+        <div className="flex h-full flex-col rounded-[30px] border border-slate-200/80 bg-white/94 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Dashboard analítico</p>
-              <p className="mt-2 text-xl font-semibold text-slate-950">KPIs, tendências e leitura de negócio</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Dashboard anal?tico</p>
+              <p className="mt-2 max-w-[13ch] text-[1.95rem] font-semibold leading-[1.05] text-slate-950">KPIs, tend?ncias e leitura de neg?cio</p>
             </div>
             <BarChart3 className="mt-1 h-5 w-5 text-violet-600" />
           </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {[["Conversão", "24%"], ["Retenção", "87%"], ["Receita", "132"]].map(([label, value]) => (
-              <div key={label} className="rounded-[22px] border border-violet-100 bg-violet-50/80 px-4 py-5 shadow-[0_8px_18px_rgba(139,92,246,0.08)]">
+
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            {[ ["Convers?o", "24%"], ["Reten??o", "87%"], ["Receita", "132"] ].map(([label, value]) => (
+              <div key={label} className="rounded-[20px] border border-violet-100 bg-violet-50/80 px-4 py-4 shadow-[0_8px_18px_rgba(139,92,246,0.08)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-violet-600">{label}</p>
-                <p className="mt-2 text-[2rem] font-semibold leading-none text-slate-950">{value}</p>
+                <p className="mt-2 text-[1.9rem] font-semibold leading-none tracking-[-0.03em] text-slate-950">{value}</p>
               </div>
             ))}
           </div>
-          <div className="mt-6 rounded-[22px] bg-[linear-gradient(180deg,rgba(139,92,246,0.08),rgba(255,255,255,0.96))] p-4">
-            <svg viewBox="0 0 340 96" className="h-[92px] w-full">
-              <polyline fill="none" stroke="#8b5cf6" strokeWidth="4" points="8,74 56,66 104,70 152,44 200,48 248,34 296,22 332,16" />
-              <polyline fill="none" stroke="#38bdf8" strokeWidth="3" points="8,86 56,78 104,62 152,58 200,50 248,52 296,34 332,30" />
+
+          <div className="mt-6 rounded-[24px] bg-[linear-gradient(180deg,rgba(139,92,246,0.10),rgba(255,255,255,0.98))] p-5">
+            <div className="mb-4 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+              <span>Evolu??o de performance</span>
+              <span>?ltimos 90 dias</span>
+            </div>
+            <svg viewBox="0 0 360 126" className="h-[124px] w-full">
+              <polyline fill="none" stroke="#8b5cf6" strokeWidth="4" points="10,92 60,84 110,88 160,56 210,60 260,46 310,28 350,22" />
+              <polyline fill="none" stroke="#38bdf8" strokeWidth="3" points="10,102 60,94 110,74 160,70 210,62 260,64 310,46 350,40" />
             </svg>
           </div>
-          <div className="mt-4 rounded-[22px] border border-violet-100 bg-white p-4 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
-            <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+
+          <div className="mt-4 rounded-[24px] border border-violet-100 bg-white p-5 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
+            <div className="mb-4 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
               <span>Volume por frente</span>
-              <span>Últimos 30 dias</span>
+              <span>Base mensal</span>
             </div>
-            <div className="flex h-28 items-end gap-3 rounded-[18px] bg-[linear-gradient(180deg,rgba(139,92,246,0.05),rgba(255,255,255,0.92))] px-3 pb-3 pt-6">
-              {[42, 56, 48, 74, 66, 84, 78].map((height, index) => (
+            <div className="flex h-36 items-end gap-3 rounded-[18px] bg-[linear-gradient(180deg,rgba(139,92,246,0.05),rgba(255,255,255,0.92))] px-3 pb-3 pt-8">
+              {[36, 48, 42, 66, 58, 78, 72].map((height, index) => (
                 <div key={index} className="flex-1 rounded-t-[14px] bg-gradient-to-t from-violet-500 to-fuchsia-400" style={{ height: `${height}%` }} />
               ))}
             </div>
           </div>
         </div>
+
         <div className="flex min-h-[360px] flex-col rounded-[30px] border border-white/10 bg-slate-950 p-5 text-white shadow-[0_28px_70px_rgba(2,6,23,0.28)]">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Segmentação</p>
-              <p className="mt-2 text-xl font-semibold">Mix analítico</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Segmenta??o</p>
+              <p className="mt-2 text-[1.9rem] font-semibold leading-[1.05]">Mix anal?tico</p>
             </div>
             <PieChart className="h-5 w-5 text-violet-300" />
           </div>
-          <div className="mt-6 grid gap-2 text-sm text-white/72">
-            <div className="flex items-center justify-between"><span>BI</span><span>42%</span></div>
-            <div className="flex items-center justify-between"><span>Produto</span><span>30%</span></div>
-            <div className="flex items-center justify-between"><span>Growth</span><span>28%</span></div>
+
+          <div className="mt-6 grid gap-3">
+            {[ ["BI", "42%"], ["Produto", "30%"], ["Growth", "28%"] ].map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between rounded-full border border-white/10 bg-white/6 px-4 py-3 text-sm">
+                <span className="text-white/72">{label}</span>
+                <span className="font-semibold text-white">{value}</span>
+              </div>
+            ))}
           </div>
-          <div className="mt-auto flex items-end justify-center pt-8">
+
+          <div className="mt-8 flex items-center justify-center">
             <div className="relative h-40 w-40 rounded-full bg-[conic-gradient(#8b5cf6_0_42%,#38bdf8_42%_72%,#c084fc_72%_100%)]">
               <div className="absolute inset-6 rounded-full bg-slate-950" />
             </div>
+          </div>
+
+          <div className="mt-8 grid gap-3">
+            {[ ["Dashboards", "20+"], ["Automa??es", "12"], ["Insights", "R$ 200k"] ].map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between rounded-[18px] border border-violet-400/15 bg-white/5 px-4 py-3">
+                <span className="text-sm text-white/68">{label}</span>
+                <span className="text-sm font-semibold text-violet-200">{value}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -327,13 +327,17 @@ export default function SeoRoleLandingPage({ config }: { config: RoleLandingConf
           <Surface>
             <div className="p-8 md:p-10">
               <Label icon={<CircleAlert className="h-4 w-4 text-amber-500" />}>Erros que travam a leitura</Label>
-              <div className="mt-7 divide-y divide-slate-200/80">
+              <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {config.commonMistakes.map((item, index) => (
-                  <div key={item.mistake} className="grid gap-4 py-5 md:grid-cols-[auto_1fr]">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-700">{String(index + 1).padStart(2, "0")}</div>
-                    <div>
-                      <p className="font-semibold text-slate-950">{item.mistake}</p>
-                      <p className="mt-2 text-sm leading-7 text-slate-600">{item.fix}</p>
+                  <div key={item.mistake} className="rounded-[24px] border border-amber-200/80 bg-white p-5 shadow-[0_16px_36px_rgba(15,23,42,0.05)]">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-700">
+                        {String(index + 1).padStart(2, "0")}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-950">{item.mistake}</p>
+                        <p className="mt-2 text-sm leading-7 text-slate-600">{item.fix}</p>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -372,12 +376,12 @@ export default function SeoRoleLandingPage({ config }: { config: RoleLandingConf
           <Surface>
             <div className="p-8 md:p-10">
               <Label icon={<BriefcaseBusiness className={cn("h-4 w-4", theme.accentText)} />}>Senioridade e posicionamento</Label>
-              <div className="mt-7 divide-y divide-slate-200/80">
+              <div className="mt-7 grid gap-5 xl:grid-cols-3">
                 {config.seniorityLevels.map((level) => (
-                  <div key={level.level} className="py-5">
+                  <div key={level.level} className="rounded-[28px] border border-slate-200/80 bg-white/92 p-6 shadow-[0_16px_36px_rgba(15,23,42,0.05)]">
                     <h3 className="text-lg font-semibold text-slate-950">{level.level}</h3>
                     <p className="mt-3 text-sm leading-7 text-slate-600">{level.focus}</p>
-                    <ul className="mt-4 space-y-2">
+                    <ul className="mt-5 space-y-3">
                       {level.tips.map((tip) => (
                         <li key={tip} className="flex items-start gap-3 text-sm leading-7 text-slate-600">
                           <CheckCircle2 className={cn("mt-1 h-4 w-4 shrink-0", theme.accentText)} />
@@ -391,9 +395,9 @@ export default function SeoRoleLandingPage({ config }: { config: RoleLandingConf
               {config.positioningMistakes?.length ? (
                 <div className="mt-8 border-t border-slate-200/80 pt-8">
                   <Label icon={<CircleAlert className="h-4 w-4 text-amber-500" />}>Erros de posicionamento</Label>
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
                     {config.positioningMistakes.map((mistake) => (
-                      <div key={mistake} className="border-l-2 border-amber-200 pl-4">
+                      <div key={mistake} className="rounded-[20px] border border-amber-200/80 bg-amber-50/50 p-4">
                         <p className="text-sm leading-7 text-slate-600">{mistake}</p>
                       </div>
                     ))}
