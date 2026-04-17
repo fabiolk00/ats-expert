@@ -249,7 +249,7 @@ function RoleVisual({ config }: { config: RoleLandingConfig }) {
             {
               step: "02",
               title: "Conecte entrega e arquitetura",
-              body: "Relacione APIs, banco, cloud e impacto do produto para sair do currículo genérico.",
+              body: "Relacione APIs, banco, cloud e impacto do produto para sair do currículo genÃƒÂ©rico.",
             },
             {
               step: "03",
@@ -306,7 +306,7 @@ function RoleVisual({ config }: { config: RoleLandingConfig }) {
             {
               step: "01",
               title: "Defina a origem dos dados",
-              body: "Mostre domínio de evento, batch, integrações e governança já no topo do currículo.",
+              body: "Mostre domÃƒÂ­nio de evento, batch, integraÃƒÂ§ÃƒÂµes e governanÃƒÂ§a jÃƒÂ¡ no topo do currículo.",
             },
             {
               step: "02",
@@ -378,7 +378,7 @@ function RoleVisual({ config }: { config: RoleLandingConfig }) {
     ),
     marketing: (
       <div className="grid gap-4 md:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[28px] border border-slate-200 bg-white/92 p-5"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Campaign feed</p><p className="mt-2 text-xl font-semibold text-slate-950">News, ads e conteúdo</p></div><Newspaper className="h-5 w-5 text-pink-600" /></div><div className="mt-5 space-y-3"><div className="rounded-2xl border border-pink-100 bg-pink-50 p-4"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-pink-500">Launch</p><p className="mt-2 text-sm font-semibold text-slate-950">Campanha de performance com foco em ROAS</p></div><div className="rounded-2xl border border-orange-100 bg-orange-50 p-4"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-500">Editorial</p><p className="mt-2 text-sm font-semibold text-slate-950">Conteúdo, newsletter e social sincronizados</p></div></div></div>
+        <div className="rounded-[28px] border border-slate-200 bg-white/92 p-5"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Campaign feed</p><p className="mt-2 text-xl font-semibold text-slate-950">News, ads e conteúdo</p></div><Newspaper className="h-5 w-5 text-pink-600" /></div><div className="mt-5 space-y-3"><div className="rounded-2xl border border-pink-100 bg-pink-50 p-4"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-pink-500">Launch</p><p className="mt-2 text-sm font-semibold text-slate-950">Campanha de performance com foco em ROAS</p></div><div className="rounded-2xl border border-orange-100 bg-orange-50 p-4"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-orange-500">Editorial</p><p className="mt-2 text-sm font-semibold text-slate-950">ConteÃƒÂºdo, newsletter e social sincronizados</p></div></div></div>
         <div className="rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Paid media</p><p className="mt-2 text-xl font-semibold">Distribuição e resultado</p></div><Megaphone className="h-5 w-5 text-pink-300" /></div><div className="mt-5 grid gap-3 sm:grid-cols-3">{["CTR", "ROAS", "CAC"].map((item, index) => <div key={item} className="rounded-2xl bg-white/5 p-4"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/45">{item}</p><p className="mt-2 text-2xl font-semibold">{["3.4%", "4.8x", "-22%"][index]}</p></div>)}</div><div className="mt-4 flex h-20 items-end gap-2 rounded-[22px] bg-[linear-gradient(90deg,rgba(236,72,153,0.18),rgba(249,115,22,0.10))] p-4">{[32, 54, 42, 78, 64, 88, 74].map((height, index) => <div key={index} className="flex-1 rounded-t-xl bg-gradient-to-t from-pink-500 to-orange-400" style={{ height: `${height}%` }} />)}</div></div>
       </div>
     ),
@@ -660,7 +660,7 @@ export default function SeoRoleLandingPage({ config }: { config: RoleLandingConf
                 <div className="max-w-2xl">
                   <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                     <CircleAlert className="h-4 w-4 text-rose-500" />
-                    Onde o curr�culo quebra
+                    Onde o currÃ­culo quebra
                   </div>
                   <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950">{config.problem.title}</h2>
                   <p className="mt-4 text-base leading-8 text-slate-600">{config.problem.description}</p>
@@ -868,9 +868,9 @@ export default function SeoRoleLandingPage({ config }: { config: RoleLandingConf
             <div className="grid xl:grid-cols-[0.72fr_1.28fr]">
               <div className="border-b border-slate-200/80 p-8 md:p-10 xl:border-b-0 xl:border-r">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">{accent.checklistLabel}</p>
-                <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">Como melhorar seu curr�culo</h2>
+                <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">Como melhorar seu currÃ­culo</h2>
                 <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600">
-                  Em vez de v�rios cards iguais, organizamos os pr�ximos passos como uma sequ�ncia editorial mais enxuta e mais f�cil de escanear.
+                  Em vez de vÃ¡rios cards iguais, organizamos os prÃ³ximos passos como uma sequÃªncia editorial mais enxuta e mais fÃ¡cil de escanear.
                 </p>
               </div>
               <div className="p-8 md:p-10">
@@ -899,7 +899,7 @@ export default function SeoRoleLandingPage({ config }: { config: RoleLandingConf
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/50">FAQ</p>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight">Perguntas frequentes</h2>
                 <p className="mt-4 max-w-md text-sm leading-7 text-white/70">
-                  Mantivemos todas as respostas da p�gina, mas em uma estrutura mais limpa e mais consistente com o restante da experi�ncia.
+                  Mantivemos todas as respostas da pÃ¡gina, mas em uma estrutura mais limpa e mais consistente com o restante da experiÃªncia.
                 </p>
               </div>
               <div className="p-8 md:p-10">
