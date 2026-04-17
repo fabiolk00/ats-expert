@@ -766,15 +766,15 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
   {/* Asymmetric: 3 horizontal content cards (left) + 1 tall CTA card (right) */}
   <motion.div variants={itemVariants} className="grid gap-5 lg:grid-cols-5">
 
-    {/* Left: 3 horizontal cards stacked */}
-    <div className="flex flex-col gap-4 lg:col-span-3">
+    {/* Left: 3 horizontal cards stacked — gap aumentado */}
+    <div className="flex flex-col gap-6 lg:col-span-3">
       {config.internalLinks.slice(0, 3).map((link, i) => (
         <Link
           key={i}
           href={link.href}
-          className="group flex overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md"
+          className="group flex overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
         >
-          {/* Thumbnail */}
+          {/* Thumbnail com zoom */}
           <div className="relative w-28 shrink-0 overflow-hidden sm:w-36">
             <Image
               src={link.image}
@@ -782,49 +782,51 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-110"
             />
-            <div className="absolute inset-0 bg-black/15 transition-opacity duration-300 group-hover:bg-black/25" />
+            <div className="absolute inset-0 bg-black/10 transition-opacity duration-300 group-hover:bg-black/30" />
           </div>
           {/* Text */}
-          <div className="flex flex-1 flex-col justify-center px-5 py-4 transition-colors duration-200 group-hover:bg-muted/20">
+          <div className="flex flex-1 flex-col justify-center px-5 py-5 transition-colors duration-200 group-hover:bg-muted/30">
             <h3 className="mb-1 text-sm font-semibold leading-snug text-foreground">{link.label}</h3>
             <p className="mb-3 text-xs leading-relaxed text-muted-foreground">{link.description}</p>
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-primary">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-primary">
               Ver guia
-              <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-1" />
+              <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-1.5" />
             </span>
           </div>
         </Link>
       ))}
     </div>
 
-    {/* Right: Featured CTA card — taller, distinct visual */}
+    {/* Right: Featured CTA card — hero visual */}
     {config.internalLinks[3] && (
       <Link
         href={config.internalLinks[3].href}
-        className="group relative overflow-hidden rounded-2xl shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl lg:col-span-2"
+        className="group relative overflow-hidden rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-black/20 lg:col-span-2"
       >
-        <div className="relative h-64 overflow-hidden lg:h-full lg:min-h-[320px]">
+        <div className="relative h-72 overflow-hidden lg:h-full lg:min-h-[340px]">
           <Image
             src={config.internalLinks[3].image}
             alt={config.internalLinks[3].label}
             fill
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
+            className="object-cover transition-transform duration-700 group-hover:scale-108"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/92 via-black/50 to-black/10 transition-all duration-300 group-hover:from-black/95 group-hover:via-black/55" />
+          {/* Overlay mais escuro no hover */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/15 transition-all duration-400 group-hover:from-black/98 group-hover:via-black/65 group-hover:to-black/20" />
         </div>
 
         {/* Content pinned to bottom */}
-        <div className="absolute inset-x-0 bottom-0 p-7 transition-transform duration-300 group-hover:-translate-y-1">
-          <span className="mb-4 inline-block rounded-full bg-primary px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary-foreground">
+        <div className="absolute inset-x-0 bottom-0 p-7 transition-transform duration-300 group-hover:-translate-y-1.5">
+          <span className="mb-4 inline-block rounded-full bg-primary px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary-foreground shadow-sm">
             Gratuito
           </span>
-          <h3 className="mb-2 text-xl font-bold leading-snug text-white">
-            Descubra seu score ATS
+          <h3 className="mb-2 text-xl font-bold leading-snug text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.4)]">
+            Descubra por que seu currículo não gera entrevistas
           </h3>
-          <p className="mb-5 text-sm leading-relaxed text-white/70">
+          <p className="mb-5 text-sm leading-relaxed text-white/75 [text-shadow:0_1px_6px_rgba(0,0,0,0.4)]">
             {config.internalLinks[3].description}
           </p>
-          <span className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-foreground transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+          {/* Botão com sombra sólida e mais contraste */}
+          <span className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-bold text-foreground shadow-[0_4px_16px_rgba(0,0,0,0.35)] transition-all duration-300 group-hover:gap-3 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-[0_6px_24px_rgba(0,0,0,0.4)]">
             Analisar agora
             <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
           </span>
