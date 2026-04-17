@@ -667,7 +667,7 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
           </div>
         </motion.section>
 
-        {/* ─── IMPROVEMENT STEPS — timeline ────────────────────────────────── */}
+        {/* ─── IMPROVEMENT STEPS — progressive vertical timeline ───────────── */}
         <motion.section
           className="py-24 md:py-32"
           variants={containerVariants}
@@ -675,7 +675,7 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
         >
-          <div className="container mx-auto max-w-4xl px-6">
+          <div className="container mx-auto max-w-3xl px-6">
             <motion.div variants={itemVariants} className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-primary">
               Passo a passo
             </motion.div>
@@ -683,27 +683,108 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
               Como melhorar seu currículo de {config.roleShort}
             </motion.h2>
 
+            {/* Timeline wrapper — left line + right content */}
             <div className="relative">
-              <div className="absolute left-[1.1rem] top-0 hidden h-full w-px bg-gradient-to-b from-primary/40 via-primary/20 to-transparent md:block" />
-              <div className="space-y-5">
-                {config.improvementSteps.map((step, i) => (
-                  <motion.div
-                    key={i}
-                    variants={itemVariants}
-                    className="group flex gap-5 rounded-2xl border border-border/50 bg-card px-6 py-5 transition-all duration-200 hover:border-primary/30 hover:shadow-md md:pl-16"
-                  >
-                    <div className="absolute mt-0.5 hidden h-9 w-9 -translate-x-[calc(1.5rem+2.25rem-0.5px)] items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground shadow-sm md:flex">
-                      {i + 1}
-                    </div>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary md:hidden">
-                      {i + 1}
-                    </div>
-                    <div>
-                      <h3 className="mb-1.5 font-semibold text-foreground">{step.title}</h3>
-                      <p className="text-sm leading-relaxed text-muted-foreground">{step.description}</p>
-                    </div>
-                  </motion.div>
-                ))}
+              {/* Continuous gradient line behind all steps */}
+              <div
+                className="pointer-events-none absolute bottom-0 left-[1.125rem] top-0 hidden w-px bg-gradient-to-b from-border/40 via-primary/25 to-primary/50 md:block"
+                aria-hidden
+              />
+
+              <div className="space-y-0">
+                {config.improvementSteps.map((step, i) => {
+                  const total = config.improvementSteps.length
+                  const isLast = i === total - 1
+
+                  // Progressive weight: 0 = lightest → last = strongest
+                  const circleStyle = isLast
+                    ? "border-primary bg-primary text-primary-foreground shadow-[0_0_0_4px_oklch(var(--primary)/0.15)]"
+                    : i >= total - 2
+                    ? "border-primary/60 bg-primary/10 text-primary"
+                    : i >= 1
+                    ? "border-border/80 bg-muted/60 text-muted-foreground"
+                    : "border-border/50 bg-muted/30 text-muted-foreground/60"
+
+                  const cardShadow = isLast
+                    ? "shadow-xl shadow-primary/12"
+                    : i >= total - 2
+                    ? "shadow-md shadow-primary/6"
+                    : i >= 1
+                    ? "shadow-sm"
+                    : "shadow-none"
+
+                  const cardBorder = isLast
+                    ? "border-primary/35"
+                    : i >= total - 2
+                    ? "border-primary/20"
+                    : i >= 1
+                    ? "border-border/60"
+                    : "border-border/35"
+
+                  const cardBg = isLast
+                    ? "bg-card"
+                    : "bg-card"
+
+                  // Slight alternating nudge for organic feel
+                  const nudgeClass = i % 2 === 1 ? "md:translate-x-3" : ""
+
+                  return (
+                    <motion.div
+                      key={i}
+                      variants={itemVariants}
+                      className={`group relative flex gap-6 ${isLast ? "pb-0" : "pb-8"}`}
+                    >
+                      {/* Left: circle indicator (desktop) */}
+                      <div className="relative z-10 hidden shrink-0 pt-5 md:block">
+                        <div
+                          className={`flex h-[2.25rem] w-[2.25rem] items-center justify-center rounded-full border-2 text-sm font-bold transition-all duration-300 group-hover:scale-110 ${circleStyle}`}
+                        >
+                          {i + 1}
+                        </div>
+                      </div>
+
+                      {/* Right: content card */}
+                      <div
+                        className={`
+                          flex-1 rounded-2xl border px-6 py-5 transition-all duration-300
+                          group-hover:-translate-y-0.5 group-hover:border-primary/30
+                          ${cardShadow} ${cardBorder} ${cardBg} ${nudgeClass}
+                          ${isLast ? "group-hover:shadow-2xl group-hover:shadow-primary/15" : ""}
+                        `}
+                      >
+                        {/* Mobile step bubble */}
+                        <div
+                          className={`mb-3 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold md:hidden ${
+                            isLast
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {i + 1}
+                        </div>
+
+                        <h3
+                          className={`mb-2 font-semibold leading-snug tracking-tight ${
+                            isLast ? "text-lg text-foreground" : "text-base text-foreground"
+                          }`}
+                        >
+                          {step.title}
+                        </h3>
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          {step.description}
+                        </p>
+
+                        {/* Final step badge */}
+                        {isLast && (
+                          <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Currículo pronto para o ATS
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )
+                })}
               </div>
             </div>
           </div>
