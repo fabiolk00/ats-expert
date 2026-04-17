@@ -160,5 +160,3 @@ function RoleHeroVisual({ variant }: { variant?: RoleLandingConfig["visualVarian
   if (variant === "finance") return <FinanceHeroVisual />
   return null
 }
-  )
-}
