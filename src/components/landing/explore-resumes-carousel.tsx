@@ -67,31 +67,39 @@ const resumeGuides = [
 
 export default function ExploreResumesCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const isDraggingRef = useRef(false)
+  const startXRef = useRef(0)
+  const scrollLeftRef = useRef(0)
+  const movedRef = useRef(false)
 
-  let isDown = false
-  let startX = 0
-  let scrollLeft = 0
-
-  const onMouseDown = (e: React.MouseEvent) => {
-    isDown = true
-    startX = e.pageX - (scrollRef.current?.offsetLeft || 0)
-    scrollLeft = scrollRef.current?.scrollLeft || 0
+  const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!scrollRef.current) return
+    isDraggingRef.current = true
+    movedRef.current = false
+    startXRef.current = e.pageX - scrollRef.current.offsetLeft
+    scrollLeftRef.current = scrollRef.current.scrollLeft
   }
 
   const onMouseLeave = () => {
-    isDown = false
+    isDraggingRef.current = false
   }
 
   const onMouseUp = () => {
-    isDown = false
+    isDraggingRef.current = false
   }
 
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (!isDown || !scrollRef.current) return
+  const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !scrollRef.current) return
     e.preventDefault()
+
     const x = e.pageX - scrollRef.current.offsetLeft
-    const walk = (x - startX) * 1.2
-    scrollRef.current.scrollLeft = scrollLeft - walk
+    const walk = (x - startXRef.current) * 1.2
+
+    if (Math.abs(walk) > 4) {
+      movedRef.current = true
+    }
+
+    scrollRef.current.scrollLeft = scrollLeftRef.current - walk
   }
 
   return (
@@ -109,61 +117,71 @@ export default function ExploreResumesCarousel() {
           </p>
         </div>
 
-        <div className="relative">
+        <div className="relative -mx-4 md:-mx-6">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-background to-transparent md:w-14" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent md:w-14" />
+
           <div
             ref={scrollRef}
             onMouseDown={onMouseDown}
             onMouseLeave={onMouseLeave}
             onMouseUp={onMouseUp}
             onMouseMove={onMouseMove}
-            className="flex w-max cursor-grab gap-4 overflow-x-auto pb-4 pr-16 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="overflow-x-auto px-4 pb-4 md:px-6 cursor-grab active:cursor-grabbing select-none touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {resumeGuides.map((guide) => {
-              const Icon = guide.icon
+            <div className="flex w-max gap-4 md:gap-5 pr-4 md:pr-6">
+              {resumeGuides.map((guide) => {
+                const Icon = guide.icon
 
-              return (
-                <Link
-                  key={guide.href}
-                  href={guide.href}
-                  className={[
-                    "group relative shrink-0 overflow-hidden rounded-[24px] border border-white/10 text-white transition-all duration-300 hover:-translate-y-1",
-                    guide.featured
-                      ? "h-[330px] w-[320px] md:h-[380px] md:w-[420px]"
-                      : "h-[260px] w-[250px] md:h-[310px] md:w-[280px]",
-                  ].join(" ")}
-                >
-                  <div
+                return (
+                  <Link
+                    key={guide.href}
+                    href={guide.href}
+                    onClick={(e) => {
+                      if (movedRef.current) {
+                        e.preventDefault()
+                      }
+                    }}
                     className={[
-                      "absolute inset-0 bg-gradient-to-br transition-transform duration-500 group-hover:scale-105",
-                      guide.background,
+                      "group relative shrink-0 overflow-hidden rounded-[24px] border border-white/10 text-white transition-all duration-300 hover:-translate-y-1",
+                      guide.featured
+                        ? "h-[330px] w-[320px] md:h-[380px] md:w-[420px]"
+                        : "h-[260px] w-[250px] md:h-[310px] md:w-[280px]",
                     ].join(" ")}
-                  />
+                  >
+                    <div
+                      className={[
+                        "absolute inset-0 bg-gradient-to-br transition-transform duration-500 group-hover:scale-105",
+                        guide.background,
+                      ].join(" ")}
+                    />
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
 
-                  <div className="relative flex h-full flex-col justify-between p-5 md:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
-                        <Icon className="h-4 w-4" />
+                    <div className="relative flex h-full flex-col justify-between p-5 md:p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-2xl font-semibold">
+                          {guide.title}
+                        </h3>
+                        <p className="mt-2 text-sm text-white/80">
+                          {guide.subtitle}
+                        </p>
+
+                        <div className="mt-4 text-sm font-medium text-white/90">
+                          Ver guia →
+                        </div>
                       </div>
                     </div>
-
-                    <div>
-                      <h3 className="text-2xl font-semibold">
-                        {guide.title}
-                      </h3>
-                      <p className="mt-2 text-sm text-white/80">
-                        {guide.subtitle}
-                      </p>
-
-                      <div className="mt-4 text-sm font-medium text-white/90">
-                        Ver guia →
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
+                  </Link>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
