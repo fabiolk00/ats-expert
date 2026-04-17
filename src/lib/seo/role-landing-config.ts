@@ -442,7 +442,7 @@ export const analistaDadosConfig: RoleLandingConfig = {
   
   hero: {
     h1: "Currículo para Analista de Dados que Passa no ATS (Guia, Exemplo e Palavras-chave)",
-    subtitle: "Seu currículo de analista de dados pode estar sendo rejeitado antes mesmo de ser lido. Sistemas ATS filtram candidatos automaticamente, e a maioria dos profissionais de dados não sabe por que nunca recebe retorno. Veja exatamente o que corrigir.",
+    subtitle: "Você trabalha com dados, mas seu currículo pode não estar sendo lido. Sistemas ATS filtram candidatos automaticamente, e a maioria dos profissionais de dados não sabe por que nunca recebe retorno. Veja exatamente o que corrigir.",
     ctaText: "Veja seu score ATS em 30 segundos",
     ctaSubtext: "Cole seu currículo e descubra o que está errado",
   },
