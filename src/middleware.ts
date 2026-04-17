@@ -23,15 +23,12 @@ const isPublicRoute = createRouteMatcher([
   '/curriculo-customer-success-ats(.*)',
   '/curriculo-product-manager-ats(.*)',
   '/curriculo-vendas-ats(.*)',
+  '/curriculo-financeiro-ats(.*)',
   '/sso-callback(.*)',
   '/api/webhook/asaas(.*)',
   '/api/webhook/clerk(.*)',
 ])
 
-/**
- * Security headers applied to all responses.
- * See: OWASP recommendations for modern web apps.
- */
 function addSecurityHeaders(response: NextResponse): NextResponse {
   const clerkFrontendApi = decodeClerkFrontendApi(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
   const clerkScriptSrc = [
