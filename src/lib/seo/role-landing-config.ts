@@ -49,6 +49,7 @@ export type InternalLink = {
   label: string
   href: string
   description: string
+  image: string
 }
 
 export type FullResumeExample = {
@@ -374,11 +375,11 @@ export const desenvolvedorConfig: RoleLandingConfig = {
     { title: "Adicione certificações", description: "AWS Certified, Google Cloud Professional, ou cursos reconhecidos agregam palavras-chave valiosas." },
   ],
   
-  internalLinks: [
-    { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Guia específico para área de dados" },
-    { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Otimização para marketing digital" },
-    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente" },
+internalLinks: [
+    { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Guia específico para área de dados", image: "/images/seo/data-analyst-career.jpg" },
+    { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Otimização para marketing digital", image: "/images/seo/marketing-career.jpg" },
+    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS", image: "/images/seo/ats-guide.jpg" },
+    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/developer-career.jpg" },
   ],
   
   faqs: [
@@ -645,11 +646,11 @@ export const analistaDadosConfig: RoleLandingConfig = {
     { title: "Adicione certificações de dados", description: "Google Data Analytics, Microsoft Power BI, AWS Data Analytics agregam credibilidade." },
   ],
   
-  internalLinks: [
-    { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores" },
-    { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Otimização para marketing digital" },
-    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente" },
+internalLinks: [
+    { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores", image: "/images/seo/developer-career.jpg" },
+    { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Otimização para marketing digital", image: "/images/seo/marketing-career.jpg" },
+    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS", image: "/images/seo/ats-guide.jpg" },
+    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/data-analyst-career.jpg" },
   ],
   
   faqs: [
@@ -917,11 +918,11 @@ export const marketingConfig: RoleLandingConfig = {
     { title: "Mostre conhecimento de funil", description: "Mencione topo, meio e fundo de funil. Entender a jornada do cliente é valorizado." },
   ],
   
-  internalLinks: [
-    { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores" },
-    { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Otimização para área de dados" },
-    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente" },
+internalLinks: [
+    { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores", image: "/images/seo/developer-career.jpg" },
+    { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Otimização para área de dados", image: "/images/seo/data-analyst-career.jpg" },
+    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS", image: "/images/seo/ats-guide.jpg" },
+    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/marketing-career.jpg" },
   ],
   
   faqs: [

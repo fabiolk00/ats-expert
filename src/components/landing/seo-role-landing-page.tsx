@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { motion, type Variants } from "motion/react"
 import {
   ArrowRight,
@@ -17,7 +18,6 @@ import {
   AlertCircle,
   Users,
   GraduationCap,
-  Link2,
   Code2,
 } from "lucide-react"
 
@@ -72,12 +72,6 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              {/* Viral Hook Badge */}
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary">
-                <Sparkles className="h-4 w-4" />
-                Análise gratuita em 30 segundos
-              </div>
-              
               <h1 className="mb-6 text-balance text-3xl font-bold tracking-tight md:text-4xl lg:text-5xl">
                 {config.hero.h1.split("ATS").map((part, i, arr) => (
                   <span key={i}>
@@ -706,11 +700,8 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
         >
-          <div className="container mx-auto max-w-5xl px-4">
+          <div className="container mx-auto max-w-6xl px-4">
             <motion.div variants={itemVariants} className="mb-12 text-center">
-              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary">
-                <Link2 className="h-8 w-8" />
-              </div>
               <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
                 Outros guias de currículo
               </h2>
@@ -719,21 +710,35 @@ export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) 
               </p>
             </motion.div>
 
-            <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <motion.div variants={itemVariants} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {config.internalLinks.map((link, i) => (
                 <Link
                   key={i}
                   href={link.href}
-                  className="group rounded-2xl border border-border/40 bg-card p-6 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+                  className="group relative overflow-hidden rounded-2xl bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                 >
-                  <h3 className="mb-2 font-semibold transition-colors group-hover:text-primary">
-                    {link.label}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">{link.description}</p>
-                  <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
-                    Ver guia
-                    <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </span>
+                  {/* Image */}
+                  <div className="relative aspect-[4/3] overflow-hidden">
+                    <Image
+                      src={link.image}
+                      alt={link.label}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                  </div>
+                  
+                  {/* Content overlay */}
+                  <div className="absolute inset-x-0 bottom-0 p-5">
+                    <h3 className="mb-1 text-lg font-semibold text-white">
+                      {link.label}
+                    </h3>
+                    <p className="text-sm text-white/80">{link.description}</p>
+                    <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-white">
+                      Ver guia
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </span>
+                  </div>
                 </Link>
               ))}
             </motion.div>
