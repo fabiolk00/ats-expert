@@ -4,7 +4,12 @@ import type {
   ResumeEditorSaveInput,
   ResumeEditorSaveOutput,
 } from '@/types/agent'
-import type { GenerateResumeResponse, ResumeComparisonResponse, SessionWorkspace } from '@/types/dashboard'
+import type {
+  DownloadUrlsResponse,
+  GenerateResumeResponse,
+  ResumeComparisonResponse,
+  SessionWorkspace,
+} from '@/types/dashboard'
 
 class DashboardApiError extends Error {
   status: number
@@ -103,9 +108,9 @@ export async function generateResume(
 export async function getDownloadUrls(
   sessionId: string,
   targetId?: string,
-): Promise<{ docxUrl: string | null; pdfUrl: string | null; available?: boolean }> {
+): Promise<DownloadUrlsResponse> {
   const suffix = targetId ? `?targetId=${encodeURIComponent(targetId)}` : ''
-  return requestJson<{ docxUrl: string | null; pdfUrl: string | null; available?: boolean }>(
+  return requestJson<DownloadUrlsResponse>(
     `/api/file/${sessionId}${suffix}`,
   )
 }

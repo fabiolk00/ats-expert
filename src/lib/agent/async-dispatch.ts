@@ -2,6 +2,7 @@ import { createHash } from 'crypto'
 
 import { createJob } from '@/lib/jobs/repository'
 import { startDurableJobProcessing } from '@/lib/jobs/runtime'
+import { logError, logInfo, serializeError } from '@/lib/observability/structured-log'
 import { resolveEffectiveResumeSource } from '@/lib/jobs/source-of-truth'
 import type { Session } from '@/types/agent'
 import type { JobStatusSnapshot, JobType } from '@/types/jobs'
@@ -70,31 +71,55 @@ export async function dispatchAsyncAction(params: {
   actionType: JobType
   requestMessage: string
 }): Promise<AsyncDispatchResult> {
+  const dispatchStartedAt = Date.now()
   const resumeSource = resolveEffectiveResumeSource(params.session)
   const idempotencyKey = buildJobIdempotencyKey(params.session, params.actionType)
-  const { job, wasCreated } = await createJob({
-    userId: params.userId,
-    sessionId: params.session.id,
-    type: params.actionType,
-    idempotencyKey,
-    stage: 'queued',
-    dispatchInputRef: resumeSource.ref,
-    metadata: {
-      requestMessage: params.requestMessage,
-      workflowMode: params.session.agentState.workflowMode ?? null,
-      targetJobDescription: params.session.agentState.targetJobDescription?.trim() ?? null,
-    },
-  })
-  const startedJob = await startDurableJobProcessing({
-    jobId: job.jobId,
-    userId: params.userId,
-  })
+  try {
+    const { job, wasCreated } = await createJob({
+      userId: params.userId,
+      sessionId: params.session.id,
+      type: params.actionType,
+      idempotencyKey,
+      stage: 'queued',
+      dispatchInputRef: resumeSource.ref,
+      metadata: {
+        requestMessage: params.requestMessage,
+        workflowMode: params.session.agentState.workflowMode ?? null,
+        targetJobDescription: params.session.agentState.targetJobDescription?.trim() ?? null,
+      },
+    })
+    const startedJob = await startDurableJobProcessing({
+      jobId: job.jobId,
+      userId: params.userId,
+    })
+    const durableJob = startedJob ?? job
 
-  return {
-    acknowledgementText: wasCreated
-      ? buildCreatedAcknowledgementText(params.actionType)
-      : buildReusedAcknowledgementText(job),
-    job: startedJob ?? job,
-    wasCreated,
+    logInfo(wasCreated ? 'jobs.dispatch.created' : 'jobs.dispatch.reused', {
+      jobId: durableJob.jobId,
+      userId: params.userId,
+      sessionId: params.session.id,
+      resumeTargetId: durableJob.resumeTargetId,
+      type: params.actionType,
+      status: durableJob.status,
+      stage: durableJob.stage,
+      latencyMs: Date.now() - dispatchStartedAt,
+    })
+
+    return {
+      acknowledgementText: wasCreated
+        ? buildCreatedAcknowledgementText(params.actionType)
+        : buildReusedAcknowledgementText(job),
+      job: durableJob,
+      wasCreated,
+    }
+  } catch (error) {
+    logError('jobs.dispatch.failed', {
+      userId: params.userId,
+      sessionId: params.session.id,
+      type: params.actionType,
+      latencyMs: Date.now() - dispatchStartedAt,
+      ...serializeError(error),
+    })
+    throw error
   }
 }

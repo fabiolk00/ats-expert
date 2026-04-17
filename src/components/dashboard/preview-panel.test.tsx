@@ -57,8 +57,10 @@ describe('PreviewPanel', () => {
     })
     getCachedUrl.mockReturnValue(null)
     vi.mocked(getDownloadUrls).mockResolvedValue({
+      available: true,
       docxUrl: 'https://example.com/resume.docx',
       pdfUrl: 'https://example.com/resume.pdf',
+      generationStatus: 'ready',
     })
   })
 

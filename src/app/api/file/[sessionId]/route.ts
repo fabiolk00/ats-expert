@@ -4,7 +4,62 @@ import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getResumeTargetForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
 import { createSignedResumeArtifactUrls } from '@/lib/agent/tools/generate-file'
+import { listJobsForSession } from '@/lib/jobs/repository'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
+import type { GeneratedOutput } from '@/types/agent'
+import type { JobStatusSnapshot } from '@/types/jobs'
+
+function resolveArtifactGenerationStatus(
+  artifactMetadata: GeneratedOutput,
+  latestArtifactJob: JobStatusSnapshot | null,
+): GeneratedOutput['status'] {
+  if (latestArtifactJob?.status === 'queued' || latestArtifactJob?.status === 'running') {
+    return 'generating'
+  }
+
+  if (latestArtifactJob?.status === 'failed' || latestArtifactJob?.status === 'cancelled') {
+    return 'failed'
+  }
+
+  return artifactMetadata.status
+}
+
+function resolveArtifactErrorMessage(
+  artifactMetadata: GeneratedOutput,
+  latestArtifactJob: JobStatusSnapshot | null,
+): string | undefined {
+  const terminalErrorRef = latestArtifactJob?.terminalErrorRef
+
+  if (terminalErrorRef?.kind === 'resume_generation_failure') {
+    return terminalErrorRef.failureReason ?? artifactMetadata.error
+  }
+
+  if (terminalErrorRef?.kind === 'job_error') {
+    return terminalErrorRef.message
+  }
+
+  return artifactMetadata.error
+}
+
+function resolveArtifactLifecycleStatus(
+  artifactMetadata: GeneratedOutput,
+  latestArtifactJob: JobStatusSnapshot | null,
+): JobStatusSnapshot['status'] | null {
+  if (latestArtifactJob?.status) {
+    return latestArtifactJob.status
+  }
+
+  switch (artifactMetadata.status) {
+    case 'generating':
+      return 'running'
+    case 'ready':
+      return 'completed'
+    case 'failed':
+      return 'failed'
+    default:
+      return null
+  }
+}
 
 export async function GET(
   req: NextRequest,
@@ -61,6 +116,18 @@ export async function GET(
   }
 
   const artifactMetadata = target?.generatedOutput ?? session.generatedOutput
+  const latestArtifactJob = (
+    await listJobsForSession({
+      userId: appUser.id,
+      sessionId: session.id,
+      type: 'artifact_generation',
+      resumeTargetId: target ? target.id : null,
+      limit: 1,
+    })
+  )[0] ?? null
+  const generationStatus = resolveArtifactGenerationStatus(artifactMetadata, latestArtifactJob)
+  const lifecycleStatus = resolveArtifactLifecycleStatus(artifactMetadata, latestArtifactJob)
+  const errorMessage = resolveArtifactErrorMessage(artifactMetadata, latestArtifactJob)
   const { pdfPath, status } = artifactMetadata
 
   if (status !== 'ready' || !pdfPath) {
@@ -69,8 +136,13 @@ export async function GET(
       requestPath,
       sessionId: session.id,
       targetId,
+      resumeTargetId: target?.id ?? null,
       appUserId: appUser.id,
-      generationStatus: status,
+      jobId: latestArtifactJob?.jobId,
+      type: 'artifact_generation',
+      status: lifecycleStatus,
+      generationStatus,
+      stage: latestArtifactJob?.stage,
       success: true,
       latencyMs: Date.now() - requestStartedAt,
     })
@@ -79,6 +151,11 @@ export async function GET(
         docxUrl: null,
         pdfUrl: null,
         available: false,
+        generationStatus,
+        jobId: latestArtifactJob?.jobId,
+        stage: latestArtifactJob?.stage,
+        progress: latestArtifactJob?.progress,
+        errorMessage,
       },
       { status: 200 },
     )
@@ -92,8 +169,13 @@ export async function GET(
       requestPath,
       sessionId: session.id,
       targetId,
+      resumeTargetId: target?.id ?? null,
       appUserId: appUser.id,
-      generationStatus: status,
+      jobId: latestArtifactJob?.jobId,
+      type: 'artifact_generation',
+      status: lifecycleStatus,
+      generationStatus,
+      stage: latestArtifactJob?.stage,
       success: true,
       latencyMs: Date.now() - requestStartedAt,
     })
@@ -101,6 +183,12 @@ export async function GET(
     return NextResponse.json({
       docxUrl: null,
       pdfUrl: signedUrls.pdfUrl,
+      available: true,
+      generationStatus,
+      jobId: latestArtifactJob?.jobId,
+      stage: latestArtifactJob?.stage,
+      progress: latestArtifactJob?.progress,
+      errorMessage,
     })
   } catch (error) {
     logError('api.file.download_urls_failed', {
@@ -108,7 +196,13 @@ export async function GET(
       requestPath,
       sessionId: session.id,
       targetId,
+      resumeTargetId: target?.id ?? null,
       appUserId: appUser.id,
+      jobId: latestArtifactJob?.jobId,
+      type: 'artifact_generation',
+      status: lifecycleStatus,
+      generationStatus,
+      stage: latestArtifactJob?.stage,
       success: false,
       latencyMs: Date.now() - requestStartedAt,
       ...serializeError(error),

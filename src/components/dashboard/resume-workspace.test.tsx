@@ -1,6 +1,6 @@
 import React from "react"
 
-import { act, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import "@testing-library/jest-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -11,16 +11,18 @@ import { ResumeWorkspace } from "./resume-workspace"
 
 const {
   mockGetSessionWorkspace,
+  mockGenerateResume,
   mockIsGeneratedOutputReady,
 } = vi.hoisted(() => ({
   mockGetSessionWorkspace: vi.fn(),
+  mockGenerateResume: vi.fn(),
   mockIsGeneratedOutputReady: vi.fn(),
 }))
 
 vi.mock("@/lib/dashboard/workspace-client", () => ({
   getSessionWorkspace: mockGetSessionWorkspace,
   isGeneratedOutputReady: mockIsGeneratedOutputReady,
-  generateResume: vi.fn(),
+  generateResume: mockGenerateResume,
   getDownloadUrls: vi.fn().mockResolvedValue({ docxUrl: null, pdfUrl: null }),
   manualEditBaseSection: vi.fn(),
 }))
@@ -125,7 +127,28 @@ function buildWorkspace() {
         certifications: [],
       },
     },
+    jobs: [],
     targets: [],
+  }
+}
+
+function buildArtifactJob(overrides: Record<string, unknown> = {}) {
+  return {
+    jobId: "job_async_generation",
+    userId: "usr_123",
+    sessionId: "sess_workspace",
+    idempotencyKey: "job-key",
+    type: "artifact_generation",
+    status: "running",
+    stage: "processing",
+    dispatchInputRef: {
+      kind: "session_cv_state",
+      sessionId: "sess_workspace",
+      snapshotSource: "optimized",
+    },
+    createdAt: "2026-04-15T00:00:00.000Z",
+    updatedAt: "2026-04-15T00:00:00.000Z",
+    ...overrides,
   }
 }
 
@@ -142,6 +165,13 @@ describe("ResumeWorkspace", () => {
     vi.clearAllMocks()
     mockIsGeneratedOutputReady.mockReturnValue(true)
     mockGetSessionWorkspace.mockResolvedValue(buildWorkspace())
+    mockGenerateResume.mockResolvedValue({
+      success: true,
+      scope: "base",
+      creditsUsed: 0,
+      generationType: "ATS_ENHANCEMENT",
+      jobId: "job_default",
+    })
     Object.defineProperty(window, "matchMedia", {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -239,6 +269,104 @@ describe("ResumeWorkspace", () => {
     })
 
     expect(screen.getByTestId("plan-update-dialog")).toHaveAttribute("data-credits", "1")
+  })
+
+  it("keeps a durable generate acknowledgement in progress until the same job reaches a terminal state", async () => {
+    vi.useFakeTimers()
+    try {
+      mockIsGeneratedOutputReady.mockImplementation(
+        (generatedOutput) => generatedOutput?.status === "ready" && Boolean(generatedOutput?.pdfPath),
+      )
+      mockGenerateResume.mockResolvedValue({
+        success: true,
+        scope: "base",
+        creditsUsed: 0,
+        generationType: "ATS_ENHANCEMENT",
+        jobId: "job_async_generation",
+        inProgress: true,
+      })
+      mockGetSessionWorkspace
+        .mockResolvedValueOnce({
+          ...buildWorkspace(),
+          session: {
+            ...buildWorkspace().session,
+            generatedOutput: { status: "idle" },
+          },
+        })
+        .mockResolvedValueOnce({
+          ...buildWorkspace(),
+          session: {
+            ...buildWorkspace().session,
+            generatedOutput: { status: "generating" },
+          },
+          jobs: [
+            buildArtifactJob({
+              status: "running",
+              stage: "processing",
+            }),
+          ],
+        })
+        .mockResolvedValueOnce({
+          ...buildWorkspace(),
+          session: {
+            ...buildWorkspace().session,
+            generatedOutput: {
+              status: "ready",
+              pdfPath: "artifacts/base.pdf",
+            },
+          },
+          jobs: [
+            buildArtifactJob({
+              status: "completed",
+              stage: "completed",
+            }),
+          ],
+        })
+
+      renderWorkspace(<ResumeWorkspace initialSessionId="sess_workspace" userName="Fabio" />)
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(mockGetSessionWorkspace).toHaveBeenCalledWith("sess_workspace")
+
+      fireEvent.click(screen.getByRole("button", { name: /gerar arquivo base/i }))
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(mockGenerateResume).toHaveBeenCalledWith(
+        "sess_workspace",
+        { scope: "base" },
+        expect.any(String),
+      )
+      expect(
+        screen.getByText("Geracao em andamento. Atualizaremos os arquivos quando estiver pronto."),
+      ).toBeInTheDocument()
+      expect(screen.getByTestId("resume-workspace")).toHaveAttribute(
+        "data-active-generation-job-id",
+        "job_async_generation",
+      )
+      expect(screen.getByTestId("resume-workspace")).toHaveAttribute(
+        "data-active-generation-status",
+        "running",
+      )
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2500)
+        await Promise.resolve()
+      })
+
+      expect(screen.getByText("Arquivos da base gerados com sucesso.")).toBeInTheDocument()
+      expect(screen.getByTestId("resume-workspace")).toHaveAttribute(
+        "data-active-generation-job-id",
+        "",
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("clears the active session immediately when a new conversation starts", async () => {

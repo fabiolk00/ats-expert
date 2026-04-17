@@ -40,6 +40,7 @@ describe('useSessionCvState', () => {
         createdAt: '2026-04-09T00:00:00.000Z',
         updatedAt: '2026-04-09T00:00:00.000Z',
       },
+      jobs: [],
       targets: [],
     })
 
@@ -69,6 +70,7 @@ describe('useSessionCvState', () => {
         createdAt: '2026-04-09T00:00:00.000Z',
         updatedAt: '2026-04-09T00:00:00.000Z',
       },
+      jobs: [],
       targets: [
         {
           id: 'target_123',
@@ -110,6 +112,7 @@ describe('useSessionCvState', () => {
         createdAt: '2026-04-09T00:00:00.000Z',
         updatedAt: '2026-04-09T00:00:00.000Z',
       },
+      jobs: [],
       targets: [],
     })
 
@@ -140,6 +143,7 @@ describe('useSessionCvState', () => {
           createdAt: '2026-04-09T00:00:00.000Z',
           updatedAt: '2026-04-09T00:00:00.000Z',
         },
+        jobs: [],
         targets: [],
       })
       .mockResolvedValueOnce({
@@ -160,6 +164,7 @@ describe('useSessionCvState', () => {
           createdAt: '2026-04-09T00:00:00.000Z',
           updatedAt: '2026-04-09T00:00:00.000Z',
         },
+        jobs: [],
         targets: [],
       })
 

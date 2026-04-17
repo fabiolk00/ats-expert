@@ -7,6 +7,7 @@ import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { createSignedResumeArtifactUrls } from '@/lib/agent/tools/generate-file'
 import { getResumeTargetForSession } from '@/lib/db/resume-targets'
 import { getSession, updateSession } from '@/lib/db/sessions'
+import { listJobsForSession } from '@/lib/jobs/repository'
 import { logError, logInfo } from '@/lib/observability/structured-log'
 
 import { GET } from './route'
@@ -22,6 +23,10 @@ vi.mock('@/lib/db/sessions', () => ({
 
 vi.mock('@/lib/db/resume-targets', () => ({
   getResumeTargetForSession: vi.fn(),
+}))
+
+vi.mock('@/lib/jobs/repository', () => ({
+  listJobsForSession: vi.fn(),
 }))
 
 vi.mock('@/lib/agent/tools/generate-file', () => ({
@@ -75,6 +80,7 @@ describe('GET /api/file/[sessionId]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getResumeTargetForSession).mockResolvedValue(null)
+    vi.mocked(listJobsForSession).mockResolvedValue([])
   })
 
   it('returns 401 before any session or storage lookup when unauthenticated', async () => {
@@ -130,6 +136,8 @@ describe('GET /api/file/[sessionId]', () => {
     expect(await response.json()).toEqual({
       docxUrl: null,
       pdfUrl: 'https://cdn.example.com/signed/pdf',
+      available: true,
+      generationStatus: 'ready',
     })
     expect(getSession).toHaveBeenCalledWith('sess_123', 'usr_123')
     expect(createSignedResumeArtifactUrls).toHaveBeenCalledWith(
@@ -141,6 +149,8 @@ describe('GET /api/file/[sessionId]', () => {
       'api.file.download_urls_ready',
       expect.objectContaining({
         sessionId: 'sess_123',
+        type: 'artifact_generation',
+        generationStatus: 'ready',
         success: true,
       }),
     )
@@ -216,11 +226,84 @@ describe('GET /api/file/[sessionId]', () => {
     expect(await response.json()).toEqual({
       docxUrl: null,
       pdfUrl: 'https://cdn.example.com/signed/pdf',
+      available: true,
+      generationStatus: 'ready',
     })
     expect(createSignedResumeArtifactUrls).toHaveBeenCalledWith(
       undefined,
       'usr_123/sess_123/resume.pdf',
     )
+  })
+
+  it('returns the latest artifact job lifecycle summary while still serving a previously ready file', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(listJobsForSession).mockResolvedValue([
+      {
+        jobId: 'job_failed_123',
+        userId: 'usr_123',
+        sessionId: 'sess_123',
+        idempotencyKey: 'artifact:sess_123:retry',
+        type: 'artifact_generation',
+        status: 'failed',
+        stage: 'generation_failed',
+        dispatchInputRef: {
+          kind: 'session_cv_state',
+          sessionId: 'sess_123',
+          snapshotSource: 'base',
+        },
+        terminalErrorRef: {
+          kind: 'resume_generation_failure',
+          resumeGenerationId: 'gen_failed_123',
+          failureReason: 'Rendering failed for the latest retry.',
+        },
+        createdAt: '2026-04-17T00:10:00.000Z',
+        updatedAt: '2026-04-17T00:11:00.000Z',
+        claimedAt: '2026-04-17T00:10:05.000Z',
+        startedAt: '2026-04-17T00:10:05.000Z',
+        completedAt: '2026-04-17T00:11:00.000Z',
+      },
+    ] as never)
+    vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
+      docxUrl: 'https://cdn.example.com/signed/docx',
+      pdfUrl: 'https://cdn.example.com/signed/pdf',
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      docxUrl: null,
+      pdfUrl: 'https://cdn.example.com/signed/pdf',
+      available: true,
+      generationStatus: 'failed',
+      jobId: 'job_failed_123',
+      stage: 'generation_failed',
+      errorMessage: 'Rendering failed for the latest retry.',
+    })
   })
 
   it('serves the latest valid base artifact for a completed job_targeting rewrite', async () => {
@@ -279,6 +362,8 @@ describe('GET /api/file/[sessionId]', () => {
     expect(await response.json()).toEqual({
       docxUrl: null,
       pdfUrl: 'https://cdn.example.com/signed/pdf-targeted',
+      available: true,
+      generationStatus: 'ready',
     })
     expect(createSignedResumeArtifactUrls).toHaveBeenCalledWith(
       undefined,
@@ -336,6 +421,8 @@ describe('GET /api/file/[sessionId]', () => {
     expect(await response.json()).toEqual({
       docxUrl: null,
       pdfUrl: 'https://cdn.example.com/signed/target-pdf',
+      available: true,
+      generationStatus: 'ready',
     })
     expect(getResumeTargetForSession).toHaveBeenCalledWith('sess_123', 'target_123')
     expect(createSignedResumeArtifactUrls).toHaveBeenCalledWith(
@@ -454,6 +541,8 @@ describe('GET /api/file/[sessionId]', () => {
       docxUrl: null,
       pdfUrl: null,
       available: false,
+      generationStatus: 'failed',
+      errorMessage: 'File generation failed.',
     })
     expect(createSignedResumeArtifactUrls).not.toHaveBeenCalled()
   })
@@ -499,6 +588,8 @@ describe('GET /api/file/[sessionId]', () => {
       docxUrl: null,
       pdfUrl: null,
       available: false,
+      generationStatus: 'failed',
+      errorMessage: 'No credits available to finalize this generation.',
     })
     expect(createSignedResumeArtifactUrls).not.toHaveBeenCalled()
   })
@@ -549,6 +640,8 @@ describe('GET /api/file/[sessionId]', () => {
       docxUrl: null,
       pdfUrl: null,
       available: false,
+      generationStatus: 'failed',
+      errorMessage: 'File generation failed.',
     })
   })
 
@@ -625,6 +718,8 @@ describe('GET /api/file/[sessionId]', () => {
       requestPath: '/api/file/sess_123',
       sessionId: 'sess_123',
       appUserId: 'usr_123',
+      type: 'artifact_generation',
+      generationStatus: 'ready',
       success: false,
       errorMessage: 'signing failed',
     }))

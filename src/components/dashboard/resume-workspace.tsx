@@ -21,7 +21,12 @@ import {
   manualEditBaseSection,
 } from "@/lib/dashboard/workspace-client"
 import type { PlanSlug } from "@/lib/plans"
-import type { ManualEditInput, ManualEditSection, ManualEditSectionData } from "@/types/agent"
+import type {
+  JobStatusSnapshot,
+  ManualEditInput,
+  ManualEditSection,
+  ManualEditSectionData,
+} from "@/types/agent"
 import type { SessionWorkspace } from "@/types/dashboard"
 import {
   ResizableHandle,
@@ -71,6 +76,27 @@ function createClientRequestId(): string {
   }
 
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+const GENERATION_IN_PROGRESS_COPY = "Geracao em andamento. Atualizaremos os arquivos quando estiver pronto."
+const GENERATION_SUCCESS_COPY = "Arquivos da base gerados com sucesso."
+
+function resolveGenerationFailureMessage(job: JobStatusSnapshot | null): string {
+  const terminalErrorRef = job?.terminalErrorRef
+
+  if (terminalErrorRef?.kind === "resume_generation_failure" && terminalErrorRef.failureReason) {
+    return terminalErrorRef.failureReason
+  }
+
+  if (terminalErrorRef?.kind === "job_error") {
+    return terminalErrorRef.message
+  }
+
+  if (job?.status === "cancelled") {
+    return "A geracao dos arquivos foi cancelada antes da conclusao."
+  }
+
+  return "Nao foi possivel concluir a geracao dos arquivos."
 }
 
 function normalizeRoleForReview(value?: string): string {
@@ -205,6 +231,7 @@ export function ResumeWorkspace({
   const [manualEditSection, setManualEditSection] = useState<ManualEditSection | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [activeGenerationJobId, setActiveGenerationJobId] = useState<string | null>(null)
   const [planUpdateOpen, setPlanUpdateOpen] = useState(false)
   const [rewriteFailureDialogOpen, setRewriteFailureDialogOpen] = useState(false)
   const [lastSeenRewriteFailureKey, setLastSeenRewriteFailureKey] = useState<string | null>(null)
@@ -239,6 +266,7 @@ export function ResumeWorkspace({
       setActiveMutation(null)
       setErrorMessage(null)
       setStatusMessage(null)
+      setActiveGenerationJobId(null)
       closePreview()
     }
 
@@ -278,6 +306,9 @@ export function ResumeWorkspace({
   const suspiciousTargetRole = workspace?.session.agentState.targetingPlan?.targetRoleConfidence === "low"
     || isSuspiciousTargetRole(workspace?.session.agentState.targetingPlan?.targetRole)
   const rewriteFailureCopy = getRewriteFailureCopy(workspace)
+  const activeGenerationJob = activeGenerationJobId
+    ? workspace?.jobs.find((job) => job.jobId === activeGenerationJobId) ?? null
+    : null
 
   useEffect(() => {
     if (!rewriteFailureKey) {
@@ -310,11 +341,50 @@ export function ResumeWorkspace({
     if (!sessionId) {
       setWorkspace(null)
       setActiveMutation(null)
+      setActiveGenerationJobId(null)
       return
     }
 
     void refreshWorkspace(sessionId)
   }, [refreshWorkspace, sessionId])
+
+  useEffect(() => {
+    if (!sessionId || !activeGenerationJobId) {
+      return
+    }
+
+    if (activeGenerationJob?.status === "completed") {
+      setActiveGenerationJobId(null)
+      setErrorMessage(null)
+      setStatusMessage(GENERATION_SUCCESS_COPY)
+      return
+    }
+
+    if (activeGenerationJob?.status === "failed" || activeGenerationJob?.status === "cancelled") {
+      setActiveGenerationJobId(null)
+      setStatusMessage(null)
+      setErrorMessage(resolveGenerationFailureMessage(activeGenerationJob))
+      return
+    }
+
+    setStatusMessage(GENERATION_IN_PROGRESS_COPY)
+
+    const timeoutId = window.setTimeout(() => {
+      void getSessionWorkspace(sessionId)
+        .then((nextWorkspace) => {
+          setWorkspace(nextWorkspace)
+        })
+        .catch((error) => {
+          setActiveGenerationJobId(null)
+          setStatusMessage(null)
+          setErrorMessage(getErrorMessage(error))
+        })
+    }, 2500)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [activeGenerationJob, activeGenerationJobId, sessionId])
 
   useEffect(() => {
     if (!isPreviewOpen) {
@@ -373,9 +443,26 @@ export function ResumeWorkspace({
         createClientRequestId(),
       )
       setAvailableCredits((previous) => Math.max(previous - result.creditsUsed, 0))
+
+      if (result.inProgress) {
+        setActiveGenerationJobId(result.jobId)
+        setStatusMessage(GENERATION_IN_PROGRESS_COPY)
+
+        try {
+          const nextWorkspace = await getSessionWorkspace(sessionId)
+          setWorkspace(nextWorkspace)
+        } catch {
+          // Keep the durable acknowledgement visible and let polling retry.
+        }
+
+        return
+      }
+
+      setActiveGenerationJobId(null)
       await refreshWorkspace(sessionId)
-      setStatusMessage("Arquivos da base gerados com sucesso.")
+      setStatusMessage(GENERATION_SUCCESS_COPY)
     } catch (error) {
+      setActiveGenerationJobId(null)
       setErrorMessage(getErrorMessage(error))
     } finally {
       setActiveMutation(null)
@@ -407,32 +494,51 @@ export function ResumeWorkspace({
       showInlinePreview={!isPreviewOverlay}
       previewFile={!isPreviewOverlay ? previewFile : null}
       baseOutputReady={baseOutputReady}
+      onGenerateBase={sessionId ? () => void handleGenerateBase() : undefined}
+      generationBusy={activeMutation === "generate" || activeGenerationJobId !== null}
+      generationInProgress={activeGenerationJobId !== null}
     />
   )
+
+  const statusBanner = errorMessage || statusMessage ? (
+    <div className="border-b border-border/60 bg-card px-4 py-3 text-sm shadow-sm">
+      {errorMessage ? (
+        <p className="text-destructive">{errorMessage}</p>
+      ) : (
+        <p className="text-muted-foreground">{statusMessage}</p>
+      )}
+    </div>
+  ) : null
 
   return (
     <>
       {isPreviewOverlay ? (
         <div
           data-testid="resume-workspace"
+          data-active-generation-job-id={activeGenerationJobId ?? ""}
+          data-active-generation-status={activeGenerationJob?.status ?? ""}
           data-base-output-ready={String(baseOutputReady)}
           data-busy={String(isBusy)}
           data-session-id={sessionId ?? ""}
           data-target-count={String(targetCount)}
           className="space-y-0 p-0"
         >
+          {statusBanner}
           {chatPane}
           {viewerPane}
         </div>
       ) : (
         <div
           data-testid="resume-workspace"
+          data-active-generation-job-id={activeGenerationJobId ?? ""}
+          data-active-generation-status={activeGenerationJob?.status ?? ""}
           data-base-output-ready={String(baseOutputReady)}
           data-busy={String(isBusy)}
           data-session-id={sessionId ?? ""}
           data-target-count={String(targetCount)}
           className="h-[calc(107svh-4rem)] px-0 py-0"
         >
+          {statusBanner}
           <ResizablePanelGroup
             id="resume-workspace-split-view"
             orientation="horizontal"

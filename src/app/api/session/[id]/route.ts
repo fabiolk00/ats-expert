@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
+import { listJobsForSession } from '@/lib/jobs/repository'
 
 export async function GET(
   _req: NextRequest,
@@ -20,6 +21,11 @@ export async function GET(
 
   try {
     const targets = await getResumeTargetsForSession(session.id)
+    const jobs = await listJobsForSession({
+      userId: appUser.id,
+      sessionId: session.id,
+      limit: 10,
+    })
 
     return NextResponse.json({
       session: {
@@ -52,6 +58,7 @@ export async function GET(
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
       },
+      jobs,
       targets,
     })
   } catch {

@@ -321,6 +321,46 @@ export async function listJobsForUser(input: {
   return ((data ?? []) as JobRow[]).map(mapJobRowToStatusSnapshot)
 }
 
+export async function listJobsForSession(input: {
+  userId: string
+  sessionId: string
+  type?: JobType
+  status?: JobStatus
+  resumeTargetId?: string | null
+  limit?: number
+}): Promise<JobStatusSnapshot[]> {
+  const supabase = getSupabaseAdminClient()
+  let query = supabase
+    .from('jobs')
+    .select('*')
+    .eq('user_id', input.userId)
+    .eq('session_id', input.sessionId)
+
+  if (input.type) {
+    query = query.eq('type', input.type)
+  }
+
+  if (input.status) {
+    query = query.eq('status', input.status)
+  }
+
+  if (input.resumeTargetId === null) {
+    query = query.is('resume_target_id', null)
+  } else if (input.resumeTargetId !== undefined) {
+    query = query.eq('resume_target_id', input.resumeTargetId)
+  }
+
+  const { data, error } = await query
+    .order('created_at', { ascending: false })
+    .limit(input.limit ?? 20)
+
+  if (error) {
+    throw new Error(`Failed to list jobs for session ${input.sessionId}: ${error.message}`)
+  }
+
+  return ((data ?? []) as JobRow[]).map(mapJobRowToStatusSnapshot)
+}
+
 export async function claimJob(input: {
   jobId: string
   userId: string

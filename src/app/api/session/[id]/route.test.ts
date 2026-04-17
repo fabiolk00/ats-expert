@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
+import { listJobsForSession } from '@/lib/jobs/repository'
 
 import { GET } from './route'
 
@@ -17,6 +18,10 @@ vi.mock('@/lib/db/sessions', () => ({
 
 vi.mock('@/lib/db/resume-targets', () => ({
   getResumeTargetsForSession: vi.fn(),
+}))
+
+vi.mock('@/lib/jobs/repository', () => ({
+  listJobsForSession: vi.fn(),
 }))
 
 function buildAppUser(id: string) {
@@ -60,6 +65,7 @@ describe('session workspace route', () => {
     expect(await response.json()).toEqual({ error: 'Unauthorized' })
     expect(getSession).not.toHaveBeenCalled()
     expect(getResumeTargetsForSession).not.toHaveBeenCalled()
+    expect(listJobsForSession).not.toHaveBeenCalled()
   })
 
   it('rejects non-owners', async () => {
@@ -74,6 +80,7 @@ describe('session workspace route', () => {
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ error: 'Not found' })
     expect(getResumeTargetsForSession).not.toHaveBeenCalled()
+    expect(listJobsForSession).not.toHaveBeenCalled()
   })
 
   it('returns the owned workspace read model', async () => {
@@ -200,6 +207,30 @@ describe('session workspace route', () => {
       updatedAt: new Date('2026-03-27T12:05:00.000Z'),
     })
     vi.mocked(getResumeTargetsForSession).mockResolvedValue([])
+    vi.mocked(listJobsForSession).mockResolvedValue([
+      {
+        jobId: 'job_123',
+        userId: 'usr_123',
+        sessionId: 'sess_123',
+        idempotencyKey: 'artifact:sess_123:abc',
+        type: 'artifact_generation',
+        status: 'running',
+        stage: 'rendering',
+        progress: {
+          percent: 40,
+          label: 'rendering',
+        },
+        dispatchInputRef: {
+          kind: 'session_cv_state',
+          sessionId: 'sess_123',
+          snapshotSource: 'base',
+        },
+        createdAt: '2026-03-27T12:04:00.000Z',
+        updatedAt: '2026-03-27T12:04:30.000Z',
+        claimedAt: '2026-03-27T12:04:05.000Z',
+        startedAt: '2026-03-27T12:04:05.000Z',
+      },
+    ])
 
     const response = await GET(
       new NextRequest('https://example.com/api/session/sess_123'),
@@ -326,7 +357,36 @@ describe('session workspace route', () => {
         createdAt: '2026-03-27T12:00:00.000Z',
         updatedAt: '2026-03-27T12:05:00.000Z',
       },
+      jobs: [
+        {
+          jobId: 'job_123',
+          userId: 'usr_123',
+          sessionId: 'sess_123',
+          idempotencyKey: 'artifact:sess_123:abc',
+          type: 'artifact_generation',
+          status: 'running',
+          stage: 'rendering',
+          progress: {
+            percent: 40,
+            label: 'rendering',
+          },
+          dispatchInputRef: {
+            kind: 'session_cv_state',
+            sessionId: 'sess_123',
+            snapshotSource: 'base',
+          },
+          createdAt: '2026-03-27T12:04:00.000Z',
+          updatedAt: '2026-03-27T12:04:30.000Z',
+          claimedAt: '2026-03-27T12:04:05.000Z',
+          startedAt: '2026-03-27T12:04:05.000Z',
+        },
+      ],
       targets: [],
+    })
+    expect(listJobsForSession).toHaveBeenCalledWith({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      limit: 10,
     })
   })
 })

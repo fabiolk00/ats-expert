@@ -34,26 +34,28 @@ describe('SessionDocumentsPanel', () => {
     const refresh = vi.fn()
     mockUseSessionDocuments.mockReturnValue({
       files: { docxUrl: null, pdfUrl: null },
+      artifactStatus: { generationStatus: 'idle' },
       isLoading: false,
-      error: 'Não foi possível carregar seus arquivos agora. Tente novamente em instantes.',
+      error: 'Nao foi possivel carregar seus arquivos agora. Tente novamente em instantes.',
       refresh,
     })
 
     render(<SessionDocumentsPanel isSidebarOpen />)
 
     expect(screen.getByTestId('session-documents-panel')).toHaveAttribute('data-state', 'error')
-    expect(screen.getByText('Não foi possível carregar seus arquivos agora. Tente novamente em instantes.')).toBeInTheDocument()
+    expect(screen.getByText('Nao foi possivel carregar seus arquivos agora. Tente novamente em instantes.')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
 
     expect(refresh).toHaveBeenCalledTimes(1)
   })
 
-  it('shows only the PDF artifact in the documents panel', async () => {
+  it('shows only the PDF artifact in the documents panel', () => {
     const refresh = vi.fn()
 
     mockUseSessionDocuments.mockReturnValue({
       files: { docxUrl: null, pdfUrl: 'https://example.com/resume.pdf' },
+      artifactStatus: { generationStatus: 'ready' },
       isLoading: false,
       error: null,
       refresh,
@@ -70,6 +72,7 @@ describe('SessionDocumentsPanel', () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error('network failed'))
     mockUseSessionDocuments.mockReturnValue({
       files: { docxUrl: null, pdfUrl: 'https://example.com/resume.pdf' },
+      artifactStatus: { generationStatus: 'ready' },
       isLoading: false,
       error: null,
       refresh: vi.fn(),
@@ -88,5 +91,50 @@ describe('SessionDocumentsPanel', () => {
     await userEvent.click(button)
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('renders generating status even before a PDF URL exists', () => {
+    mockUseSessionDocuments.mockReturnValue({
+      files: { docxUrl: null, pdfUrl: null },
+      artifactStatus: {
+        generationStatus: 'generating',
+        jobId: 'job_123',
+        stage: 'rendering',
+        progress: {
+          percent: 60,
+          label: 'rendering',
+        },
+      },
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
+    })
+
+    render(<SessionDocumentsPanel isSidebarOpen />)
+
+    expect(screen.getByTestId('session-documents-panel')).toHaveAttribute('data-state', 'generating')
+    expect(screen.getByText('Geracao em andamento. Atualizaremos este arquivo quando estiver pronto.')).toBeInTheDocument()
+    expect(screen.getByTestId('documents-progress-label')).toHaveTextContent('rendering (60%)')
+  })
+
+  it('renders failed status with the latest durable error message', () => {
+    mockUseSessionDocuments.mockReturnValue({
+      files: { docxUrl: null, pdfUrl: null },
+      artifactStatus: {
+        generationStatus: 'failed',
+        jobId: 'job_123',
+        stage: 'generation_failed',
+        errorMessage: 'No credits available to finalize this generation.',
+      },
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
+    })
+
+    render(<SessionDocumentsPanel isSidebarOpen />)
+
+    expect(screen.getByTestId('session-documents-panel')).toHaveAttribute('data-state', 'failed')
+    expect(screen.getByText('No credits available to finalize this generation.')).toBeInTheDocument()
+    expect(screen.getByTestId('documents-progress-label')).toHaveTextContent('Ultima etapa: generation failed')
   })
 })

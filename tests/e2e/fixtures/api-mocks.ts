@@ -15,6 +15,14 @@ type FileResponse = {
   available?: boolean
   pdfUrl: string | null
   docxUrl?: string | null
+  generationStatus?: 'idle' | 'generating' | 'ready' | 'failed'
+  jobId?: string
+  stage?: string
+  progress?: {
+    percent?: number
+    label?: string
+  }
+  errorMessage?: string
 }
 
 type ProfileResponse = {
@@ -51,6 +59,7 @@ function buildDefaultArtifactResponse(isReady: boolean): FileResponse {
       available: false,
       pdfUrl: null,
       docxUrl: null,
+      generationStatus: 'idle',
     }
   }
 
@@ -58,6 +67,7 @@ function buildDefaultArtifactResponse(isReady: boolean): FileResponse {
     available: true,
     pdfUrl: `${DEFAULT_ASSET_BASE_URL}/resume.pdf`,
     docxUrl: null,
+    generationStatus: 'ready',
   }
 }
 
@@ -123,6 +133,7 @@ export function buildMockWorkspace(sessionId = 'sess_e2e_browser'): SessionWorks
       createdAt: '2026-04-10T12:00:00.000Z',
       updatedAt: '2026-04-10T12:05:00.000Z',
     },
+    jobs: [],
     targets: [],
   }
 }
@@ -242,6 +253,9 @@ export async function installCoreFunnelApiMocks(
       success: true,
       scope: payload.scope,
       targetId: payload.scope === 'target' ? payload.targetId : undefined,
+      creditsUsed: 0,
+      generationType: payload.scope === 'target' ? 'JOB_TARGETING' : 'ATS_ENHANCEMENT',
+      jobId: 'job_e2e_generation',
     })
   })
 

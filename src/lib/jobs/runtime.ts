@@ -41,7 +41,10 @@ async function persistProcessorFailure(
     logError('jobs.runtime.failure_without_claim', {
       jobId: job.jobId,
       userId: job.userId,
+      sessionId: job.sessionId,
+      resumeTargetId: job.resumeTargetId,
       type: job.type,
+      status: job.status,
       stage,
       errorCode: errorRef.kind === 'job_error' ? errorRef.code : 'resume_generation_failure',
       errorMessage: errorRef.kind === 'job_error' ? errorRef.message : errorRef.failureReason,
@@ -60,6 +63,7 @@ async function persistProcessorFailure(
 
 async function processClaimedJob(job: JobStatusSnapshot): Promise<void> {
   const processor = JOB_PROCESSORS[job.type]
+  const processingStartedAt = Date.now()
   if (!processor) {
     await persistProcessorFailure(job, {
       kind: 'job_error',
@@ -76,7 +80,9 @@ async function processClaimedJob(job: JobStatusSnapshot): Promise<void> {
     sessionId: job.sessionId,
     resumeTargetId: job.resumeTargetId,
     type: job.type,
+    status: job.status,
     stage: job.stage,
+    latencyMs: 0,
   })
 
   try {
@@ -102,7 +108,9 @@ async function processClaimedJob(job: JobStatusSnapshot): Promise<void> {
         sessionId: job.sessionId,
         resumeTargetId: job.resumeTargetId,
         type: job.type,
+        status: 'completed',
         stage: outcome.stage,
+        latencyMs: Date.now() - processingStartedAt,
       })
       return
     }
@@ -115,6 +123,7 @@ async function processClaimedJob(job: JobStatusSnapshot): Promise<void> {
       sessionId: job.sessionId,
       resumeTargetId: job.resumeTargetId,
       type: job.type,
+      status: 'failed',
       stage: outcome.stage,
       errorCode: outcome.errorRef.kind === 'job_error'
         ? outcome.errorRef.code
@@ -122,6 +131,7 @@ async function processClaimedJob(job: JobStatusSnapshot): Promise<void> {
       errorMessage: outcome.errorRef.kind === 'job_error'
         ? outcome.errorRef.message
         : outcome.errorRef.failureReason,
+      latencyMs: Date.now() - processingStartedAt,
     })
   } catch (error) {
     const errorRef = buildUnexpectedProcessorErrorRef(error)
@@ -132,8 +142,11 @@ async function processClaimedJob(job: JobStatusSnapshot): Promise<void> {
       sessionId: job.sessionId,
       resumeTargetId: job.resumeTargetId,
       type: job.type,
+      status: 'failed',
+      stage: job.stage,
       errorCode: errorRef.code,
       errorMessage: errorRef.message,
+      latencyMs: Date.now() - processingStartedAt,
     })
 
     try {
@@ -145,7 +158,10 @@ async function processClaimedJob(job: JobStatusSnapshot): Promise<void> {
         sessionId: job.sessionId,
         resumeTargetId: job.resumeTargetId,
         type: job.type,
+        status: 'failed',
+        stage: job.stage,
         errorMessage: persistError instanceof Error ? persistError.message : String(persistError),
+        latencyMs: Date.now() - processingStartedAt,
       })
     }
   }

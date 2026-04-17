@@ -1,6 +1,7 @@
 'use client'
 
 import type { PreviewFile } from '@/context/preview-panel-context'
+import { Button } from '@/components/ui/button'
 
 import { PreviewPanel } from './preview-panel'
 
@@ -9,6 +10,9 @@ type WorkspaceSidePanelProps = {
   showInlinePreview: boolean
   previewFile: PreviewFile | null
   baseOutputReady: boolean
+  onGenerateBase?: () => void
+  generationBusy?: boolean
+  generationInProgress?: boolean
 }
 
 export function WorkspaceSidePanel({
@@ -16,6 +20,9 @@ export function WorkspaceSidePanel({
   showInlinePreview,
   previewFile,
   baseOutputReady,
+  onGenerateBase,
+  generationBusy = false,
+  generationInProgress = false,
 }: WorkspaceSidePanelProps) {
   const defaultPreviewFile = sessionId && baseOutputReady
     ? {
@@ -48,7 +55,19 @@ export function WorkspaceSidePanel({
           </div>
         ) : (
           <div className="flex flex-1 items-center justify-center bg-muted/20 p-6 text-sm text-muted-foreground">
-            Gere um arquivo.
+            <div className="flex flex-col items-center gap-3 text-center">
+              <p>Gere um arquivo.</p>
+              {sessionId && onGenerateBase ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onGenerateBase}
+                  disabled={generationBusy}
+                >
+                  {generationInProgress ? 'Gerando arquivo...' : 'Gerar arquivo base'}
+                </Button>
+              ) : null}
+            </div>
           </div>
         )}
       </div>

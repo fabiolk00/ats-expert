@@ -14,6 +14,30 @@ import { NEW_CONVERSATION_EVENT, SESSION_SYNC_EVENT, type SessionSyncDetail } fr
 
 type SectionKey = 'files'
 
+function formatArtifactProgressLabel(input: {
+  stage?: string
+  progress?: {
+    percent?: number
+    label?: string
+  }
+}): string | null {
+  if (input.progress?.label) {
+    return input.progress.percent !== undefined
+      ? `${input.progress.label} (${input.progress.percent}%)`
+      : input.progress.label
+  }
+
+  if (input.progress?.percent !== undefined) {
+    return `${input.progress.percent}%`
+  }
+
+  if (input.stage) {
+    return input.stage.replace(/_/g, ' ')
+  }
+
+  return null
+}
+
 async function triggerDownload(url: string, filename: string) {
   const response = await fetch(url)
   if (!response.ok) {
@@ -145,7 +169,7 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
   const searchParams = useSearchParams()
   const [sessionId, setSessionId] = useState<string | null>(() => searchParams.get('session'))
   const { file: previewFile, open } = usePreviewPanel()
-  const { files, isLoading, error, refresh } = useSessionDocuments(sessionId)
+  const { files, artifactStatus, isLoading, error, refresh } = useSessionDocuments(sessionId)
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     files: true,
   })
@@ -174,19 +198,34 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
   }, [])
 
   const hasFiles = Boolean(files.pdfUrl)
+  const progressLabel = formatArtifactProgressLabel({
+    stage: artifactStatus.stage,
+    progress: artifactStatus.progress,
+  })
+  const hasVisibleStatus = artifactStatus.generationStatus === 'generating' || artifactStatus.generationStatus === 'failed'
   const isBasePdfActive =
     previewFile?.sessionId === sessionId
     && previewFile?.targetId === null
     && previewFile?.type === 'pdf'
 
   const documentGroups = useMemo(() => ({ hasFiles }), [hasFiles])
-  const panelState = isLoading ? 'loading' : error ? 'error' : documentGroups.hasFiles ? 'ready' : 'empty'
+  const panelState = isLoading
+    ? 'loading'
+    : error
+      ? 'error'
+      : artifactStatus.generationStatus === 'generating'
+        ? 'generating'
+        : artifactStatus.generationStatus === 'failed'
+          ? 'failed'
+          : documentGroups.hasFiles
+            ? 'ready'
+            : 'empty'
 
   if (!isSidebarOpen || !sessionId) {
     return null
   }
 
-  if (!documentGroups.hasFiles && !isLoading && !error) {
+  if (!documentGroups.hasFiles && !isLoading && !error && !hasVisibleStatus) {
     return null
   }
 
@@ -202,6 +241,7 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
       data-testid="session-documents-panel"
       data-pdf-available={String(Boolean(files.pdfUrl))}
       data-state={panelState}
+      data-generation-status={artifactStatus.generationStatus}
       className="mt-3 border-t border-border/60 pt-3"
     >
       <div className="px-2 pb-2">
@@ -224,6 +264,28 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
           >
             Tentar novamente
           </button>
+        </div>
+      ) : null}
+
+      {!error && artifactStatus.generationStatus === 'generating' ? (
+        <div className="space-y-1 px-2 py-1 text-xs text-muted-foreground">
+          <p>Geracao em andamento. Atualizaremos este arquivo quando estiver pronto.</p>
+          {progressLabel ? (
+            <p data-testid="documents-progress-label">{progressLabel}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!error && artifactStatus.generationStatus === 'failed' ? (
+        <div className="space-y-1 px-2 py-1">
+          <p className="text-xs text-destructive">
+            {artifactStatus.errorMessage ?? 'A ultima geracao falhou. Tente novamente mais tarde.'}
+          </p>
+          {progressLabel ? (
+            <p className="text-[11px] text-muted-foreground" data-testid="documents-progress-label">
+              Ultima etapa: {progressLabel}
+            </p>
+          ) : null}
         </div>
       ) : null}
 

@@ -2,6 +2,8 @@ import type {
   AtsAnalysisResult,
   AtsWorkflowRun,
   GeneratedOutput,
+  JobProgress,
+  JobStatusSnapshot,
   Phase,
   ResumeGenerationType,
   RewriteStatus,
@@ -169,6 +171,7 @@ export type SessionWorkspace = {
     createdAt: string
     updatedAt: string
   }
+  jobs: JobStatusSnapshot[]
   targets: SerializedResumeTarget[]
 }
 
@@ -178,7 +181,28 @@ export type GenerateResumeResponse = {
   targetId?: string
   creditsUsed: number
   generationType: ResumeGenerationType
+  jobId: string
+  inProgress?: boolean
   resumeGenerationId?: string
+}
+
+export type ArtifactStatusSummary = {
+  generationStatus: GeneratedOutput['status']
+  jobId?: string
+  stage?: string
+  progress?: JobProgress
+  errorMessage?: string
+}
+
+export type DownloadUrlsResponse = {
+  docxUrl: string | null
+  pdfUrl: string | null
+  available: boolean
+  generationStatus: ArtifactStatusSummary['generationStatus']
+  jobId?: string
+  stage?: string
+  progress?: JobProgress
+  errorMessage?: string
 }
 
 export type ResumeComparisonResponse = {

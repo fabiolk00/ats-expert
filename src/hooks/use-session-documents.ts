@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
+import type { ArtifactStatusSummary } from '@/types/dashboard'
 
 type SessionFiles = {
   docxUrl: string | null
@@ -11,9 +12,14 @@ type SessionFiles = {
 
 type SessionDocuments = {
   files: SessionFiles
+  artifactStatus: ArtifactStatusSummary
   isLoading: boolean
   error: string | null
   refresh: () => void
+}
+
+const EMPTY_ARTIFACT_STATUS: ArtifactStatusSummary = {
+  generationStatus: 'idle',
 }
 
 function getDocumentErrorMessage(error: unknown): string {
@@ -30,6 +36,7 @@ function getDocumentErrorMessage(error: unknown): string {
 
 export function useSessionDocuments(sessionId: string | null): SessionDocuments {
   const [files, setFiles] = useState<SessionFiles>({ docxUrl: null, pdfUrl: null })
+  const [artifactStatus, setArtifactStatus] = useState<ArtifactStatusSummary>(EMPTY_ARTIFACT_STATUS)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
@@ -41,6 +48,7 @@ export function useSessionDocuments(sessionId: string | null): SessionDocuments 
   useEffect(() => {
     if (!sessionId) {
       setFiles({ docxUrl: null, pdfUrl: null })
+      setArtifactStatus(EMPTY_ARTIFACT_STATUS)
       setError(null)
       setIsLoading(false)
       return
@@ -62,6 +70,13 @@ export function useSessionDocuments(sessionId: string | null): SessionDocuments 
         setFiles({
           docxUrl: null,
           pdfUrl: nextFiles.pdfUrl ?? null,
+        })
+        setArtifactStatus({
+          generationStatus: nextFiles.generationStatus,
+          jobId: nextFiles.jobId,
+          stage: nextFiles.stage,
+          progress: nextFiles.progress,
+          errorMessage: nextFiles.errorMessage,
         })
       } catch (fetchError) {
         if (!isCancelled) {
@@ -90,5 +105,5 @@ export function useSessionDocuments(sessionId: string | null): SessionDocuments 
     return () => window.clearInterval(interval)
   }, [refresh, sessionId])
 
-  return { files, isLoading, error, refresh }
+  return { files, artifactStatus, isLoading, error, refresh }
 }
