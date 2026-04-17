@@ -1,0 +1,431 @@
+"use client"
+
+import Link from "next/link"
+import { motion, type Variants } from "motion/react"
+import {
+  ArrowRight,
+  AlertTriangle,
+  Search,
+  CheckCircle2,
+  XCircle,
+  Sparkles,
+  ChevronRight,
+  Target,
+  FileText,
+  TrendingUp,
+  Lightbulb,
+} from "lucide-react"
+
+import BrandWordmark, { BrandText } from "@/components/brand-wordmark"
+import Footer from "@/components/landing/footer"
+import Header from "@/components/landing/header"
+import { Button } from "@/components/ui/button"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import type { RoleLandingConfig } from "@/lib/seo/role-landing-config"
+
+// Animation variants
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 },
+  },
+}
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: "easeOut" },
+  },
+}
+
+interface SeoRoleLandingPageProps {
+  config: RoleLandingConfig
+}
+
+export default function SeoRoleLandingPage({ config }: SeoRoleLandingPageProps) {
+  return (
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-background text-foreground">
+      <Header />
+
+      <main className="relative flex-1">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden bg-background py-16 md:py-24">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
+          
+          <div className="container relative z-10 mx-auto max-w-5xl px-4">
+            <motion.div
+              className="mx-auto max-w-4xl text-center"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h1 className="mb-6 text-balance text-3xl font-bold tracking-tight md:text-4xl lg:text-5xl">
+                {config.hero.h1.split("ATS").map((part, i, arr) => (
+                  <span key={i}>
+                    {part}
+                    {i < arr.length - 1 && (
+                      <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                        ATS
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </h1>
+              <p className="mx-auto mb-10 max-w-3xl text-lg leading-relaxed text-muted-foreground md:text-xl">
+                {config.hero.subtitle}
+              </p>
+              <div className="flex flex-col justify-center gap-4 sm:flex-row">
+                <Button asChild size="lg" className="gap-2 text-base font-semibold">
+                  <Link href="/signup">
+                    {config.hero.ctaText}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="text-base font-semibold text-foreground">
+                  <a href="#keywords">Ver palavras-chave</a>
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* Problem Section */}
+        <motion.section
+          className="bg-muted/30 py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-destructive/10 p-4 text-destructive">
+                <AlertTriangle className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                {config.problem.title}
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                {config.problem.description}
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {config.problem.points.map((point, i) => (
+                <div
+                  key={i}
+                  className="group flex items-start gap-4 rounded-2xl border border-border/40 bg-card p-6 shadow-sm transition-all hover:border-destructive/20 hover:shadow-md"
+                >
+                  <XCircle className="mt-0.5 h-6 w-6 shrink-0 text-destructive transition-transform group-hover:scale-110" />
+                  <p className="text-sm leading-relaxed text-muted-foreground">{point}</p>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* ATS Explanation Section */}
+        <motion.section
+          className="py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary">
+                <Search className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                {config.atsExplanation.title}
+              </h2>
+              <p className="mx-auto max-w-3xl text-lg text-muted-foreground">
+                {config.atsExplanation.description}
+              </p>
+            </motion.div>
+
+            <motion.div
+              variants={itemVariants}
+              className="rounded-[2rem] border border-border/50 bg-card p-8 shadow-sm md:p-12"
+            >
+              <h3 className="mb-6 flex items-center gap-3 text-xl font-semibold">
+                <Target className="h-6 w-6 text-primary" />
+                O que recrutadores de {config.roleShort} escaneiam
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {config.atsExplanation.whatRecruitersScan.map((item, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
+                    <span className="text-muted-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* Keywords Section (SEO Gold) */}
+        <motion.section
+          id="keywords"
+          className="scroll-mt-20 bg-muted/30 py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary">
+                <Sparkles className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                Palavras-chave Essenciais para {config.roleShort}
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                Inclua estas palavras-chave no seu currículo para maximizar sua pontuação no ATS.
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2">
+              {config.keywords.map((keyword, i) => (
+                <div
+                  key={i}
+                  className="group rounded-2xl border border-border/40 bg-card p-6 shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="rounded-lg bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                      {keyword.term}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{keyword.description}</p>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* Before/After CV Example */}
+        <motion.section
+          className="py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary">
+                <FileText className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                Exemplo: Antes e Depois
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                Veja como um currículo genérico se transforma em um currículo otimizado para ATS.
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="grid gap-8 lg:grid-cols-2">
+              {/* Before */}
+              <div className="rounded-[2rem] border-2 border-destructive/20 bg-card p-8 shadow-sm">
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="rounded-full bg-destructive/10 p-2">
+                    <XCircle className="h-6 w-6 text-destructive" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-destructive">Reprovado pelo ATS</span>
+                    <h3 className="text-lg font-semibold">{config.cvExample.before.title}</h3>
+                  </div>
+                </div>
+                <ul className="space-y-3">
+                  {config.cvExample.before.bullets.map((bullet, i) => (
+                    <li key={i} className="flex items-start gap-3 text-muted-foreground">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* After */}
+              <div className="rounded-[2rem] border-2 border-green-500/30 bg-card p-8 shadow-sm">
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="rounded-full bg-green-500/10 p-2">
+                    <CheckCircle2 className="h-6 w-6 text-green-500" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-green-500">Aprovado pelo ATS</span>
+                    <h3 className="text-lg font-semibold">{config.cvExample.after.title}</h3>
+                  </div>
+                </div>
+                <ul className="space-y-3">
+                  {config.cvExample.after.bullets.map((bullet, i) => (
+                    <li key={i} className="flex items-start gap-3 text-foreground">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* How to Improve Section */}
+        <motion.section
+          className="bg-muted/30 py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary">
+                <TrendingUp className="h-8 w-8" />
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                Como Melhorar seu Currículo de {config.roleShort}
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                Siga estes passos para otimizar seu currículo e passar pelos filtros ATS.
+              </p>
+            </motion.div>
+
+            <motion.div variants={itemVariants} className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {config.improvementSteps.map((step, i) => (
+                <div
+                  key={i}
+                  className="group relative rounded-2xl border border-border/40 bg-card p-8 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
+                >
+                  <div className="pointer-events-none absolute right-4 top-4 text-6xl font-black text-primary/5 transition-all group-hover:text-primary/10">
+                    {String(i + 1).padStart(2, "0")}
+                  </div>
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-lg font-bold text-primary">
+                    {i + 1}
+                  </div>
+                  <h3 className="mb-3 text-lg font-semibold">{step.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{step.description}</p>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* CTA Section */}
+        <motion.section
+          className="py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-5xl px-4">
+            <motion.div
+              variants={itemVariants}
+              className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-primary/30 via-primary/5 to-transparent p-[1px] shadow-lg"
+            >
+              <div className="pointer-events-none absolute right-0 top-0 h-[500px] w-[500px] translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[100px]" />
+
+              <div className="relative z-10 rounded-[3rem] bg-card/95 p-8 text-center backdrop-blur-sm md:p-16">
+                <div className="mb-6 inline-flex items-center justify-center rounded-2xl bg-primary/10 p-4 text-primary shadow-inner">
+                  <Lightbulb className="h-8 w-8" />
+                </div>
+                <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                  Descubra agora se seu currículo passa no ATS
+                </h2>
+                <p className="mx-auto mb-8 max-w-2xl text-lg text-muted-foreground">
+                  <BrandText
+                    text="O CurrIA analisa seu currículo com IA e mostra exatamente o que melhorar para conquistar mais entrevistas."
+                    className="font-medium text-foreground"
+                  />
+                </p>
+                <Link
+                  href="/signup"
+                  className="group inline-flex items-center gap-3 rounded-full bg-primary px-8 py-5 text-lg font-semibold text-primary-foreground shadow-xl transition-all hover:-translate-y-1 hover:bg-primary/90 hover:shadow-primary/25"
+                >
+                  Ver meu score ATS
+                  <ChevronRight className="h-6 w-6 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* FAQ Section */}
+        <motion.section
+          className="bg-muted/30 py-16 md:py-24"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-4xl px-4">
+            <motion.div variants={itemVariants} className="mb-12 text-center">
+              <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                Perguntas Frequentes sobre Currículo de {config.roleShort}
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+                Dúvidas comuns sobre como otimizar seu currículo para a área.
+              </p>
+            </motion.div>
+
+            <motion.div
+              variants={itemVariants}
+              className="rounded-2xl border bg-card p-6 shadow-sm md:p-8"
+            >
+              <Accordion type="single" collapsible className="w-full">
+                {config.faqs.map((faq, index) => (
+                  <AccordionItem key={faq.question} value={`item-${index}`}>
+                    <AccordionTrigger className="py-5 text-left text-lg font-semibold transition-colors hover:text-primary">
+                      {faq.question}
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-6 text-base leading-relaxed text-muted-foreground">
+                      <BrandText text={faq.answer} className="font-medium text-foreground" />
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </motion.div>
+          </div>
+        </motion.section>
+
+        {/* Final CTA */}
+        <motion.section
+          className="py-16 text-center md:py-24"
+          variants={itemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+        >
+          <div className="container mx-auto max-w-3xl px-4">
+            <h2 className="mb-6 text-3xl font-bold tracking-tight md:text-4xl">
+              Pronto para conquistar mais entrevistas?
+            </h2>
+            <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground">
+              Pare de enviar currículos para o buraco negro. Deixe nossa IA otimizar seu perfil de {config.roleShort.toLowerCase()} e comece a ser chamado para as entrevistas que você merece.
+            </p>
+            <Link
+              href="/signup"
+              className="group inline-flex items-center gap-3 rounded-full bg-primary px-8 py-5 text-lg font-semibold text-primary-foreground shadow-xl transition-all hover:-translate-y-1 hover:bg-primary/90 hover:shadow-primary/25"
+            >
+              {config.hero.ctaText}
+              <ChevronRight className="h-6 w-6 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
+        </motion.section>
+      </main>
+
+      <Footer />
+    </div>
+  )
+}
