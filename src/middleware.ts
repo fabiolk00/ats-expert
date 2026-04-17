@@ -20,6 +20,9 @@ const isPublicRoute = createRouteMatcher([
   '/curriculo-desenvolvedor-ats(.*)',
   '/curriculo-analista-dados-ats(.*)',
   '/curriculo-marketing-ats(.*)',
+  '/curriculo-customer-success-ats(.*)',
+  '/curriculo-product-manager-ats(.*)',
+  '/curriculo-vendas-ats(.*)',
   '/sso-callback(.*)',
   '/api/webhook/asaas(.*)',
   '/api/webhook/clerk(.*)',
@@ -54,22 +57,13 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
     'https://challenges.cloudflare.com',
   ].filter(Boolean).join(' ')
 
-  // Prevent clickjacking attacks
   response.headers.set('X-Frame-Options', 'DENY')
-
-  // Prevent MIME type sniffing
   response.headers.set('X-Content-Type-Options', 'nosniff')
-
-  // Enforce HTTPS (1 year, include subdomains)
   response.headers.set(
     'Strict-Transport-Security',
     'max-age=31536000; includeSubDomains; preload',
   )
 
-  // Content Security Policy: restrict to self + necessary third-party services
-  // Self: allows same-origin resources
-  // unsafe-inline: required for Next.js inline scripts (minimal attack surface in SSR context)
-  // cdn.jsdelivr.net: for external CDN assets if used
   response.headers.set(
     'Content-Security-Policy',
     [
@@ -143,7 +137,6 @@ const clerkAuthMiddleware = clerkMiddleware(async (auth, req) => {
     return canonicalRedirect
   }
 
-  // API routes handle their own auth and should not redirect
   const isApiRoute = req.nextUrl.pathname.startsWith('/api/')
 
   if (!isPublicRoute(req) && !isApiRoute) {
