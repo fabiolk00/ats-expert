@@ -271,7 +271,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               <button
                 type="button"
                 onClick={() => setMobileAreasOpen((value) => !value)}
-                className="mt-2 flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-muted/50"
+                className="mt-2 flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
               >
                 <span>Currículos por Área</span>
                 <ChevronDown

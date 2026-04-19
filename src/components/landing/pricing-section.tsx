@@ -42,7 +42,7 @@ export default function PricingSection() {
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => {
             const config = PLANS[plan.slug]
             const hasJobManagement = plan.slug !== "free"
@@ -52,7 +52,7 @@ export default function PricingSection() {
                 key={plan.slug}
                 className={`relative flex h-full flex-col transition-all duration-200 ${
                   config.highlighted
-                    ? "z-10 scale-105 border-primary bg-card shadow-xl shadow-primary/10"
+                    ? "z-10 border-primary bg-card shadow-xl shadow-primary/10 xl:scale-105"
                     : "border-border/50 bg-card/50 hover:border-border hover:shadow-md"
                 }`}
               >
@@ -120,7 +120,7 @@ export default function PricingSection() {
             <ShieldCheck className="h-4 w-4 text-emerald-500" />
             <span>Pagamento 100% seguro via</span>
             <span className="ml-0.5 flex items-center text-base font-black tracking-[-0.05em] text-[#0030B9] dark:text-[#4270f5]">
-              asaas
+              Asaas
             </span>
           </div>
           <span className="hidden text-border sm:inline">|</span>
@@ -131,7 +131,7 @@ export default function PricingSection() {
             <span>
               1 análise <strong className="text-foreground">totalmente gratuita</strong>
             </span>
-          </div>
+          </div>s
         </div>
       </div>
     </section>
