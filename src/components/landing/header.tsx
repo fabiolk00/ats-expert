@@ -146,14 +146,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground"
+                  className="rounded-lg px-3 py-1.5 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground"
                 >
                   {link.label}
                 </Link>
               ))}
 
               <DropdownMenu>
-                <DropdownMenuTrigger className="group flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground outline-none transition-colors duration-150 hover:bg-muted/60 hover:text-foreground">
+                <DropdownMenuTrigger className="group flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-foreground outline-none transition-colors duration-150 hover:bg-muted/60 hover:text-foreground">
                   Currículos por Área
                   <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                 </DropdownMenuTrigger>

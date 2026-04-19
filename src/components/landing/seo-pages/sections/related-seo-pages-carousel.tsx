@@ -11,12 +11,12 @@ const carouselImageByVariant: Record<RoleLandingVisualVariant, string> = {
   default: "/images/seo/ats-guide.jpg",
   developer: "/images/seo/developer-career.jpg",
   data_analyst: "/images/seo/data-analyst-career.jpg",
-  data_engineer: "/images/seo/ats-guide.jpg",
+  data_engineer: "/images/seo/developer-career.jpg",
   marketing: "/images/seo/marketing-career.jpg",
-  customer_success: "/images/seo/ats-guide.jpg",
-  product_manager: "/images/seo/ats-guide.jpg",
+  customer_success: "/images/seo/marketing-career.jpg",
+  product_manager: "/images/seo/data-analyst-career.jpg",
   sales: "/images/seo/marketing-career.jpg",
-  finance: "/images/seo/ats-guide.jpg",
+  finance: "/images/seo/data-analyst-career.jpg",
 }
 
 function getRelatedSeoPages(currentSlug: string) {
@@ -79,9 +79,9 @@ export default function RelatedSeoPagesCarousel({ currentSlug }: { currentSlug: 
           </h2>
         </div>
 
-        <div className="relative -mx-8 md:-mx-10">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white to-transparent md:w-16" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white to-transparent md:w-16" />
+        <div className="relative">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-white to-transparent md:w-12" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-white to-transparent md:w-12" />
 
           <div
             ref={scrollRef}
@@ -89,10 +89,10 @@ export default function RelatedSeoPagesCarousel({ currentSlug }: { currentSlug: 
             onMouseLeave={onMouseLeave}
             onMouseUp={onMouseUp}
             onMouseMove={onMouseMove}
-            className="cursor-grab overflow-x-auto px-8 pb-2 select-none touch-pan-y active:cursor-grabbing md:px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="cursor-grab overflow-x-auto pb-2 select-none touch-pan-y active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            <div className="flex w-max gap-5 pr-8 md:gap-6 md:pr-10">
-              {relatedSeoPages.map((link, index) => (
+            <div className="flex w-max gap-5 pr-6 md:gap-6 md:pr-8">
+              {relatedSeoPages.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -101,12 +101,9 @@ export default function RelatedSeoPagesCarousel({ currentSlug }: { currentSlug: 
                       e.preventDefault()
                     }
                   }}
-                  className={[
-                    "group relative shrink-0 overflow-hidden rounded-[30px] border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_rgba(15,23,42,0.10)]",
-                    index === 0 ? "w-[332px] md:w-[400px]" : "w-[300px] md:w-[340px]",
-                  ].join(" ")}
+                  className="group relative w-[286px] shrink-0 overflow-hidden rounded-[30px] border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_rgba(15,23,42,0.10)] sm:w-[320px] lg:w-[360px]"
                 >
-                  <div className="relative min-h-[430px] md:min-h-[520px]">
+                  <div className="relative min-h-[360px] sm:min-h-[400px] lg:min-h-[440px]">
                     <Image
                       src={link.image}
                       alt={link.label}
@@ -114,14 +111,14 @@ export default function RelatedSeoPagesCarousel({ currentSlug }: { currentSlug: 
                       className="object-cover transition duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-6 md:p-7">
-                      <p className="text-2xl font-semibold text-white md:text-[2rem] md:leading-[1.02]">
+                    <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                      <p className="text-[1.75rem] font-semibold leading-[1.02] text-white sm:text-[2rem]">
                         {link.label}
                       </p>
-                      <p className="mt-3 line-clamp-3 max-w-[28ch] text-base leading-7 text-white/80">
+                      <p className="mt-3 line-clamp-3 max-w-[28ch] text-sm leading-7 text-white/80 sm:text-base">
                         {link.description}
                       </p>
-                      <div className="mt-5 inline-flex items-center gap-2 text-base font-medium text-white">
+                      <div className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-white sm:text-base">
                         Ver página
                         <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                       </div>
