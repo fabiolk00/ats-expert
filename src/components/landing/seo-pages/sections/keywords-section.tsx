@@ -17,7 +17,7 @@ export default function KeywordsSection({ theme, keywords }: { theme: SEOPagePro
             <Network className="w-8 h-8 relative z-10" />
           </div>
           <h2 className="text-[40px] leading-[1.1] font-bold text-[#0a0a0a] tracking-[-0.02em] mb-6">
-            Palavras-Chave e Taxonomias Críticas
+            Palavras-Chave
           </h2>
           <p className="text-xl text-zinc-600 font-medium leading-relaxed">
             O ATS depende de variações exatas ou altamente específicas de palavras-chave para avaliar sua competência. Incluir estes termos estrategicamente na sua experiência é obrigatório.
