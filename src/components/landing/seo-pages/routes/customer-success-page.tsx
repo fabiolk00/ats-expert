@@ -7,6 +7,7 @@ import { motion as Motion } from "motion/react";
 export default function CustomerSuccessPage() {
   return (
     <SEOPageTemplate
+      slug="curriculo-customer-success-ats"
       role="Customer Success"
       theme={{
         accent: "bg-cyan-600",

@@ -6,6 +6,7 @@ import { Database, LineChart, TrendingUp } from "lucide-react";
 export default function DataAnalystPage() {
   return (
     <SEOPageTemplate
+      slug="curriculo-analista-dados-ats"
       role="Analista de Dados"
       theme={{
         accent: "bg-purple-600",

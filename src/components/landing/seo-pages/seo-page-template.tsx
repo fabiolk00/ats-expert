@@ -11,10 +11,12 @@ import GoodVsBadSection from "@/components/landing/seo-pages/sections/good-vs-ba
 import HeroSection from "@/components/landing/seo-pages/sections/hero-section"
 import KeywordsSection from "@/components/landing/seo-pages/sections/keywords-section"
 import ProblemSection from "@/components/landing/seo-pages/sections/problem-section"
+import RelatedSeoPagesCarousel from "@/components/landing/seo-pages/sections/related-seo-pages-carousel"
 import SenioritySection from "@/components/landing/seo-pages/sections/seniority-section"
 import SpecializationsSection from "@/components/landing/seo-pages/sections/specializations-section"
 
 export interface SEOPageProps {
+  slug: string
   role: string
   theme: {
     accent: string
@@ -38,7 +40,7 @@ export interface SEOPageProps {
   }
 }
 
-export default function SEOPageTemplate({ role, theme, content }: SEOPageProps) {
+export default function SEOPageTemplate({ slug, role, theme, content }: SEOPageProps) {
   return (
     <div className="flex min-h-screen flex-col bg-white text-[#0a0a0a]">
       <Header />
@@ -52,6 +54,7 @@ export default function SEOPageTemplate({ role, theme, content }: SEOPageProps) 
           <SpecializationsSection theme={theme} specializations={content.specializations} />
           <SenioritySection theme={theme} levels={content.seniority} />
           <FaqSection faq={content.faq} />
+          <RelatedSeoPagesCarousel currentSlug={slug} />
           <FinalCta theme={theme} role={role} />
         </div>
       </main>

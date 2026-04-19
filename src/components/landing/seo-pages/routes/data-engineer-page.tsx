@@ -7,6 +7,7 @@ import { motion as Motion } from "motion/react";
 export default function DataEngineerPage() {
   return (
     <SEOPageTemplate
+      slug="curriculo-engenheiro-de-dados-ats"
       role="Engenheiro de Dados"
       theme={{
         accent: "bg-indigo-600",

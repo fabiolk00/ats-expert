@@ -6,6 +6,7 @@ import { Code2 } from "lucide-react";
 export default function DeveloperPage() {
   return (
     <SEOPageTemplate
+      slug="curriculo-desenvolvedor-ats"
       role="Desenvolvedor de Software"
       theme={{
         accent: "bg-blue-600",

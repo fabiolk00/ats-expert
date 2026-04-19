@@ -7,12 +7,13 @@ import { motion as Motion } from "motion/react";
 export default function FinancePage() {
   return (
     <SEOPageTemplate
-      role="Finanças"
+      slug="curriculo-financeiro-ats"
+      role="FinanÃ§as"
       theme={{
         accent: "bg-slate-700",
         bgAccent: "bg-slate-500/10",
         textAccent: "text-slate-600",
-        badgeLabel: "Guia de Currículo Financeiro",
+        badgeLabel: "Guia de CurrÃ­culo Financeiro",
         icon: <Building2 className="w-6 h-6 text-slate-600" />,
         heroVisual: (
           <div className="w-full h-full flex flex-col justify-end bg-white p-8 rounded-b-xl relative overflow-hidden">
@@ -88,58 +89,58 @@ export default function FinancePage() {
         )
       }}
       content={{
-        heroTitle: "O Currículo Financeiro Perfeito para o ATS",
-        heroSubtitle: "Traduza suas planilhas em impacto real. Destaque suas habilidades de FP&A, modelagem e redução de custos no formato que os recrutadores buscam.",
+        heroTitle: "O CurrÃ­culo Financeiro Perfeito para o ATS",
+        heroSubtitle: "Traduza suas planilhas em impacto real. Destaque suas habilidades de FP&A, modelagem e reduÃ§Ã£o de custos no formato que os recrutadores buscam.",
         problemCards: [
-          { title: "Planilhas Não Lidas", desc: "Listar 'Excel Avançado' repetidamente sem mencionar modelagem de 3-statements, macros ou automação que salvaram dias de trabalho." },
-          { title: "Foco Operacional", desc: "Descrever o fechamento contábil mensal de forma robótica sem focar em como sua análise evitou riscos ou gerou oportunidades financeiras." },
-          { title: "ERP e Sistemas Ocultos", desc: "Omitir sistemas cruciais como SAP, Oracle ou NetSuite, que os recrutadores configuram o ATS para classificar como eliminatórios se ausentes." }
+          { title: "Planilhas NÃ£o Lidas", desc: "Listar 'Excel AvanÃ§ado' repetidamente sem mencionar modelagem de 3-statements, macros ou automaÃ§Ã£o que salvaram dias de trabalho." },
+          { title: "Foco Operacional", desc: "Descrever o fechamento contÃ¡bil mensal de forma robÃ³tica sem focar em como sua anÃ¡lise evitou riscos ou gerou oportunidades financeiras." },
+          { title: "ERP e Sistemas Ocultos", desc: "Omitir sistemas cruciais como SAP, Oracle ou NetSuite, que os recrutadores configuram o ATS para classificar como eliminatÃ³rios se ausentes." }
         ],
         filterChecklist: [
-          { item: "Domínio de ERPs listados com o módulo específico (ex: SAP FICO)", checked: true },
-          { item: "Economias geradas (Cost Savings) quantificadas em dólares/reais", checked: true },
-          { item: "Tipos de relatórios gerados explicitamente (DRE, Fluxo de Caixa, Balanço)", checked: true },
-          { item: "Ocultar a escala/faturamento da empresa em que você trabalhou", checked: false },
+          { item: "DomÃ­nio de ERPs listados com o mÃ³dulo especÃ­fico (ex: SAP FICO)", checked: true },
+          { item: "Economias geradas (Cost Savings) quantificadas em dÃ³lares/reais", checked: true },
+          { item: "Tipos de relatÃ³rios gerados explicitamente (DRE, Fluxo de Caixa, BalanÃ§o)", checked: true },
+          { item: "Ocultar a escala/faturamento da empresa em que vocÃª trabalhou", checked: false },
           { item: "Layouts complexos e tabelas de habilidades financeiras (quebram o parser)", checked: false }
         ],
         keywords: [
-          { category: "Modelagem & Análise", term: "FP&A / Financial Modeling" },
-          { category: "Modelagem & Análise", term: "Variance Analysis / Forecasting" },
-          { category: "Modelagem & Análise", term: "Valuation / M&A / Due Diligence" },
+          { category: "Modelagem & AnÃ¡lise", term: "FP&A / Financial Modeling" },
+          { category: "Modelagem & AnÃ¡lise", term: "Variance Analysis / Forecasting" },
+          { category: "Modelagem & AnÃ¡lise", term: "Valuation / M&A / Due Diligence" },
           { category: "Contabilidade & Report", term: "US GAAP / IFRS / CPC" },
           { category: "Contabilidade & Report", term: "Month-End Close / Reconciliation" },
           { category: "Contabilidade & Report", term: "Audit / Compliance / SOX" },
-          { category: "Operações & Caixa", term: "Cash Flow Management" },
-          { category: "Operações & Caixa", term: "Working Capital" },
-          { category: "Operações & Caixa", term: "Risk Management" },
+          { category: "OperaÃ§Ãµes & Caixa", term: "Cash Flow Management" },
+          { category: "OperaÃ§Ãµes & Caixa", term: "Working Capital" },
+          { category: "OperaÃ§Ãµes & Caixa", term: "Risk Management" },
           { category: "Ferramentas & ERP", term: "Excel (VBA, Power Query)" },
           { category: "Ferramentas & ERP", term: "SAP / Oracle / NetSuite" }
         ],
         goodVsBad: {
-          bad: "Responsável pelo orçamento, planilhas financeiras e por analisar onde a empresa gastava muito dinheiro.",
-          good: "Desenvolveu um modelo de forecasting (FP&A) para despesas operacionais (OpEx) com 98% de precisão, suportando a tomada de decisão da diretoria (C-Level) e reduzindo o desvio orçamentário em 15% YoY."
+          bad: "ResponsÃ¡vel pelo orÃ§amento, planilhas financeiras e por analisar onde a empresa gastava muito dinheiro.",
+          good: "Desenvolveu um modelo de forecasting (FP&A) para despesas operacionais (OpEx) com 98% de precisÃ£o, suportando a tomada de decisÃ£o da diretoria (C-Level) e reduzindo o desvio orÃ§amentÃ¡rio em 15% YoY."
         },
         specializations: [
-          { title: "FP&A (Planejamento)", desc: "Foco profundo em orçamentação (Budgeting), forecasting, modelagem financeira complexa e análise de P&L.", tags: ["Forecasting", "Modelagem", "P&L", "Power BI"] },
-          { title: "Controladoria Corporativa", desc: "Destaque em reconciliação, relatórios estatutários, auditorias externas, compliance (SOX) e impostos.", tags: ["US GAAP", "IFRS", "Month-End Close", "Auditoria"] },
-          { title: "Corporate Finance / M&A", desc: "Ênfase em valuation, due diligence, levantamento de capital, alocação de recursos e estratégia de investimentos.", tags: ["Valuation", "Due Diligence", "Fusões e Aquisições"] },
-          { title: "Tesouraria (Treasury)", desc: "Concentre-se em gestão de caixa e liquidez, relações bancárias, gestão de riscos cambiais e políticas de crédito.", tags: ["Fluxo de Caixa", "Câmbio/FX", "Capital de Giro", "Risco de Crédito"] }
+          { title: "FP&A (Planejamento)", desc: "Foco profundo em orÃ§amentaÃ§Ã£o (Budgeting), forecasting, modelagem financeira complexa e anÃ¡lise de P&L.", tags: ["Forecasting", "Modelagem", "P&L", "Power BI"] },
+          { title: "Controladoria Corporativa", desc: "Destaque em reconciliaÃ§Ã£o, relatÃ³rios estatutÃ¡rios, auditorias externas, compliance (SOX) e impostos.", tags: ["US GAAP", "IFRS", "Month-End Close", "Auditoria"] },
+          { title: "Corporate Finance / M&A", desc: "ÃŠnfase em valuation, due diligence, levantamento de capital, alocaÃ§Ã£o de recursos e estratÃ©gia de investimentos.", tags: ["Valuation", "Due Diligence", "FusÃµes e AquisiÃ§Ãµes"] },
+          { title: "Tesouraria (Treasury)", desc: "Concentre-se em gestÃ£o de caixa e liquidez, relaÃ§Ãµes bancÃ¡rias, gestÃ£o de riscos cambiais e polÃ­ticas de crÃ©dito.", tags: ["Fluxo de Caixa", "CÃ¢mbio/FX", "Capital de Giro", "Risco de CrÃ©dito"] }
         ],
         seniority: [
-          { level: "Analista Financeiro", tips: ["Destaque a proficiência avançada em Excel (Índice-Corresp, Power Pivot, Macros) e na operação do ERP.", "Mostre capacidade de lidar com altos volumes de dados de forma independente e sem erros."] },
-          { level: "Coordenador / Controller", tips: ["Foque na automação de processos, melhorias no controle interno e redução do tempo de fechamento.", "Destaque a colaboração interfuncional com líderes não financeiros para ajustar orçamentos."] },
-          { level: "Diretor / CFO", tips: ["Discuta relacionamento com investidores, fusões e aquisições (M&A) e gestão de capital.", "Apresente o impacto de suas estratégias de alocação de recursos no EBITDA corporativo."] }
+          { level: "Analista Financeiro", tips: ["Destaque a proficiÃªncia avanÃ§ada em Excel (Ãndice-Corresp, Power Pivot, Macros) e na operaÃ§Ã£o do ERP.", "Mostre capacidade de lidar com altos volumes de dados de forma independente e sem erros."] },
+          { level: "Coordenador / Controller", tips: ["Foque na automaÃ§Ã£o de processos, melhorias no controle interno e reduÃ§Ã£o do tempo de fechamento.", "Destaque a colaboraÃ§Ã£o interfuncional com lÃ­deres nÃ£o financeiros para ajustar orÃ§amentos."] },
+          { level: "Diretor / CFO", tips: ["Discuta relacionamento com investidores, fusÃµes e aquisiÃ§Ãµes (M&A) e gestÃ£o de capital.", "Apresente o impacto de suas estratÃ©gias de alocaÃ§Ã£o de recursos no EBITDA corporativo."] }
         ],
         roadmap: [
-          { step: "Declare seus Sistemas", detail: "O ATS recusa candidatos seniores sem os ERPs corretos. Certifique-se de listar as ferramentas contábeis exatas." },
-          { step: "Exiba os Milhões", detail: "A linguagem financeira são os números. Se você ajudou em uma rodada de Série B, informe o valor (US$ 30M)." },
-          { step: "Remova Jargões Vazios", detail: "Líderes de finanças não gostam de excesso criativo. Seja conciso e use marcadores orientados a resultados." },
-          { step: "Garanta a Formatação Linear", detail: "Muitos analistas tentam colocar o currículo em tabelas de Excel. Converta para um PDF limpo, de coluna única, em A4." }
+          { step: "Declare seus Sistemas", detail: "O ATS recusa candidatos seniores sem os ERPs corretos. Certifique-se de listar as ferramentas contÃ¡beis exatas." },
+          { step: "Exiba os MilhÃµes", detail: "A linguagem financeira sÃ£o os nÃºmeros. Se vocÃª ajudou em uma rodada de SÃ©rie B, informe o valor (US$ 30M)." },
+          { step: "Remova JargÃµes Vazios", detail: "LÃ­deres de finanÃ§as nÃ£o gostam de excesso criativo. Seja conciso e use marcadores orientados a resultados." },
+          { step: "Garanta a FormataÃ§Ã£o Linear", detail: "Muitos analistas tentam colocar o currÃ­culo em tabelas de Excel. Converta para um PDF limpo, de coluna Ãºnica, em A4." }
         ],
         faq: [
-          { q: "Devo incluir certificações como CFA, CPA ou CGA?", a: "Absolutamente, sim. Adicione a certificação no topo (logo ao lado do seu nome ou abaixo do título) e em uma seção de Educação dedicada, pois o ATS buscará essas siglas." },
-          { q: "O nível de detalhe contábil importa?", a: "Sim, especialmente para Controladoria. O recrutador pode não entender de 'US GAAP' vs 'IFRS', mas o sistema está programado para verificar a conformidade regulatória específica." },
-          { q: "Como colocar projetos confidenciais?", a: "Especifique a indústria e o valor sem o nome: 'Conduziu a due diligence financeira para uma aquisição de US$ 25M de uma startup de logística SaaS (Confidencial).'" }
+          { q: "Devo incluir certificaÃ§Ãµes como CFA, CPA ou CGA?", a: "Absolutamente, sim. Adicione a certificaÃ§Ã£o no topo (logo ao lado do seu nome ou abaixo do tÃ­tulo) e em uma seÃ§Ã£o de EducaÃ§Ã£o dedicada, pois o ATS buscarÃ¡ essas siglas." },
+          { q: "O nÃ­vel de detalhe contÃ¡bil importa?", a: "Sim, especialmente para Controladoria. O recrutador pode nÃ£o entender de 'US GAAP' vs 'IFRS', mas o sistema estÃ¡ programado para verificar a conformidade regulatÃ³ria especÃ­fica." },
+          { q: "Como colocar projetos confidenciais?", a: "Especifique a indÃºstria e o valor sem o nome: 'Conduziu a due diligence financeira para uma aquisiÃ§Ã£o de US$ 25M de uma startup de logÃ­stica SaaS (Confidencial).'" }
         ]
       }}
     />

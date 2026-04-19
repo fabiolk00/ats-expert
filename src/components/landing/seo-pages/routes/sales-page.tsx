@@ -7,6 +7,7 @@ import { motion as Motion } from "motion/react";
 export default function SalesPage() {
   return (
     <SEOPageTemplate
+      slug="curriculo-vendas-ats"
       role="Vendas"
       theme={{
         accent: "bg-emerald-600",

@@ -6,6 +6,7 @@ import { Target, Lightbulb, TrendingUp } from "lucide-react";
 export default function ProductManagerPage() {
   return (
     <SEOPageTemplate
+      slug="curriculo-product-manager-ats"
       role="Product Manager"
       theme={{
         accent: "bg-amber-500",
