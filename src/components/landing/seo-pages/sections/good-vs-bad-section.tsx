@@ -13,7 +13,7 @@ export default function GoodVsBadSection({ theme, bad, good }: { theme: SEOPageP
             O que o ATS vê vs. O que você enviou
           </h2>
           <p className="text-xl text-zinc-600 font-medium leading-relaxed">
-            Layouts complexos com colunas, fotos e gráficos viram uma &quot;sopa de letras&quot; no sistema do recrutador. Veja a diferen�a de um curr�culo estruturado para a m�quina.
+            Layouts complexos com colunas, fotos e gráficos viram uma &quot;sopa de letras&quot; no sistema do recrutador. Veja a diferença de um currículo estruturado para a máquina.
           </p>
         </div>
 

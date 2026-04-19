@@ -262,7 +262,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   key={link.href}
                   href={link.href}
                   onClick={closeMobileMenu}
-                  className="rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                  className="rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 >
                   {link.label}
                 </Link>
@@ -271,7 +271,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
               <button
                 type="button"
                 onClick={() => setMobileAreasOpen((value) => !value)}
-                className="mt-2 flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:bg-muted/50"
+                className="mt-2 flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-muted/50"
               >
                 <span>Currículos por Área</span>
                 <ChevronDown
