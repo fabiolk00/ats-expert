@@ -130,8 +130,8 @@ export default function RelatedSeoPagesCarousel({ currentSlug }: { currentSlug: 
   }
 
   return (
-    <section className="pt-10">
-      <div className="overflow-hidden rounded-[32px] border border-white/70 bg-white/90 p-8 shadow-[0_24px_90px_rgba(15,23,42,0.06)] md:p-10">
+    <section className="overflow-hidden py-20 md:py-24">
+      <div className="mx-auto w-full max-w-7xl px-4 md:px-6">
         <div className="mb-8 max-w-2xl">
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-primary/80">
             Explore currículos por área
@@ -145,8 +145,8 @@ export default function RelatedSeoPagesCarousel({ currentSlug }: { currentSlug: 
         </div>
 
         <div className="relative -mx-4 md:-mx-6">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white to-transparent md:w-14" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white to-transparent md:w-14" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-background to-transparent md:w-14" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent md:w-14" />
 
           <div
             ref={scrollRef}
