@@ -47,15 +47,15 @@ export default function SEOPageTemplate({ slug, role, theme, content }: SEOPageP
       <main className="flex-1">
         <div className="relative w-full bg-white text-[#0a0a0a]">
           <HeroSection theme={theme} content={content} />
+          <GoodVsBadSection theme={theme} {...content.goodVsBad} />
           <ProblemSection theme={theme} cards={content.problemCards} />
           <AtsFilterSection theme={theme} checklist={content.filterChecklist} />
           <KeywordsSection theme={theme} keywords={content.keywords} />
-          <GoodVsBadSection theme={theme} {...content.goodVsBad} />
           <SpecializationsSection theme={theme} specializations={content.specializations} />
           <SenioritySection theme={theme} levels={content.seniority} />
           <FaqSection faq={content.faq} />
-          <RelatedSeoPagesCarousel currentSlug={slug} />
           <FinalCta theme={theme} role={role} />
+          <RelatedSeoPagesCarousel currentSlug={slug} />
         </div>
       </main>
       <Footer />
