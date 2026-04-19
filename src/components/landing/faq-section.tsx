@@ -1,56 +1,87 @@
 "use client"
 
-import { motion } from "motion/react"
+import { AnimatePresence, motion } from "motion/react"
+import { ChevronDown } from "lucide-react"
+import { useState } from "react"
 
 import { BrandText } from "@/components/brand-wordmark"
 import { landingFaqs } from "@/components/landing/faq-content"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
 
 export default function FaqSection() {
+  const [openIndex, setOpenIndex] = useState<number | null>(0)
+
   return (
-    <section className="relative overflow-hidden bg-background py-24">
-      <div className="container relative z-10 mx-auto max-w-4xl px-4">
+    <section className="border-b border-zinc-200/50 bg-[#FAFAFA] py-32">
+      <div className="mx-auto max-w-3xl px-6">
         <motion.div
-          className="mb-16 text-center"
+          className="mb-20 text-center"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="mb-6 text-3xl font-bold tracking-tight md:text-5xl">Perguntas Frequentes</h2>
-          <p className="text-lg leading-relaxed text-muted-foreground md:text-xl">
+          <h2 className="mb-6 text-[40px] font-bold leading-[1.1] tracking-[-0.02em] text-zinc-900">
+            Perguntas Frequentes
+          </h2>
+          <p className="text-xl font-medium leading-relaxed text-zinc-500">
             <BrandText
-              text="Tudo o que você precisa saber sobre a otimização de currículos e o CurrIA."
-              className="font-medium text-foreground"
+              text="Tudo o que você precisa saber sobre sistemas ATS e otimização de currículos."
+              className="font-medium text-zinc-500"
             />
           </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="rounded-2xl border bg-card p-6 shadow-sm md:p-8"
-        >
-          <Accordion type="single" collapsible className="w-full">
-            {landingFaqs.map((faq, index) => (
-              <AccordionItem key={faq.question} value={`item-${index}`}>
-                <AccordionTrigger className="py-5 text-left text-lg font-semibold transition-colors hover:text-primary">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="pb-6 text-base leading-relaxed text-muted-foreground">
-                  <BrandText text={faq.answer} className="font-medium text-foreground" />
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </motion.div>
+        <div className="space-y-4">
+          {landingFaqs.map((faq, index) => {
+            const isOpen = openIndex === index
+
+            return (
+              <div
+                key={faq.question}
+                className={`overflow-hidden rounded-2xl border transition-all duration-300 ${
+                  isOpen
+                    ? "border-zinc-200 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.06)]"
+                    : "border-zinc-200/80 bg-transparent hover:border-zinc-300 hover:bg-white/50"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenIndex(isOpen ? null : index)}
+                  className="group flex w-full items-center justify-between px-8 py-6 text-left focus:outline-none"
+                >
+                  <span className="pr-8 text-lg font-bold tracking-tight text-zinc-900">
+                    {faq.question}
+                  </span>
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm transition-transform duration-300 ${
+                      isOpen
+                        ? "rotate-180 border-zinc-200 bg-zinc-100"
+                        : "border-zinc-200/80 bg-white group-hover:border-zinc-300"
+                    }`}
+                  >
+                    <ChevronDown className={`h-4 w-4 ${isOpen ? "text-zinc-700" : "text-zinc-500"}`} />
+                  </div>
+                </button>
+                <AnimatePresence initial={false}>
+                  {isOpen ? (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      className="px-8 pb-8 pt-0"
+                    >
+                      <BrandText
+                        text={faq.answer}
+                        className="text-[15px] font-medium leading-relaxed text-zinc-500"
+                      />
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </section>
   )
