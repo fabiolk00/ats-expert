@@ -169,9 +169,9 @@ Plans:
 **Goal:** Make reservation-backed export billing inspectable to users, actionable to operators, and provably safe under concurrent retries without changing the existing billing state machine or authenticated surfaces.
 **Requirements**: [BILL-UX-01, BILL-ALERT-01, BILL-CONC-01]
 **Depends on:** Phase 44
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 45-01-PLAN.md — Freeze shared billing activity and anomaly contracts over the existing ledger and reservation audit trail
 - [x] 45-02-PLAN.md — Add authenticated export credit history to the existing settings surface
-- [ ] 45-03-PLAN.md — Land anomaly alert hooks plus concurrency and staging proof for reservation-backed export billing
+- [x] 45-03-PLAN.md — Land anomaly alert hooks plus concurrency and staging proof for reservation-backed export billing

@@ -6,8 +6,8 @@ current_phase: 44
 current_phase_name: implement credit reservation ledger and billing reconciliation
 current_plan: 02
 status: verifying
-stopped_at: Completed 45-02-PLAN.md
-last_updated: "2026-04-20T13:33:45.883Z"
+stopped_at: Completed 45-03-PLAN.md
+last_updated: "2026-04-20T13:53:58.619Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 9
@@ -106,6 +106,9 @@ Recent decisions affecting the next cycle:
 - [Phase 45]: Kept billing history on a dedicated authenticated route so timeline payloads remain separate from optional billing summary loading.
 - [Phase 45]: Rendered billing transparency as a client-side settings card so history failures stay non-blocking for the existing server-rendered settings surface.
 - [Phase 45]: Shared the serialized billing-history DTO in billing types so the route and settings UI depend on one contract.
+- [Phase 45]: Nonce-less export retries now derive retry job idempotency from the failed durable job so duplicate retries collapse onto one retry path.
+- [Phase 45]: The export stress harness treats 200/202 and 409 BILLING_RECONCILIATION_PENDING as safe outcomes, then polls /api/jobs/[jobId] to detect anomalous terminal states.
+- [Phase 45]: The staging billing snapshot helper now lazy-loads server-only billing modules so --help and Node CLI usage stay usable outside Next.js server execution.
 
 ### Pending Todos
 
@@ -127,9 +130,10 @@ Recent decisions affecting the next cycle:
 | Phase 44 P02 | 18min | 3 tasks | 18 files |
 | Phase 45 P01 | 4min | 2 tasks | 7 files |
 | Phase 45 P02 | 5min | 2 tasks | 8 files |
+| Phase 45 P03 | 17min | 2 tasks | 11 files |
 
 ## Session Continuity
 
-Last session: 2026-04-20T13:33:45.880Z
-Stopped at: Completed 45-02-PLAN.md
+Last session: 2026-04-20T13:53:58.615Z
+Stopped at: Completed 45-03-PLAN.md
 Resume file: None

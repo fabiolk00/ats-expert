@@ -47,7 +47,7 @@
 
 - [x] **BILL-UX-01**: Authenticated users can inspect recent export credit activity derived from `credit_reservations` and `credit_ledger_entries` inside the existing authenticated product surface without introducing a second billing-history source.
 - [x] **BILL-ALERT-01**: Operators can detect actionable export billing anomalies such as stale `needs_reconciliation`, repeated finalize or release failures, and unusual reserved backlogs through repo-native metrics, thresholds, alert hooks, and documented commands.
-- [ ] **BILL-CONC-01**: Automated and staging-friendly proof demonstrates that concurrent export retries do not create double holds or unsafe reconciliation loops, and that reservation or reconciliation states can be reproduced and diagnosed repeatably.
+- [x] **BILL-CONC-01**: Automated and staging-friendly proof demonstrates that concurrent export retries do not create double holds or unsafe reconciliation loops, and that reservation or reconciliation states can be reproduced and diagnosed repeatably.
 
 ## Future Requirements
 
