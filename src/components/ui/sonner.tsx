@@ -6,12 +6,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme="light"
+      closeButton
       className="toaster group"
       style={
         {
-          '--normal-bg': 'var(--popover)',
-          '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
+          '--normal-bg': '#050505',
+          '--normal-text': '#ffffff',
+          '--normal-border': '#1f1f1f',
         } as React.CSSProperties
       }
       {...props}

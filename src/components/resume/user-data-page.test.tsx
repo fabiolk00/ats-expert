@@ -23,21 +23,37 @@ vi.mock("sonner", () => ({
 }))
 
 vi.mock("./resume-builder", () => ({
-  ImportResumeModal: ({ onImportSuccess }: { onImportSuccess: (data: unknown, profilePhotoUrl?: string | null, source?: string | null) => void }) => (
-    <button
-      type="button"
-      onClick={() => onImportSuccess({
-        fullName: "Ana Silva",
-        email: "ana@example.com",
-        phone: "555-0100",
-        summary: "Imported summary",
-        experience: [],
-        skills: [],
-        education: [],
-      }, null, "pdf")}
-    >
-      mock-import
-    </button>
+  ImportResumeModal: ({
+    onImportStarted,
+    onImportFinished,
+    onImportSuccess,
+  }: {
+    onImportStarted?: (source: "linkedin" | "pdf") => void
+    onImportFinished?: () => void
+    onImportSuccess: (data: unknown, profilePhotoUrl?: string | null, source?: string | null) => void
+  }) => (
+    <div>
+      <button type="button" onClick={() => onImportStarted?.("linkedin")}>
+        mock-import-start
+      </button>
+      <button
+        type="button"
+        onClick={() => onImportSuccess({
+          fullName: "Ana Silva",
+          email: "ana@example.com",
+          phone: "555-0100",
+          summary: "Imported summary",
+          experience: [],
+          skills: [],
+          education: [],
+        }, null, "pdf")}
+      >
+        mock-import
+      </button>
+      <button type="button" onClick={() => onImportFinished?.()}>
+        mock-import-finish
+      </button>
+    </div>
   ),
 }))
 
@@ -54,7 +70,12 @@ vi.mock("./visual-resume-editor", () => ({
     education: [],
     certifications: [],
   },
-  VisualResumeEditor: () => <div data-testid="visual-resume-editor" />,
+  VisualResumeEditor: ({ importProgressSource }: { importProgressSource?: string | null }) => (
+    <div
+      data-testid="visual-resume-editor"
+      data-import-source={importProgressSource ?? "idle"}
+    />
+  ),
 }))
 
 describe("UserDataPage", () => {
@@ -1222,6 +1243,28 @@ describe("UserDataPage", () => {
     await user.click(await screen.findByText("mock-import"))
 
     expect(screen.getByText("Base salva a partir de currículo importado")).toBeInTheDocument()
+  })
+
+  it("starts the guided section loading state as soon as an import begins", async () => {
+    const user = userEvent.setup()
+
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        profile: null,
+      }),
+    })) as unknown as typeof fetch)
+
+    render(<UserDataPage currentCredits={2} />)
+
+    const editor = await screen.findByTestId("visual-resume-editor")
+    expect(editor).toHaveAttribute("data-import-source", "idle")
+
+    await user.click(screen.getByText("mock-import-start"))
+    expect(editor).toHaveAttribute("data-import-source", "linkedin")
+
+    await user.click(screen.getByText("mock-import-finish"))
+    expect(editor).toHaveAttribute("data-import-source", "idle")
   })
 
   it("renders cancelar and salvar below the editor and keeps salvar black", async () => {

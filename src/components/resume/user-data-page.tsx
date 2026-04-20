@@ -41,7 +41,7 @@ import { cn } from "@/lib/utils"
 import type { CVState } from "@/types/cv"
 
 import { GenerationLoading } from "./generation-loading"
-import { ImportResumeModal, type ResumeData } from "./resume-builder"
+import { ImportResumeModal, type ImportSource, type ResumeData } from "./resume-builder"
 import { VisualResumeEditor, normalizeResumeData } from "./visual-resume-editor"
 
 type ProfileResponse = {
@@ -339,6 +339,7 @@ export default function UserDataPage({
   const [isAtsRequirementsOpen, setIsAtsRequirementsOpen] = useState(false)
   const [atsMissingItems, setAtsMissingItems] = useState<string[]>([])
   const [rewriteValidationFailure, setRewriteValidationFailure] = useState<RewriteValidationFailure | null>(null)
+  const [activeImportSource, setActiveImportSource] = useState<ImportSource | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -395,6 +396,7 @@ export default function UserDataPage({
     nextProfileSource?: string | null,
   ) => {
     setIsImportOpen(false)
+    setActiveImportSource(null)
     setResumeData(normalizeResumeData(data))
     setProfileSource(nextProfileSource ?? "linkedin")
     setProfilePhotoUrl(nextProfilePhotoUrl ?? null)
@@ -858,6 +860,7 @@ export default function UserDataPage({
                       disabled={isSaving || isRunningAtsEnhancement}
                       onAllSectionsClosedChange={setAllSectionsClosed}
                       compactMode={allSectionsClosed}
+                      importProgressSource={activeImportSource}
                     />
 
                     <div className="flex justify-end gap-2">
@@ -1018,6 +1021,11 @@ export default function UserDataPage({
       <ImportResumeModal
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
+        onImportStarted={(source) => {
+          setActiveImportSource(source)
+          setIsImportOpen(false)
+        }}
+        onImportFinished={() => setActiveImportSource(null)}
         onImportSuccess={handleImportSuccess}
         currentProfileSource={profileSource}
       />

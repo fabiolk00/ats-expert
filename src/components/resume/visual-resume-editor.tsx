@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import type { CertificationEntry, CVState, EducationEntry, ExperienceEntry } from "@/types/cv"
 
-import type { ResumeData } from "./resume-builder"
+import type { ImportSource, ResumeData } from "./resume-builder"
 
 type VisualResumeEditorProps = {
   value: CVState
@@ -28,6 +28,7 @@ type VisualResumeEditorProps = {
   disabled?: boolean
   onAllSectionsClosedChange?: (allClosed: boolean) => void
   compactMode?: boolean
+  importProgressSource?: ImportSource | null
 }
 
 type SectionId =
@@ -37,6 +38,15 @@ type SectionId =
   | "skills"
   | "education"
   | "certifications"
+
+const importSectionOrder: SectionId[] = [
+  "summary",
+  "experience",
+  "skills",
+  "education",
+  "certifications",
+  "personal",
+]
 
 const emptyExperience = (): ExperienceEntry => ({
   title: "",
@@ -84,6 +94,8 @@ function SectionCard({
   isOpen,
   onToggle,
   compactMode = false,
+  loadingState = "idle",
+  loadingLabel = null,
   children,
 }: {
   title: string
@@ -92,15 +104,33 @@ function SectionCard({
   isOpen: boolean
   onToggle: () => void
   compactMode?: boolean
+  loadingState?: "idle" | "loading" | "complete"
+  loadingLabel?: string | null
   children: ReactNode
 }) {
   return (
-    <Card className="gap-0 overflow-hidden rounded-lg border-border py-0 shadow-none">
+    <Card
+      data-loading-state={loadingState}
+      className={cn(
+        "relative gap-0 overflow-hidden rounded-lg border-border py-0 shadow-none transition-colors",
+        loadingState !== "idle" && "border-emerald-300 bg-emerald-50/40",
+      )}
+    >
+      <div className="absolute inset-x-0 top-0 h-1 bg-emerald-100">
+        <div
+          className={cn(
+            "h-full bg-emerald-500 transition-[width] duration-1000 ease-linear",
+            loadingState === "idle" && "w-0",
+            loadingState !== "idle" && "w-full",
+          )}
+        />
+      </div>
+
       <button
         type="button"
         onClick={onToggle}
         className={cn(
-          "flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-muted/50",
+          "flex w-full items-center gap-4 p-4 pt-5 text-left transition-colors hover:bg-muted/50",
           compactMode && !isOpen && "py-3",
         )}
         aria-expanded={isOpen}
@@ -115,14 +145,14 @@ function SectionCard({
             {icon}
           </div>
           <div className="space-y-1">
-            <h2
-              className={cn(
-                "font-medium text-foreground",
-                compactMode && !isOpen ? "text-base" : "text-base",
-              )}
-            >
-              {title}
-            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-medium text-foreground">{title}</h2>
+              {loadingLabel ? (
+                <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                  {loadingLabel}
+                </span>
+              ) : null}
+            </div>
             <p
               className={cn(
                 "truncate text-sm text-muted-foreground",
@@ -134,11 +164,7 @@ function SectionCard({
           </div>
         </div>
 
-        <div
-          className={cn(
-            "ml-auto flex h-5 w-5 items-center justify-center text-muted-foreground",
-          )}
-        >
+        <div className="ml-auto flex h-5 w-5 items-center justify-center text-muted-foreground">
           <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
         </div>
       </button>
@@ -248,6 +274,7 @@ export function VisualResumeEditor({
   disabled = false,
   onAllSectionsClosedChange,
   compactMode = false,
+  importProgressSource = null,
 }: VisualResumeEditorProps) {
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
     personal: true,
@@ -259,6 +286,7 @@ export function VisualResumeEditor({
   })
   const [skillsDraft, setSkillsDraft] = useState(() => buildSkillsDraft(value.skills))
   const [isEditingSkills, setIsEditingSkills] = useState(false)
+  const [activeImportSectionIndex, setActiveImportSectionIndex] = useState<number | null>(null)
 
   useEffect(() => {
     onAllSectionsClosedChange?.(Object.values(openSections).every((isOpen) => !isOpen))
@@ -269,6 +297,44 @@ export function VisualResumeEditor({
       setSkillsDraft(buildSkillsDraft(value.skills))
     }
   }, [isEditingSkills, value.skills])
+
+  useEffect(() => {
+    if (!importProgressSource) {
+      setActiveImportSectionIndex(null)
+      return
+    }
+
+    let cancelled = false
+    let stepTimeout: ReturnType<typeof window.setTimeout> | undefined
+
+    const advance = (nextIndex: number) => {
+      if (cancelled) {
+        return
+      }
+
+      const normalizedIndex = nextIndex % importSectionOrder.length
+      const nextSection = importSectionOrder[normalizedIndex]
+
+      setActiveImportSectionIndex(normalizedIndex)
+      setOpenSections((current) => ({
+        ...current,
+        [nextSection]: true,
+      }))
+
+      stepTimeout = window.setTimeout(() => {
+        advance(normalizedIndex + 1)
+      }, 950)
+    }
+
+    advance(0)
+
+    return () => {
+      cancelled = true
+      if (stepTimeout) {
+        window.clearTimeout(stepTimeout)
+      }
+    }
+  }, [importProgressSource])
 
   const toggleSection = (section: SectionId) => {
     setOpenSections((current) => ({
@@ -291,6 +357,29 @@ export function VisualResumeEditor({
     setSkillsDraft(buildSkillsDraft(parseSkillsDraft(skillsDraft)))
   }
 
+  const loadingLabel = importProgressSource === "linkedin"
+    ? "Importando do LinkedIn"
+    : importProgressSource === "pdf"
+      ? "Importando do PDF"
+      : null
+
+  const getSectionLoadingState = (section: SectionId): "idle" | "loading" | "complete" => {
+    if (!importProgressSource || activeImportSectionIndex === null) {
+      return "idle"
+    }
+
+    const sectionIndex = importSectionOrder.indexOf(section)
+    if (sectionIndex === -1) {
+      return "idle"
+    }
+
+    if (sectionIndex === activeImportSectionIndex) {
+      return "loading"
+    }
+
+    return sectionIndex < activeImportSectionIndex ? "complete" : "idle"
+  }
+
   return (
     <div className={cn("space-y-3", compactMode && "space-y-3")}>
       <SectionCard
@@ -300,6 +389,8 @@ export function VisualResumeEditor({
         isOpen={openSections.personal}
         onToggle={() => toggleSection("personal")}
         compactMode={compactMode}
+        loadingState={getSectionLoadingState("personal")}
+        loadingLabel={getSectionLoadingState("personal") === "loading" ? loadingLabel : null}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Input
@@ -343,6 +434,8 @@ export function VisualResumeEditor({
         isOpen={openSections.summary}
         onToggle={() => toggleSection("summary")}
         compactMode={compactMode}
+        loadingState={getSectionLoadingState("summary")}
+        loadingLabel={getSectionLoadingState("summary") === "loading" ? loadingLabel : null}
       >
         <Textarea
           value={value.summary}
@@ -360,6 +453,8 @@ export function VisualResumeEditor({
         isOpen={openSections.skills}
         onToggle={() => toggleSection("skills")}
         compactMode={compactMode}
+        loadingState={getSectionLoadingState("skills")}
+        loadingLabel={getSectionLoadingState("skills") === "loading" ? loadingLabel : null}
       >
         <Textarea
           value={skillsDraft}
@@ -379,6 +474,8 @@ export function VisualResumeEditor({
         isOpen={openSections.experience}
         onToggle={() => toggleSection("experience")}
         compactMode={compactMode}
+        loadingState={getSectionLoadingState("experience")}
+        loadingLabel={getSectionLoadingState("experience") === "loading" ? loadingLabel : null}
       >
         <div className="space-y-4">
           {value.experience.map((item, index) => (
@@ -508,6 +605,8 @@ export function VisualResumeEditor({
         isOpen={openSections.education}
         onToggle={() => toggleSection("education")}
         compactMode={compactMode}
+        loadingState={getSectionLoadingState("education")}
+        loadingLabel={getSectionLoadingState("education") === "loading" ? loadingLabel : null}
       >
         <div className="space-y-4">
           {value.education.map((item, index) => (
@@ -604,6 +703,8 @@ export function VisualResumeEditor({
         isOpen={openSections.certifications}
         onToggle={() => toggleSection("certifications")}
         compactMode={compactMode}
+        loadingState={getSectionLoadingState("certifications")}
+        loadingLabel={getSectionLoadingState("certifications") === "loading" ? loadingLabel : null}
       >
         <div className="space-y-4">
           {(value.certifications ?? []).map((item, index) => (

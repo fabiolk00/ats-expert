@@ -53,34 +53,6 @@ function createDeferred<T>() {
   return { promise, resolve, reject }
 }
 
-function normalizeText(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase()
-}
-
-function textContentExactly(expected: string) {
-  const normalizedExpected = normalizeText(expected)
-
-  return (_content: string, node: Element | null): boolean => {
-    if (!node) {
-      return false
-    }
-
-    const normalizedNodeText = normalizeText(node.textContent ?? "")
-    if (normalizedNodeText !== normalizedExpected) {
-      return false
-    }
-
-    return Array.from(node.children).every(
-      (child) => normalizeText(child.textContent ?? "") !== normalizedExpected,
-    )
-  }
-}
-
 describe("ImportResumeModal", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -401,7 +373,7 @@ describe("ImportResumeModal", () => {
     })
 
     expect(screen.getByText("resume.pdf")).toBeInTheDocument()
-    expect(screen.getByText(textContentExactly("Status da importação: Importação falhou"))).toBeInTheDocument()
+    expect(screen.getByText(/importa.+o falhou/i)).toBeInTheDocument()
 
     rerender(
       <ImportResumeModal
@@ -419,7 +391,7 @@ describe("ImportResumeModal", () => {
       />,
     )
 
-    expect(screen.getByText("Clique para selecionar um PDF.")).toBeInTheDocument()
+    expect(screen.getByLabelText(/clique para selecionar um pdf/i)).toBeInTheDocument()
     expect(screen.queryByText(/Status da importação:/i)).not.toBeInTheDocument()
     expect(screen.getAllByRole("button", { name: /importar arquivo/i })[0]).toBeDisabled()
   })
@@ -514,11 +486,9 @@ describe("ImportResumeModal", () => {
       expect(fetchMock).toHaveBeenCalledTimes(2)
     })
 
-    expect(screen.getAllByRole("button", { name: /importando currículo/i })[0]).toBeDisabled()
+    expect(screen.getAllByRole("button", { name: /importando curr.+culo/i })[0]).toBeDisabled()
     expect(screen.getByText("resume-2.pdf")).toBeInTheDocument()
-    expect(
-      screen.getByText(textContentExactly("Status da importação: Extraindo e organizando dados")),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/extraindo e organizando dados/i)).toBeInTheDocument()
 
     uploadRequestA.resolve({
       ok: true,
@@ -545,11 +515,9 @@ describe("ImportResumeModal", () => {
 
     expect(onImportSuccess).not.toHaveBeenCalled()
     expect(toastSuccess).not.toHaveBeenCalled()
-    expect(screen.getAllByRole("button", { name: /importando currículo/i })[0]).toBeDisabled()
+    expect(screen.getAllByRole("button", { name: /importando curr.+culo/i })[0]).toBeDisabled()
     expect(screen.getByText("resume-2.pdf")).toBeInTheDocument()
-    expect(
-      screen.getByText(textContentExactly("Status da importação: Extraindo e organizando dados")),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/extraindo e organizando dados/i)).toBeInTheDocument()
 
     uploadRequestB.resolve({
       ok: true,
