@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ChangeEvent, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react"
 import {
   BadgeCheck,
   BriefcaseBusiness,
@@ -42,11 +42,29 @@ type SectionId =
 const importSectionOrder: SectionId[] = [
   "personal",
   "summary",
-  "experience",
   "skills",
+  "experience",
   "education",
   "certifications",
 ]
+
+const defaultOpenSections: Record<SectionId, boolean> = {
+  personal: true,
+  summary: true,
+  experience: false,
+  skills: true,
+  education: false,
+  certifications: false,
+}
+
+const closedSections: Record<SectionId, boolean> = {
+  personal: false,
+  summary: false,
+  experience: false,
+  skills: false,
+  education: false,
+  certifications: false,
+}
 
 const emptyExperience = (): ExperienceEntry => ({
   title: "",
@@ -280,18 +298,12 @@ export function VisualResumeEditor({
   compactMode = false,
   importProgressSource = null,
 }: VisualResumeEditorProps) {
-  const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>({
-    personal: true,
-    summary: true,
-    experience: false,
-    skills: true,
-    education: false,
-    certifications: false,
-  })
+  const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(defaultOpenSections)
   const [skillsDraft, setSkillsDraft] = useState(() => buildSkillsDraft(value.skills))
   const [isEditingSkills, setIsEditingSkills] = useState(false)
   const [activeImportSectionIndex, setActiveImportSectionIndex] = useState<number | null>(null)
   const [activeImportSectionProgress, setActiveImportSectionProgress] = useState(0)
+  const importWasActiveRef = useRef(false)
 
   useEffect(() => {
     onAllSectionsClosedChange?.(Object.values(openSections).every((isOpen) => !isOpen))
@@ -305,11 +317,16 @@ export function VisualResumeEditor({
 
   useEffect(() => {
     if (!importProgressSource) {
+      if (importWasActiveRef.current) {
+        setOpenSections(closedSections)
+        importWasActiveRef.current = false
+      }
       setActiveImportSectionIndex(null)
       setActiveImportSectionProgress(0)
       return
     }
 
+    importWasActiveRef.current = true
     let cancelled = false
     let stepInterval: number | undefined
 

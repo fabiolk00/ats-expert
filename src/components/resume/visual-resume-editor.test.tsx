@@ -50,6 +50,19 @@ describe("VisualResumeEditor", () => {
     )
 
     act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+
+    expect(screen.getByText("Skills").closest("[data-loading-state]")).toHaveAttribute(
+      "data-loading-state",
+      "loading",
+    )
+    expect(screen.getByText("Experiência").closest("[data-loading-state]")).toHaveAttribute(
+      "data-loading-state",
+      "idle",
+    )
+
+    act(() => {
       vi.advanceTimersByTime(5000)
     })
 
@@ -61,5 +74,52 @@ describe("VisualResumeEditor", () => {
       "data-loading-state",
       "complete",
     )
+  })
+
+  it("closes all sections after the import flow finishes", () => {
+    const { rerender } = render(
+      <VisualResumeEditor
+        value={{
+          fullName: "",
+          email: "",
+          phone: "",
+          linkedin: "",
+          location: "",
+          summary: "",
+          experience: [],
+          skills: [],
+          education: [],
+          certifications: [],
+        }}
+        onChange={vi.fn()}
+        importProgressSource="pdf"
+      />,
+    )
+
+    rerender(
+      <VisualResumeEditor
+        value={{
+          fullName: "",
+          email: "",
+          phone: "",
+          linkedin: "",
+          location: "",
+          summary: "",
+          experience: [],
+          skills: [],
+          education: [],
+          certifications: [],
+        }}
+        onChange={vi.fn()}
+        importProgressSource={null}
+      />,
+    )
+
+    expect(screen.getByText("Dados pessoais").closest("button")).toHaveAttribute("aria-expanded", "false")
+    expect(screen.getByText("Resumo profissional").closest("button")).toHaveAttribute("aria-expanded", "false")
+    expect(screen.getByText("Skills").closest("button")).toHaveAttribute("aria-expanded", "false")
+    expect(screen.getByText("Experiência").closest("button")).toHaveAttribute("aria-expanded", "false")
+    expect(screen.getByText("Educação").closest("button")).toHaveAttribute("aria-expanded", "false")
+    expect(screen.getByText("Certificações").closest("button")).toHaveAttribute("aria-expanded", "false")
   })
 })
