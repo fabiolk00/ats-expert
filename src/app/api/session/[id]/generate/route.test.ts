@@ -479,6 +479,52 @@ describe('generate route', () => {
     )
   })
 
+  it('blocks nonce retries while a failed job is still reconciling billing', async () => {
+    const failedJob = buildJobSnapshot({
+      status: 'failed',
+      stage: 'release_credit',
+      terminalErrorRef: {
+        kind: 'resume_generation_failure',
+        resumeGenerationId: 'gen_failed_123',
+        failureReason: 'Release credit still pending.',
+      },
+      completedAt: '2026-04-16T10:05:00.000Z',
+    })
+    vi.mocked(createJob).mockResolvedValue({
+      wasCreated: false,
+      job: failedJob,
+    } as never)
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/generate', {
+        method: 'POST',
+        headers: buildTrustedHeaders(),
+        body: JSON.stringify({ scope: 'base' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      success: false,
+      code: 'BILLING_RECONCILIATION_PENDING',
+      error: 'Previous generation billing is still being reconciled.',
+    })
+    expect(createJob).toHaveBeenCalledTimes(1)
+    expect(createJob).toHaveBeenCalledWith(expect.objectContaining({
+      idempotencyKey: expect.stringMatching(/^session-generate:sess_123:base:[a-f0-9]{24}$/),
+    }))
+    expect(startDurableJobProcessing).not.toHaveBeenCalled()
+    expect(logWarn).toHaveBeenCalledWith(
+      'api.session.generate.billing_reconciliation_pending',
+      expect.objectContaining({
+        sessionId: 'sess_123',
+        jobId: 'job_123',
+        stage: 'release_credit',
+      }),
+    )
+  })
+
   it('rejects cross-origin generation requests and logs the trust failure', async () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {

@@ -166,6 +166,13 @@ function buildFailedJobResponse(job: JobStatusSnapshot): {
   }
 }
 
+function isBillingReconciliationPending(job: JobStatusSnapshot): boolean {
+  return (
+    (job.status === 'failed' || job.status === 'cancelled')
+    && (job.stage === 'release_credit' || job.stage === 'needs_reconciliation')
+  )
+}
+
 function hasReadyGeneratedArtifact(input: {
   session: Session
   target?: NonNullable<Awaited<ReturnType<typeof getResumeTargetForSession>>> | null
@@ -295,6 +302,30 @@ export async function POST(
         clientRequestId: body.data.clientRequestId ?? null,
       },
     })
+
+    if (
+      !body.data.clientRequestId
+      && !createdJob.wasCreated
+      && isBillingReconciliationPending(createdJob.job)
+    ) {
+      logWarn('api.session.generate.billing_reconciliation_pending', {
+        requestMethod: req.method,
+        requestPath,
+        sessionId: session.id,
+        appUserId: appUser.id,
+        scope: body.data.scope,
+        targetId: target?.id,
+        jobId: createdJob.job.jobId,
+        stage: createdJob.job.stage,
+        success: false,
+        latencyMs: Date.now() - requestStartedAt,
+      })
+      return NextResponse.json({
+        success: false,
+        code: 'BILLING_RECONCILIATION_PENDING',
+        error: 'Previous generation billing is still being reconciled.',
+      }, { status: 409 })
+    }
 
     if (
       !body.data.clientRequestId
