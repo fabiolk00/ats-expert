@@ -14,17 +14,17 @@ const plans = [
   },
   {
     slug: "unit" as const,
-    cta: "Ver detalhes do plano",
+    cta: "Ver o que está incluído",
     href: "/precos",
   },
   {
     slug: "monthly" as const,
-    cta: "Ver detalhes do plano",
+    cta: "Ver o que está incluído",
     href: "/precos",
   },
   {
     slug: "pro" as const,
-    cta: "Ver detalhes do plano",
+    cta: "Ver o que está incluído",
     href: "/precos",
   },
 ]

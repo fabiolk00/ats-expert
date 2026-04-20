@@ -41,7 +41,7 @@ export default function HowCurriaSolves() {
             Como você resolve
           </p>
           <h2 className="text-3xl font-bold tracking-tight md:text-5xl">
-            O <BrandWordmark /> transforma um currículo genérico em uma versão pronta para o ATS
+           Transforme seu currículo em uma versão pronta para passar no ATS
           </h2>
           <p className="mt-4 text-lg text-muted-foreground md:text-xl">
             Em vez de adivinhar o que falta, você entende o problema e faz ajustes mais certeiros no seu currículo.

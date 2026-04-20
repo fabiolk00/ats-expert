@@ -23,7 +23,7 @@ export default function FinalCta() {
 
       <div className="container mx-auto px-4 text-center relative z-10">
         <h2 className="text-4xl md:text-5xl font-extrabold text-balance max-w-3xl mx-auto leading-tight">
-          Descubra o que está travando seu currículo.{" "}
+          Descubra o que está travando seu currículo agora.{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60 block mt-2">
             E comece a conseguir mais entrevistas.
           </span>

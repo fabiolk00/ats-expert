@@ -48,7 +48,7 @@ export default function AtsExplainer() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">
-            O que é ATS e por que isso importa
+            Por que seu currículo é barrado antes do RH
           </h2>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             <strong className="text-foreground">Muitos currículos nem chegam ao RH.</strong>{" "}
@@ -129,7 +129,7 @@ export default function AtsExplainer() {
 
               <div className="relative z-10">
                 <h3 className="text-2xl md:text-3xl font-bold mb-4 tracking-tight">
-                  O <BrandWordmark /> foi feito para ajudar você a passar no ATS
+                  Veja exatamente o que está faltando no seu currículo
                 </h3>
                 <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
                   A plataforma mostra o que está faltando, destaca as palavras-chave mais importantes e deixa seu currículo mais claro para a triagem.

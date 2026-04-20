@@ -38,7 +38,7 @@ const stats = [
   {
     icon: TrendingUp,
     value: "80%",
-    label: "recebem mais retorno",
+    label: "recebem mais respostas de recrutadores",
     description: "Usuários relatam mais respostas depois de ajustar o currículo para o ATS.",
   },
   {
@@ -66,7 +66,7 @@ export default function SocialProof() {
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
         >
-          <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Resultados que você consegue ver</h2>
+          <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Veja o impacto real no seu currículo</h2>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             Não é só teoria. Veja o que acontece quando seu currículo passa a comunicar melhor o seu valor e o ATS consegue ler tudo com clareza.
           </p>

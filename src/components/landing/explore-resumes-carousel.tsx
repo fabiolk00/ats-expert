@@ -118,7 +118,7 @@ export default function ExploreResumesCarousel() {
             Explore currículos por área
           </p>
           <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-            Guias práticos para deixar seu currículo mais forte
+            Veja exemplos prontos para melhorar seu currículo
           </h2>
           <p className="mt-3 text-base text-muted-foreground md:text-lg">
             Veja exemplos, palavras-chave e ajustes que ajudam seu currículo a passar melhor no ATS.

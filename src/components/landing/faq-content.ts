@@ -10,7 +10,7 @@ export const landingFaqs = [
       "Muitos usuários começam a receber mais retorno em poucas semanas, depois de atualizar o currículo nas plataformas de vagas com a versão otimizada.",
   },
   {
-    question: "Funciona para qualquer área e senioridade?",
+    question: "Funciona para qualquer área e nível?",
     answer:
       "Sim. O CurrIA ajuda desde quem está começando até profissionais mais experientes, sempre destacando o que faz mais diferença para sua área e para seu momento de carreira.",
   },
