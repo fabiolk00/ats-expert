@@ -155,6 +155,37 @@ describe('startDurableJobProcessing', () => {
     })
   })
 
+  it('persists completed artifact jobs with a needs_reconciliation stage without rewriting the outcome', async () => {
+    const reclaimedJob = buildJob({
+      type: 'artifact_generation',
+      claimedAt: '2026-04-16T09:50:30.000Z',
+      startedAt: '2026-04-16T09:50:30.000Z',
+      updatedAt: '2026-04-16T10:00:30.000Z',
+    })
+    mockClaimJob.mockResolvedValue(reclaimedJob)
+    mockProcessArtifactGenerationJob.mockResolvedValue({
+      ok: true,
+      stage: 'needs_reconciliation',
+      resultRef: undefined,
+    })
+
+    await startDurableJobProcessing({
+      jobId: 'job_123',
+      userId: 'usr_123',
+    })
+
+    await flushBackgroundWork()
+
+    expect(mockCompleteJob).toHaveBeenCalledWith({
+      jobId: 'job_123',
+      userId: 'usr_123',
+      ownerClaimedAt: '2026-04-16T09:50:30.000Z',
+      stage: 'needs_reconciliation',
+      progress: undefined,
+      resultRef: undefined,
+    })
+  })
+
   it('persists processor failures with owner-fenced failJob writes for job_targeting', async () => {
     const claimedJob = buildJob({
       type: 'job_targeting',

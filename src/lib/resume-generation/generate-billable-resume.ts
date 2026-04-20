@@ -15,6 +15,7 @@ import {
   reserveCreditForGenerationIntent,
 } from '@/lib/asaas/quota'
 import { getLatestCvVersionForScope } from '@/lib/db/cv-versions'
+import { markCreditReservationReconciliation } from '@/lib/db/credit-reservations'
 import {
   createPendingResumeGeneration,
   getLatestCompletedResumeGenerationForScope,
@@ -515,7 +516,7 @@ export async function generateBillableResume(input: {
     resumeGeneration,
   })
 
-  await reserveCreditForGenerationIntent({
+  const reservation = await reserveCreditForGenerationIntent({
     userId: input.userId,
     generationIntentKey,
     generationType,
@@ -587,6 +588,16 @@ export async function generateBillableResume(input: {
         stage: 'release_credit',
       })
     } catch (error) {
+      await markCreditReservationReconciliation({
+        reservationId: reservation.id,
+        status: 'needs_reconciliation',
+        reconciliationStatus: 'pending',
+        failureReason: error instanceof Error ? error.message : String(error),
+        metadata: {
+          source: 'render_failure_release',
+          generationIntentKey,
+        },
+      })
       logGenerationStageWarning({
         event: 'resume_generation.billing_reconciliation_required',
         userId: input.userId,
@@ -637,6 +648,16 @@ export async function generateBillableResume(input: {
     })
   } catch (error) {
     needsReconciliation = true
+    await markCreditReservationReconciliation({
+      reservationId: reservation.id,
+      status: 'needs_reconciliation',
+      reconciliationStatus: 'pending',
+      failureReason: error instanceof Error ? error.message : String(error),
+      metadata: {
+        source: 'artifact_success_finalize',
+        generationIntentKey,
+      },
+    })
     logGenerationStageWarning({
       event: 'resume_generation.billing_reconciliation_required',
       userId: input.userId,

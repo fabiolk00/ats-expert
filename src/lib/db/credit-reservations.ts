@@ -166,7 +166,7 @@ function mapCreditLedgerEntryRow(row: CreditLedgerEntryRow): CreditLedgerEntry {
   }
 }
 
-async function getCreditReservationByIntent(input: {
+export async function getCreditReservationByIntent(input: {
   userId: string
   generationIntentKey: string
 }): Promise<CreditReservation | null> {
@@ -183,6 +183,59 @@ async function getCreditReservationByIntent(input: {
   }
 
   return data ? mapCreditReservationRow(data) : null
+}
+
+export async function listCreditReservationsForReconciliation(input: {
+  userId?: string
+  limit?: number
+} = {}): Promise<CreditReservation[]> {
+  const supabase = getSupabaseAdminClient()
+  let query = supabase
+    .from('credit_reservations')
+    .select('*')
+    .in('status', ['reserved', 'needs_reconciliation'])
+
+  if (input.userId) {
+    query = query.eq('user_id', input.userId)
+  }
+
+  const { data, error } = await query
+    .order('created_at', { ascending: true })
+    .limit(input.limit ?? 100)
+
+  if (error) {
+    throw new Error(`Failed to list credit reservations for reconciliation: ${error.message}`)
+  }
+
+  return (data ?? []).map((row) => mapCreditReservationRow(row as CreditReservationRow))
+}
+
+export async function markCreditReservationReconciliation(input: {
+  reservationId: string
+  status: CreditReservationStatus
+  reconciliationStatus: CreditReservationReconciliationStatus
+  failureReason?: string
+  metadata?: Record<string, unknown>
+}): Promise<CreditReservation> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('credit_reservations')
+    .update({
+      status: input.status,
+      reconciliation_status: input.reconciliationStatus,
+      failure_reason: input.failureReason ?? null,
+      metadata: input.metadata ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.reservationId)
+    .select('*')
+    .single<CreditReservationRow>()
+
+  if (error || !data) {
+    throw new Error(`Failed to mark credit reservation reconciliation state: ${error?.message ?? 'Unknown error'}`)
+  }
+
+  return mapCreditReservationRow(data)
 }
 
 function assertReservationTransitionAllowed(
