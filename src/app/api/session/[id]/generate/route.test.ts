@@ -361,6 +361,49 @@ describe('generate route', () => {
     expect(applyGeneratedOutputPatch).not.toHaveBeenCalled()
   })
 
+  it('returns success for a completed durable generation without a resumeGenerationId when the artifact is already available', async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      ...buildSession(),
+      generatedOutput: {
+        status: 'ready' as const,
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-16T10:05:00.000Z',
+      },
+    } as never)
+    const completedJob = buildJobSnapshot({
+      status: 'completed',
+      terminalResultRef: undefined,
+      completedAt: '2026-04-16T10:05:00.000Z',
+    })
+    vi.mocked(createJob).mockResolvedValue({
+      wasCreated: false,
+      job: completedJob,
+    } as never)
+    vi.mocked(startDurableJobProcessing).mockResolvedValue(completedJob as never)
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/generate', {
+        method: 'POST',
+        headers: buildTrustedHeaders(),
+        body: JSON.stringify({ scope: 'base', clientRequestId: 'req_existing_no_generation' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      success: true,
+      scope: 'base',
+      targetId: undefined,
+      creditsUsed: 0,
+      generationType: 'ATS_ENHANCEMENT',
+      jobId: 'job_123',
+      resumeGenerationId: undefined,
+    })
+    expect(applyGeneratedOutputPatch).not.toHaveBeenCalled()
+  })
+
   it('returns 202 when the same durable generation request is already in progress', async () => {
     const runningJob = buildJobSnapshot({
       status: 'running',

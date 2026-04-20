@@ -399,6 +399,102 @@ describe('generateBillableResume', () => {
     expect(mockGenerateFile).not.toHaveBeenCalled()
   })
 
+  it('falls back to legacy generation when resume_generations lookup is unavailable', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCompletedResumeGenerationForScope.mockRejectedValue(
+      new Error('Failed to load latest completed resume generation: relation "resume_generations" does not exist'),
+    )
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockGenerateFile.mockResolvedValue({
+      output: {
+        success: true,
+        pdfUrl: 'https://example.com/resume.pdf',
+        docxUrl: null,
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-12T12:01:00.000Z',
+      },
+    })
+    mockConsumeCreditForGeneration.mockResolvedValue(true)
+
+    const result = await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+    })
+
+    expect(result.output).toEqual({
+      success: true,
+      pdfUrl: 'https://example.com/resume.pdf',
+      docxUrl: null,
+      creditsUsed: 1,
+    })
+    expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()
+    expect(mockConsumeCreditForGeneration).toHaveBeenCalledWith(
+      'usr_123',
+      'legacy:sess_123:base',
+      'ATS_ENHANCEMENT',
+    )
+  })
+
+  it('falls back to legacy generation when resume_generations inserts are unavailable', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockRejectedValue(
+      new Error('Failed to create resume generation: relation "resume_generations" does not exist'),
+    )
+    mockGenerateFile.mockResolvedValue({
+      output: {
+        success: true,
+        pdfUrl: 'https://example.com/resume.pdf',
+        docxUrl: null,
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-12T12:01:00.000Z',
+      },
+    })
+    mockConsumeCreditForGeneration.mockResolvedValue(true)
+
+    const result = await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'profile-ats:sess_123',
+    })
+
+    expect(result.output).toEqual({
+      success: true,
+      pdfUrl: 'https://example.com/resume.pdf',
+      docxUrl: null,
+      creditsUsed: 1,
+    })
+    expect(mockConsumeCreditForGeneration).toHaveBeenCalledWith(
+      'usr_123',
+      'legacy:sess_123:base',
+      'ATS_ENHANCEMENT',
+    )
+  })
+
   it('marks the generation failed when rendering succeeded but credit consumption cannot finalize', async () => {
     const cvState = buildCvState()
     mockGetLatestCvVersionForScope.mockResolvedValue({
@@ -455,5 +551,61 @@ describe('generateBillableResume', () => {
       generatedCvState: cvState,
       failureReason: 'No credits available to finalize this generation.',
     })
+  })
+
+  it('returns the generated artifact even when persisting the completed generation record fails', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockResolvedValue({
+      generation: {
+        id: 'gen_pending_success',
+        userId: 'usr_123',
+        sessionId: 'sess_123',
+        type: 'ATS_ENHANCEMENT',
+        status: 'pending',
+        sourceCvSnapshot: cvState,
+        versionNumber: 1,
+        createdAt: new Date('2026-04-12T12:00:00.000Z'),
+        updatedAt: new Date('2026-04-12T12:00:00.000Z'),
+      },
+      wasCreated: true,
+    })
+    mockGenerateFile.mockResolvedValue({
+      output: {
+        success: true,
+        pdfUrl: 'https://example.com/resume.pdf',
+        docxUrl: null,
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-12T12:01:00.000Z',
+      },
+    })
+    mockConsumeCreditForGeneration.mockResolvedValue(true)
+    mockUpdateResumeGeneration.mockRejectedValue(new Error('resume_generations update failed'))
+
+    const result = await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+    })
+
+    expect(result.output).toEqual({
+      success: true,
+      pdfUrl: 'https://example.com/resume.pdf',
+      docxUrl: null,
+      creditsUsed: 1,
+      resumeGenerationId: undefined,
+    })
+    expect(result.resumeGeneration).toBeUndefined()
   })
 })
