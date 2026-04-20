@@ -171,6 +171,29 @@ describe('stress-export-generation', () => {
   })
 
   it('formats a passing run with stage visibility', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        inProgress: true,
+        jobId: 'job_123',
+        billingStage: 'reserve_credit',
+      }), {
+        status: 202,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        jobId: 'job_123',
+        status: 'completed',
+        stage: 'finalize_credit',
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }))
+
     const result = await stressExportGeneration({
       url: 'https://curria.example.com',
       cookie: '__session=test-cookie',
@@ -186,32 +209,21 @@ describe('stress-export-generation', () => {
       e2eAppUser: 'usr_e2e_stress',
       e2eCredits: 60,
     }, {
-      fetchImpl: vi.fn()
-        .mockResolvedValueOnce(new Response(JSON.stringify({
-          success: true,
-          inProgress: true,
-          jobId: 'job_123',
-          billingStage: 'reserve_credit',
-        }), {
-          status: 202,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }))
-        .mockResolvedValueOnce(new Response(JSON.stringify({
-          jobId: 'job_123',
-          status: 'completed',
-          stage: 'finalize_credit',
-        }), {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })),
+      fetchImpl,
     })
 
     expect(result.ok).toBe(true)
     expect(result.summary.jobStageCounts.finalize_credit).toBe(1)
     expect(formatStressResult(result, 'markdown')).toContain('## Job Outcomes')
+
+    const generateCall = fetchImpl.mock.calls[0]
+    expect(generateCall?.[1]).toMatchObject({
+      method: 'POST',
+      headers: expect.objectContaining({
+        cookie: '__session=test-cookie',
+        origin: 'https://curria.example.com',
+        referer: 'https://curria.example.com/',
+      }),
+    })
   })
 })

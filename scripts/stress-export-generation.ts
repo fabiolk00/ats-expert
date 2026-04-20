@@ -319,6 +319,7 @@ async function sendGenerateRequest(
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), input.timeoutMs)
   const startedAt = Date.now()
+  const origin = new URL(input.url).origin
 
   try {
     const response = await fetchImpl(new URL(`/api/session/${input.sessionId}/generate`, input.url), {
@@ -326,6 +327,8 @@ async function sendGenerateRequest(
       headers: {
         'content-type': 'application/json',
         cookie: input.cookie,
+        origin,
+        referer: `${origin}/`,
       },
       body: JSON.stringify({
         scope: input.scope,
