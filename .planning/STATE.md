@@ -6,8 +6,8 @@ current_phase: 44
 current_phase_name: implement credit reservation ledger and billing reconciliation
 current_plan: 02
 status: verifying
-stopped_at: Completed 45-01-PLAN.md
-last_updated: "2026-04-20T13:26:06.556Z"
+stopped_at: Completed 45-02-PLAN.md
+last_updated: "2026-04-20T13:33:45.883Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 9
@@ -103,6 +103,9 @@ Recent decisions affecting the next cycle:
 - [Phase 45]: Expose the first user-facing feed as recent export credit activity because the current audit trail only covers reservation-backed export movements.
 - [Phase 45]: Keep billing history and anomaly summaries read-only over the Phase 44 reservation and ledger truth instead of adding a second reporting table.
 - [Phase 45]: Encode stale-state, repeated-failure, and backlog thresholds directly in the shared contract so later scripts and APIs reuse the same definitions.
+- [Phase 45]: Kept billing history on a dedicated authenticated route so timeline payloads remain separate from optional billing summary loading.
+- [Phase 45]: Rendered billing transparency as a client-side settings card so history failures stay non-blocking for the existing server-rendered settings surface.
+- [Phase 45]: Shared the serialized billing-history DTO in billing types so the route and settings UI depend on one contract.
 
 ### Pending Todos
 
@@ -123,9 +126,10 @@ Recent decisions affecting the next cycle:
 | Phase 44 P01 | 7min | 2 tasks | 8 files |
 | Phase 44 P02 | 18min | 3 tasks | 18 files |
 | Phase 45 P01 | 4min | 2 tasks | 7 files |
+| Phase 45 P02 | 5min | 2 tasks | 8 files |
 
 ## Session Continuity
 
-Last session: 2026-04-20T13:26:06.552Z
-Stopped at: Completed 45-01-PLAN.md
+Last session: 2026-04-20T13:33:45.880Z
+Stopped at: Completed 45-02-PLAN.md
 Resume file: None
