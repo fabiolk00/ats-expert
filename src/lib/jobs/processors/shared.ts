@@ -9,7 +9,7 @@ export type JobProcessorSuccess = {
   ok: true
   stage?: string
   progress?: JobProgress
-  resultRef: JobResultRef
+  resultRef?: JobResultRef
 }
 
 export type JobProcessorFailure = {

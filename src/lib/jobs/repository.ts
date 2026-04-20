@@ -420,7 +420,7 @@ export async function completeJob(input: {
   ownerClaimedAt: string
   stage?: string
   progress?: JobProgress
-  resultRef: JobResultRef
+  resultRef?: JobResultRef
 }): Promise<JobStatusSnapshot> {
   return persistTerminalStatus({
     ...input,

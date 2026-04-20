@@ -140,22 +140,11 @@ export async function processArtifactGenerationJob(
     }
   }
 
-  if (!result.resumeGeneration) {
-    return {
-      ok: false,
-      stage: 'generation_failed',
-      errorRef: {
-        kind: 'job_error',
-        code: 'RESUME_GENERATION_MISSING',
-        message: 'Artifact generation completed without a resume_generation record.',
-        retryable: false,
-      },
-    }
-  }
-
   return {
     ok: true,
     stage: 'completed',
-    resultRef: buildResumeGenerationResultRef(result.resumeGeneration),
+    resultRef: result.resumeGeneration
+      ? buildResumeGenerationResultRef(result.resumeGeneration)
+      : undefined,
   }
 }

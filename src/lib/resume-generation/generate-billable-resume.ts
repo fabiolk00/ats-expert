@@ -13,6 +13,7 @@ import {
   getResumeGenerationByIdempotencyKey,
   updateResumeGeneration,
 } from '@/lib/db/resume-generations'
+import { logWarn, serializeError } from '@/lib/observability/structured-log'
 import type {
   GenerateFileInput,
   GenerateFileOutput,
@@ -33,7 +34,25 @@ type BillableGenerationResult = {
   resumeGeneration?: ResumeGeneration
 }
 
+type ResumeGenerationPersistenceResult = {
+  resumeGeneration?: ResumeGeneration
+  resumeGenerationId?: string
+}
+
 const BILLABLE_CV_VERSION_SOURCES = new Set(['rewrite', 'ats-enhancement', 'job-targeting', 'target-derived'])
+
+function isMissingResumeGenerationSchemaError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message.toLowerCase() : ''
+
+  return (
+    message.includes('does not exist')
+    && (
+      message.includes('resume_generations')
+      || message.includes('credit_consumptions')
+      || message.includes('resume_generation_type')
+    )
+  )
+}
 
 function resolveGenerationType(scope: ArtifactScope): ResumeGenerationType {
   return scope.type === 'target' ? 'JOB_TARGETING' : 'ATS_ENHANCEMENT'
@@ -97,6 +116,102 @@ function areCvStatesEqual(left: GenerateFileInput['cv_state'], right?: GenerateF
   return Boolean(right) && JSON.stringify(left) === JSON.stringify(right)
 }
 
+async function safeUpdateResumeGeneration(
+  input: Parameters<typeof updateResumeGeneration>[0],
+): Promise<ResumeGeneration | null> {
+  try {
+    return await updateResumeGeneration(input)
+  } catch (error) {
+    logWarn('resume_generation.update_failed', {
+      resumeGenerationId: input.id,
+      status: input.status,
+      ...serializeError(error),
+    })
+    return null
+  }
+}
+
+async function completeResumeGenerationBestEffort(input: {
+  resumeGeneration: ResumeGeneration
+  sourceCvState: GenerateFileInput['cv_state']
+  generationResult: GenerateFileExecutionResult
+}): Promise<ResumeGenerationPersistenceResult> {
+  const completedGeneration = await safeUpdateResumeGeneration({
+    id: input.resumeGeneration.id,
+    status: 'completed',
+    generatedCvState: input.sourceCvState,
+    outputPdfPath: input.generationResult.generatedOutput?.pdfPath,
+    outputDocxPath: input.generationResult.generatedOutput?.docxPath,
+  })
+
+  if (!completedGeneration) {
+    return {}
+  }
+
+  return {
+    resumeGeneration: completedGeneration,
+    resumeGenerationId: completedGeneration.id,
+  }
+}
+
+async function generateWithoutResumeGenerationPersistence(input: {
+  userId: string
+  sessionId: string
+  sourceCvState: GenerateFileInput['cv_state']
+  targetId?: string
+  generationType: ResumeGenerationType
+  templateTargetSource?: Parameters<typeof generateFile>[4]
+}): Promise<BillableGenerationResult> {
+  const scope: ArtifactScope = input.targetId
+    ? { type: 'target', targetId: input.targetId }
+    : { type: 'session' }
+  const legacyGenerationId = input.targetId
+    ? `legacy:${input.sessionId}:${input.targetId}`
+    : `legacy:${input.sessionId}:base`
+
+  const generationResult = await generateFile(
+    {
+      cv_state: input.sourceCvState,
+      target_id: input.targetId,
+    },
+    input.userId,
+    input.sessionId,
+    scope,
+    input.templateTargetSource,
+  )
+
+  if (!generationResult.output.success) {
+    return generationResult
+  }
+
+  const creditConsumed = await consumeCreditForGeneration(
+    input.userId,
+    legacyGenerationId,
+    input.generationType,
+  )
+
+  if (!creditConsumed) {
+    return {
+      output: toolFailure(
+        TOOL_ERROR_CODES.INSUFFICIENT_CREDITS,
+        'Seus créditos acabaram antes de concluir esta geração. Tente novamente após recarregar seu saldo.',
+      ),
+      generatedOutput: {
+        status: 'failed',
+        error: 'No credits available to finalize this generation.',
+      },
+    }
+  }
+
+  return {
+    ...generationResult,
+    output: {
+      ...generationResult.output,
+      creditsUsed: 1,
+    },
+  }
+}
+
 export async function generateBillableResume(input: {
   userId: string
   sessionId: string
@@ -125,12 +240,37 @@ export async function generateBillableResume(input: {
     : { type: 'session' }
   const generationType = resolveGenerationType(scope)
   let resumeGeneration: ResumeGeneration | undefined
-  const latestCompletedGeneration = await getLatestCompletedResumeGenerationForScope({
-    userId: input.userId,
-    sessionId: input.sessionId,
-    resumeTargetId: input.targetId,
-    type: generationType,
-  })
+  let latestCompletedGeneration: ResumeGeneration | null = null
+
+  try {
+    latestCompletedGeneration = await getLatestCompletedResumeGenerationForScope({
+      userId: input.userId,
+      sessionId: input.sessionId,
+      resumeTargetId: input.targetId,
+      type: generationType,
+    })
+  } catch (error) {
+    if (isMissingResumeGenerationSchemaError(error)) {
+      logWarn('resume_generation.schema_unavailable', {
+        userId: input.userId,
+        sessionId: input.sessionId,
+        targetId: input.targetId,
+        stage: 'lookup_latest_completed',
+        ...serializeError(error),
+      })
+
+      return generateWithoutResumeGenerationPersistence({
+        userId: input.userId,
+        sessionId: input.sessionId,
+        sourceCvState: input.sourceCvState,
+        targetId: input.targetId,
+        generationType,
+        templateTargetSource: input.templateTargetSource,
+      })
+    }
+
+    throw error
+  }
 
   if (
     latestCompletedGeneration
@@ -164,7 +304,34 @@ export async function generateBillableResume(input: {
   }
 
   if (input.idempotencyKey) {
-    const existing = await getResumeGenerationByIdempotencyKey(input.userId, input.idempotencyKey)
+    let existing: ResumeGeneration | null
+
+    try {
+      existing = await getResumeGenerationByIdempotencyKey(input.userId, input.idempotencyKey)
+    } catch (error) {
+      if (isMissingResumeGenerationSchemaError(error)) {
+        logWarn('resume_generation.schema_unavailable', {
+          userId: input.userId,
+          sessionId: input.sessionId,
+          targetId: input.targetId,
+          stage: 'lookup_idempotency',
+          idempotencyKey: input.idempotencyKey,
+          ...serializeError(error),
+        })
+
+        return generateWithoutResumeGenerationPersistence({
+          userId: input.userId,
+          sessionId: input.sessionId,
+          sourceCvState: input.sourceCvState,
+          targetId: input.targetId,
+          generationType,
+          templateTargetSource: input.templateTargetSource,
+        })
+      }
+
+      throw error
+    }
+
     if (existing) {
       const existingSuccess = buildExistingGenerationSuccessResult(existing)
       if (existingSuccess) {
@@ -235,14 +402,41 @@ export async function generateBillableResume(input: {
   }
 
   if (!resumeGeneration) {
-    const pendingGeneration = await createPendingResumeGeneration({
-      userId: input.userId,
-      sessionId: input.sessionId,
-      resumeTargetId: input.targetId,
-      type: generationType,
-      idempotencyKey: input.idempotencyKey,
-      sourceCvSnapshot: input.sourceCvState,
-    })
+    let pendingGeneration: Awaited<ReturnType<typeof createPendingResumeGeneration>>
+
+    try {
+      pendingGeneration = await createPendingResumeGeneration({
+        userId: input.userId,
+        sessionId: input.sessionId,
+        resumeTargetId: input.targetId,
+        type: generationType,
+        idempotencyKey: input.idempotencyKey,
+        sourceCvSnapshot: input.sourceCvState,
+      })
+    } catch (error) {
+      if (isMissingResumeGenerationSchemaError(error)) {
+        logWarn('resume_generation.schema_unavailable', {
+          userId: input.userId,
+          sessionId: input.sessionId,
+          targetId: input.targetId,
+          stage: 'create_pending',
+          idempotencyKey: input.idempotencyKey,
+          ...serializeError(error),
+        })
+
+        return generateWithoutResumeGenerationPersistence({
+          userId: input.userId,
+          sessionId: input.sessionId,
+          sourceCvState: input.sourceCvState,
+          targetId: input.targetId,
+          generationType,
+          templateTargetSource: input.templateTargetSource,
+        })
+      }
+
+      throw error
+    }
+
     resumeGeneration = pendingGeneration.generation
 
     if (!pendingGeneration.wasCreated && !input.resumePendingGeneration) {
@@ -262,7 +456,7 @@ export async function generateBillableResume(input: {
   )
 
   if (!generationResult.output.success) {
-    await updateResumeGeneration({
+    await safeUpdateResumeGeneration({
       id: resumeGeneration.id,
       status: 'failed',
       failureReason: generationResult.generatedOutput?.error ?? generationResult.output.error,
@@ -281,7 +475,7 @@ export async function generateBillableResume(input: {
   )
 
   if (!creditConsumed) {
-    await updateResumeGeneration({
+    await safeUpdateResumeGeneration({
       id: resumeGeneration.id,
       status: 'failed',
       generatedCvState: input.sourceCvState,
@@ -301,12 +495,10 @@ export async function generateBillableResume(input: {
     }
   }
 
-  const completedGeneration = await updateResumeGeneration({
-    id: resumeGeneration.id,
-    status: 'completed',
-    generatedCvState: input.sourceCvState,
-    outputPdfPath: generationResult.generatedOutput?.pdfPath,
-    outputDocxPath: generationResult.generatedOutput?.docxPath,
+  const persistence = await completeResumeGenerationBestEffort({
+    resumeGeneration,
+    sourceCvState: input.sourceCvState,
+    generationResult,
   })
 
   return {
@@ -314,8 +506,8 @@ export async function generateBillableResume(input: {
     output: {
       ...generationResult.output,
       creditsUsed: 1,
-      resumeGenerationId: completedGeneration.id,
+      resumeGenerationId: persistence.resumeGenerationId,
     },
-    resumeGeneration: completedGeneration,
+    resumeGeneration: persistence.resumeGeneration,
   }
 }

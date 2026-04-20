@@ -165,6 +165,18 @@ function buildFailedJobResponse(job: JobStatusSnapshot): {
   }
 }
 
+function hasReadyGeneratedArtifact(input: {
+  session: Session
+  target?: NonNullable<Awaited<ReturnType<typeof getResumeTargetForSession>>> | null
+  scope: 'base' | 'target'
+}): boolean {
+  const generatedOutput = input.scope === 'target'
+    ? input.target?.generatedOutput
+    : input.session.generatedOutput
+
+  return generatedOutput?.status === 'ready' && Boolean(generatedOutput.pdfPath)
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },
@@ -349,6 +361,36 @@ export async function POST(
         scope: body.data.scope,
         targetId: target?.id,
       }))
+    }
+
+    if (job.status === 'completed') {
+      const refreshedSession = await getSession(params.id, appUser.id)
+      const refreshedTarget = body.data.scope === 'target' && target?.id
+        ? await getResumeTargetForSession(params.id, target.id)
+        : target
+
+      if (refreshedSession && hasReadyGeneratedArtifact({
+        session: refreshedSession,
+        target: refreshedTarget,
+        scope: body.data.scope,
+      })) {
+        logInfo('api.session.generate.completed', {
+          requestMethod: req.method,
+          requestPath,
+          sessionId: refreshedSession.id,
+          appUserId: appUser.id,
+          scope: body.data.scope,
+          targetId: refreshedTarget?.id,
+          success: true,
+          degradedPersistence: true,
+          latencyMs: Date.now() - requestStartedAt,
+        })
+        return NextResponse.json(buildSuccessResponseBody({
+          job,
+          scope: body.data.scope,
+          targetId: refreshedTarget?.id,
+        }))
+      }
     }
 
     await persistGeneratingState({
