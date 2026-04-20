@@ -1,3 +1,5 @@
+import { createHash } from 'crypto'
+
 import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
 import {
   createSignedResumeArtifactUrlsBestEffort,
@@ -183,14 +185,20 @@ async function generateWithoutResumeGenerationPersistence(input: {
   sourceCvState: GenerateFileInput['cv_state']
   targetId?: string
   generationType: ResumeGenerationType
+  idempotencyKey?: string
   templateTargetSource?: Parameters<typeof generateFile>[4]
 }): Promise<BillableGenerationResult> {
   const scope: ArtifactScope = input.targetId
     ? { type: 'target', targetId: input.targetId }
     : { type: 'session' }
-  const legacyGenerationId = input.targetId
-    ? `legacy:${input.sessionId}:${input.targetId}`
-    : `legacy:${input.sessionId}:base`
+  const fallbackFingerprint = input.idempotencyKey
+    ?? createHash('sha256').update(JSON.stringify(input.sourceCvState)).digest('hex')
+  const legacyGenerationId = [
+    'legacy',
+    input.sessionId,
+    input.targetId ?? 'base',
+    fallbackFingerprint,
+  ].join(':')
 
   const generationResult = await generateFile(
     {
@@ -288,6 +296,7 @@ export async function generateBillableResume(input: {
         sourceCvState: input.sourceCvState,
         targetId: input.targetId,
         generationType,
+        idempotencyKey: input.idempotencyKey,
         templateTargetSource: input.templateTargetSource,
       })
     }
@@ -348,6 +357,7 @@ export async function generateBillableResume(input: {
           sourceCvState: input.sourceCvState,
           targetId: input.targetId,
           generationType,
+          idempotencyKey: input.idempotencyKey,
           templateTargetSource: input.templateTargetSource,
         })
       }
@@ -453,6 +463,7 @@ export async function generateBillableResume(input: {
           sourceCvState: input.sourceCvState,
           targetId: input.targetId,
           generationType,
+          idempotencyKey: input.idempotencyKey,
           templateTargetSource: input.templateTargetSource,
         })
       }

@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { generateBillableResume } from './generate-billable-resume'
@@ -69,6 +70,22 @@ function buildCvState() {
     skills: ['TypeScript'],
     education: [],
   }
+}
+
+function buildLegacyFallbackGenerationId(cvState: ReturnType<typeof buildCvState>, overrides?: {
+  sessionId?: string
+  targetId?: string
+  idempotencyKey?: string
+}) {
+  const fallbackFingerprint = overrides?.idempotencyKey
+    ?? createHash('sha256').update(JSON.stringify(cvState)).digest('hex')
+
+  return [
+    'legacy',
+    overrides?.sessionId ?? 'sess_123',
+    overrides?.targetId ?? 'base',
+    fallbackFingerprint,
+  ].join(':')
 }
 
 describe('generateBillableResume', () => {
@@ -452,7 +469,7 @@ describe('generateBillableResume', () => {
     expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()
     expect(mockConsumeCreditForGeneration).toHaveBeenCalledWith(
       'usr_123',
-      'legacy:sess_123:base',
+      buildLegacyFallbackGenerationId(cvState),
       'ATS_ENHANCEMENT',
     )
   })
@@ -500,7 +517,63 @@ describe('generateBillableResume', () => {
     })
     expect(mockConsumeCreditForGeneration).toHaveBeenCalledWith(
       'usr_123',
-      'legacy:sess_123:base',
+      buildLegacyFallbackGenerationId(cvState, { idempotencyKey: 'profile-ats:sess_123' }),
+      'ATS_ENHANCEMENT',
+    )
+  })
+
+  it('uses distinct fallback billing ids for separate exports in the same session scope', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCompletedResumeGenerationForScope.mockRejectedValue(
+      new Error('Failed to load latest completed resume generation: relation "resume_generations" does not exist'),
+    )
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockGenerateFile.mockResolvedValue({
+      output: {
+        success: true,
+        pdfUrl: 'https://example.com/resume.pdf',
+        docxUrl: null,
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-12T12:01:00.000Z',
+      },
+    })
+    mockConsumeCreditForGeneration.mockResolvedValue(true)
+
+    await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'export-1',
+    })
+
+    await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'export-2',
+    })
+
+    expect(mockConsumeCreditForGeneration).toHaveBeenNthCalledWith(
+      1,
+      'usr_123',
+      buildLegacyFallbackGenerationId(cvState, { idempotencyKey: 'export-1' }),
+      'ATS_ENHANCEMENT',
+    )
+    expect(mockConsumeCreditForGeneration).toHaveBeenNthCalledWith(
+      2,
+      'usr_123',
+      buildLegacyFallbackGenerationId(cvState, { idempotencyKey: 'export-2' }),
       'ATS_ENHANCEMENT',
     )
   })
