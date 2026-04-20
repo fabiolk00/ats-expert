@@ -42,6 +42,12 @@ export function WorkspaceSidePanel({
         <p className="mt-1 text-xs text-muted-foreground">
           Aqui aparece a pre-visualizacao do PDF gerado.
         </p>
+        {!baseOutputReady ? (
+          <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-2 text-xs text-amber-900">
+            <p>1 credito sera reservado para esta exportacao.</p>
+            <p className="mt-1 text-amber-800/80">Se a geracao falhar, o credito sera liberado.</p>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-0 pb-0">

@@ -447,6 +447,56 @@ describe('generateBillableResume', () => {
     })
   })
 
+  it('fails timed-out renders through the release path so capacity is not held indefinitely', async () => {
+    vi.useFakeTimers()
+    process.env.EXPORT_GENERATION_TIMEOUT_MS = '5'
+
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockResolvedValue({
+      generation: buildPendingGeneration(cvState, { id: 'gen_pending_timeout' }),
+      wasCreated: true,
+    })
+    mockGenerateFile.mockImplementation(() => new Promise(() => undefined))
+
+    const resultPromise = generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+    })
+
+    await vi.advanceTimersByTimeAsync(10)
+    const result = await resultPromise
+
+    expect(result.output).toEqual({
+      success: false,
+      code: 'GENERATION_ERROR',
+      error: 'A geracao do PDF excedeu o tempo limite e foi interrompida.',
+    })
+    expect(mockReleaseCreditReservation).toHaveBeenCalledWith({
+      userId: 'usr_123',
+      generationIntentKey: 'dup_key',
+      resumeGenerationId: 'gen_pending_timeout',
+      metadata: expect.any(Object),
+    })
+    expect(mockUpdateResumeGeneration).toHaveBeenCalledWith({
+      id: 'gen_pending_timeout',
+      status: 'failed',
+      failureReason: 'Export generation timed out.',
+    })
+
+    vi.useRealTimers()
+    delete process.env.EXPORT_GENERATION_TIMEOUT_MS
+  })
+
   it('reuses the same reservation when a durable retry resumes the same intent', async () => {
     const cvState = buildCvState()
     mockGetResumeGenerationByIdempotencyKey.mockResolvedValue(

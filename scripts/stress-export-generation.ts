@@ -24,6 +24,12 @@ type RawCliOptions = {
   captureLimit: number
   format: StressFormat
   outputPath?: string
+  scenario?: string
+  maxUnexpectedResponses?: number
+  maxTimedOutJobs?: number
+  maxAnomalousJobs?: number
+  maxP95LatencyMs?: number
+  expectedMaxJobs?: number
 }
 
 type CliOptions = RawCliOptions & {
@@ -90,6 +96,7 @@ export type ExportStressResult = {
   capturedAt: string
   durationMs: number
   config: {
+    scenario?: string
     concurrency: number
     requests: number
     sessionIdCount: number
@@ -98,6 +105,7 @@ export type ExportStressResult = {
   }
   summary: ExportStressSummary
   warnings: string[]
+  failures: string[]
   sampleRequests: ExportStressRequestResult[]
   sampleFailures: ExportStressRequestResult[]
   jobs: ExportStressJobResult[]
@@ -142,6 +150,12 @@ Optional flags:
   --settle-timeout-ms        Time budget for polling durable jobs (default: 30000)
   --poll-ms                  Delay between job polls in milliseconds (default: 500)
   --capture-limit            Number of sample request records to include (default: 12)
+  --scenario                 Scenario label to include in the output
+  --max-unexpected-responses Fail if unexpected responses exceed this count
+  --max-timed-out-jobs       Fail if timed out jobs exceed this count
+  --max-anomalous-jobs       Fail if failed/cancelled jobs exceed this count
+  --max-p95-latency-ms       Fail if p95 request latency exceeds this threshold
+  --expected-max-jobs        Fail if distinct durable jobs exceed this count
   --format                   json or markdown (default: json)
   --output                   Optional file path for the final artifact
   --help                     Show this help output
@@ -185,6 +199,14 @@ function appendSessionIds(existing: string[], value: string): string[] {
 function ensurePositiveInteger(value: number, flag: string): number {
   if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) {
     throw new Error(`${flag} must be a positive integer.`)
+  }
+
+  return value
+}
+
+function ensureNonNegativeInteger(value: number, flag: string): number {
+  if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+    throw new Error(`${flag} must be a non-negative integer.`)
   }
 
   return value
@@ -531,6 +553,30 @@ export function parseStressArgs(argv: string[]): RawCliOptions | { help: true } 
         values.captureLimit = ensurePositiveInteger(Number.parseInt(readFlagValue(argv, index, token), 10), token)
         index += 1
         break
+      case '--scenario':
+        values.scenario = readFlagValue(argv, index, token)
+        index += 1
+        break
+      case '--max-unexpected-responses':
+        values.maxUnexpectedResponses = ensureNonNegativeInteger(Number.parseInt(readFlagValue(argv, index, token), 10), token)
+        index += 1
+        break
+      case '--max-timed-out-jobs':
+        values.maxTimedOutJobs = ensureNonNegativeInteger(Number.parseInt(readFlagValue(argv, index, token), 10), token)
+        index += 1
+        break
+      case '--max-anomalous-jobs':
+        values.maxAnomalousJobs = ensureNonNegativeInteger(Number.parseInt(readFlagValue(argv, index, token), 10), token)
+        index += 1
+        break
+      case '--max-p95-latency-ms':
+        values.maxP95LatencyMs = ensurePositiveInteger(Number.parseInt(readFlagValue(argv, index, token), 10), token)
+        index += 1
+        break
+      case '--expected-max-jobs':
+        values.expectedMaxJobs = ensurePositiveInteger(Number.parseInt(readFlagValue(argv, index, token), 10), token)
+        index += 1
+        break
       case '--format': {
         const format = readFlagValue(argv, index, token)
         if (format !== 'json' && format !== 'markdown') {
@@ -620,6 +666,7 @@ export async function stressExportGeneration(
   dependencies: { fetchImpl?: FetchLike } = {},
 ): Promise<ExportStressResult> {
   const warnings: string[] = []
+  const failures: string[] = []
   const requests: ExportStressRequestResult[] = []
   const startedAt = Date.now()
   let nextIndex = 0
@@ -678,7 +725,7 @@ export async function stressExportGeneration(
 
   const durationMs = Date.now() - startedAt
   const summary = summarizeStressResults(requests, jobs)
-  const expectedMaxJobs = options.sessionIds.length
+  const expectedMaxJobs = options.expectedMaxJobs ?? options.sessionIds.length
   const duplicateFanout = summary.distinctJobCount > expectedMaxJobs
 
   if (summary.reconciliationPendingResponses > 0) {
@@ -693,8 +740,25 @@ export async function stressExportGeneration(
     )
   }
 
+  if (options.maxUnexpectedResponses !== undefined && summary.unexpectedResponses > options.maxUnexpectedResponses) {
+    failures.push(`unexpected_responses ${summary.unexpectedResponses} > ${options.maxUnexpectedResponses}`)
+  }
+  if (options.maxTimedOutJobs !== undefined && summary.timedOutJobs > options.maxTimedOutJobs) {
+    failures.push(`timed_out_jobs ${summary.timedOutJobs} > ${options.maxTimedOutJobs}`)
+  }
+  if (options.maxAnomalousJobs !== undefined && summary.anomalousJobs > options.maxAnomalousJobs) {
+    failures.push(`anomalous_jobs ${summary.anomalousJobs} > ${options.maxAnomalousJobs}`)
+  }
+  if (options.maxP95LatencyMs !== undefined && summary.latencyMs.p95 > options.maxP95LatencyMs) {
+    failures.push(`latency_p95_ms ${summary.latencyMs.p95} > ${options.maxP95LatencyMs}`)
+  }
+  if (duplicateFanout) {
+    failures.push(`distinct_jobs ${summary.distinctJobCount} > ${expectedMaxJobs}`)
+  }
+
   return {
-    ok: summary.unexpectedResponses === 0
+    ok: failures.length === 0
+      && summary.unexpectedResponses === 0
       && summary.anomalousJobs === 0
       && summary.timedOutJobs === 0
       && !duplicateFanout,
@@ -702,6 +766,7 @@ export async function stressExportGeneration(
     capturedAt: new Date().toISOString(),
     durationMs,
     config: {
+      scenario: options.scenario,
       concurrency: options.concurrency,
       requests: options.requests,
       sessionIdCount: options.sessionIds.length,
@@ -710,6 +775,7 @@ export async function stressExportGeneration(
     },
     summary,
     warnings,
+    failures,
     sampleRequests: requests.slice(0, options.captureLimit),
     sampleFailures: requests.filter(isFailureResponse).slice(0, options.captureLimit),
     jobs,
@@ -734,6 +800,7 @@ export function formatStressResult(result: ExportStressResult, format: StressFor
     `- Duration Ms: ${result.durationMs}`,
     `- Scope: ${result.config.scope}`,
     `- Target Id: ${result.config.targetId ?? '<base>'}`,
+    `- Scenario: ${result.config.scenario ?? '<none>'}`,
     `- Concurrency: ${result.config.concurrency}`,
     `- Requests: ${result.config.requests}`,
     `- Session Id Count: ${result.config.sessionIdCount}`,
@@ -752,6 +819,9 @@ export function formatStressResult(result: ExportStressResult, format: StressFor
 
   if (result.warnings.length > 0) {
     lines.push(`- Warnings: ${result.warnings.join(' | ')}`)
+  }
+  if (result.failures.length > 0) {
+    lines.push(`- Failures: ${result.failures.join(' | ')}`)
   }
 
   lines.push('')

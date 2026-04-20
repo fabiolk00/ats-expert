@@ -10,7 +10,7 @@ import {
   getResumeTargetForSession,
   updateResumeTargetGeneratedOutput,
 } from '@/lib/db/resume-targets'
-import { createJob } from '@/lib/jobs/repository'
+import { createJob, listActiveJobsForUser } from '@/lib/jobs/repository'
 import { startDurableJobProcessing } from '@/lib/jobs/runtime'
 import { logInfo, logWarn } from '@/lib/observability/structured-log'
 
@@ -32,6 +32,7 @@ vi.mock('@/lib/db/resume-targets', () => ({
 
 vi.mock('@/lib/jobs/repository', () => ({
   createJob: vi.fn(),
+  listActiveJobsForUser: vi.fn(),
 }))
 
 vi.mock('@/lib/jobs/runtime', () => ({
@@ -149,6 +150,7 @@ describe('generate route', () => {
     vi.mocked(getResumeTargetForSession).mockResolvedValue(buildTarget() as never)
     vi.mocked(applyGeneratedOutputPatch).mockResolvedValue(undefined)
     vi.mocked(updateResumeTargetGeneratedOutput).mockResolvedValue(undefined)
+    vi.mocked(listActiveJobsForUser).mockResolvedValue([])
   })
 
   it('dispatches base generation durably and returns 202', async () => {

@@ -13,7 +13,7 @@ import {
   getResumeTargetForSession,
   updateResumeTargetGeneratedOutput,
 } from '@/lib/db/resume-targets'
-import { createJob } from '@/lib/jobs/repository'
+import { createJob, listActiveJobsForUser } from '@/lib/jobs/repository'
 import { startDurableJobProcessing } from '@/lib/jobs/runtime'
 import { resolveEffectiveResumeSource } from '@/lib/jobs/source-of-truth'
 import { hasConfirmedCareerFitOverride, requiresCareerFitWarning } from '@/lib/agent/profile-review'
@@ -173,6 +173,16 @@ function isBillingReconciliationPending(job: JobStatusSnapshot): boolean {
   )
 }
 
+function buildActiveExportConflictBody(job: JobStatusSnapshot) {
+  return {
+    success: false,
+    code: 'EXPORT_ALREADY_PROCESSING',
+    error: 'You already have an export in progress. Aguarde a conclusão antes de iniciar outra exportação.',
+    jobId: job.jobId,
+    billingStage: job.stage,
+  }
+}
+
 function hasReadyGeneratedArtifact(input: {
   session: Session
   target?: NonNullable<Awaited<ReturnType<typeof getResumeTargetForSession>>> | null
@@ -289,6 +299,39 @@ export async function POST(
       targetId: target?.id,
       clientRequestId: body.data.clientRequestId,
     })
+
+    const activeArtifactJobs = await listActiveJobsForUser({
+      userId: appUser.id,
+      type: 'artifact_generation',
+      limit: 5,
+    })
+    const conflictingActiveJob = activeArtifactJobs.find((job) => (
+      job.idempotencyKey !== primaryIdempotencyKey
+      && (
+        job.status === 'queued'
+        || job.status === 'running'
+      )
+    ))
+
+    if (conflictingActiveJob) {
+      logWarn('api.session.generate.user_export_limit_hit', {
+        requestMethod: req.method,
+        requestPath,
+        sessionId: session.id,
+        appUserId: appUser.id,
+        scope: body.data.scope,
+        targetId: target?.id,
+        conflictingJobId: conflictingActiveJob.jobId,
+        success: false,
+        latencyMs: Date.now() - requestStartedAt,
+      })
+
+      return NextResponse.json(
+        buildActiveExportConflictBody(conflictingActiveJob),
+        { status: 409 },
+      )
+    }
+
     let createdJob = await createJob({
       userId: appUser.id,
       sessionId: session.id,

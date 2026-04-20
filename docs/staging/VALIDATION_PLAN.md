@@ -275,3 +275,46 @@ For every scenario, record:
 - pre and post snapshots from `scripts/check-staging-billing-state.ts`
 - `BILL-01`, `BILL-02`, and `BILL-03` pass or fail judgment
 - any warning or open gap with likely owner files
+
+## Phase 46 pragmatic scale validation
+
+Use these staging passes before production reliance at moderate concurrency:
+
+1. Web/worker setup
+   - web: `APP_RUNTIME_ROLE=web`
+   - worker: `APP_RUNTIME_ROLE=worker`
+   - worker: `EXPORT_GENERATION_MAX_CONCURRENCY=3`
+   - worker: `EXPORT_GENERATION_MAX_PER_USER=1`
+2. Recommended runs
+   - `50` concurrent requests
+   - `100` concurrent requests
+   - `250` concurrent requests
+   - `500` concurrent requests
+3. Example command
+
+```bash
+npx tsx scripts/stress-export-generation.ts \
+  --url <staging-url> \
+  --session-ids <session_a>,<session_b>,<session_c>,<session_d> \
+  --cookie "<cookie>" \
+  --scenario "phase-46-100-users" \
+  --requests 100 \
+  --concurrency 100 \
+  --expected-max-jobs 4 \
+  --max-unexpected-responses 0 \
+  --max-timed-out-jobs 0 \
+  --max-anomalous-jobs 0 \
+  --format markdown
+```
+
+4. Pass/fail thresholds
+   - duplicate reservations per effective intent: `0`
+   - incorrect double debit events: `0`
+   - reconciliation backlog returns to baseline after the run
+   - request `p95` remains within the agreed threshold for the current environment
+   - `100-250` concurrency should remain controlled with queue drain after burst
+   - `500` concurrency may degrade, but must remain bounded and recoverable
+5. Inspect after each run
+   - `/operations`
+   - `npx tsx scripts/check-staging-billing-state.ts --session <session_id>`
+   - worker logs for `export.operation_timing` and `metric.counter`

@@ -7,7 +7,9 @@ import {
   type CreditReservation,
 } from '@/lib/db/credit-reservations'
 import { getJob } from '@/lib/jobs/repository'
+import { recordMetricCounter } from '@/lib/observability/metric-events'
 import { logInfo, logWarn } from '@/lib/observability/structured-log'
+import { withTimedOperation } from '@/lib/observability/timed-operation'
 
 type ReconciliationAction = 'finalized' | 'released' | 'manual_review'
 
@@ -59,21 +61,34 @@ export async function reconcileCreditReservations(input: {
   userId?: string
   limit?: number
 } = {}): Promise<CreditReservationReconciliationResult[]> {
-  const reservations = await listCreditReservationsForReconciliation(input)
+  const reservations = await withTimedOperation({
+    operation: 'reconcileCreditReservations',
+    appUserId: input.userId ?? 'system',
+    run: () => listCreditReservationsForReconciliation(input),
+    onFailure: () => ({
+      errorCategory: 'reconciliation',
+      errorCode: 'reconciliation_scan_failed',
+    }),
+  })
   const results: CreditReservationReconciliationResult[] = []
 
   for (const reservation of reservations) {
     const classification = await classifyReservation(reservation)
 
     if (classification.action === 'released') {
-      await releaseCreditReservation({
-        userId: reservation.userId,
+      await withTimedOperation({
+        operation: 'releaseCreditReservation',
         generationIntentKey: reservation.generationIntentKey,
-        resumeGenerationId: reservation.resumeGenerationId,
-        metadata: {
-          source: 'reconciliation',
-          reason: classification.reason,
-        },
+        appUserId: reservation.userId,
+        run: () => releaseCreditReservation({
+          userId: reservation.userId,
+          generationIntentKey: reservation.generationIntentKey,
+          resumeGenerationId: reservation.resumeGenerationId,
+          metadata: {
+            source: 'reconciliation',
+            reason: classification.reason,
+          },
+        }),
       })
       await markCreditReservationReconciliation({
         reservationId: reservation.id,
@@ -91,15 +106,24 @@ export async function reconcileCreditReservations(input: {
         stage: 'reconciliation',
         reason: classification.reason,
       })
-    } else if (classification.action === 'finalized') {
-      await finalizeCreditReservation({
-        userId: reservation.userId,
+      recordMetricCounter('billing.reconciliation.auto_released', {
+        appUserId: reservation.userId,
         generationIntentKey: reservation.generationIntentKey,
-        resumeGenerationId: reservation.resumeGenerationId,
-        metadata: {
-          source: 'reconciliation',
-          reason: classification.reason,
-        },
+      })
+    } else if (classification.action === 'finalized') {
+      await withTimedOperation({
+        operation: 'finalizeCreditReservation',
+        generationIntentKey: reservation.generationIntentKey,
+        appUserId: reservation.userId,
+        run: () => finalizeCreditReservation({
+          userId: reservation.userId,
+          generationIntentKey: reservation.generationIntentKey,
+          resumeGenerationId: reservation.resumeGenerationId,
+          metadata: {
+            source: 'reconciliation',
+            reason: classification.reason,
+          },
+        }),
       })
       await markCreditReservationReconciliation({
         reservationId: reservation.id,
@@ -116,6 +140,10 @@ export async function reconcileCreditReservations(input: {
         userId: reservation.userId,
         stage: 'reconciliation',
         reason: classification.reason,
+      })
+      recordMetricCounter('billing.reconciliation.auto_finalized', {
+        appUserId: reservation.userId,
+        generationIntentKey: reservation.generationIntentKey,
       })
     } else {
       await markCreditReservationReconciliation({
@@ -134,6 +162,10 @@ export async function reconcileCreditReservations(input: {
         userId: reservation.userId,
         stage: 'reconciliation',
         reason: classification.reason,
+      })
+      recordMetricCounter('billing.reconciliation.manual_review', {
+        appUserId: reservation.userId,
+        generationIntentKey: reservation.generationIntentKey,
       })
     }
 

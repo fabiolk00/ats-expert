@@ -7,6 +7,7 @@ import { ChevronDown, ChevronRight, ExternalLink, FileText } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { usePreviewPanel } from '@/context/preview-panel-context'
+import { getArtifactStageLabel } from '@/lib/jobs/stage-labels'
 import { cn } from '@/lib/utils'
 
 import { useSessionDocuments } from '@/hooks/use-session-documents'
@@ -32,7 +33,7 @@ function formatArtifactProgressLabel(input: {
   }
 
   if (input.stage) {
-    return input.stage.replace(/_/g, ' ')
+    return getArtifactStageLabel(input.stage)
   }
 
   return null
@@ -199,7 +200,7 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
 
   const hasFiles = Boolean(files.pdfUrl)
   const reconciliationMessage = artifactStatus.reconciliation?.required
-    ? 'Arquivo pronto. A cobranca desta geracao esta em reconciliacao.'
+    ? 'Estamos conferindo a cobranca desta geracao. Seu arquivo continua disponivel.'
     : null
   const progressLabel = formatArtifactProgressLabel({
     stage: artifactStatus.stage,
@@ -272,7 +273,7 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
 
       {!error && artifactStatus.generationStatus === 'generating' ? (
         <div className="space-y-1 px-2 py-1 text-xs text-muted-foreground">
-          <p>Geracao em andamento. Atualizaremos este arquivo quando estiver pronto.</p>
+          <p>Preparando sua exportacao. Atualizaremos este arquivo quando estiver pronto.</p>
           {progressLabel ? (
             <p data-testid="documents-progress-label">{progressLabel}</p>
           ) : null}

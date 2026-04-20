@@ -321,6 +321,54 @@ export async function listJobsForUser(input: {
   return ((data ?? []) as JobRow[]).map(mapJobRowToStatusSnapshot)
 }
 
+export async function listJobsForProcessing(input: {
+  type: JobType
+  status?: JobStatus
+  limit?: number
+}): Promise<JobStatusSnapshot[]> {
+  const supabase = getSupabaseAdminClient()
+  let query = supabase
+    .from('jobs')
+    .select('*')
+    .eq('type', input.type)
+
+  if (input.status) {
+    query = query.eq('status', input.status)
+  }
+
+  const { data, error } = await query
+    .order('created_at', { ascending: true })
+    .limit(input.limit ?? 20)
+
+  if (error) {
+    throw new Error(`Failed to list jobs for processing: ${error.message}`)
+  }
+
+  return ((data ?? []) as JobRow[]).map(mapJobRowToStatusSnapshot)
+}
+
+export async function listActiveJobsForUser(input: {
+  userId: string
+  type: JobType
+  limit?: number
+}): Promise<JobStatusSnapshot[]> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('user_id', input.userId)
+    .eq('type', input.type)
+    .in('status', ['queued', 'running'])
+    .order('created_at', { ascending: true })
+    .limit(input.limit ?? 10)
+
+  if (error) {
+    throw new Error(`Failed to list active jobs for user: ${error.message}`)
+  }
+
+  return ((data ?? []) as JobRow[]).map(mapJobRowToStatusSnapshot)
+}
+
 export async function listJobsForSession(input: {
   userId: string
   sessionId: string

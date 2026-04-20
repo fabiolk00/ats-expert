@@ -4,6 +4,9 @@ const {
   mockClaimJob,
   mockCompleteJob,
   mockFailJob,
+  mockGetJob,
+  mockListJobsForProcessing,
+  mockResetStaleJobs,
   mockProcessAtsEnhancementJob,
   mockProcessJobTargetingJob,
   mockProcessArtifactGenerationJob,
@@ -14,6 +17,9 @@ const {
   mockClaimJob: vi.fn(),
   mockCompleteJob: vi.fn(),
   mockFailJob: vi.fn(),
+  mockGetJob: vi.fn(),
+  mockListJobsForProcessing: vi.fn(),
+  mockResetStaleJobs: vi.fn(),
   mockProcessAtsEnhancementJob: vi.fn(),
   mockProcessJobTargetingJob: vi.fn(),
   mockProcessArtifactGenerationJob: vi.fn(),
@@ -26,6 +32,9 @@ vi.mock('@/lib/jobs/repository', () => ({
   claimJob: mockClaimJob,
   completeJob: mockCompleteJob,
   failJob: mockFailJob,
+  getJob: mockGetJob,
+  listJobsForProcessing: mockListJobsForProcessing,
+  resetStaleJobs: mockResetStaleJobs,
 }))
 
 vi.mock('./processors/ats-enhancement', () => ({
@@ -77,8 +86,10 @@ async function flushBackgroundWork() {
 describe('startDurableJobProcessing', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    process.env.APP_RUNTIME_ROLE = 'worker'
     mockCompleteJob.mockResolvedValue(undefined)
     mockFailJob.mockResolvedValue(undefined)
+    mockResetStaleJobs.mockResolvedValue(0)
   })
 
   it('returns existing completed jobs without dispatching work when no new owner was claimed', async () => {
@@ -96,6 +107,7 @@ describe('startDurableJobProcessing', () => {
       },
     })
     mockClaimJob.mockResolvedValue(completedJob)
+    mockGetJob.mockResolvedValue(completedJob)
 
     const result = await startDurableJobProcessing({
       jobId: 'job_123',
@@ -118,6 +130,7 @@ describe('startDurableJobProcessing', () => {
       updatedAt: '2026-04-16T10:00:30.000Z',
     })
     mockClaimJob.mockResolvedValue(reclaimedJob)
+    mockGetJob.mockResolvedValue(reclaimedJob)
     mockProcessArtifactGenerationJob.mockResolvedValue({
       ok: true,
       stage: 'completed',
@@ -163,6 +176,7 @@ describe('startDurableJobProcessing', () => {
       updatedAt: '2026-04-16T10:00:30.000Z',
     })
     mockClaimJob.mockResolvedValue(reclaimedJob)
+    mockGetJob.mockResolvedValue(reclaimedJob)
     mockProcessArtifactGenerationJob.mockResolvedValue({
       ok: true,
       stage: 'needs_reconciliation',
@@ -191,6 +205,7 @@ describe('startDurableJobProcessing', () => {
       type: 'job_targeting',
     })
     mockClaimJob.mockResolvedValue(claimedJob)
+    mockGetJob.mockResolvedValue(claimedJob)
     mockProcessJobTargetingJob.mockResolvedValue({
       ok: false,
       stage: 'persist_version',
@@ -237,6 +252,7 @@ describe('startDurableJobProcessing', () => {
       type: 'ats_enhancement',
     })
     mockClaimJob.mockResolvedValue(claimedJob)
+    mockGetJob.mockResolvedValue(claimedJob)
     mockProcessAtsEnhancementJob.mockRejectedValue(new Error('processor exploded'))
 
     await startDurableJobProcessing({
@@ -266,5 +282,55 @@ describe('startDurableJobProcessing', () => {
         errorCode: 'UNEXPECTED_PROCESSOR_ERROR',
       }),
     )
+  })
+
+  it('retries retryable artifact failures with bounded backoff before succeeding', async () => {
+    vi.useFakeTimers()
+    process.env.EXPORT_GENERATION_RETRY_DELAYS_MS = '5,10,20'
+
+    const claimedJob = buildJob({
+      type: 'artifact_generation',
+    })
+    mockGetJob.mockResolvedValue(claimedJob)
+    mockClaimJob.mockResolvedValue(claimedJob)
+    mockProcessArtifactGenerationJob
+      .mockResolvedValueOnce({
+        ok: false,
+        stage: 'render_artifact',
+        errorRef: {
+          kind: 'job_error',
+          code: 'GENERATION_ERROR',
+          message: 'renderer failed',
+          retryable: true,
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        stage: 'completed',
+      })
+
+    await startDurableJobProcessing({
+      jobId: 'job_123',
+      userId: 'usr_123',
+    })
+
+    await vi.runAllTimersAsync()
+
+    expect(mockProcessArtifactGenerationJob).toHaveBeenCalledTimes(2)
+    expect(mockCompleteJob).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: 'job_123',
+      stage: 'completed',
+    }))
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'jobs.runtime.processing_retry_scheduled',
+      expect.objectContaining({
+        jobId: 'job_123',
+        retryDelayMs: 5,
+        errorCode: 'GENERATION_ERROR',
+      }),
+    )
+
+    vi.useRealTimers()
+    delete process.env.EXPORT_GENERATION_RETRY_DELAYS_MS
   })
 })

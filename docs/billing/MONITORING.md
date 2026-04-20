@@ -276,3 +276,28 @@ If you see both `PAYMENT_CONFIRMED` and `PAYMENT_RECEIVED` here, the new SQL con
 ## Sunset note
 
 When legacy references remain at zero for a sustained period, the temporary legacy parser path in `src/lib/asaas/external-reference.ts` can be removed in a future cleanup.
+
+## Phase 46 export hardening signals
+
+Structured timing logs now emit `export.operation_timing` for:
+
+- `reserveCreditForGenerationIntent`
+- `generateFile`
+- `finalizeCreditReservation`
+- `releaseCreditReservation`
+- `reconcileCreditReservations`
+
+Structured counter events now emit `metric.counter` with these metric names:
+
+- `billing.reservations.created`
+- `billing.reservations.finalized`
+- `billing.reservations.released`
+- `billing.reservations.needs_reconciliation`
+- `billing.reconciliation.auto_finalized`
+- `billing.reconciliation.auto_released`
+- `billing.reconciliation.manual_review`
+- `exports.started`
+- `exports.completed`
+- `exports.failed`
+
+Use `/operations` for the compact operator view and alert summary. Access is gated by `OPERATIONS_DASHBOARD_EMAILS`.

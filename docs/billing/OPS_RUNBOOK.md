@@ -430,6 +430,18 @@ npx tsx scripts/check-staging-billing-state.ts --checkout <checkout_reference>
 - `resume_generations` describe export history, but `credit_reservations` plus `credit_ledger_entries` are the reservation and audit truth for export billing
 - paid artifact ownership checks are necessary but not sufficient; billing replay safety depends on generation state and credit mutation state together
 
+## Phase 46 worker operations
+
+- Web/API nodes should run with `APP_RUNTIME_ROLE=web`.
+- Export workers should run with `APP_RUNTIME_ROLE=worker` and `npm run jobs:worker`.
+- Recommended starting point:
+  - `EXPORT_GENERATION_MAX_CONCURRENCY=3`
+  - `EXPORT_GENERATION_MAX_PER_USER=1`
+  - `EXPORT_GENERATION_TIMEOUT_MS=90000`
+  - `EXPORT_GENERATION_RETRY_DELAYS_MS=10000,30000,120000`
+- If export traffic rises while web latency is healthy, scale worker nodes first.
+- If queued export jobs rise while `runningJobs = 0`, check worker role env, worker logs, and DB pool exhaustion before changing concurrency.
+
 ## Escalate to engineering when
 
 - duplicate grants are observed

@@ -36,6 +36,7 @@
     "agent:replay-dialog": "tsx scripts/replay-agent-dialog.ts",
     "agent:stress-route": "tsx scripts/stress-agent-route.ts",
     "agent:stress-long-vacancy": "playwright test tests/e2e/long-vacancy-generation.spec.ts --project=chromium",
+    "jobs:worker": "tsx scripts/run-export-worker.ts",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",

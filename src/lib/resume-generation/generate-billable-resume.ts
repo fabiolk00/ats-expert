@@ -22,7 +22,10 @@ import {
   getResumeGenerationByIdempotencyKey,
   updateResumeGeneration,
 } from '@/lib/db/resume-generations'
+import { resolveExportGenerationConfig } from '@/lib/jobs/config'
+import { recordMetricCounter } from '@/lib/observability/metric-events'
 import { logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
+import { withTimedOperation } from '@/lib/observability/timed-operation'
 import type {
   GenerateFileInput,
   GenerateFileOutput,
@@ -267,6 +270,56 @@ function resolveGenerationIntentKey(input: {
   resumeGeneration: ResumeGeneration
 }): string {
   return input.idempotencyKey ?? input.resumeGeneration.id
+}
+
+async function generateFileWithTimeout(input: {
+  userId: string
+  sessionId: string
+  scope: ArtifactScope
+  sourceCvState: GenerateFileInput['cv_state']
+  targetId?: string
+  templateTargetSource?: Parameters<typeof generateFile>[4]
+  generationIntentKey: string
+}): Promise<GenerateFileExecutionResult> {
+  const timeoutMs = resolveExportGenerationConfig().timeoutMs
+
+  return withTimedOperation({
+    operation: 'generateFile',
+    generationIntentKey: input.generationIntentKey,
+    appUserId: input.userId,
+    run: async () => {
+      const generationPromise = generateFile(
+        {
+          cv_state: input.sourceCvState,
+          target_id: input.targetId,
+        },
+        input.userId,
+        input.sessionId,
+        input.scope,
+        input.templateTargetSource,
+      )
+
+      const timeoutPromise = new Promise<GenerateFileExecutionResult>((resolve) => {
+        setTimeout(() => {
+          resolve({
+            output: toolFailure(
+              TOOL_ERROR_CODES.GENERATION_ERROR,
+              'A geracao do PDF excedeu o tempo limite e foi interrompida.',
+            ),
+            generatedOutput: {
+              status: 'failed',
+              error: 'Export generation timed out.',
+            },
+          })
+        }, timeoutMs)
+      })
+
+      return Promise.race([generationPromise, timeoutPromise])
+    },
+    onFailure: () => ({
+      errorCategory: 'render_artifact',
+    }),
+  })
 }
 
 export async function generateBillableResume(input: {
@@ -516,19 +569,28 @@ export async function generateBillableResume(input: {
     resumeGeneration,
   })
 
-  const reservation = await reserveCreditForGenerationIntent({
-    userId: input.userId,
+  const reservation = await withTimedOperation({
+    operation: 'reserveCreditForGenerationIntent',
     generationIntentKey,
-    generationType,
-    sessionId: input.sessionId,
-    resumeTargetId: input.targetId,
-    resumeGenerationId: resumeGeneration.id,
-    metadata: {
+    appUserId: input.userId,
+    run: () => reserveCreditForGenerationIntent({
+      userId: input.userId,
+      generationIntentKey,
+      generationType,
       sessionId: input.sessionId,
-      targetId: input.targetId ?? null,
-      stage: 'reserve_credit',
-      resumePendingGeneration: input.resumePendingGeneration ?? false,
-    },
+      resumeTargetId: input.targetId,
+      resumeGenerationId: resumeGeneration.id,
+      metadata: {
+        sessionId: input.sessionId,
+        targetId: input.targetId ?? null,
+        stage: 'reserve_credit',
+        resumePendingGeneration: input.resumePendingGeneration ?? false,
+      },
+    }),
+    onFailure: (error) => ({
+      errorCategory: 'reserve_credit',
+      errorCode: error instanceof Error ? 'reserve_failed' : 'reserve_failed_unknown',
+    }),
   })
 
   logInfo('resume_generation.credit_reserved', {
@@ -540,19 +602,30 @@ export async function generateBillableResume(input: {
     generationType,
     stage: 'reserve_credit',
   })
+  recordMetricCounter('billing.reservations.created', {
+    appUserId: input.userId,
+    generationIntentKey,
+    generationType,
+  })
+  recordMetricCounter('exports.started', {
+    appUserId: input.userId,
+    generationIntentKey,
+    generationType,
+  })
 
-  const generationResult: GenerateFileExecutionResult = await generateFile(
-    {
-      cv_state: input.sourceCvState,
-      target_id: input.targetId,
-    },
-    input.userId,
-    input.sessionId,
+  const generationResult = await generateFileWithTimeout({
+    userId: input.userId,
+    sessionId: input.sessionId,
     scope,
-    input.templateTargetSource,
-  )
+    sourceCvState: input.sourceCvState,
+    targetId: input.targetId,
+    templateTargetSource: input.templateTargetSource,
+    generationIntentKey,
+  })
 
   if (!generationResult.output.success) {
+    const generationFailureReason = generationResult.generatedOutput?.error ?? generationResult.output.error
+
     logGenerationStageWarning({
       event: 'resume_generation.render_failed',
       userId: input.userId,
@@ -561,22 +634,31 @@ export async function generateBillableResume(input: {
       resumeGenerationId: resumeGeneration.id,
       generationIntentKey,
       type: generationType,
-      error: generationResult.generatedOutput?.error ?? generationResult.output.error,
+      error: generationFailureReason,
       code: generationResult.output.code,
       stage: 'render_artifact',
     })
 
     try {
-      await releaseCreditReservation({
-        userId: input.userId,
+      await withTimedOperation({
+        operation: 'releaseCreditReservation',
         generationIntentKey,
-        resumeGenerationId: resumeGeneration.id,
-        metadata: {
-          sessionId: input.sessionId,
-          targetId: input.targetId ?? null,
-          stage: 'release_credit',
-          reason: generationResult.generatedOutput?.error ?? generationResult.output.error,
-        },
+        appUserId: input.userId,
+        run: () => releaseCreditReservation({
+          userId: input.userId,
+          generationIntentKey,
+          resumeGenerationId: resumeGeneration.id,
+          metadata: {
+            sessionId: input.sessionId,
+            targetId: input.targetId ?? null,
+            stage: 'release_credit',
+            reason: generationFailureReason,
+          },
+        }),
+        onFailure: () => ({
+          errorCategory: 'release_credit',
+          errorCode: 'release_failed',
+        }),
       })
       logInfo('resume_generation.credit_released', {
         userId: input.userId,
@@ -586,6 +668,11 @@ export async function generateBillableResume(input: {
         generationIntentKey,
         generationType,
         stage: 'release_credit',
+      })
+      recordMetricCounter('billing.reservations.released', {
+        appUserId: input.userId,
+        generationIntentKey,
+        generationType,
       })
     } catch (error) {
       try {
@@ -598,6 +685,12 @@ export async function generateBillableResume(input: {
             source: 'render_failure_release',
             generationIntentKey,
           },
+        })
+        recordMetricCounter('billing.reservations.needs_reconciliation', {
+          appUserId: input.userId,
+          generationIntentKey,
+          generationType,
+          source: 'render_failure_release',
         })
       } catch (markerError) {
         logWarn('resume_generation.reconciliation_marker_failed', {
@@ -628,7 +721,13 @@ export async function generateBillableResume(input: {
     await safeUpdateResumeGeneration({
       id: resumeGeneration.id,
       status: 'failed',
-      failureReason: generationResult.generatedOutput?.error ?? generationResult.output.error,
+      failureReason: generationFailureReason,
+    })
+    recordMetricCounter('exports.failed', {
+      appUserId: input.userId,
+      generationIntentKey,
+      generationType,
+      stage: 'render_artifact',
     })
 
     return {
@@ -640,15 +739,24 @@ export async function generateBillableResume(input: {
 
   let needsReconciliation = false
   try {
-    await finalizeCreditReservation({
-      userId: input.userId,
+    await withTimedOperation({
+      operation: 'finalizeCreditReservation',
       generationIntentKey,
-      resumeGenerationId: resumeGeneration.id,
-      metadata: {
-        sessionId: input.sessionId,
-        targetId: input.targetId ?? null,
-        stage: 'finalize_credit',
-      },
+      appUserId: input.userId,
+      run: () => finalizeCreditReservation({
+        userId: input.userId,
+        generationIntentKey,
+        resumeGenerationId: resumeGeneration.id,
+        metadata: {
+          sessionId: input.sessionId,
+          targetId: input.targetId ?? null,
+          stage: 'finalize_credit',
+        },
+      }),
+      onFailure: () => ({
+        errorCategory: 'finalize_credit',
+        errorCode: 'finalize_failed',
+      }),
     })
     logInfo('resume_generation.credit_finalized', {
       userId: input.userId,
@@ -658,6 +766,11 @@ export async function generateBillableResume(input: {
       generationIntentKey,
       generationType,
       stage: 'finalize_credit',
+    })
+    recordMetricCounter('billing.reservations.finalized', {
+      appUserId: input.userId,
+      generationIntentKey,
+      generationType,
     })
   } catch (error) {
     needsReconciliation = true
@@ -671,6 +784,12 @@ export async function generateBillableResume(input: {
           source: 'artifact_success_finalize',
           generationIntentKey,
         },
+      })
+      recordMetricCounter('billing.reservations.needs_reconciliation', {
+        appUserId: input.userId,
+        generationIntentKey,
+        generationType,
+        source: 'artifact_success_finalize',
       })
     } catch (markerError) {
       logWarn('resume_generation.reconciliation_marker_failed', {
@@ -702,6 +821,13 @@ export async function generateBillableResume(input: {
     resumeGeneration,
     sourceCvState: input.sourceCvState,
     generationResult,
+  })
+
+  recordMetricCounter('exports.completed', {
+    appUserId: input.userId,
+    generationIntentKey,
+    generationType,
+    needsReconciliation,
   })
 
   return {

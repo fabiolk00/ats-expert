@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PlanUpdateSection } from "@/components/dashboard/plan-update-section"
 import { loadOptionalBillingInfo } from "@/lib/asaas/optional-billing-info"
 import { getCurrentAppUser } from "@/lib/auth/app-user"
+import { canAccessOperationsDashboard } from "@/lib/auth/operations-access"
 import { db } from "@/lib/db/sessions"
 import { PLANS } from "@/lib/plans"
 
@@ -68,6 +69,7 @@ export default async function SettingsPage() {
 
     return best
   }, null)
+  const showOperationsLink = canAccessOperationsDashboard(appUser)
 
   return (
     <div className="relative overflow-hidden px-4 py-6 lg:px-8 lg:py-8">
@@ -108,6 +110,14 @@ export default async function SettingsPage() {
                     </Link>
                   </Button>
                 )}
+                {showOperationsLink ? (
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link href="/operations">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Ver operações
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
             </div>
 
