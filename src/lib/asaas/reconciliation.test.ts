@@ -79,7 +79,11 @@ describe('reconcileCreditReservations', () => {
 
   it('releases a reserved hold exactly once when the linked job already failed', async () => {
     mockListCreditReservationsForReconciliation.mockResolvedValue([
-      buildReservation(),
+      buildReservation({
+        status: 'needs_reconciliation',
+        reconciliationStatus: 'pending',
+        failureReason: 'release rpc failed',
+      }),
     ])
     mockGetJob.mockResolvedValue({
       jobId: 'job_123',
@@ -122,7 +126,12 @@ describe('reconcileCreditReservations', () => {
 
   it('finalizes a reserved hold exactly once when artifact evidence exists for a completed job', async () => {
     mockListCreditReservationsForReconciliation.mockResolvedValue([
-      buildReservation({ resumeGenerationId: 'gen_123' }),
+      buildReservation({
+        status: 'needs_reconciliation',
+        reconciliationStatus: 'pending',
+        failureReason: 'finalize rpc failed',
+        resumeGenerationId: 'gen_123',
+      }),
     ])
     mockGetJob.mockResolvedValue({
       jobId: 'job_123',

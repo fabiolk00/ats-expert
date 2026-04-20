@@ -213,6 +213,42 @@ describe('credit reservation repository', () => {
     })
   })
 
+  it('allows reconciliation repairs to settle reservations already marked needs_reconciliation', async () => {
+    reservationMaybeSingle
+      .mockResolvedValueOnce({ data: buildReservationRow('needs_reconciliation'), error: null })
+      .mockResolvedValueOnce({ data: buildReservationRow('needs_reconciliation'), error: null })
+    mockSupabase.rpc
+      .mockResolvedValueOnce({ data: buildReservationRow('finalized'), error: null })
+      .mockResolvedValueOnce({ data: buildReservationRow('released'), error: null })
+
+    const finalized = await finalizeCreditReservation({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      resumeGenerationId: 'generation_123',
+      metadata: { source: 'reconciliation' },
+    })
+    const released = await releaseCreditReservation({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      metadata: { source: 'reconciliation' },
+    })
+
+    expect(finalized.status).toBe('finalized')
+    expect(released.status).toBe('released')
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(1, 'finalize_credit_reservation', {
+      p_user_id: 'usr_123',
+      p_generation_intent_key: 'intent_123',
+      p_resume_generation_id: 'generation_123',
+      p_metadata: { source: 'reconciliation' },
+    })
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'release_credit_reservation', {
+      p_user_id: 'usr_123',
+      p_generation_intent_key: 'intent_123',
+      p_resume_generation_id: null,
+      p_metadata: { source: 'reconciliation' },
+    })
+  })
+
   it('maps append-only hold, finalize, and release ledger entries with optional evidence links', async () => {
     ledgerOrder.mockResolvedValueOnce({
       data: [

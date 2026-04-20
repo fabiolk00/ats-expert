@@ -259,7 +259,7 @@ begin
     return v_existing;
   end if;
 
-  if v_existing.status <> 'reserved' then
+  if v_existing.status not in ('reserved', 'needs_reconciliation') then
     raise exception 'Cannot finalize credit reservation from % state', v_existing.status;
   end if;
 
@@ -346,7 +346,7 @@ begin
     return v_existing;
   end if;
 
-  if v_existing.status <> 'reserved' then
+  if v_existing.status not in ('reserved', 'needs_reconciliation') then
     raise exception 'Cannot release credit reservation from % state', v_existing.status;
   end if;
 
