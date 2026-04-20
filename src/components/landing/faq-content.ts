@@ -1,27 +1,27 @@
 export const landingFaqs = [
   {
-    question: 'Meu currículo vai ficar robótico?',
+    question: "Meu currículo vai ficar robótico?",
     answer:
-      'Não. O CurrIA otimiza a formatação e as palavras-chave para os sistemas de triagem (ATS), mas preserva sua história e suas conquistas. O resultado é um currículo profissional, claro e que demonstra seu valor humano.',
+      "Não. O CurrIA ajusta estrutura e palavras-chave para o ATS, mas preserva sua história e suas conquistas. O objetivo é deixar seu currículo mais claro, mais forte e mais fácil de ser lido.",
   },
   {
-    question: 'Quanto tempo leva para ver resultados?',
+    question: "Em quanto tempo eu posso ver resultado?",
     answer:
-      'A maioria dos nossos usuários relata um aumento nas chamadas para entrevistas já nas primeiras 2 a 3 semanas após atualizarem seus perfis em plataformas de vagas com o novo currículo otimizado.',
+      "Muitos usuários começam a receber mais retorno em poucas semanas, depois de atualizar o currículo nas plataformas de vagas com a versão otimizada.",
   },
   {
-    question: 'Funciona para todas as áreas e senioridades?',
+    question: "Funciona para qualquer área e senioridade?",
     answer:
-      'Sim. Desde estagiários até executivos (C-Level), e em áreas que vão de Tecnologia até Saúde. Nosso sistema analisa o mercado e foca em destacar as métricas e palavras-chave mais relevantes para o seu nível de experiência e segmento.',
+      "Sim. O CurrIA ajuda desde quem está começando até profissionais mais experientes, sempre destacando o que faz mais diferença para sua área e para seu momento de carreira.",
   },
   {
-    question: 'E se eu já tenho um currículo bom e bem diagramado?',
+    question: "E se eu já tenho um currículo bonito?",
     answer:
-      'Mesmo currículos com um ótimo design visual podem ser reprovados por sistemas ATS se usarem colunas complexas, tabelas ou fontes não padronizadas, que impedem a leitura automática. O CurrIA garante que seu bom conteúdo passe pelos filtros técnicos e chegue de fato à mesa dos recrutadores.',
+      "Um currículo visualmente bom ainda pode falhar no ATS. O CurrIA ajuda você a manter o conteúdo forte e, ao mesmo tempo, deixar tudo mais claro para a triagem automática.",
   },
   {
-    question: 'Meus dados estão seguros na plataforma?',
+    question: "Meus dados ficam seguros?",
     answer:
-      'Absolutamente. Levamos sua privacidade a sério. Seus dados pessoais e histórico profissional são armazenados com segurança e nunca são compartilhados ou vendidos a terceiros.',
+      "Sim. Seus dados e seu histórico profissional são tratados com segurança e não são vendidos nem compartilhados com terceiros.",
   },
 ] as const

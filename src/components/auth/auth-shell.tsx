@@ -5,9 +5,9 @@ import type { ReactNode } from "react"
 import Logo from "@/components/logo"
 
 const features = [
-  "Continue de onde parou no seu curr\u00EDculo otimizado.",
-  "Converse com IA e gere seu curr\u00EDculo otimizado.",
-  "Suas an\u00E1lises ATS e PDFs ficam salvos na sua conta.",
+  "Continue do ponto em que parou.",
+  "Descubra o que melhorar no currículo com ajuda da IA.",
+  "Suas análises ATS e PDFs ficam salvos na conta.",
 ]
 
 export default function AuthShell({
@@ -38,13 +38,13 @@ export default function AuthShell({
 
           <div className="flex max-w-lg flex-1 flex-col justify-center">
             <h1 className="mb-6 text-4xl font-bold leading-tight text-white md:text-5xl">
-              {"Pare de enviar curr\u00EDculos gen\u00E9ricos."}
+              {"Pare de enviar currículos genéricos."}
             </h1>
             <p className="mb-4 text-lg leading-relaxed text-white/70">
-              {"Adapte seu curr\u00EDculo para cada vaga em minutos e aumente suas chances de entrevistas."}
+              {"Deixe seu currículo mais claro para o ATS e aumente suas chances de entrevista."}
             </p>
             <p className="text-base text-white">
-              {"Voc\u00EA precisa de um curr\u00EDculo certo para a vaga certa."}
+              {"Seu currículo precisa mostrar rápido por que você merece avançar."}
             </p>
           </div>
 
@@ -76,7 +76,7 @@ export default function AuthShell({
 
             <div className="mb-8 flex items-center gap-2 rounded-xl bg-muted p-1.5">
               <Link
-                href="/login"
+                href="/entrar"
                 className={`flex-1 rounded-lg px-4 py-3 text-center text-sm font-medium transition-all ${
                   mode === "login"
                     ? "bg-foreground text-background shadow-sm"
@@ -86,7 +86,7 @@ export default function AuthShell({
                 Entrar
               </Link>
               <Link
-                href="/signup"
+                href="/criar-conta"
                 className={`flex-1 rounded-lg px-4 py-3 text-center text-sm font-medium transition-all ${
                   mode === "signup"
                     ? "bg-foreground text-background shadow-sm"

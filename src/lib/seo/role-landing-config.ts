@@ -361,8 +361,8 @@ export const desenvolvedorConfig: RoleLandingConfig = {
   internalLinks: [
     { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Guia específico para área de dados", image: "/images/seo/data-analyst-career.jpg" },
     { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Otimização para marketing digital", image: "/images/seo/marketing-career.jpg" },
-    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS", image: "/images/seo/ats-guide.jpg" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/developer-career.jpg" },
+    { label: "O que é ATS?", href: "/o-que-e-ats", description: "Entenda como funcionam os sistemas ATS", image: "/images/seo/ats-guide.jpg" },
+    { label: "Analisar meu currículo", href: "/criar-conta", description: "Receba seu score ATS gratuitamente", image: "/images/seo/developer-career.jpg" },
   ],
   faqs: [
     {
@@ -618,8 +618,8 @@ export const analistaDadosConfig: RoleLandingConfig = {
   internalLinks: [
     { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores", image: "/images/seo/developer-career.jpg" },
     { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Otimização para marketing digital", image: "/images/seo/marketing-career.jpg" },
-    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS", image: "/images/seo/ats-guide.jpg" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/data-analyst-career.jpg" },
+    { label: "O que é ATS?", href: "/o-que-e-ats", description: "Entenda como funcionam os sistemas ATS", image: "/images/seo/ats-guide.jpg" },
+    { label: "Analisar meu currículo", href: "/criar-conta", description: "Receba seu score ATS gratuitamente", image: "/images/seo/data-analyst-career.jpg" },
   ],
   faqs: [
     {
@@ -876,8 +876,8 @@ export const marketingConfig: RoleLandingConfig = {
   internalLinks: [
     { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores", image: "/images/seo/developer-career.jpg" },
     { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Otimização para área de dados", image: "/images/seo/data-analyst-career.jpg" },
-    { label: "O que é ATS?", href: "/what-is-ats", description: "Entenda como funcionam os sistemas ATS", image: "/images/seo/ats-guide.jpg" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/marketing-career.jpg" },
+    { label: "O que é ATS?", href: "/o-que-e-ats", description: "Entenda como funcionam os sistemas ATS", image: "/images/seo/ats-guide.jpg" },
+    { label: "Analisar meu currículo", href: "/criar-conta", description: "Receba seu score ATS gratuitamente", image: "/images/seo/marketing-career.jpg" },
   ],
   positioningMistakes: [
     "Não define especialidade clara (Performance? SEO? Growth? Conteúdo?)",
@@ -1146,7 +1146,7 @@ export const customerSuccessConfig: RoleLandingConfig = {
     { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Guia específico para marketing digital", image: "/images/seo/marketing-career.jpg" },
     { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Otimização para área de dados", image: "/images/seo/data-analyst-career.jpg" },
     { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores", image: "/images/seo/developer-career.jpg" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/ats-guide.jpg" },
+    { label: "Analisar meu currículo", href: "/criar-conta", description: "Receba seu score ATS gratuitamente", image: "/images/seo/ats-guide.jpg" },
   ],
   positioningMistakes: [
     "Se apresentar como suporte sem mostrar atuação estratégica em retenção e expansão",
@@ -1415,7 +1415,7 @@ export const productManagerConfig: RoleLandingConfig = {
     { label: "Currículo para Customer Success", href: "/curriculo-customer-success-ats", description: "Guia específico para Customer Success", image: "/images/seo/ats-guide.jpg" },
     { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Otimização para marketing digital", image: "/images/seo/marketing-career.jpg" },
     { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Guia específico para desenvolvedores", image: "/images/seo/developer-career.jpg" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/data-analyst-career.jpg" },
+    { label: "Analisar meu currículo", href: "/criar-conta", description: "Receba seu score ATS gratuitamente", image: "/images/seo/data-analyst-career.jpg" },
   ],
   positioningMistakes: [
     "Parecer apenas um gestor de backlog sem mostrar impacto estratégico",
@@ -1684,7 +1684,7 @@ export const vendasConfig: RoleLandingConfig = {
     { label: "Currículo para Product Manager", href: "/curriculo-product-manager-ats", description: "Guia específico para Product Manager", image: "/images/seo/ats-guide.jpg" },
     { label: "Currículo para Customer Success", href: "/curriculo-customer-success-ats", description: "Otimização para Customer Success", image: "/images/seo/marketing-career.jpg" },
     { label: "Currículo para Marketing", href: "/curriculo-marketing-ats", description: "Guia específico para marketing digital", image: "/images/seo/marketing-career.jpg" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/developer-career.jpg" },
+    { label: "Analisar meu currículo", href: "/criar-conta", description: "Receba seu score ATS gratuitamente", image: "/images/seo/developer-career.jpg" },
   ],
   positioningMistakes: [
     "Não mostrar números mesmo trabalhando com metas e receita",
@@ -1953,7 +1953,7 @@ export const financeiroConfig: RoleLandingConfig = {
     { label: "Currículo para Vendas", href: "/curriculo-vendas-ats", description: "Guia específico para profissionais de vendas", image: "/images/seo/ats-guide.jpg" },
     { label: "Currículo para Product Manager", href: "/curriculo-product-manager-ats", description: "Otimização para Product Manager", image: "/images/seo/marketing-career.jpg" },
     { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Guia específico para área de dados", image: "/images/seo/data-analyst-career.jpg" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/developer-career.jpg" },
+    { label: "Analisar meu currículo", href: "/criar-conta", description: "Receba seu score ATS gratuitamente", image: "/images/seo/developer-career.jpg" },
   ],
   positioningMistakes: [
     "Descrever rotina financeira sem mostrar impacto no resultado da empresa",
@@ -2235,7 +2235,7 @@ export const engenheiroDadosConfig: RoleLandingConfig = {
     { label: "Currículo para Analista de Dados", href: "/curriculo-analista-dados-ats", description: "Guia específico para analistas de dados", image: "/images/seo/data-analyst-career.jpg" },
     { label: "Currículo para Desenvolvedor", href: "/curriculo-desenvolvedor-ats", description: "Otimização para perfis de tecnologia", image: "/images/seo/developer-career.jpg" },
     { label: "Currículo para Product Manager", href: "/curriculo-product-manager-ats", description: "Guia específico para produto", image: "/images/seo/ats-guide.jpg" },
-    { label: "Analisar meu currículo", href: "/signup", description: "Receba seu score ATS gratuitamente", image: "/images/seo/marketing-career.jpg" },
+    { label: "Analisar meu currículo", href: "/criar-conta", description: "Receba seu score ATS gratuitamente", image: "/images/seo/marketing-career.jpg" },
   ],
 
   positioningMistakes: [

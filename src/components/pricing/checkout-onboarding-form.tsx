@@ -124,7 +124,7 @@ export function CheckoutOnboardingForm({
     }
 
     if (response.status === 401) {
-      router.push(`/login?redirect_to=${encodeURIComponent(buildCheckoutResumePath(normalizedValues.plan))}`)
+      router.push(`/entrar?redirect_to=${encodeURIComponent(buildCheckoutResumePath(normalizedValues.plan))}`)
       return
     }
 

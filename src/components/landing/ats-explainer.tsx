@@ -16,20 +16,20 @@ import BrandWordmark from "@/components/brand-wordmark"
 const steps = [
   {
     icon: FileUp,
-    title: "1. Você se candidata",
-    description: "Você envia seu currículo através de um portal de vagas.",
+    title: "1. Você envia o currículo",
+    description: "Seu currículo entra em uma plataforma de vagas ou no sistema da empresa.",
   },
   {
     icon: Cpu,
-    title: "2. O ATS escaneia",
+    title: "2. O ATS faz a triagem",
     description:
-      "Software automatizado analisa seu currículo buscando palavras-chave, formatação e relevância antes que um humano veja.",
+      "O sistema procura palavras-chave, estrutura e sinais de aderência antes que alguém do RH veja seu perfil.",
   },
   {
     icon: Network,
-    title: "3. Filtrado ou encaminhado",
+    title: "3. Você avança ou fica pelo caminho",
     description:
-      "Se seu currículo não corresponde aos critérios, é rejeitado antes mesmo de chegar à mesa do recrutador.",
+      "Se o currículo não estiver claro para o ATS, ele pode ser descartado antes mesmo de chegar ao recrutador.",
     showPaths: true,
   },
 ]
@@ -48,11 +48,11 @@ export default function AtsExplainer() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">
-            O que é ATS e por que você deve se importar?
+            O que é ATS e por que isso importa
           </h2>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            <strong className="text-foreground">75% dos currículos nunca são vistos por um humano.</strong>{" "}
-            Eles são rejeitados por sistemas ATS (Applicant Tracking Systems). Veja como funciona:
+            <strong className="text-foreground">Muitos currículos nem chegam ao RH.</strong>{" "}
+            Antes disso, eles passam por um sistema que decide quem segue para a próxima etapa.
           </p>
         </motion.div>
 
@@ -96,14 +96,14 @@ export default function AtsExplainer() {
                       <div className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/10 text-sm font-medium">
                         <div className="flex items-center gap-2 text-destructive">
                           <XCircle className="h-5 w-5" />
-                          <span>Rejeitado pelo robô</span>
+                          <span>Fica na triagem</span>
                         </div>
                         <span className="text-destructive font-bold">75%</span>
                       </div>
                       <div className="flex items-center justify-between p-3 rounded-xl bg-green-500/5 border border-green-500/10 text-sm font-medium">
                         <div className="flex items-center gap-2 text-green-600 dark:text-green-500">
                           <CheckCircle2 className="h-5 w-5" />
-                          <span>Visto pelo recrutador</span>
+                          <span>Chega ao recrutador</span>
                         </div>
                         <span className="text-green-600 dark:text-green-500 font-bold">25%</span>
                       </div>
@@ -129,20 +129,20 @@ export default function AtsExplainer() {
 
               <div className="relative z-10">
                 <h3 className="text-2xl md:text-3xl font-bold mb-4 tracking-tight">
-                  O <BrandWordmark /> foi feito para vencer o ATS
+                  O <BrandWordmark /> foi feito para ajudar você a passar no ATS
                 </h3>
                 <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                  Nós fazemos a engenharia reversa desse processo. Nossa inteligência artificial otimiza seu currículo com as palavras-chave certas para que você sempre caia na pilha do recrutador.
+                  A plataforma mostra o que está faltando, destaca as palavras-chave mais importantes e deixa seu currículo mais claro para a triagem.
                 </p>
               </div>
             </div>
           </div>
 
           <Link
-            href="/what-is-ats"
+            href="/o-que-e-ats"
             className="group inline-flex items-center gap-3 px-8 py-4 bg-primary text-primary-foreground rounded-full font-semibold hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/25 hover:-translate-y-1"
           >
-            Entenda a fundo como vencer o ATS
+            Entender como o ATS lê seu currículo
             <ArrowRightCircle className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Link>
         </motion.div>

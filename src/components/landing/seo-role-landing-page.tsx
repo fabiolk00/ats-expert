@@ -246,7 +246,7 @@ export default function SeoRoleLandingPage({ config }: { config: RoleLandingConf
                 </h1>
                 <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 md:text-xl">{config.hero.subtitle}</p>
                 <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <Link href="/signup" className={cn("inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition hover:-translate-y-0.5", theme.button)}>
+                  <Link href="/criar-conta" className={cn("inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition hover:-translate-y-0.5", theme.button)}>
                     {config.hero.ctaText}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -524,7 +524,7 @@ export default function SeoRoleLandingPage({ config }: { config: RoleLandingConf
                 <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-md"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/45">Função</p><p className="mt-3 text-lg font-semibold text-white">{config.roleShort}</p></div>
               </div>
             </div>
-            <Link href="/signup" className="relative mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100">
+            <Link href="/criar-conta" className="relative mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100">
               Analisar meu currículo
               <ArrowRight className="h-4 w-4" />
             </Link>

@@ -22,7 +22,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
     isE2EAuthEnabled() ? Promise.resolve(null) : currentUser(),
   ])
   if (!appUser) {
-    redirect('/login')
+    redirect('/entrar')
   }
 
   const { billingInfo, billingNotice } = await loadOptionalBillingInfo(appUser.id, 'auth_layout')

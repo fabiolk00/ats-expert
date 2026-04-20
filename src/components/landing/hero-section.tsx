@@ -24,17 +24,17 @@ export default function HeroSection() {
               <span className="block">Passe no ATS.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground text-pretty md:text-xl lg:mx-0">
-              <BrandText text="A CurrIA analisa e reescreve seu currículo com base no que realmente gera entrevistas." />
+              <BrandText text="Veja por que seu currículo está sendo ignorado e descubra o que precisa melhorar para passar no ATS." />
             </p>
             <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
               <Button asChild size="lg" className="gap-2 text-base font-semibold">
-                <Link href="/what-is-ats">
+                <Link href="/o-que-e-ats">
                   Ver meu score ATS grátis
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="text-base font-semibold text-foreground">
-                <a href="#pricing">Ver como funciona</a>
+                <a href="#pricing">Ver como melhorar</a>
               </Button>
             </div>
           </div>

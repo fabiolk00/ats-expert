@@ -76,7 +76,7 @@ describe("PlanUpdateDialog", () => {
     await user.click(screen.getAllByRole("button", { name: "Selecionar" })[0])
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
-    expect(mockPush).toHaveBeenCalledWith("/checkout?plan=unit")
+    expect(mockPush).toHaveBeenCalledWith("/finalizar-compra?plan=unit")
     expect(mockToastError).not.toHaveBeenCalled()
   })
 

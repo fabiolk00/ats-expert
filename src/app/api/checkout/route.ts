@@ -238,7 +238,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const userName = user?.fullName ?? user?.firstName ?? 'Usuario CurrIA'
     const userEmail = user?.emailAddresses[0]?.emailAddress ?? null
     const successUrl = buildAppUrl('/dashboard')
-    const pricingUrl = buildAppUrl('/pricing')
+    const pricingUrl = buildAppUrl('/precos')
     const checkout = await createCheckoutRecordPending(appUser.id, plan.slug, plan.price)
     checkoutReference = checkout.checkoutReference
 

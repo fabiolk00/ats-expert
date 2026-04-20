@@ -5,8 +5,8 @@ import Logo from "@/components/logo"
 
 const links = [
   { label: "Preços", href: "#pricing" },
-  { label: "Termos", href: "/terms" },
-  { label: "Privacidade", href: "/privacy" },
+  { label: "Termos", href: "/termos" },
+  { label: "Privacidade", href: "/privacidade" },
 ]
 
 export default function Footer() {

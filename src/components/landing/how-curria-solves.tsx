@@ -8,21 +8,21 @@ import BrandWordmark from "@/components/brand-wordmark"
 const steps = [
   {
     icon: FileSearch,
-    title: "Lê a vaga e identifica sinais do ATS",
+    title: "Lê a vaga e identifica o que importa",
     description:
-      "A plataforma cruza requisitos, palavras-chave e intenção da vaga para entender o que realmente precisa aparecer no currículo.",
+      "A plataforma cruza requisitos, palavras-chave e sinais da vaga para mostrar o que precisa aparecer com mais clareza no currículo.",
   },
   {
     icon: Sparkles,
-    title: "Reescreve seu currículo com contexto real",
+    title: "Melhora a forma como você se apresenta",
     description:
-      "Seu histórico é reorganizado com linguagem mais forte, termos relevantes e estrutura mais fácil de ser lida por recrutadores e robôs.",
+      "Seu histórico fica mais direto, mais fácil de ler e mais alinhado com o que recrutadores e sistemas procuram.",
   },
   {
     icon: Target,
-    title: "Entrega uma versão pronta para aplicar",
+    title: "Entrega uma versão pronta para enviar",
     description:
-      "Você sai com um currículo mais claro, mais alinhado à vaga e muito mais preparado para passar no filtro inicial.",
+      "Você sai com um currículo mais forte, mais claro e mais preparado para passar da triagem.",
   },
 ]
 
@@ -44,7 +44,7 @@ export default function HowCurriaSolves() {
             O <BrandWordmark /> transforma um currículo genérico em uma versão pronta para o ATS
           </h2>
           <p className="mt-4 text-lg text-muted-foreground md:text-xl">
-            Em vez de adivinhar o que falta, você entende o problema e aplica uma versão mais forte do seu currículo com direção prática.
+            Em vez de adivinhar o que falta, você entende o problema e faz ajustes mais certeiros no seu currículo.
           </p>
         </motion.div>
 

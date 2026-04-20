@@ -9,23 +9,23 @@ import { PLANS, formatPrice } from "@/lib/plans"
 const plans = [
   {
     slug: "free" as const,
-    cta: "Começar grátis",
-    href: "/signup",
+    cta: "Ver meu score ATS",
+    href: "/criar-conta",
   },
   {
     slug: "unit" as const,
-    cta: "Comprar agora",
-    href: "/pricing",
+    cta: "Ver detalhes do plano",
+    href: "/precos",
   },
   {
     slug: "monthly" as const,
-    cta: "Assinar Mensal",
-    href: "/pricing",
+    cta: "Ver detalhes do plano",
+    href: "/precos",
   },
   {
     slug: "pro" as const,
-    cta: "Assinar Pro",
-    href: "/pricing",
+    cta: "Ver detalhes do plano",
+    href: "/precos",
   },
 ]
 
@@ -35,10 +35,10 @@ export default function PricingSection() {
       <div className="container mx-auto px-4">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-balance md:text-4xl">
-            Preços simples e transparentes
+            Preços simples para melhorar seu currículo
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-            Escolha o plano ideal para suas necessidades. Cancele quando quiser.
+            Escolha o plano ideal para ver seu score ATS, ajustar o currículo e avançar mais nas vagas.
           </p>
         </div>
 

@@ -18,6 +18,8 @@ const {
   mockAttemptEmailAddressVerification,
   mockValidatePassword,
   mockSetActive,
+  mockSignUpState,
+  mockClerkState,
 } = vi.hoisted(() => ({
   mockSearchParamsGet: vi.fn(),
   mockNavigateToUrl: vi.fn(),
@@ -29,32 +31,41 @@ const {
   mockAttemptEmailAddressVerification: vi.fn(),
   mockValidatePassword: vi.fn(),
   mockSetActive: vi.fn(),
-}))
-
-vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({
-    isLoaded: mockIsLoaded(),
-    isSignedIn: mockIsSignedIn(),
-  }),
-  useSignUp: () => ({
+  mockSignUpState: {
     isLoaded: true,
     signUp: {
-      create: mockSignUpCreate,
-      authenticateWithRedirect: mockSignUpAuthenticateWithRedirect,
-      prepareEmailAddressVerification: mockPrepareEmailAddressVerification,
-      attemptEmailAddressVerification: mockAttemptEmailAddressVerification,
-      validatePassword: mockValidatePassword,
+      create: vi.fn(),
+      authenticateWithRedirect: vi.fn(),
+      prepareEmailAddressVerification: vi.fn(),
+      attemptEmailAddressVerification: vi.fn(),
+      validatePassword: vi.fn(),
     },
-    setActive: mockSetActive,
-  }),
-  useClerk: () => ({
+    setActive: vi.fn(),
+  },
+  mockClerkState: {
     client: {
       passwordSettings: {
         min_length: 8,
         require_special_char: true,
       },
     },
+  },
+}))
+
+mockSignUpState.signUp.create = mockSignUpCreate
+mockSignUpState.signUp.authenticateWithRedirect = mockSignUpAuthenticateWithRedirect
+mockSignUpState.signUp.prepareEmailAddressVerification = mockPrepareEmailAddressVerification
+mockSignUpState.signUp.attemptEmailAddressVerification = mockAttemptEmailAddressVerification
+mockSignUpState.signUp.validatePassword = mockValidatePassword
+mockSignUpState.setActive = mockSetActive
+
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({
+    isLoaded: mockIsLoaded(),
+    isSignedIn: mockIsSignedIn(),
   }),
+  useSignUp: () => mockSignUpState,
+  useClerk: () => mockClerkState,
 }))
 
 vi.mock("next/navigation", () => ({
@@ -103,7 +114,7 @@ describe("SignupForm", () => {
     expect(screen.getByLabelText("Sobrenome")).toBeInTheDocument()
     expect(screen.getByLabelText("E-mail")).toBeInTheDocument()
     expect(screen.getByLabelText("Senha")).toBeInTheDocument()
-    expect(screen.getByText("Minimo de 8 caracteres")).toBeInTheDocument()
+    expect(screen.getByText("Mínimo de 8 caracteres")).toBeInTheDocument()
     expect(screen.getByText("Pelo menos 1 caractere especial")).toBeInTheDocument()
   })
 
@@ -136,13 +147,13 @@ describe("SignupForm", () => {
   it("redirects authenticated visitors away from signup using the requested path", async () => {
     mockIsSignedIn.mockReturnValue(true)
     mockSearchParamsGet.mockImplementation((key: string) =>
-      key === "redirect_to" ? "/pricing?checkoutPlan=pro" : null,
+      key === "redirect_to" ? "/precos?checkoutPlan=pro" : null,
     )
 
     render(<SignupForm />)
 
     await waitFor(() => {
-      expect(mockNavigateToUrl).toHaveBeenCalledWith("/pricing?checkoutPlan=pro")
+      expect(mockNavigateToUrl).toHaveBeenCalledWith("/precos?checkoutPlan=pro")
     })
   })
 
@@ -167,7 +178,7 @@ describe("SignupForm", () => {
       })
     })
 
-    expect(screen.getByLabelText("Codigo")).toBeInTheDocument()
+    expect(screen.getByLabelText("Código")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Verificar" })).toBeInTheDocument()
   })
 })

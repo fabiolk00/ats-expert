@@ -13,10 +13,20 @@ import { getAppUrl, isCanonicalAppHost } from '@/lib/config/app-url'
 
 const isPublicRoute = createRouteMatcher([
   '/',
+  '/entrar(.*)',
+  '/criar-conta(.*)',
+  '/precos(.*)',
+  '/o-que-e-ats(.*)',
+  '/privacidade(.*)',
+  '/termos(.*)',
+  '/finalizar-compra(.*)',
   '/login(.*)',
   '/signup(.*)',
   '/pricing(.*)',
   '/what-is-ats(.*)',
+  '/privacy(.*)',
+  '/terms(.*)',
+  '/checkout(.*)',
   '/curriculo-(.*)-ats(.*)',
   '/sso-callback(.*)',
   '/api/webhook/asaas(.*)',
@@ -115,7 +125,7 @@ async function handleE2EMiddleware(req: NextRequest): Promise<NextResponse> {
     && await hasValidE2EAuthCookie(req.cookies.get(E2E_AUTH_COOKIE_NAME)?.value)
 
   if (!isPublicRoute(req) && !isApiRoute && !hasValidE2EAuth) {
-    const loginUrl = new URL('/login', req.url)
+    const loginUrl = new URL('/entrar', req.url)
     return addSecurityHeaders(NextResponse.redirect(loginUrl, 307))
   }
 

@@ -11,11 +11,13 @@ const {
   mockAuthenticateWithRedirect,
   mockSetActive,
   mockNavigateToUrl,
+  mockSearchParamsGet,
 } = vi.hoisted(() => ({
   mockCreate: vi.fn(),
   mockAuthenticateWithRedirect: vi.fn(),
   mockSetActive: vi.fn(),
   mockNavigateToUrl: vi.fn(),
+  mockSearchParamsGet: vi.fn(),
 }))
 
 vi.mock("@clerk/nextjs", () => ({
@@ -29,6 +31,12 @@ vi.mock("@clerk/nextjs", () => ({
   }),
 }))
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => ({
+    get: mockSearchParamsGet,
+  }),
+}))
+
 vi.mock("@/lib/navigation/external", () => ({
   navigateToUrl: mockNavigateToUrl,
 }))
@@ -36,6 +44,7 @@ vi.mock("@/lib/navigation/external", () => ({
 describe("LoginForm", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSearchParamsGet.mockReturnValue(null)
     mockCreate.mockResolvedValue({
       status: "complete",
       createdSessionId: "sess_123",
@@ -76,6 +85,23 @@ describe("LoginForm", () => {
     })
   })
 
+  it("respects redirect_to after password login", async () => {
+    mockSearchParamsGet.mockImplementation((key: string) =>
+      key === "redirect_to" ? "/precos?checkoutPlan=pro" : null,
+    )
+    const user = userEvent.setup()
+
+    render(<LoginForm />)
+
+    await user.type(screen.getByLabelText("E-mail"), "ana@example.com")
+    await user.type(screen.getByLabelText("Senha"), "super-secret")
+    await user.click(screen.getByRole("button", { name: /^Continuar$/i }))
+
+    await waitFor(() => {
+      expect(mockNavigateToUrl).toHaveBeenCalledWith("/precos?checkoutPlan=pro")
+    })
+  })
+
   it("starts the Google redirect flow with the new resume destination", async () => {
     const user = userEvent.setup()
 
@@ -88,6 +114,25 @@ describe("LoginForm", () => {
         strategy: "oauth_google",
         redirectUrl: "/sso-callback",
         redirectUrlComplete: "/dashboard/resumes/new",
+      })
+    })
+  })
+
+  it("passes redirect_to to the Google auth flow", async () => {
+    mockSearchParamsGet.mockImplementation((key: string) =>
+      key === "redirect_to" ? "/finalizar-compra?plan=pro" : null,
+    )
+    const user = userEvent.setup()
+
+    render(<LoginForm />)
+
+    await user.click(screen.getByRole("button", { name: "Continuar com Google" }))
+
+    await waitFor(() => {
+      expect(mockAuthenticateWithRedirect).toHaveBeenCalledWith({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/finalizar-compra?plan=pro",
       })
     })
   })

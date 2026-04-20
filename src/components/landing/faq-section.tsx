@@ -21,11 +21,11 @@ export default function FaqSection() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="mb-6 text-[40px] font-bold leading-[1.1] tracking-[-0.02em] text-zinc-900">
-            Perguntas Frequentes
+            Perguntas frequentes
           </h2>
           <p className="text-xl font-medium leading-relaxed text-zinc-500">
             <BrandText
-              text="Tudo o que você precisa saber sobre sistemas ATS e otimização de currículos."
+              text="Tire suas dúvidas sobre ATS, currículo e como o CurrIA ajuda você a conseguir mais entrevistas."
               className="font-medium text-zinc-500"
             />
           </p>

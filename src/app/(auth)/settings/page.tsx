@@ -101,7 +101,7 @@ export default async function SettingsPage() {
                   />
                 ) : (
                   <Button asChild variant="outline" className="rounded-full">
-                    <Link href="/pricing">
+                    <Link href="/precos">
                       <CreditCard className="mr-2 h-4 w-4" />
                       Ver como funciona
                     </Link>
@@ -186,7 +186,7 @@ export default async function SettingsPage() {
                   </p>
                 </div>
                 <Button asChild className="w-full rounded-full">
-                  <Link href="/pricing">Abrir comparativo de planos</Link>
+                  <Link href="/precos">Abrir comparativo de planos</Link>
                 </Button>
               </CardContent>
             </Card>

@@ -73,16 +73,16 @@ describe('AuthLayout', () => {
     expect(dynamic).toBe('force-dynamic')
   })
 
-  it('redirects unauthenticated users to /login', async () => {
+  it('redirects unauthenticated users to /entrar', async () => {
     mockGetCurrentAppUser.mockResolvedValue(null)
 
     await expect(
       AuthLayout({
         children: <div>Child</div>,
       }),
-    ).rejects.toThrow('redirect:/login')
+    ).rejects.toThrow('redirect:/entrar')
 
-    expect(mockRedirect).toHaveBeenCalledWith('/login')
+    expect(mockRedirect).toHaveBeenCalledWith('/entrar')
   })
 
   it('renders the dashboard shell for authenticated users', async () => {

@@ -51,7 +51,7 @@ const resumeGuides = [
     background: "from-amber-600 via-orange-600 to-rose-500",
   },
   {
-    title: "Analista Financeiro",
+    title: "Analista financeiro",
     subtitle: "Indicadores, Controle, Planejamento",
     href: "/curriculo-financeiro-ats",
     icon: Wallet,
@@ -118,10 +118,10 @@ export default function ExploreResumesCarousel() {
             Explore currículos por área
           </p>
           <h2 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-            Guias específicos para diferentes perfis profissionais
+            Guias práticos para deixar seu currículo mais forte
           </h2>
           <p className="mt-3 text-base text-muted-foreground md:text-lg">
-            Descubra exemplos, palavras-chave e ajustes práticos para montar um currículo mais forte para a sua área.
+            Veja exemplos, palavras-chave e ajustes que ajudam seu currículo a passar melhor no ATS.
           </p>
         </div>
 
@@ -171,12 +171,8 @@ export default function ExploreResumesCarousel() {
                       </div>
 
                       <div>
-                        <h3 className="text-2xl font-semibold">
-                          {guide.title}
-                        </h3>
-                        <p className="mt-2 text-sm text-white/80">
-                          {guide.subtitle}
-                        </p>
+                        <h3 className="text-2xl font-semibold">{guide.title}</h3>
+                        <p className="mt-2 text-sm text-white/80">{guide.subtitle}</p>
 
                         <div className="mt-4 text-sm font-medium text-white/90">
                           Ver guia →

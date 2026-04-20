@@ -118,8 +118,8 @@ describe('checkout route billing sequencing', () => {
       checkoutReference: 'chk_123',
       externalReference: 'curria:v1:u:usr_123:c:chk_123',
       successUrl: buildAppUrl('/dashboard'),
-      cancelUrl: buildAppUrl('/pricing'),
-      expiredUrl: buildAppUrl('/pricing'),
+      cancelUrl: buildAppUrl('/precos'),
+      expiredUrl: buildAppUrl('/precos'),
       billingInfo: {
         cpfCnpj: '12345678901',
         phoneNumber: '11999999999',
@@ -240,7 +240,7 @@ describe('checkout route billing sequencing', () => {
       userName: 'Usuario CurrIA',
       userEmail: null,
       successUrl: buildAppUrl('/dashboard'),
-      cancelUrl: buildAppUrl('/pricing'),
+      cancelUrl: buildAppUrl('/precos'),
     }))
   })
 

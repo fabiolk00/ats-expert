@@ -23,9 +23,9 @@ export default function FinalCta() {
 
       <div className="container mx-auto px-4 text-center relative z-10">
         <h2 className="text-4xl md:text-5xl font-extrabold text-balance max-w-3xl mx-auto leading-tight">
-          Pare de ser rejeitado por robôs.{" "}
+          Descubra o que está travando seu currículo.{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/60 block mt-2">
-            Comece a conseguir entrevistas.
+            E comece a conseguir mais entrevistas.
           </span>
         </h2>
         <div className="mt-12">
@@ -34,8 +34,8 @@ export default function FinalCta() {
             size="lg"
             className="text-lg gap-3 h-14 px-8 font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
           >
-            <Link href="/signup">
-              Começar gratuitamente
+            <Link href="/criar-conta">
+              Ver meu score ATS
               <ArrowRight className="h-5 w-5" />
             </Link>
           </Button>

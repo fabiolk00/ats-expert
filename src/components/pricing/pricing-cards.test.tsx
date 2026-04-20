@@ -70,7 +70,7 @@ describe('PricingCards', () => {
 
     await user.click(screen.getByRole('button', { name: /Come.*grátis/i }))
 
-    expect(mockPush).toHaveBeenCalledWith('/signup')
+    expect(mockPush).toHaveBeenCalledWith('/criar-conta')
   })
 
   it('redirects signed-out users to signup with the selected paid plan onboarding path', async () => {
@@ -80,7 +80,7 @@ describe('PricingCards', () => {
 
     await user.click(screen.getAllByRole('button', { name: /Come.*agora/i })[0])
 
-    expect(mockPush).toHaveBeenCalledWith('/signup?redirect_to=%2Fpricing%3FcheckoutPlan%3Dunit')
+    expect(mockPush).toHaveBeenCalledWith('/criar-conta?redirect_to=%2Fprecos%3FcheckoutPlan%3Dunit')
   })
 
   it('redirects signed-in users to the intermediate checkout onboarding route', async () => {
@@ -91,7 +91,7 @@ describe('PricingCards', () => {
 
     await user.click(screen.getAllByRole('button', { name: /Come.*agora/i })[1])
 
-    expect(mockPush).toHaveBeenCalledWith('/checkout?plan=monthly')
+    expect(mockPush).toHaveBeenCalledWith('/finalizar-compra?plan=monthly')
   })
 
   it('resumes checkout onboarding automatically after auth when checkoutPlan is present in the url', async () => {
@@ -103,8 +103,8 @@ describe('PricingCards', () => {
     render(<PricingCards />)
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/pricing')
-      expect(mockPush).toHaveBeenCalledWith('/checkout?plan=pro')
+      expect(mockReplace).toHaveBeenCalledWith('/precos')
+      expect(mockPush).toHaveBeenCalledWith('/finalizar-compra?plan=pro')
     })
   })
 

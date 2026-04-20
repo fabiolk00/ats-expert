@@ -121,7 +121,7 @@ describe('CheckoutOnboardingForm', () => {
     await user.click(screen.getByRole('button', { name: /Finalizar cadastro/i }))
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/login?redirect_to=%2Fpricing%3FcheckoutPlan%3Dpro')
+      expect(mockPush).toHaveBeenCalledWith('/entrar?redirect_to=%2Fprecos%3FcheckoutPlan%3Dpro')
     })
   })
 })

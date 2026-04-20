@@ -319,7 +319,7 @@ export default function WhatIsAtsPageClient() {
                 Pare de enviar currículos para o buraco negro. Deixe nossa IA otimizar seu perfil e comece a ser chamado para as entrevistas.
               </p>
               <Link
-                href="/signup"
+                href="/criar-conta"
                 className="group inline-flex items-center gap-3 rounded-full bg-primary px-8 py-5 text-lg font-semibold text-primary-foreground shadow-xl transition-all hover:-translate-y-1 hover:bg-primary/90 hover:shadow-primary/25"
               >
                 Crie seu currículo

@@ -462,7 +462,7 @@ function SidebarContent({
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/what-is-ats" onClick={onCloseMobile}>
+                <Link href="/o-que-e-ats" onClick={onCloseMobile}>
                   <HelpCircle className="h-4 w-4" />
                   O que é ATS?
                 </Link>

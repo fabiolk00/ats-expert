@@ -40,7 +40,7 @@ const plans = [
 type DisplayPlan = (typeof plans)[number]["slug"]
 
 function getSignupRedirectPath(plan: PaidPlanSlug): string {
-  return `/signup?redirect_to=${encodeURIComponent(buildCheckoutResumePath(plan))}`
+  return `/criar-conta?redirect_to=${encodeURIComponent(buildCheckoutResumePath(plan))}`
 }
 
 export default function PricingCards() {
@@ -86,7 +86,7 @@ export default function PricingCards() {
         }
 
         if (!isSignedIn) {
-          router.push("/signup")
+          router.push("/criar-conta")
           return
         }
 
@@ -110,7 +110,7 @@ export default function PricingCards() {
     }
 
     autoCheckoutStartedRef.current = true
-    router.replace("/pricing")
+    router.replace("/precos")
     router.push(buildCheckoutOnboardingPath(checkoutPlan))
   }, [isLoaded, isSignedIn, router, searchParams])
 
