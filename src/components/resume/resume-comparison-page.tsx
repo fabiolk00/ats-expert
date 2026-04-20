@@ -79,6 +79,7 @@ export function ResumeComparisonPage({ sessionId }: { sessionId: string }) {
       optimizedCvState={comparison.optimizedCvState}
       generationType={comparison.generationType}
       sessionId={comparison.sessionId}
+      previewLock={comparison.previewLock}
       targetJobDescription={comparison.targetJobDescription}
       originalScore={comparison.originalScore.total}
       optimizedScore={comparison.optimizedScore.total}

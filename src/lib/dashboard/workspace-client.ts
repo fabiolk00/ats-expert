@@ -125,5 +125,6 @@ export async function getBillingHistory(limit = 10): Promise<BillingHistoryRespo
 }
 
 export function isGeneratedOutputReady(generatedOutput?: GeneratedOutput): boolean {
-  return generatedOutput?.status === 'ready' && Boolean(generatedOutput.pdfPath)
+  return generatedOutput?.status === 'ready'
+    && (Boolean(generatedOutput.pdfPath) || generatedOutput.previewAccess?.locked === true)
 }

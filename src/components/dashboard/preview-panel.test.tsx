@@ -61,6 +61,7 @@ describe('PreviewPanel', () => {
       docxUrl: 'https://example.com/resume.docx',
       pdfUrl: 'https://example.com/resume.pdf',
       generationStatus: 'ready',
+      previewLock: undefined,
     })
   })
 
@@ -139,5 +140,45 @@ describe('PreviewPanel', () => {
     await userEvent.click(button)
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('renders a locked overlay and removes real actions for free trial previews', async () => {
+    vi.mocked(getDownloadUrls).mockResolvedValue({
+      available: true,
+      docxUrl: null,
+      pdfUrl: '/api/file/sess_123/locked-preview',
+      generationStatus: 'ready',
+      previewLock: {
+        locked: true,
+        blurred: true,
+        reason: 'free_trial_locked',
+        requiresUpgrade: true,
+        requiresPaidRegeneration: true,
+        message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+      },
+    })
+
+    render(
+      <PreviewPanel
+        inline
+        showCloseButton={false}
+        fileOverride={{
+          sessionId: 'sess_123',
+          targetId: null,
+          type: 'pdf',
+          label: 'Resume',
+        }}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('preview-panel')).toHaveAttribute('data-preview-locked', 'true')
+    })
+
+    expect(screen.getByTestId('preview-panel-lock-overlay')).toBeInTheDocument()
+    expect(screen.queryByTestId('preview-edit-button')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('preview-download-pdf')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('preview-open-external')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('resume-editor-state')).not.toBeInTheDocument()
   })
 })

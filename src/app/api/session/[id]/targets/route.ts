@@ -5,6 +5,10 @@ import { getHttpStatusForToolError } from '@/lib/agent/tool-errors'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession } from '@/lib/db/sessions'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
+import {
+  sanitizeGeneratedCvStateForClient,
+  sanitizeGeneratedOutputForClient,
+} from '@/lib/generated-preview/locked-preview'
 import { logWarn } from '@/lib/observability/structured-log'
 import { createTargetResumeVariant } from '@/lib/resume-targets/create-target-resume'
 import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
@@ -29,7 +33,17 @@ export async function GET(
 
   try {
     const targets = await getResumeTargetsForSession(session.id)
-    return NextResponse.json({ targets })
+    return NextResponse.json({
+      targets: targets.map((target) => ({
+        ...target,
+        derivedCvState: sanitizeGeneratedCvStateForClient(
+          target.derivedCvState,
+          target.generatedOutput,
+          'target',
+        ) ?? target.derivedCvState,
+        generatedOutput: sanitizeGeneratedOutputForClient(target.generatedOutput),
+      })),
+    })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

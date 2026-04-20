@@ -5,7 +5,7 @@ import type { CVVersion, ResumeTarget, Session } from '@/types/agent'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getCvVersionForSession, toTimelineEntry } from '@/lib/db/cv-versions'
-import { getResumeTargetForSession } from '@/lib/db/resume-targets'
+import { getResumeTargetForSession, getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
 
 import { POST } from './route'
@@ -25,6 +25,7 @@ vi.mock('@/lib/db/cv-versions', () => ({
 
 vi.mock('@/lib/db/resume-targets', () => ({
   getResumeTargetForSession: vi.fn(),
+  getResumeTargetsForSession: vi.fn(),
 }))
 
 function buildAppUser(id: string) {
@@ -121,6 +122,7 @@ function buildTarget(): ResumeTarget {
 describe('session compare route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getResumeTargetsForSession).mockResolvedValue([])
   })
 
   it('rejects non-owners', async () => {
@@ -166,10 +168,8 @@ describe('session compare route', () => {
       sessionId: 'sess_123',
       left: {
         kind: 'base',
-        id: undefined,
         label: 'Current Base Resume',
-        source: undefined,
-        timestamp: undefined,
+        previewLocked: false,
       },
       right: {
         kind: 'target',
@@ -177,6 +177,7 @@ describe('session compare route', () => {
         label: 'Target Resume (target_123)',
         source: 'target',
         timestamp: '2026-03-27T13:05:00.000Z',
+        previewLocked: false,
       },
       diff: {
         summary: {
@@ -228,13 +229,12 @@ describe('session compare route', () => {
         label: 'Base Resume Updated',
         source: 'rewrite',
         timestamp: '2026-03-27T12:30:00.000Z',
+        previewLocked: false,
       },
       right: {
         kind: 'base',
-        id: undefined,
         label: 'Current Base Resume',
-        source: undefined,
-        timestamp: undefined,
+        previewLocked: false,
       },
       diff: {
         summary: {
@@ -247,6 +247,77 @@ describe('session compare route', () => {
           removed: ['Node.js'],
           unchangedCount: 1,
         },
+      },
+    })
+  })
+
+  it('blocks compare output when a version ref is locked by free-trial preview access', async () => {
+    const session = buildSession()
+    session.generatedOutput = {
+      status: 'ready',
+      previewAccess: {
+        locked: true,
+        blurred: true,
+        canViewRealContent: false,
+        requiresUpgrade: true,
+        requiresRegenerationAfterUnlock: true,
+        reason: 'free_trial_locked',
+        lockedAt: '2026-04-20T12:00:00.000Z',
+        message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+      },
+    }
+    const version = buildVersion()
+
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(session)
+    vi.mocked(getCvVersionForSession).mockResolvedValue(version)
+    vi.mocked(toTimelineEntry).mockReturnValue({
+      ...version,
+      label: 'ATS Enhancement Created',
+      scope: 'base',
+      timestamp: '2026-03-27T12:30:00.000Z',
+    })
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/compare', {
+        method: 'POST',
+        body: JSON.stringify({
+          left: { kind: 'version', id: 'ver_123' },
+          right: { kind: 'base' },
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      sessionId: 'sess_123',
+      locked: true,
+      reason: 'preview_locked',
+      left: {
+        kind: 'version',
+        id: 'ver_123',
+        label: 'ATS Enhancement Created',
+        source: 'rewrite',
+        timestamp: '2026-03-27T12:30:00.000Z',
+        previewLocked: true,
+        previewLock: {
+          locked: true,
+          blurred: true,
+          reason: 'free_trial_locked',
+          requiresUpgrade: true,
+          requiresPaidRegeneration: true,
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        },
+      },
+      right: {
+        kind: 'base',
+        id: undefined,
+        label: 'Current Base Resume',
+        source: undefined,
+        timestamp: undefined,
+        previewLocked: false,
+        previewLock: undefined,
       },
     })
   })

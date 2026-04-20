@@ -4,6 +4,11 @@ import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getResumeTargetForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
 import { createSignedResumeArtifactUrls } from '@/lib/agent/tools/generate-file'
+import {
+  buildLockedPreviewPdfUrl,
+  getPreviewLockSummary,
+  isLockedPreview,
+} from '@/lib/generated-preview/locked-preview'
 import { listJobsForSession } from '@/lib/jobs/repository'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import type { GeneratedOutput } from '@/types/agent'
@@ -157,6 +162,7 @@ export async function GET(
   const errorMessage = resolveArtifactErrorMessage(artifactMetadata, latestArtifactJob)
   const reconciliation = resolveArtifactReconciliation(latestArtifactJob, errorMessage)
   const { pdfPath, status } = artifactMetadata
+  const previewLock = getPreviewLockSummary(artifactMetadata)
 
   if (status !== 'ready' || !pdfPath) {
     logInfo('api.file.download_urls_unavailable', {
@@ -184,10 +190,26 @@ export async function GET(
         stage: latestArtifactJob?.stage,
         progress: latestArtifactJob?.progress,
         errorMessage,
+        previewLock,
         reconciliation,
       },
       { status: 200 },
     )
+  }
+
+  if (isLockedPreview(artifactMetadata)) {
+    return NextResponse.json({
+      docxUrl: null,
+      pdfUrl: buildLockedPreviewPdfUrl(session.id, target?.id),
+      available: true,
+      generationStatus,
+      jobId: latestArtifactJob?.jobId,
+      stage: latestArtifactJob?.stage,
+      progress: latestArtifactJob?.progress,
+      errorMessage,
+      previewLock,
+      reconciliation,
+    })
   }
 
   try {
@@ -218,6 +240,7 @@ export async function GET(
       stage: latestArtifactJob?.stage,
       progress: latestArtifactJob?.progress,
       errorMessage,
+      previewLock,
       reconciliation,
     })
   } catch (error) {

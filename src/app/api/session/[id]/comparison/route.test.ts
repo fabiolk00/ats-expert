@@ -134,4 +134,105 @@ describe('session comparison route', () => {
       },
     })
   })
+
+  it('returns a synthetic optimized preview when the free-trial artifact is locked', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+    } as Awaited<ReturnType<typeof getCurrentAppUser>>)
+
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_123',
+      userId: 'usr_123',
+      cvState: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        linkedin: 'https://linkedin.com/in/ana',
+        location: 'Sao Paulo',
+        summary: 'Resumo base.',
+        experience: [],
+        skills: ['SQL'],
+        education: [],
+        certifications: [],
+      },
+      agentState: {
+        workflowMode: 'ats_enhancement',
+        lastRewriteMode: 'ats_enhancement',
+        optimizedCvState: {
+          fullName: 'Ana Silva',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          linkedin: 'https://linkedin.com/in/ana',
+          location: 'Sao Paulo',
+          summary: 'Resumo real que nao deve vazar.',
+          experience: [],
+          skills: ['SQL', 'Python'],
+          education: [],
+          certifications: [],
+        },
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        previewAccess: {
+          locked: true,
+          blurred: true,
+          canViewRealContent: false,
+          requiresUpgrade: true,
+          requiresRegenerationAfterUnlock: true,
+          reason: 'free_trial_locked',
+          lockedAt: '2026-04-20T12:00:00.000Z',
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        },
+      },
+    } as unknown as Awaited<ReturnType<typeof getSession>>)
+
+    vi.mocked(analyzeAtsGeneral)
+      .mockResolvedValueOnce({
+        success: true,
+        result: {
+          overallScore: 58,
+          structureScore: 70,
+          clarityScore: 60,
+          impactScore: 40,
+          keywordCoverageScore: 55,
+          atsReadabilityScore: 65,
+          issues: [],
+          recommendations: [],
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        result: {
+          overallScore: 61,
+          structureScore: 70,
+          clarityScore: 60,
+          impactScore: 40,
+          keywordCoverageScore: 55,
+          atsReadabilityScore: 65,
+          issues: [],
+          recommendations: [],
+        },
+      })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_123/comparison'),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      optimizedCvState: {
+        fullName: 'Preview bloqueado',
+        summary: 'Esta e uma visualizacao ilustrativa. O curriculo real gerado no free trial nao fica disponivel para leitura ou download.',
+      },
+      previewLock: {
+        locked: true,
+        blurred: true,
+        reason: 'free_trial_locked',
+        requiresUpgrade: true,
+        requiresPaidRegeneration: true,
+      },
+    })
+  })
 })

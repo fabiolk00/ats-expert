@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getCvTimelineForSession } from '@/lib/db/cv-versions'
+import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
 
 import { GET } from './route'
@@ -13,6 +14,10 @@ vi.mock('@/lib/auth/app-user', () => ({
 
 vi.mock('@/lib/db/sessions', () => ({
   getSession: vi.fn(),
+}))
+
+vi.mock('@/lib/db/resume-targets', () => ({
+  getResumeTargetsForSession: vi.fn(),
 }))
 
 vi.mock('@/lib/db/cv-versions', () => ({
@@ -46,6 +51,7 @@ function buildAppUser(id: string) {
 describe('session versions route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getResumeTargetsForSession).mockResolvedValue([])
   })
 
   it('rejects non-owners', async () => {
@@ -135,6 +141,11 @@ describe('session versions route', () => {
         scope: 'base',
         source: 'ingestion',
         createdAt: '2026-03-27T12:05:00.000Z',
+        previewLocked: false,
+        blurred: false,
+        canViewRealContent: true,
+        requiresUpgrade: false,
+        requiresRegenerationAfterUnlock: false,
       }],
     })
   })
@@ -177,5 +188,96 @@ describe('session versions route', () => {
 
     expect(response.status).toBe(200)
     expect(getCvTimelineForSession).toHaveBeenCalledWith('sess_123', 'target-derived')
+  })
+
+  it('removes the real snapshot from locked free-trial timeline entries', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_123',
+      userId: 'usr_123',
+      stateVersion: 1,
+      phase: 'dialog',
+      cvState: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        summary: 'Backend engineer',
+        experience: [],
+        skills: [],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+      },
+      generatedOutput: {
+        status: 'ready',
+        previewAccess: {
+          locked: true,
+          blurred: true,
+          canViewRealContent: false,
+          requiresUpgrade: true,
+          requiresRegenerationAfterUnlock: true,
+          reason: 'free_trial_locked',
+          lockedAt: '2026-04-20T12:00:00.000Z',
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        },
+      },
+      creditsUsed: 1,
+      messageCount: 2,
+      creditConsumed: true,
+      createdAt: new Date('2026-03-27T12:00:00.000Z'),
+      updatedAt: new Date('2026-03-27T12:00:00.000Z'),
+    })
+    vi.mocked(getCvTimelineForSession).mockResolvedValue([{
+      id: 'ver_123',
+      sessionId: 'sess_123',
+      snapshot: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        summary: 'Resumo real que nao deve vazar.',
+        experience: [],
+        skills: ['TypeScript', 'AWS'],
+        education: [],
+      },
+      label: 'ATS Enhancement Created',
+      timestamp: '2026-03-27T12:05:00.000Z',
+      scope: 'base',
+      source: 'ats-enhancement',
+      createdAt: new Date('2026-03-27T12:05:00.000Z'),
+    }])
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_123/versions'),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      sessionId: 'sess_123',
+      versions: [{
+        id: 'ver_123',
+        sessionId: 'sess_123',
+        label: 'ATS Enhancement Created',
+        timestamp: '2026-03-27T12:05:00.000Z',
+        scope: 'base',
+        source: 'ats-enhancement',
+        createdAt: '2026-03-27T12:05:00.000Z',
+        previewLocked: true,
+        blurred: true,
+        canViewRealContent: false,
+        requiresUpgrade: true,
+        requiresRegenerationAfterUnlock: true,
+        previewLock: {
+          locked: true,
+          blurred: true,
+          reason: 'free_trial_locked',
+          requiresUpgrade: true,
+          requiresPaidRegeneration: true,
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        },
+      }],
+    })
   })
 })

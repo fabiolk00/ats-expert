@@ -164,6 +164,22 @@ export type CVVersionSource = 'ingestion' | 'rewrite' | 'manual' | 'ats-enhancem
 export type CVVersionScope = 'base' | 'target-derived'
 export type ResumeGenerationType = 'ATS_ENHANCEMENT' | 'JOB_TARGETING'
 export type ResumeGenerationStatus = 'pending' | 'completed' | 'failed'
+export type PreviewAccessReason =
+  | 'free_trial_locked'
+  | 'payment_required'
+  | 'manual_source_not_billable'
+  | 'full_access'
+
+export type PreviewAccess = {
+  locked: boolean
+  blurred: boolean
+  canViewRealContent: boolean
+  requiresUpgrade: boolean
+  requiresRegenerationAfterUnlock: boolean
+  reason: PreviewAccessReason
+  lockedAt?: string
+  message?: string
+}
 
 export type CVVersion = {
   id: string
@@ -224,6 +240,7 @@ export type GeneratedOutput = {
   pdfPath?: string
   generatedAt?: string
   error?: string
+  previewAccess?: PreviewAccess
 }
 
 export type Message = {

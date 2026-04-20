@@ -11,17 +11,28 @@ import {
   checkUserQuota,
   consumeCreditForGeneration,
   finalizeCreditReservation,
+  getUserBillingInfo,
   releaseCreditReservation,
   reserveCreditForGenerationIntent,
 } from '@/lib/asaas/quota'
 import { getLatestCvVersionForScope } from '@/lib/db/cv-versions'
 import { markCreditReservationReconciliation } from '@/lib/db/credit-reservations'
 import {
+  applyPreviewAccessToGeneratedOutput,
+  applyPreviewAccessToPatch,
+  assertNoRealArtifactForLockedPreview,
+  buildLockedPreviewAccess,
+  buildLockedPreviewPdfUrl,
+  canViewRealPreview,
+} from '@/lib/generated-preview/locked-preview'
+import { getResumeTargetForSession } from '@/lib/db/resume-targets'
+import {
   createPendingResumeGeneration,
   getLatestCompletedResumeGenerationForScope,
   getResumeGenerationByIdempotencyKey,
   updateResumeGeneration,
 } from '@/lib/db/resume-generations'
+import { getSession } from '@/lib/db/sessions'
 import { resolveExportGenerationConfig } from '@/lib/jobs/config'
 import { recordMetricCounter } from '@/lib/observability/metric-events'
 import { logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
@@ -72,19 +83,12 @@ function resolveGenerationType(scope: ArtifactScope): ResumeGenerationType {
   return scope.type === 'target' ? 'JOB_TARGETING' : 'ATS_ENHANCEMENT'
 }
 
-function buildExistingGenerationSuccessResult(existing: ResumeGeneration): BillableGenerationResult | null {
+function buildCompletedGenerationArtifacts(existing: ResumeGeneration): Pick<BillableGenerationResult, 'generatedOutput' | 'patch'> | null {
   if (existing.status !== 'completed' || !existing.outputPdfPath) {
     return null
   }
 
   return {
-    output: {
-      success: true,
-      pdfUrl: '',
-      docxUrl: null,
-      creditsUsed: 0,
-      resumeGenerationId: existing.id,
-    },
     generatedOutput: {
       status: 'ready',
       pdfPath: existing.outputPdfPath,
@@ -99,8 +103,6 @@ function buildExistingGenerationSuccessResult(existing: ResumeGeneration): Billa
         generatedAt: existing.updatedAt.toISOString(),
       },
     },
-    resumeGeneration: existing,
-    processingStage: 'completed',
   }
 }
 
@@ -272,6 +274,117 @@ function resolveGenerationIntentKey(input: {
   return input.idempotencyKey ?? input.resumeGeneration.id
 }
 
+async function resolvePreviewAccessForCompletedGeneration(
+  userId: string,
+): Promise<GeneratedOutput['previewAccess'] | undefined> {
+  const billingInfo = await getUserBillingInfo(userId)
+
+  if (billingInfo?.plan === 'free') {
+    return buildLockedPreviewAccess()
+  }
+
+  return undefined
+}
+
+async function resolvePersistedReplayPreviewAccess(input: {
+  userId: string
+  sessionId: string
+  targetId?: string
+}): Promise<GeneratedOutput['previewAccess'] | undefined> {
+  if (input.targetId) {
+    const target = await getResumeTargetForSession(input.sessionId, input.targetId)
+    return target?.generatedOutput?.previewAccess
+  }
+
+  const session = await getSession(input.sessionId, input.userId)
+  return session?.generatedOutput?.previewAccess
+}
+
+async function resolveReplayPreviewAccess(input: {
+  userId: string
+  sessionId: string
+  targetId?: string
+}): Promise<GeneratedOutput['previewAccess'] | undefined> {
+  // Historical preview locks are the source of truth for replayed artifacts.
+  // A later plan upgrade only affects new generations; replay must not reinterpret
+  // an older locked artifact as viewable unless a new unlocked generation is created.
+  const persistedPreviewAccess = await resolvePersistedReplayPreviewAccess(input)
+
+  if (persistedPreviewAccess) {
+    return persistedPreviewAccess
+  }
+
+  return resolvePreviewAccessForCompletedGeneration(input.userId)
+}
+
+async function buildReplayResultForViewer(input: {
+  existing: ResumeGeneration
+  userId: string
+  sessionId: string
+  targetId?: string
+  signedUrlSource: 'existing_generation' | 'idempotent_generation'
+}): Promise<BillableGenerationResult | null> {
+  const artifacts = buildCompletedGenerationArtifacts(input.existing)
+  if (!artifacts) {
+    return null
+  }
+
+  const previewAccess = await resolveReplayPreviewAccess({
+    userId: input.userId,
+    sessionId: input.sessionId,
+    targetId: input.targetId,
+  })
+  const generatedOutput = applyPreviewAccessToGeneratedOutput(
+    artifacts.generatedOutput,
+    previewAccess,
+  )
+  const patch = applyPreviewAccessToPatch(
+    artifacts.patch,
+    previewAccess,
+  )
+
+  const output: Extract<GenerateFileOutput, { success: true }> = {
+    success: true,
+    pdfUrl: null,
+    docxUrl: null,
+    creditsUsed: 0,
+    resumeGenerationId: input.existing.id,
+  }
+
+  if (canViewRealPreview(generatedOutput)) {
+    const signedUrls = await createSignedResumeArtifactUrlsBestEffort(
+      input.existing.outputDocxPath,
+      input.existing.outputPdfPath!,
+      {
+        userId: input.userId,
+        sessionId: input.sessionId,
+        targetId: input.targetId,
+        pdfPath: input.existing.outputPdfPath!,
+        source: input.signedUrlSource,
+      },
+    )
+
+    output.pdfUrl = signedUrls.pdfUrl
+    output.docxUrl = signedUrls.docxUrl ?? null
+  }
+
+  assertNoRealArtifactForLockedPreview({
+    output,
+    generatedOutput,
+    patch,
+    sessionId: input.sessionId,
+    targetId: input.targetId,
+  })
+
+  return {
+    output,
+    generatedOutput,
+    patch,
+    resumeGeneration: input.existing,
+    processingStage: 'completed',
+  }
+}
+
 async function generateFileWithTimeout(input: {
   userId: string
   sessionId: string
@@ -381,30 +494,15 @@ export async function generateBillableResume(input: {
     && latestCompletedGeneration
     && areCvStatesEqual(input.sourceCvState, latestCompletedGeneration.generatedCvState ?? latestCompletedGeneration.sourceCvSnapshot)
   ) {
-    const existingSuccess = buildExistingGenerationSuccessResult(latestCompletedGeneration)
-    if (existingSuccess) {
-      const signedUrls = await createSignedResumeArtifactUrlsBestEffort(
-        latestCompletedGeneration.outputDocxPath,
-        latestCompletedGeneration.outputPdfPath!,
-        {
-          userId: input.userId,
-          sessionId: input.sessionId,
-          targetId: input.targetId,
-          pdfPath: latestCompletedGeneration.outputPdfPath!,
-          source: 'existing_generation',
-        },
-      )
-
-      return {
-        ...existingSuccess,
-        output: {
-          success: true,
-          pdfUrl: signedUrls.pdfUrl,
-          docxUrl: signedUrls.docxUrl ?? null,
-          creditsUsed: 0,
-          resumeGenerationId: latestCompletedGeneration.id,
-        },
-      }
+    const replayResult = await buildReplayResultForViewer({
+      existing: latestCompletedGeneration,
+      userId: input.userId,
+      sessionId: input.sessionId,
+      targetId: input.targetId,
+      signedUrlSource: 'existing_generation',
+    })
+    if (replayResult) {
+      return replayResult
     }
   }
 
@@ -430,29 +528,15 @@ export async function generateBillableResume(input: {
     }
 
     if (!resumeGenerationSchemaUnavailable && existing) {
-      const existingSuccess = buildExistingGenerationSuccessResult(existing)
-      if (existingSuccess) {
-        const signedUrls = await createSignedResumeArtifactUrlsBestEffort(
-          existing.outputDocxPath,
-          existing.outputPdfPath!,
-          {
-            userId: input.userId,
-            sessionId: input.sessionId,
-            targetId: input.targetId,
-            pdfPath: existing.outputPdfPath!,
-            source: 'idempotent_generation',
-          },
-        )
-        return {
-          ...existingSuccess,
-          output: {
-            success: true,
-            pdfUrl: signedUrls.pdfUrl,
-            docxUrl: signedUrls.docxUrl ?? null,
-            creditsUsed: 0,
-            resumeGenerationId: existing.id,
-          },
-        }
+      const replayResult = await buildReplayResultForViewer({
+        existing,
+        userId: input.userId,
+        sessionId: input.sessionId,
+        targetId: input.targetId,
+        signedUrlSource: 'idempotent_generation',
+      })
+      if (replayResult) {
+        return replayResult
       }
 
       if (existing.status === 'failed') {
@@ -737,6 +821,16 @@ export async function generateBillableResume(input: {
     }
   }
 
+  const previewAccess = await resolvePreviewAccessForCompletedGeneration(input.userId)
+  const generatedOutput = applyPreviewAccessToGeneratedOutput(
+    generationResult.generatedOutput,
+    previewAccess,
+  )
+  const patch = applyPreviewAccessToPatch(
+    generationResult.patch,
+    previewAccess,
+  )
+
   let needsReconciliation = false
   try {
     await withTimedOperation({
@@ -830,13 +924,29 @@ export async function generateBillableResume(input: {
     needsReconciliation,
   })
 
+  const output: Extract<GenerateFileOutput, { success: true }> = {
+    ...generationResult.output,
+    pdfUrl: previewAccess
+      ? buildLockedPreviewPdfUrl(input.sessionId, input.targetId)
+      : generationResult.output.pdfUrl,
+    docxUrl: previewAccess ? null : generationResult.output.docxUrl ?? null,
+    creditsUsed: 1,
+    resumeGenerationId: persistence.resumeGenerationId,
+  }
+
+  assertNoRealArtifactForLockedPreview({
+    output,
+    generatedOutput,
+    patch,
+    sessionId: input.sessionId,
+    targetId: input.targetId,
+  })
+
   return {
     ...generationResult,
-    output: {
-      ...generationResult.output,
-      creditsUsed: 1,
-      resumeGenerationId: persistence.resumeGenerationId,
-    },
+    patch,
+    output,
+    generatedOutput,
     resumeGeneration: persistence.resumeGeneration,
     processingStage: needsReconciliation ? 'needs_reconciliation' : 'finalize_credit',
     needsReconciliation,

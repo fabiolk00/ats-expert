@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
 import type { CVState } from '@/types/cv'
 
 import { ResumeComparisonView } from './resume-comparison-view'
@@ -64,6 +65,13 @@ function buildCvState(summary: string): CVState {
 describe('ResumeComparisonView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getDownloadUrls).mockResolvedValue({
+      available: true,
+      docxUrl: null,
+      pdfUrl: 'https://example.com/resume.pdf',
+      generationStatus: 'ready',
+      previewLock: undefined,
+    })
   })
 
   it('opens the editor in optimized mode and updates the optimized document after save', async () => {
@@ -84,5 +92,30 @@ describe('ResumeComparisonView', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mock Save' }))
 
     expect(screen.getByText('Edited optimized summary')).toBeInTheDocument()
+  })
+
+  it('shows a locked overlay and hides edit/download actions for blocked previews', () => {
+    render(
+      <ResumeComparisonView
+        originalCvState={buildCvState('Original summary')}
+        optimizedCvState={buildCvState('Preview bloqueado')}
+        generationType="ATS_ENHANCEMENT"
+        sessionId="sess_123"
+        previewLock={{
+          locked: true,
+          blurred: true,
+          reason: 'free_trial_locked',
+          requiresUpgrade: true,
+          requiresPaidRegeneration: true,
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        }}
+        onContinue={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('resume-comparison-lock-overlay')).toBeInTheDocument()
+    expect(screen.queryByTitle('Editar currículo')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Baixar PDF')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('resume-editor-modal')).not.toBeInTheDocument()
   })
 })

@@ -9,6 +9,7 @@ import { usePreviewPanel } from '@/context/preview-panel-context'
 import { usePreviewPanelOverlay } from '@/hooks/use-preview-panel-overlay'
 import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import type { PreviewLockSummary } from '@/types/dashboard'
 
 import { ResumeEditorModal } from './resume-editor-modal'
 
@@ -83,6 +84,7 @@ function PreviewPanelContent({
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const [isEditorOpen, setIsEditorOpen] = useState(false)
+  const [previewLock, setPreviewLock] = useState<PreviewLockSummary | null>(null)
 
   const cacheKey = `${file.sessionId}:${file.targetId ?? 'base'}`
 
@@ -91,13 +93,12 @@ function PreviewPanelContent({
     setError(null)
     setPreviewUrl(null)
     setExternalUrl(null)
+    setPreviewLock(null)
 
     const cachedUrl = getCachedUrl(cacheKey)
     if (cachedUrl) {
       setPreviewUrl(cachedUrl)
       setExternalUrl(cachedUrl)
-      setIsLoading(false)
-      return
     }
 
     try {
@@ -108,6 +109,7 @@ function PreviewPanelContent({
         return
       }
 
+      setPreviewLock(urls.previewLock ?? null)
       setPreviewUrl(urls.pdfUrl)
       setExternalUrl(urls.pdfUrl)
       setCachedUrl(cacheKey, urls.pdfUrl)
@@ -167,11 +169,13 @@ function PreviewPanelContent({
   }
 
   const previewState = isLoading ? 'loading' : error ? 'error' : previewUrl ? 'ready' : 'idle'
+  const isLockedPreview = previewLock?.locked === true
 
   return (
     <div
       data-testid="preview-panel"
       data-preview-url={previewUrl ?? ''}
+      data-preview-locked={isLockedPreview ? 'true' : 'false'}
       data-session-id={file.sessionId}
       data-state={previewState}
       className="flex h-full flex-col bg-background"
@@ -183,7 +187,7 @@ function PreviewPanelContent({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          {previewUrl && !error ? (
+          {previewUrl && !error && !isLockedPreview ? (
             <>
               <button
                 type="button"
@@ -238,6 +242,12 @@ function PreviewPanelContent({
         </div>
       ) : null}
 
+      {isLockedPreview ? (
+        <div className="border-b border-border bg-amber-50 px-4 py-2">
+          <p className="text-xs text-amber-900">{previewLock?.message}</p>
+        </div>
+      ) : null}
+
       <div className="relative flex-1 overflow-hidden bg-muted/30">
         {isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -259,25 +269,40 @@ function PreviewPanelContent({
         ) : null}
 
         {previewUrl && !isLoading ? (
-          <iframe
-            data-testid="preview-panel-frame"
-            src={previewUrl}
-            className="h-full w-full border-0"
-            title={`Pre-visualizacao: ${file.label}`}
-          />
+          <>
+            <iframe
+              data-testid="preview-panel-frame"
+              src={previewUrl}
+              className={isLockedPreview ? 'h-full w-full border-0 blur-sm' : 'h-full w-full border-0'}
+              title={`Pre-visualizacao: ${file.label}`}
+            />
+            {isLockedPreview ? (
+              <div
+                data-testid="preview-panel-lock-overlay"
+                className="absolute inset-0 flex items-center justify-center bg-background/80 p-6 text-center"
+              >
+                <div className="max-w-md rounded-2xl border border-border bg-background/95 p-5 shadow-sm">
+                  <p className="text-sm font-semibold text-foreground">Preview gratuito bloqueado</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{previewLock?.message}</p>
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
 
-      <ResumeEditorModal
-        sessionId={file.sessionId}
-        targetId={file.targetId}
-        open={isEditorOpen}
-        onOpenChange={setIsEditorOpen}
-        onSaved={() => {
-          invalidateCache(cacheKey)
-          void fetchUrls()
-        }}
-      />
+      {!isLockedPreview ? (
+        <ResumeEditorModal
+          sessionId={file.sessionId}
+          targetId={file.targetId}
+          open={isEditorOpen}
+          onOpenChange={setIsEditorOpen}
+          onSaved={() => {
+            invalidateCache(cacheKey)
+            void fetchUrls()
+          }}
+        />
+      ) : null}
     </div>
   )
 }

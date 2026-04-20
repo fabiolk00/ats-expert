@@ -202,6 +202,9 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
   const reconciliationMessage = artifactStatus.reconciliation?.required
     ? 'Estamos conferindo a cobranca desta geracao. Seu arquivo continua disponivel.'
     : null
+  const lockedPreviewMessage = artifactStatus.previewLock?.locked
+    ? artifactStatus.previewLock.message
+    : null
   const progressLabel = formatArtifactProgressLabel({
     stage: artifactStatus.stage,
     progress: artifactStatus.progress,
@@ -301,6 +304,15 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
               {artifactStatus.reconciliation.reason}
             </p>
           ) : null}
+        </div>
+      ) : null}
+
+      {!error && lockedPreviewMessage ? (
+        <div className="space-y-1 px-2 py-1">
+          <p className="text-xs text-amber-700">{lockedPreviewMessage}</p>
+          <p className="text-[11px] text-muted-foreground">
+            O PDF disponivel aqui e apenas ilustrativo. Gere novamente apos o upgrade para liberar a versao real.
+          </p>
         </div>
       ) : null}
 

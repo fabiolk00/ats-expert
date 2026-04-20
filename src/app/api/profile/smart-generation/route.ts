@@ -8,6 +8,10 @@ import { validateGenerationCvState } from '@/lib/agent/tools/generate-file'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { CVStateSchema } from '@/lib/cv/schema'
 import { applyToolPatchWithVersion, checkUserQuota, createSession } from '@/lib/db/sessions'
+import {
+  getPreviewLockSummary,
+  sanitizeGeneratedCvStateForClient,
+} from '@/lib/generated-preview/locked-preview'
 import { logWarn } from '@/lib/observability/structured-log'
 import {
   assessAtsEnhancementReadiness,
@@ -208,6 +212,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     creditsUsed?: number
     resumeGenerationId?: string
   }
+  const generatedOutput = generationResult.generatedOutput ?? generationResult.persistedPatch?.generatedOutput
+  const previewLock = getPreviewLockSummary(generatedOutput)
 
   return NextResponse.json({
     success: true,
@@ -216,6 +222,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     resumeGenerationId: output.resumeGenerationId,
     generationType: copy.generationType,
     originalCvState: cvState,
-    optimizedCvState: pipeline.optimizedCvState,
+    optimizedCvState: sanitizeGeneratedCvStateForClient(
+      pipeline.optimizedCvState,
+      generatedOutput,
+      workflowMode === 'job_targeting' ? 'target' : 'optimized',
+    ),
+    previewLock,
   })
 }

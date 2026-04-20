@@ -389,4 +389,114 @@ describe('session workspace route', () => {
       limit: 10,
     })
   })
+
+  it('sanitizes optimized and target snapshots when free-trial preview access is locked', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_123',
+      userId: 'usr_123',
+      phase: 'dialog',
+      stateVersion: 1,
+      cvState: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        summary: 'Backend engineer',
+        experience: [],
+        skills: ['TypeScript'],
+        education: [],
+      },
+      agentState: {
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+        optimizedCvState: {
+          fullName: 'Ana Silva',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          summary: 'Resumo real que nao deve vazar.',
+          experience: [],
+          skills: ['TypeScript', 'AWS'],
+          education: [],
+        },
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        previewAccess: {
+          locked: true,
+          blurred: true,
+          canViewRealContent: false,
+          requiresUpgrade: true,
+          requiresRegenerationAfterUnlock: true,
+          reason: 'free_trial_locked',
+          lockedAt: '2026-04-20T12:00:00.000Z',
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        },
+      },
+      creditsUsed: 1,
+      messageCount: 2,
+      creditConsumed: true,
+      createdAt: new Date('2026-03-27T12:00:00.000Z'),
+      updatedAt: new Date('2026-03-27T12:05:00.000Z'),
+    })
+    vi.mocked(getResumeTargetsForSession).mockResolvedValue([{
+      id: 'target_123',
+      sessionId: 'sess_123',
+      targetJobDescription: 'AWS role',
+      derivedCvState: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        summary: 'Target real que nao deve vazar.',
+        experience: [],
+        skills: ['AWS'],
+        education: [],
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/targets/target_123/resume.pdf',
+        previewAccess: {
+          locked: true,
+          blurred: true,
+          canViewRealContent: false,
+          requiresUpgrade: true,
+          requiresRegenerationAfterUnlock: true,
+          reason: 'free_trial_locked',
+          lockedAt: '2026-04-20T12:00:00.000Z',
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        },
+      },
+      createdAt: new Date('2026-03-27T12:00:00.000Z'),
+      updatedAt: new Date('2026-03-27T12:30:00.000Z'),
+    }])
+    vi.mocked(listJobsForSession).mockResolvedValue([])
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_123'),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      session: {
+        agentState: {
+          optimizedCvState: {
+            fullName: 'Preview bloqueado',
+          },
+        },
+        generatedOutput: {
+          status: 'ready',
+        },
+      },
+      targets: [{
+        id: 'target_123',
+        derivedCvState: {
+          fullName: 'Preview bloqueado',
+        },
+        generatedOutput: {
+          status: 'ready',
+        },
+      }],
+    })
+  })
 })

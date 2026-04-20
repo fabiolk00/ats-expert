@@ -157,6 +157,69 @@ describe('GET /api/file/[sessionId]', () => {
     )
   })
 
+  it('serves only the locked preview pdf url for free-trial generated artifacts', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSession).mockResolvedValue({
+      ...buildSession(),
+      generatedOutput: {
+        ...buildSession().generatedOutput,
+        previewAccess: {
+          locked: true,
+          blurred: true,
+          canViewRealContent: false,
+          requiresUpgrade: true,
+          requiresRegenerationAfterUnlock: true,
+          reason: 'free_trial_locked',
+          lockedAt: '2026-04-20T12:00:00.000Z',
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        },
+      },
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      docxUrl: null,
+      pdfUrl: '/api/file/sess_123/locked-preview',
+      available: true,
+      generationStatus: 'ready',
+      reconciliation: undefined,
+      previewLock: {
+        locked: true,
+        blurred: true,
+        reason: 'free_trial_locked',
+        requiresUpgrade: true,
+        requiresPaidRegeneration: true,
+        message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+      },
+    })
+    expect(createSignedResumeArtifactUrls).not.toHaveBeenCalled()
+  })
+
   it('keeps serving the last valid base artifact when a newer ATS rewrite attempt failed validation', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',

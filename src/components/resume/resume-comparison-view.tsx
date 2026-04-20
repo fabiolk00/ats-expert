@@ -10,12 +10,14 @@ import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
 import { cn } from "@/lib/utils"
 import type { ResumeGenerationType } from "@/types/agent"
 import type { CVState } from "@/types/cv"
+import type { PreviewLockSummary } from "@/types/dashboard"
 
 type ResumeComparisonViewProps = {
   originalCvState: CVState
   optimizedCvState: CVState
   generationType: ResumeGenerationType
   sessionId: string
+  previewLock?: PreviewLockSummary
   targetJobDescription?: string
   originalScore?: number
   optimizedScore?: number
@@ -50,6 +52,7 @@ function ResumeDocument({
   onEdit,
   onDownload,
   isDownloading,
+  previewLock,
 }: {
   cvState: CVState
   variant: "original" | "optimized"
@@ -57,9 +60,11 @@ function ResumeDocument({
   onEdit?: () => void
   onDownload?: () => void
   isDownloading?: boolean
+  previewLock?: PreviewLockSummary
 }) {
   const isOptimized = variant === "optimized"
   const compare = originalCvState || cvState
+  const isLockedPreview = isOptimized && previewLock?.locked === true
 
   return (
     <div
@@ -70,7 +75,7 @@ function ResumeDocument({
           : "border-red-200 dark:border-red-900/50",
       )}
     >
-      {isOptimized && (onEdit || onDownload) ? (
+      {isOptimized && (onEdit || onDownload) && !isLockedPreview ? (
         <div className="absolute right-2 top-2 flex gap-1 sm:right-4 sm:top-4">
           {onEdit ? (
             <button
@@ -100,7 +105,28 @@ function ResumeDocument({
         </div>
       ) : null}
 
-      <div className="mb-4 border-b border-zinc-100 pb-4 dark:border-zinc-800 sm:mb-6 sm:pb-6">
+      {isLockedPreview ? (
+        <div
+          data-testid="resume-comparison-lock-overlay"
+          className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/85 p-6 text-center dark:bg-zinc-950/85"
+        >
+          <div className="max-w-sm rounded-2xl border border-zinc-200 bg-white/95 p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/95">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Preview gratuito bloqueado
+            </p>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              {previewLock?.message}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      <div
+        className={cn(
+          "mb-4 border-b border-zinc-100 pb-4 dark:border-zinc-800 sm:mb-6 sm:pb-6",
+          isLockedPreview ? "select-none blur-sm" : undefined,
+        )}
+      >
         <h2 className="flex items-center pr-16 text-base font-bold text-zinc-900 dark:text-zinc-100 sm:pr-0 sm:text-xl">
           {cvState.fullName || "Seu nome"}
           {isOptimized ? (
@@ -115,7 +141,7 @@ function ResumeDocument({
       </div>
 
       {cvState.summary ? (
-        <div className="mb-4 sm:mb-6">
+        <div className={cn("mb-4 sm:mb-6", isLockedPreview ? "select-none blur-sm" : undefined)}>
           <h3 className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-2 sm:text-xs">
             Resumo
             {isOptimized ? (
@@ -129,7 +155,7 @@ function ResumeDocument({
       ) : null}
 
       {cvState.experience.length > 0 ? (
-        <div className="mb-4 sm:mb-6">
+        <div className={cn("mb-4 sm:mb-6", isLockedPreview ? "select-none blur-sm" : undefined)}>
           <h3 className="mb-2 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-3 sm:text-xs">
             Experiência
             {isOptimized ? (
@@ -192,7 +218,7 @@ function ResumeDocument({
       ) : null}
 
       {cvState.skills.length > 0 ? (
-        <div className="mb-4 sm:mb-6">
+        <div className={cn("mb-4 sm:mb-6", isLockedPreview ? "select-none blur-sm" : undefined)}>
           <h3 className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-2 sm:text-xs">
             Skills
             {isOptimized ? (
@@ -223,7 +249,7 @@ function ResumeDocument({
       ) : null}
 
       {cvState.education.length > 0 ? (
-        <div className="mb-4 sm:mb-6">
+        <div className={cn("mb-4 sm:mb-6", isLockedPreview ? "select-none blur-sm" : undefined)}>
           <h3 className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-2 sm:text-xs">
             Educação
             {isOptimized ? (
@@ -246,7 +272,7 @@ function ResumeDocument({
       ) : null}
 
       {cvState.certifications && cvState.certifications.length > 0 ? (
-        <div>
+        <div className={cn(isLockedPreview ? "select-none blur-sm" : undefined)}>
           <h3 className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-2 sm:text-xs">
             Certificações
             {isOptimized ? (
@@ -273,6 +299,7 @@ export function ResumeComparisonView({
   optimizedCvState,
   generationType,
   sessionId,
+  previewLock,
   targetJobDescription,
   originalScore,
   optimizedScore,
@@ -396,6 +423,16 @@ export function ResumeComparisonView({
         </div>
       ) : null}
 
+      {previewLock?.locked ? (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30 sm:px-6">
+          <div className="mx-auto max-w-7xl">
+            <p className="text-sm text-amber-900 dark:text-amber-100">
+              {previewLock.message}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
         <div
           className={cn(
@@ -440,9 +477,10 @@ export function ResumeComparisonView({
               cvState={currentOptimizedCvState}
               variant="optimized"
               originalCvState={originalCvState}
-              onEdit={() => setIsEditorOpen(true)}
-              onDownload={handleDownload}
+              onEdit={previewLock?.locked ? undefined : () => setIsEditorOpen(true)}
+              onDownload={previewLock?.locked ? undefined : handleDownload}
               isDownloading={isDownloading}
+              previewLock={previewLock}
             />
           </div>
         </div>
@@ -458,14 +496,16 @@ export function ResumeComparisonView({
         </Button>
       </div>
 
-      <ResumeEditorModal
-        sessionId={sessionId}
-        targetId={null}
-        scope="optimized"
-        open={isEditorOpen}
-        onOpenChange={setIsEditorOpen}
-        onSaved={handleEditorSaved}
-      />
+      {!previewLock?.locked ? (
+        <ResumeEditorModal
+          sessionId={sessionId}
+          targetId={null}
+          scope="optimized"
+          open={isEditorOpen}
+          onOpenChange={setIsEditorOpen}
+          onSaved={handleEditorSaved}
+        />
+      ) : null}
     </div>
   )
 }

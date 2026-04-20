@@ -505,4 +505,72 @@ describe('POST /api/profile/smart-generation', () => {
     expect(createSession).not.toHaveBeenCalled()
     expect(dispatchToolWithContext).not.toHaveBeenCalled()
   })
+
+  it('returns a synthetic optimized preview when free-trial generation is locked', async () => {
+    const optimizedCvState = {
+      ...buildCvState(),
+      summary: 'Resumo real que nao deve vazar.',
+    }
+
+    vi.mocked(runAtsEnhancementPipeline).mockResolvedValue({
+      success: true,
+      optimizedCvState,
+    } as never)
+    vi.mocked(dispatchToolWithContext).mockResolvedValue({
+      output: {
+        success: true,
+        pdfUrl: '/api/file/sess_generation_123/locked-preview',
+        creditsUsed: 1,
+        resumeGenerationId: 'gen_123',
+      },
+      outputJson: JSON.stringify({
+        success: true,
+        pdfUrl: '/api/file/sess_generation_123/locked-preview',
+        creditsUsed: 1,
+        resumeGenerationId: 'gen_123',
+      }),
+      persistedPatch: {
+        generatedOutput: {
+          status: 'ready',
+          previewAccess: {
+            locked: true,
+            blurred: true,
+            canViewRealContent: false,
+            requiresUpgrade: true,
+            requiresRegenerationAfterUnlock: true,
+            reason: 'free_trial_locked',
+            lockedAt: '2026-04-20T12:00:00.000Z',
+            message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+          },
+        },
+      },
+    } as never)
+
+    const response = await POST(new NextRequest('https://example.com/api/profile/smart-generation', {
+      method: 'POST',
+      headers: buildTrustedHeaders(),
+      body: JSON.stringify(buildCvState()),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      success: true,
+      sessionId: 'sess_generation_123',
+      creditsUsed: 1,
+      resumeGenerationId: 'gen_123',
+      generationType: 'ATS_ENHANCEMENT',
+      originalCvState: buildCvState(),
+      optimizedCvState: expect.objectContaining({
+        fullName: 'Preview bloqueado',
+      }),
+      previewLock: {
+        locked: true,
+        blurred: true,
+        reason: 'free_trial_locked',
+        requiresUpgrade: true,
+        requiresPaidRegeneration: true,
+        message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+      },
+    })
+  })
 })

@@ -12,11 +12,14 @@ const {
   mockReserveCreditForGenerationIntent,
   mockFinalizeCreditReservation,
   mockReleaseCreditReservation,
+  mockGetUserBillingInfo,
   mockGetLatestCvVersionForScope,
   mockMarkCreditReservationReconciliation,
   mockCreatePendingResumeGeneration,
   mockGetLatestCompletedResumeGenerationForScope,
   mockGetResumeGenerationByIdempotencyKey,
+  mockGetResumeTargetForSession,
+  mockGetSession,
   mockUpdateResumeGeneration,
   mockLogInfo,
   mockLogWarn,
@@ -29,11 +32,14 @@ const {
   mockReserveCreditForGenerationIntent: vi.fn(),
   mockFinalizeCreditReservation: vi.fn(),
   mockReleaseCreditReservation: vi.fn(),
+  mockGetUserBillingInfo: vi.fn(),
   mockGetLatestCvVersionForScope: vi.fn(),
   mockMarkCreditReservationReconciliation: vi.fn(),
   mockCreatePendingResumeGeneration: vi.fn(),
   mockGetLatestCompletedResumeGenerationForScope: vi.fn(),
   mockGetResumeGenerationByIdempotencyKey: vi.fn(),
+  mockGetResumeTargetForSession: vi.fn(),
+  mockGetSession: vi.fn(),
   mockUpdateResumeGeneration: vi.fn(),
   mockLogInfo: vi.fn(),
   mockLogWarn: vi.fn(),
@@ -52,6 +58,7 @@ vi.mock('@/lib/asaas/quota', () => ({
   reserveCreditForGenerationIntent: mockReserveCreditForGenerationIntent,
   finalizeCreditReservation: mockFinalizeCreditReservation,
   releaseCreditReservation: mockReleaseCreditReservation,
+  getUserBillingInfo: mockGetUserBillingInfo,
 }))
 
 vi.mock('@/lib/db/cv-versions', () => ({
@@ -67,6 +74,14 @@ vi.mock('@/lib/db/resume-generations', () => ({
   getLatestCompletedResumeGenerationForScope: mockGetLatestCompletedResumeGenerationForScope,
   getResumeGenerationByIdempotencyKey: mockGetResumeGenerationByIdempotencyKey,
   updateResumeGeneration: mockUpdateResumeGeneration,
+}))
+
+vi.mock('@/lib/db/resume-targets', () => ({
+  getResumeTargetForSession: mockGetResumeTargetForSession,
+}))
+
+vi.mock('@/lib/db/sessions', () => ({
+  getSession: mockGetSession,
 }))
 
 vi.mock('@/lib/observability/structured-log', () => ({
@@ -149,6 +164,8 @@ describe('generateBillableResume', () => {
     })
     mockGetLatestCompletedResumeGenerationForScope.mockResolvedValue(null)
     mockGetResumeGenerationByIdempotencyKey.mockResolvedValue(null)
+    mockGetResumeTargetForSession.mockResolvedValue(null)
+    mockGetSession.mockResolvedValue(null)
     mockUpdateResumeGeneration.mockResolvedValue(undefined)
     mockConsumeCreditForGeneration.mockResolvedValue(true)
     mockReserveCreditForGenerationIntent.mockResolvedValue(buildReservation())
@@ -160,6 +177,9 @@ describe('generateBillableResume', () => {
       status: 'finalized',
       finalizedAt: new Date('2026-04-12T12:01:00.000Z'),
     }))
+    mockGetUserBillingInfo.mockResolvedValue({
+      plan: 'monthly',
+    })
     mockReleaseCreditReservation.mockResolvedValue(buildReservation({
       status: 'released',
       releasedAt: new Date('2026-04-12T12:01:00.000Z'),
@@ -190,7 +210,7 @@ describe('generateBillableResume', () => {
     expect(mockGenerateFile).not.toHaveBeenCalled()
   })
 
-  it('replays an existing completed generation without charging again', async () => {
+  it('replays an existing completed generation without charging again for paid viewers', async () => {
     const cvState = buildCvState()
     mockGetLatestCompletedResumeGenerationForScope.mockResolvedValue({
       id: 'gen_existing',
@@ -225,6 +245,106 @@ describe('generateBillableResume', () => {
       resumeGenerationId: 'gen_existing',
     })
     expect(mockReserveCreditForGenerationIntent).not.toHaveBeenCalled()
+  })
+
+  it('keeps completed replay locked for free viewers and never signs a real artifact url', async () => {
+    const cvState = buildCvState()
+    mockGetUserBillingInfo.mockResolvedValue({
+      plan: 'free',
+    })
+    mockGetLatestCompletedResumeGenerationForScope.mockResolvedValue({
+      id: 'gen_existing_locked',
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      type: 'ATS_ENHANCEMENT',
+      status: 'completed',
+      sourceCvSnapshot: cvState,
+      generatedCvState: cvState,
+      outputPdfPath: 'usr_123/sess_123/resume.pdf',
+      outputDocxPath: 'usr_123/sess_123/resume.docx',
+      versionNumber: 1,
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+      updatedAt: new Date('2026-04-12T12:01:00.000Z'),
+    })
+
+    const result = await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+    })
+
+    expect(result.output).toEqual({
+      success: true,
+      pdfUrl: null,
+      docxUrl: null,
+      creditsUsed: 0,
+      resumeGenerationId: 'gen_existing_locked',
+    })
+    expect(result.generatedOutput?.previewAccess).toEqual(expect.objectContaining({
+      locked: true,
+      blurred: true,
+      canViewRealContent: false,
+      requiresRegenerationAfterUnlock: true,
+      reason: 'free_trial_locked',
+    }))
+    expect(result.patch?.generatedOutput?.previewAccess).toEqual(
+      result.generatedOutput?.previewAccess,
+    )
+    expect(mockCreateSignedResumeArtifactUrls).not.toHaveBeenCalled()
+    expect(mockReserveCreditForGenerationIntent).not.toHaveBeenCalled()
+  })
+
+  it('keeps a previously locked completed replay blocked even after upgrade until the user regenerates', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCompletedResumeGenerationForScope.mockResolvedValue({
+      id: 'gen_existing_upgraded',
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      type: 'ATS_ENHANCEMENT',
+      status: 'completed',
+      sourceCvSnapshot: cvState,
+      generatedCvState: cvState,
+      outputPdfPath: 'usr_123/sess_123/resume.pdf',
+      outputDocxPath: 'usr_123/sess_123/resume.docx',
+      versionNumber: 1,
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+      updatedAt: new Date('2026-04-12T12:01:00.000Z'),
+    })
+    mockGetSession.mockResolvedValue({
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        previewAccess: {
+          locked: true,
+          blurred: true,
+          canViewRealContent: false,
+          requiresUpgrade: true,
+          requiresRegenerationAfterUnlock: true,
+          reason: 'free_trial_locked',
+          lockedAt: '2026-04-12T12:01:00.000Z',
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        },
+      },
+    })
+
+    const result = await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+    })
+
+    expect(result.output).toEqual({
+      success: true,
+      pdfUrl: null,
+      docxUrl: null,
+      creditsUsed: 0,
+      resumeGenerationId: 'gen_existing_upgraded',
+    })
+    expect(result.generatedOutput?.previewAccess).toEqual(expect.objectContaining({
+      locked: true,
+      requiresRegenerationAfterUnlock: true,
+    }))
+    expect(mockCreateSignedResumeArtifactUrls).not.toHaveBeenCalled()
   })
 
   it('returns an in-progress response when the idempotency key already points to a pending generation', async () => {
@@ -392,6 +512,77 @@ describe('generateBillableResume', () => {
       metadata: expect.any(Object),
     })
     expect(mockReleaseCreditReservation).not.toHaveBeenCalled()
+  })
+
+  it('applies the same locked preview access to the returned output and persisted patch for free trial generations', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockGetUserBillingInfo.mockResolvedValue({
+      plan: 'free',
+    })
+    mockCreatePendingResumeGeneration.mockResolvedValue({
+      generation: buildPendingGeneration(cvState, { id: 'gen_pending_free' }),
+      wasCreated: true,
+    })
+    mockGenerateFile.mockResolvedValue({
+      output: {
+        success: true,
+        pdfUrl: 'https://example.com/resume.pdf',
+        docxUrl: null,
+      },
+      patch: {
+        generatedOutput: {
+          status: 'ready',
+          pdfPath: 'usr_123/sess_123/resume.pdf',
+          generatedAt: '2026-04-12T12:01:00.000Z',
+        },
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-12T12:01:00.000Z',
+      },
+    })
+    mockUpdateResumeGeneration.mockResolvedValue({
+      ...buildPendingGeneration(cvState, { id: 'gen_pending_free', status: 'completed' }),
+      generatedCvState: cvState,
+      outputPdfPath: 'usr_123/sess_123/resume.pdf',
+      outputDocxPath: null,
+      updatedAt: new Date('2026-04-12T12:01:00.000Z'),
+    })
+
+    const result = await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+    })
+
+    expect(result.output).toEqual({
+      success: true,
+      pdfUrl: '/api/file/sess_123/locked-preview',
+      docxUrl: null,
+      creditsUsed: 1,
+      resumeGenerationId: 'gen_pending_free',
+    })
+    expect(result.generatedOutput?.previewAccess).toEqual(expect.objectContaining({
+      locked: true,
+      blurred: true,
+      canViewRealContent: false,
+      requiresRegenerationAfterUnlock: true,
+      reason: 'free_trial_locked',
+    }))
+    expect(result.patch?.generatedOutput?.previewAccess).toEqual(
+      result.generatedOutput?.previewAccess,
+    )
   })
 
   it('releases the held credit exactly once when rendering fails after reservation', async () => {

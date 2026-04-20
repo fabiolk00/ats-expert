@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
+import {
+  sanitizeGeneratedCvStateForClient,
+  sanitizeGeneratedOutputForClient,
+} from '@/lib/generated-preview/locked-preview'
 import { listJobsForSession } from '@/lib/jobs/repository'
 
 export async function GET(
@@ -45,13 +49,17 @@ export async function GET(
           atsAnalysis: session.agentState.atsAnalysis,
           atsWorkflowRun: session.agentState.atsWorkflowRun,
           rewriteStatus: session.agentState.rewriteStatus,
-          optimizedCvState: session.agentState.optimizedCvState,
+          optimizedCvState: sanitizeGeneratedCvStateForClient(
+            session.agentState.optimizedCvState,
+            session.generatedOutput,
+            'optimized',
+          ),
           optimizedAt: session.agentState.optimizedAt,
           optimizationSummary: session.agentState.optimizationSummary,
           lastRewriteMode: session.agentState.lastRewriteMode,
           rewriteValidation: session.agentState.rewriteValidation,
         },
-        generatedOutput: session.generatedOutput,
+        generatedOutput: sanitizeGeneratedOutputForClient(session.generatedOutput),
         atsScore: session.atsScore,
         messageCount: session.messageCount,
         creditConsumed: session.creditConsumed,
@@ -59,7 +67,15 @@ export async function GET(
         updatedAt: session.updatedAt,
       },
       jobs,
-      targets,
+      targets: targets.map((target) => ({
+        ...target,
+        derivedCvState: sanitizeGeneratedCvStateForClient(
+          target.derivedCvState,
+          target.generatedOutput,
+          'target',
+        ) ?? target.derivedCvState,
+        generatedOutput: sanitizeGeneratedOutputForClient(target.generatedOutput),
+      })),
     })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

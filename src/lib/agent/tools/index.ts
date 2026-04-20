@@ -20,6 +20,7 @@ import type {
   AnalyzeGapInput,
   CVVersionSource,
   CreateTargetResumeInput,
+  GeneratedOutput,
   ParseFileInput,
   RewriteSectionInput,
   ScoreATSInput,
@@ -188,12 +189,14 @@ export function getToolDefinitionsForPhase(phase: Phase): OpenAITool[] {
 type ToolExecutionResult = {
   output: unknown
   patch?: ToolPatch
+  generatedOutput?: GeneratedOutput
 }
 
 type DispatchedToolResult = {
   output: unknown
   outputJson: string
   persistedPatch?: ToolPatch
+  generatedOutput?: Partial<GeneratedOutput>
   outputFailure?: ToolFailure
 }
 
@@ -437,15 +440,16 @@ export async function executeTool(
         templateTargetSource: target?.targetJobDescription ?? session.agentState,
       })
 
-      if (target && result.generatedOutput) {
-        await updateResumeTargetGeneratedOutput(session.id, target.id, result.generatedOutput)
+    if (target && result.generatedOutput) {
+      await updateResumeTargetGeneratedOutput(session.id, target.id, result.generatedOutput)
 
-        return {
-          output: result.output,
-        }
+      return {
+        output: result.output,
+        generatedOutput: result.generatedOutput,
       }
+    }
 
-      return result
+    return result
     }
 
     default:
@@ -527,6 +531,7 @@ async function dispatchToolInternal(
       output: execution.output,
       outputJson: JSON.stringify(execution.output),
       persistedPatch,
+      generatedOutput: execution.generatedOutput ?? execution.patch?.generatedOutput,
       outputFailure,
     }
   } catch (err) {
@@ -547,6 +552,7 @@ async function dispatchToolInternal(
     return {
       output: failure,
       outputJson: JSON.stringify(failure),
+      generatedOutput: undefined,
       outputFailure: failure,
     }
   }

@@ -10,6 +10,7 @@ import {
   updateResumeTargetCvStateWithVersion,
 } from '@/lib/db/resume-targets'
 import { applyToolPatchWithVersion, getSession, mergeToolPatch } from '@/lib/db/sessions'
+import { isLockedPreview } from '@/lib/generated-preview/locked-preview'
 import { logWarn } from '@/lib/observability/structured-log'
 import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
 
@@ -79,6 +80,12 @@ export async function POST(
           return NextResponse.json({ error: 'Not found' }, { status: 404 })
         }
 
+        if (isLockedPreview(target.generatedOutput)) {
+          return NextResponse.json({
+            error: 'Este preview gratuito esta bloqueado. Faca upgrade e gere novamente para editar a versao real.',
+          }, { status: 409 })
+        }
+
         const changed = didCanonicalStateChange(
           JSON.stringify(target.derivedCvState),
           JSON.stringify(body.data.cvState),
@@ -112,6 +119,12 @@ export async function POST(
         const currentOptimizedCvState = session.agentState.optimizedCvState
         if (!currentOptimizedCvState) {
           return NextResponse.json({ error: 'No optimized resume found for this session.' }, { status: 409 })
+        }
+
+        if (isLockedPreview(session.generatedOutput)) {
+          return NextResponse.json({
+            error: 'Este preview gratuito esta bloqueado. Faca upgrade e gere novamente para editar a versao real.',
+          }, { status: 409 })
         }
 
         const changed = didCanonicalStateChange(

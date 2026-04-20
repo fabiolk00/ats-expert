@@ -4,6 +4,10 @@ import { analyzeAtsGeneral } from '@/lib/agent/tools/ats-analysis'
 import { scoreATS } from '@/lib/ats/score'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession } from '@/lib/db/sessions'
+import {
+  getPreviewLockSummary,
+  sanitizeGeneratedCvStateForClient,
+} from '@/lib/generated-preview/locked-preview'
 import { buildResumeTextFromCvState } from '@/lib/profile/ats-enhancement'
 import type { ResumeComparisonResponse } from '@/types/dashboard'
 
@@ -29,7 +33,11 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const optimizedCvState = session.agentState.optimizedCvState
+  const optimizedCvState = sanitizeGeneratedCvStateForClient(
+    session.agentState.optimizedCvState,
+    session.generatedOutput,
+    'optimized',
+  )
   if (!optimizedCvState) {
     return NextResponse.json({ error: 'No optimized resume found for this session.' }, { status: 409 })
   }
@@ -76,6 +84,7 @@ export async function GET(
       targetJobDescription,
       originalCvState: session.cvState,
       optimizedCvState,
+      previewLock: getPreviewLockSummary(session.generatedOutput),
       optimizationSummary: session.agentState.optimizationSummary,
       originalScore: {
         total: originalScore,

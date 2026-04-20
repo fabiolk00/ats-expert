@@ -5,6 +5,7 @@ import type {
   JobProgress,
   JobStatusSnapshot,
   Phase,
+  PreviewAccessReason,
   ResumeGenerationType,
   RewriteStatus,
   TargetingPlan,
@@ -12,22 +13,37 @@ import type {
 } from '@/types/agent'
 import type {
   ATSScoreResult,
-  CVState,
   CVStateDiff,
+  CVState,
   GapAnalysisResult,
 } from '@/types/cv'
 import type { BillingHistoryResponse as SerializedBillingHistoryResponse } from '@/types/billing'
+
+export type PreviewLockSummary = {
+  locked: true
+  blurred: true
+  reason: Exclude<PreviewAccessReason, 'full_access'>
+  requiresUpgrade: boolean
+  requiresPaidRegeneration: boolean
+  message: string
+}
 
 type SerializedTimelineEntry = {
   id: string
   sessionId: string
   targetResumeId?: string
-  snapshot: CVState
+  snapshot?: CVState
   source: 'ingestion' | 'rewrite' | 'manual' | 'ats-enhancement' | 'job-targeting' | 'target-derived'
   label: string
   timestamp: string
   scope: 'base' | 'target-derived'
   createdAt: string
+  previewLocked: boolean
+  blurred: boolean
+  canViewRealContent: boolean
+  requiresUpgrade: boolean
+  requiresRegenerationAfterUnlock: boolean
+  previewLock?: PreviewLockSummary
 }
 
 export type SerializedResumeTarget = {
@@ -193,6 +209,7 @@ export type ArtifactStatusSummary = {
   stage?: string
   progress?: JobProgress
   errorMessage?: string
+  previewLock?: PreviewLockSummary
   reconciliation?: {
     required: boolean
     status: 'pending' | 'manual_review' | 'repaired'
@@ -209,6 +226,7 @@ export type DownloadUrlsResponse = {
   stage?: string
   progress?: JobProgress
   errorMessage?: string
+  previewLock?: PreviewLockSummary
   reconciliation?: ArtifactStatusSummary['reconciliation']
 }
 
@@ -221,6 +239,7 @@ export type ResumeComparisonResponse = {
   targetJobDescription?: string
   originalCvState: CVState
   optimizedCvState: CVState
+  previewLock?: PreviewLockSummary
   optimizationSummary?: {
     changedSections: Array<'summary' | 'experience' | 'skills' | 'education' | 'certifications'>
     notes: string[]
@@ -243,12 +262,16 @@ type CompareSnapshotRef =
 
 type CompareSnapshotsResponse = {
   sessionId: string
+  locked?: boolean
+  reason?: 'preview_locked'
   left: {
     kind: 'base' | 'version' | 'target'
     id?: string
     label: string
     source?: 'ingestion' | 'rewrite' | 'manual' | 'ats-enhancement' | 'job-targeting' | 'target-derived' | 'target'
     timestamp?: string
+    previewLocked?: boolean
+    previewLock?: PreviewLockSummary
   }
   right: {
     kind: 'base' | 'version' | 'target'
@@ -256,6 +279,8 @@ type CompareSnapshotsResponse = {
     label: string
     source?: 'ingestion' | 'rewrite' | 'manual' | 'ats-enhancement' | 'job-targeting' | 'target-derived' | 'target'
     timestamp?: string
+    previewLocked?: boolean
+    previewLock?: PreviewLockSummary
   }
-  diff: CVStateDiff
+  diff?: CVStateDiff
 }

@@ -447,6 +447,93 @@ describe('manual edit route', () => {
     expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
   })
 
+  it('blocks optimized edits when the generated free-trial preview is locked', async () => {
+    const session = buildSession()
+    session.agentState.optimizedCvState = buildOptimizedCvState()
+    session.generatedOutput = {
+      status: 'ready',
+      previewAccess: {
+        locked: true,
+        blurred: true,
+        canViewRealContent: false,
+        requiresUpgrade: true,
+        requiresRegenerationAfterUnlock: true,
+        reason: 'free_trial_locked',
+        lockedAt: '2026-04-20T12:00:00.000Z',
+        message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+      },
+    }
+
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(session)
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        headers: buildTrustedHeaders(),
+        body: JSON.stringify({
+          scope: 'optimized',
+          cvState: {
+            ...buildOptimizedCvState(),
+            summary: 'Nao deveria salvar.',
+          },
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'Este preview gratuito esta bloqueado. Faca upgrade e gere novamente para editar a versao real.',
+    })
+    expect(applyToolPatchWithVersion).not.toHaveBeenCalled()
+  })
+
+  it('blocks target edits when the target generated preview is locked', async () => {
+    const target: ResumeTarget = {
+      ...buildTarget(),
+      generatedOutput: {
+        status: 'ready',
+        previewAccess: {
+          locked: true,
+          blurred: true,
+          canViewRealContent: false,
+          requiresUpgrade: true,
+          requiresRegenerationAfterUnlock: true,
+          reason: 'free_trial_locked',
+          lockedAt: '2026-04-20T12:00:00.000Z',
+          message: 'Seu preview gratuito esta bloqueado. Faca upgrade e gere novamente para liberar o curriculo real.',
+        },
+      },
+    }
+
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getSession).mockResolvedValue(buildSession([target]))
+    vi.mocked(getResumeTargetForSession).mockResolvedValue(target)
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/manual-edit', {
+        method: 'POST',
+        headers: buildTrustedHeaders(),
+        body: JSON.stringify({
+          scope: 'target',
+          targetId: 'target_123',
+          cvState: {
+            ...target.derivedCvState,
+            summary: 'Nao deveria salvar.',
+          },
+        }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'Este preview gratuito esta bloqueado. Faca upgrade e gere novamente para editar a versao real.',
+    })
+    expect(updateResumeTargetCvStateWithVersion).not.toHaveBeenCalled()
+  })
+
   it('returns 404 when the requested target resume does not exist', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
     vi.mocked(getSession).mockResolvedValue(buildSession())
