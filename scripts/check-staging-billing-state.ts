@@ -3,16 +3,23 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 
-import { getSupabaseAdminClient } from '../src/lib/db/supabase-admin'
+import type { BillingAnomalyReport } from '../src/types/billing'
 
 type JsonRow = Record<string, unknown>
 type SnapshotTransport = 'psql' | 'supabase_admin'
-type SnapshotTable = 'billing_checkouts' | 'credit_accounts' | 'user_quotas' | 'processed_events'
+type SnapshotTable =
+  | 'billing_checkouts'
+  | 'credit_accounts'
+  | 'user_quotas'
+  | 'processed_events'
+  | 'credit_reservations'
+  | 'credit_ledger_entries'
 
 type SnapshotFilters = {
   userId: string | null
   checkoutReference: string | null
   subscriptionId: string | null
+  sessionId: string | null
 }
 
 type Snapshot = {
@@ -23,11 +30,15 @@ type Snapshot = {
     userIds: string[]
     checkoutReferences: string[]
     subscriptionIds: string[]
+    sessionIds: string[]
   }
   billing_checkouts: JsonRow[]
   credit_accounts: JsonRow[]
   user_quotas: JsonRow[]
   processed_events: JsonRow[]
+  credit_reservations: JsonRow[]
+  credit_ledger_entries: JsonRow[]
+  billing_anomalies: BillingAnomalyReport
 }
 
 type HealthcheckResult = {
@@ -54,6 +65,19 @@ type ProcessedEventPayload = {
     externalReference?: string | null
     id?: string | null
   } | null
+}
+
+async function getSupabaseAdminClientDynamic() {
+  const module = await import('../src/lib/db/supabase-admin')
+  return module.getSupabaseAdminClient()
+}
+
+async function summarizeBillingAnomaliesDynamic(input: {
+  userId?: string
+  limit?: number
+}): Promise<BillingAnomalyReport> {
+  const module = await import('../src/lib/billing/billing-alerts')
+  return module.summarizeBillingAnomalies(input)
 }
 
 const BILLING_CHECKOUT_COLUMNS = [
@@ -100,6 +124,43 @@ const PROCESSED_EVENT_COLUMNS = [
   'processed_at',
   'created_at',
   'event_payload',
+].join(', ')
+
+const CREDIT_RESERVATION_COLUMNS = [
+  'id',
+  'user_id',
+  'generation_intent_key',
+  'job_id',
+  'session_id',
+  'resume_target_id',
+  'resume_generation_id',
+  'type',
+  'status',
+  'credits_reserved',
+  'failure_reason',
+  'reserved_at',
+  'finalized_at',
+  'released_at',
+  'reconciliation_status',
+  'metadata',
+  'created_at',
+  'updated_at',
+].join(', ')
+
+const CREDIT_LEDGER_COLUMNS = [
+  'id',
+  'user_id',
+  'reservation_id',
+  'generation_intent_key',
+  'entry_type',
+  'credits_delta',
+  'balance_after',
+  'job_id',
+  'session_id',
+  'resume_target_id',
+  'resume_generation_id',
+  'metadata',
+  'created_at',
 ].join(', ')
 
 function normalizeEnvValue(value: string): string {
@@ -158,12 +219,14 @@ function printHelp(): void {
     '  npx tsx scripts/check-staging-billing-state.ts --user <id>',
     '  npx tsx scripts/check-staging-billing-state.ts --checkout <ref>',
     '  npx tsx scripts/check-staging-billing-state.ts --subscription <id>',
+    '  npx tsx scripts/check-staging-billing-state.ts --session <id>',
     '  npx tsx scripts/check-staging-billing-state.ts --healthcheck [--preflight-user <id>]',
     '',
     'Options:',
     '  --user <id>              Filter rows by user id',
     '  --checkout <ref>         Filter rows by checkout reference',
     '  --subscription <id>      Filter rows by Asaas subscription id',
+    '  --session <id>           Filter export billing rows by session id',
     '  --healthcheck            Verify table access and optional test-user presence',
     '  --preflight-user <id>    User id to check during --healthcheck',
     '  --env-file <path>        Load a specific env file instead of .env.staging',
@@ -174,6 +237,9 @@ function printHelp(): void {
     '  - credit_accounts',
     '  - user_quotas',
     '  - processed_events',
+    '  - credit_reservations',
+    '  - credit_ledger_entries',
+    '  - billing_anomalies',
     '',
     'Database access modes:',
     '  - Preferred: psql + STAGING_DB_URL',
@@ -302,7 +368,7 @@ async function selectRows(
     return []
   }
 
-  const supabase = getSupabaseAdminClient()
+  const supabase = await getSupabaseAdminClientDynamic()
   const { data, error } = await supabase
     .from(table)
     .select(columns)
@@ -323,7 +389,7 @@ async function selectRowsByEquality(
   value: string,
   orderColumn: string,
 ): Promise<JsonRow[]> {
-  const supabase = getSupabaseAdminClient()
+  const supabase = await getSupabaseAdminClientDynamic()
   const { data, error } = await supabase
     .from(table)
     .select(columns)
@@ -390,10 +456,15 @@ function buildSnapshot(
   creditAccounts: JsonRow[],
   userQuotas: JsonRow[],
   processedEvents: JsonRow[],
+  creditReservations: JsonRow[],
+  creditLedgerEntries: JsonRow[],
+  billingAnomalies: BillingAnomalyReport,
 ): Snapshot {
   const discoveredUserIds = unique([
     filters.userId,
     ...billingCheckouts.map((row) => (typeof row.user_id === 'string' ? row.user_id : null)),
+    ...creditReservations.map((row) => (typeof row.user_id === 'string' ? row.user_id : null)),
+    ...creditLedgerEntries.map((row) => (typeof row.user_id === 'string' ? row.user_id : null)),
   ])
 
   const discoveredCheckoutRefs = unique([
@@ -407,6 +478,12 @@ function buildSnapshot(
     ...userQuotas.map((row) => (typeof row.asaas_subscription_id === 'string' ? row.asaas_subscription_id : null)),
   ])
 
+  const discoveredSessionIds = unique([
+    filters.sessionId,
+    ...creditReservations.map((row) => (typeof row.session_id === 'string' ? row.session_id : null)),
+    ...creditLedgerEntries.map((row) => (typeof row.session_id === 'string' ? row.session_id : null)),
+  ])
+
   return {
     generatedAt: new Date().toISOString(),
     transport,
@@ -415,11 +492,15 @@ function buildSnapshot(
       userIds: discoveredUserIds,
       checkoutReferences: discoveredCheckoutRefs,
       subscriptionIds: discoveredSubscriptionIds,
+      sessionIds: discoveredSessionIds,
     },
     billing_checkouts: billingCheckouts,
     credit_accounts: creditAccounts,
     user_quotas: userQuotas,
     processed_events: processedEvents,
+    credit_reservations: creditReservations,
+    credit_ledger_entries: creditLedgerEntries,
+    billing_anomalies: billingAnomalies,
   }
 }
 
@@ -427,15 +508,20 @@ function buildDiscoveredIds(
   filters: SnapshotFilters,
   billingCheckouts: JsonRow[],
   userQuotas: JsonRow[],
+  creditReservations: JsonRow[] = [],
+  creditLedgerEntries: JsonRow[] = [],
 ): {
   userIds: string[]
   checkoutReferences: string[]
   subscriptionIds: string[]
+  sessionIds: string[]
 } {
   return {
     userIds: unique([
       filters.userId,
       ...billingCheckouts.map((row) => (typeof row.user_id === 'string' ? row.user_id : null)),
+      ...creditReservations.map((row) => (typeof row.user_id === 'string' ? row.user_id : null)),
+      ...creditLedgerEntries.map((row) => (typeof row.user_id === 'string' ? row.user_id : null)),
     ]),
     checkoutReferences: unique([
       filters.checkoutReference,
@@ -446,7 +532,21 @@ function buildDiscoveredIds(
       ...billingCheckouts.map((row) => (typeof row.asaas_subscription_id === 'string' ? row.asaas_subscription_id : null)),
       ...userQuotas.map((row) => (typeof row.asaas_subscription_id === 'string' ? row.asaas_subscription_id : null)),
     ]),
+    sessionIds: unique([
+      filters.sessionId,
+      ...creditReservations.map((row) => (typeof row.session_id === 'string' ? row.session_id : null)),
+      ...creditLedgerEntries.map((row) => (typeof row.session_id === 'string' ? row.session_id : null)),
+    ]),
   }
+}
+
+async function buildBillingAnomalySnapshot(filters: SnapshotFilters): Promise<BillingAnomalyReport> {
+  const userId = filters.userId ?? undefined
+
+  return summarizeBillingAnomaliesDynamic({
+    userId,
+    limit: 200,
+  })
 }
 
 function createPsqlSnapshot(filters: SnapshotFilters): Snapshot {
@@ -540,6 +640,65 @@ function createPsqlSnapshot(filters: SnapshotFilters): Snapshot {
     )
     : []
 
+  const reservationClauses = [
+    refreshedDiscoveredIds.userIds.length > 0
+      ? `user_id IN (${refreshedDiscoveredIds.userIds.map(escapeSqlLiteral).join(', ')})`
+      : null,
+    refreshedDiscoveredIds.sessionIds.length > 0
+      ? `session_id IN (${refreshedDiscoveredIds.sessionIds.map(escapeSqlLiteral).join(', ')})`
+      : null,
+  ].filter((clause): clause is string => Boolean(clause))
+
+  const creditReservations = reservationClauses.length > 0
+    ? runPsqlJsonQuery(
+      databaseUrl,
+      `SELECT ${CREDIT_RESERVATION_COLUMNS}
+       FROM credit_reservations
+       WHERE ${reservationClauses.join(' OR ')}
+       ORDER BY updated_at DESC`,
+    )
+    : []
+
+  const reservationIntentKeys = unique(
+    creditReservations.map((row) => (typeof row.generation_intent_key === 'string' ? row.generation_intent_key : null)),
+  )
+  const ledgerClauses = [
+    refreshedDiscoveredIds.userIds.length > 0
+      ? `user_id IN (${refreshedDiscoveredIds.userIds.map(escapeSqlLiteral).join(', ')})`
+      : null,
+    refreshedDiscoveredIds.sessionIds.length > 0
+      ? `session_id IN (${refreshedDiscoveredIds.sessionIds.map(escapeSqlLiteral).join(', ')})`
+      : null,
+    reservationIntentKeys.length > 0
+      ? `generation_intent_key IN (${reservationIntentKeys.map(escapeSqlLiteral).join(', ')})`
+      : null,
+  ].filter((clause): clause is string => Boolean(clause))
+
+  const creditLedgerEntries = ledgerClauses.length > 0
+    ? runPsqlJsonQuery(
+      databaseUrl,
+      `SELECT ${CREDIT_LEDGER_COLUMNS}
+       FROM credit_ledger_entries
+       WHERE ${ledgerClauses.join(' OR ')}
+       ORDER BY created_at DESC`,
+    )
+    : []
+
+  const billingAnomalies = {
+    generatedAt: new Date().toISOString(),
+    thresholds: {
+      staleReconciliationMinutes: 30,
+      repeatedFailureCount: 2,
+      reservedBacklogCount: 10,
+      exampleLimit: 5,
+    },
+    totals: {
+      reservedCount: creditReservations.filter((row) => row.status === 'reserved').length,
+      needsReconciliationCount: creditReservations.filter((row) => row.status === 'needs_reconciliation').length,
+    },
+    anomalies: [],
+  } as unknown as BillingAnomalyReport
+
   return buildSnapshot(
     'psql',
     filters,
@@ -547,6 +706,9 @@ function createPsqlSnapshot(filters: SnapshotFilters): Snapshot {
     creditAccounts,
     userQuotas,
     processedEvents,
+    creditReservations,
+    creditLedgerEntries,
+    billingAnomalies,
   )
 }
 
@@ -607,8 +769,55 @@ async function createSupabaseSnapshot(filters: SnapshotFilters): Promise<Snapsho
     ),
   )
 
-  const refreshedIds = buildDiscoveredIds(filters, billingCheckouts, userQuotas)
-  const supabase = getSupabaseAdminClient()
+  const creditReservations = mergeRowsById(
+    await selectRows(
+      'credit_reservations',
+      CREDIT_RESERVATION_COLUMNS,
+      'user_id',
+      discoveredIds.userIds,
+      'updated_at',
+    ),
+    filters.sessionId
+      ? await selectRowsByEquality(
+        'credit_reservations',
+        CREDIT_RESERVATION_COLUMNS,
+        'session_id',
+        filters.sessionId,
+        'updated_at',
+      )
+      : [],
+  )
+  const reservationIntentKeys = unique(
+    creditReservations.map((row) => (typeof row.generation_intent_key === 'string' ? row.generation_intent_key : null)),
+  )
+  const creditLedgerEntries = mergeRowsById(
+    await selectRows(
+      'credit_ledger_entries',
+      CREDIT_LEDGER_COLUMNS,
+      'user_id',
+      discoveredIds.userIds,
+      'created_at',
+    ),
+    filters.sessionId
+      ? await selectRowsByEquality(
+        'credit_ledger_entries',
+        CREDIT_LEDGER_COLUMNS,
+        'session_id',
+        filters.sessionId,
+        'created_at',
+      )
+      : [],
+    await selectRows(
+      'credit_ledger_entries',
+      CREDIT_LEDGER_COLUMNS,
+      'generation_intent_key',
+      reservationIntentKeys,
+      'created_at',
+    ),
+  )
+
+  const refreshedIds = buildDiscoveredIds(filters, billingCheckouts, userQuotas, creditReservations, creditLedgerEntries)
+  const supabase = await getSupabaseAdminClientDynamic()
   const { data: processedEventRows, error: processedEventError } = await supabase
     .from('processed_events')
     .select(PROCESSED_EVENT_COLUMNS)
@@ -626,6 +835,7 @@ async function createSupabaseSnapshot(filters: SnapshotFilters): Promise<Snapsho
       refreshedIds.userIds,
       refreshedIds.subscriptionIds,
     ))
+  const billingAnomalies = await buildBillingAnomalySnapshot(filters)
 
   return buildSnapshot(
     'supabase_admin',
@@ -634,6 +844,9 @@ async function createSupabaseSnapshot(filters: SnapshotFilters): Promise<Snapsho
     creditAccounts,
     userQuotas,
     processedEvents,
+    creditReservations,
+    creditLedgerEntries,
+    billingAnomalies,
   )
 }
 
@@ -651,22 +864,28 @@ function createPsqlHealthcheck(envFileLoaded: boolean, preflightUserId: string |
     databaseUrl,
     `SELECT COUNT(*) FROM information_schema.tables
      WHERE table_schema = 'public'
-       AND table_name IN ('billing_checkouts', 'credit_accounts', 'user_quotas', 'processed_events');`,
+       AND table_name IN ('billing_checkouts', 'credit_accounts', 'user_quotas', 'processed_events', 'credit_reservations', 'credit_ledger_entries');`,
   ))
 
-  if (tablesFound !== 4) {
-    throw new Error(`Expected billing tables are missing (${tablesFound}/4 found).`)
+  if (tablesFound !== 6) {
+    throw new Error(`Expected billing tables are missing (${tablesFound}/6 found).`)
   }
 
   const rpcCount = Number(runPsqlScalarQuery(
     databaseUrl,
     `SELECT COUNT(*) FROM information_schema.routines
      WHERE routine_schema = 'public'
-       AND routine_name IN ('apply_billing_credit_grant_event', 'apply_billing_subscription_metadata_event');`,
+       AND routine_name IN (
+         'apply_billing_credit_grant_event',
+         'apply_billing_subscription_metadata_event',
+         'reserve_credit_for_generation_intent',
+         'finalize_credit_reservation',
+         'release_credit_reservation'
+       );`,
   ))
 
-  if (rpcCount !== 2) {
-    throw new Error(`Expected billing RPC functions are missing (${rpcCount}/2 found).`)
+  if (rpcCount !== 5) {
+    throw new Error(`Expected billing RPC functions are missing (${rpcCount}/5 found).`)
   }
 
   const userExists = preflightUserId
@@ -685,10 +904,12 @@ function createPsqlHealthcheck(envFileLoaded: boolean, preflightUserId: string |
       credit_accounts: 'ok',
       user_quotas: 'ok',
       processed_events: 'ok',
+      credit_reservations: 'ok',
+      credit_ledger_entries: 'ok',
     },
     rpcCheck: {
       status: 'verified',
-      detail: 'Verified billing RPC functions through information_schema.routines.',
+      detail: 'Verified checkout and export-reservation RPC functions through information_schema.routines.',
     },
     user: {
       id: preflightUserId,
@@ -698,7 +919,7 @@ function createPsqlHealthcheck(envFileLoaded: boolean, preflightUserId: string |
 }
 
 async function assertTableReadable(table: string): Promise<void> {
-  const supabase = getSupabaseAdminClient()
+  const supabase = await getSupabaseAdminClientDynamic()
   const { error } = await supabase
     .from(table)
     .select('id')
@@ -713,14 +934,14 @@ async function createSupabaseHealthcheck(
   envFileLoaded: boolean,
   preflightUserId: string | null,
 ): Promise<HealthcheckResult> {
-  for (const table of ['billing_checkouts', 'credit_accounts', 'user_quotas', 'processed_events']) {
+  for (const table of ['billing_checkouts', 'credit_accounts', 'user_quotas', 'processed_events', 'credit_reservations', 'credit_ledger_entries']) {
     await assertTableReadable(table)
   }
 
   let userExists: boolean | null = null
 
   if (preflightUserId) {
-    const supabase = getSupabaseAdminClient()
+    const supabase = await getSupabaseAdminClientDynamic()
     const { data, error } = await supabase
       .from('users')
       .select('id')
@@ -743,10 +964,12 @@ async function createSupabaseHealthcheck(
       credit_accounts: 'ok',
       user_quotas: 'ok',
       processed_events: 'ok',
+      credit_reservations: 'ok',
+      credit_ledger_entries: 'ok',
     },
     rpcCheck: {
       status: 'skipped',
-      detail: 'psql unavailable; table access was verified through the Supabase admin fallback and live scenario replay will exercise the same billing RPC path.',
+      detail: 'psql unavailable; table access was verified through the Supabase admin fallback and live checkout/export replay will exercise the same billing RPC paths.',
     },
     user: {
       id: preflightUserId,
@@ -763,6 +986,7 @@ async function main(): Promise<void> {
       user: { type: 'string' },
       checkout: { type: 'string' },
       subscription: { type: 'string' },
+      session: { type: 'string' },
       'preflight-user': { type: 'string' },
       'env-file': { type: 'string' },
     },
@@ -787,15 +1011,16 @@ async function main(): Promise<void> {
     return
   }
 
-  if (!values.user && !values.checkout && !values.subscription) {
+  if (!values.user && !values.checkout && !values.subscription && !values.session) {
     printHelp()
-    throw new Error('At least one filter is required: --user, --checkout, or --subscription.')
+    throw new Error('At least one filter is required: --user, --checkout, --subscription, or --session.')
   }
 
   const filters: SnapshotFilters = {
     userId: values.user ?? null,
     checkoutReference: values.checkout ?? null,
     subscriptionId: values.subscription ?? null,
+    sessionId: values.session ?? null,
   }
 
   const snapshot = transport === 'psql'

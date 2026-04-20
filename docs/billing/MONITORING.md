@@ -104,7 +104,103 @@ WHERE quota.credits_remaining < account.credits_remaining;
 
 Alert if `drift_count > 0`.
 
+### 7. Stale export reconciliation backlog
+
+Run every 15 minutes:
+
+```sql
+SELECT COUNT(*) AS stale_reconciliation_count,
+       MIN(created_at) AS oldest_reconciliation
+FROM credit_reservations
+WHERE status = 'needs_reconciliation'
+  AND created_at < NOW() - INTERVAL '30 minutes';
+```
+
+Alert if `stale_reconciliation_count > 0`.
+
+Repo-native fallback:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --user <user_id>
+```
+
+Expected anomaly output:
+
+- `billing_anomalies.anomalies[].kind = "stale_reconciliation"`
+- `billing_anomalies.thresholds.staleReconciliationMinutes = 30`
+
+### 8. Repeated finalize or release failures
+
+Run every 15 minutes:
+
+```sql
+SELECT generation_intent_key,
+       failure_reason,
+       COUNT(*) AS repeated_failures
+FROM credit_reservations
+WHERE status = 'needs_reconciliation'
+  AND created_at > NOW() - INTERVAL '24 hours'
+  AND (
+    failure_reason ILIKE '%finalize%'
+    OR failure_reason ILIKE '%release%'
+  )
+GROUP BY generation_intent_key, failure_reason
+HAVING COUNT(*) >= 2
+ORDER BY repeated_failures DESC;
+```
+
+Alert if any row is returned.
+
+Repo-native fallback:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --user <user_id>
+```
+
+Expected anomaly kinds:
+
+- `repeated_finalize_failure`
+- `repeated_release_failure`
+
+### 9. Reserved export backlog
+
+Run every 15 minutes:
+
+```sql
+SELECT COUNT(*) AS reserved_backlog_count,
+       MIN(created_at) AS oldest_reserved_hold
+FROM credit_reservations
+WHERE status = 'reserved';
+```
+
+Investigate if `reserved_backlog_count >= 10`.
+
+Repo-native fallback:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --session <session_id>
+```
+
+Expected anomaly output:
+
+- `billing_anomalies.anomalies[].kind = "reserved_backlog"`
+- `billing_anomalies.thresholds.reservedBacklogCount = 10`
+
 ## Useful sanity queries
+
+### Export reservation health snapshot
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --user <user_id>
+```
+
+This now includes:
+
+- `credit_reservations`
+- `credit_ledger_entries`
+- `billing_anomalies`
+
+Use it when `psql` is unavailable or when you need a committed JSON artifact for staging evidence.
 
 ### Recent internal billing event types
 

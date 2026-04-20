@@ -30,6 +30,7 @@ bash scripts/verify-staging.sh
 npx tsx scripts/replay-staging-asaas.ts --list-scenarios
 npx tsx scripts/check-staging-billing-state.ts --help
 npx tsx scripts/check-staging-billing-state.ts --healthcheck --preflight-user usr_staging_001
+npx tsx scripts/stress-export-generation.ts --help
 ```
 
 ## Proof set
@@ -41,6 +42,7 @@ npm run typecheck
 npm test -- src/lib/asaas/event-handlers.test.ts src/app/api/webhook/asaas/route.test.ts src/lib/asaas/credit-grants.test.ts src/lib/asaas/quota.test.ts src/app/api/checkout/route.test.ts
 npx tsx scripts/replay-staging-asaas.ts --list-scenarios
 npx tsx scripts/check-staging-billing-state.ts --help
+npx tsx scripts/stress-export-generation.ts --help
 ```
 
 ### Live staging proof
@@ -194,6 +196,41 @@ Suggested command:
 ```bash
 npx tsx scripts/replay-staging-asaas.ts --scenario partial_success_reconcile --checkout <checkout_reference> --payment <payment_id> [--subscription <subscription_id>] [--checkout-session <session_id>] [--app-user <user_id>]
 ```
+
+## Scenario 8: Concurrent export retry proof
+
+Goal: repeated export requests for the same session prove one durable retry path instead of double-holding credits.
+
+Expected path:
+
+1. Choose a staging session that already has an AI-generated exportable snapshot.
+2. Capture a baseline snapshot:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --session <session_id>
+```
+
+3. Run the export stress harness:
+
+```bash
+npx tsx scripts/stress-export-generation.ts --url <staging-url> --session-id <session_id> --cookie "<cookie>" --requests 6 --concurrency 3 --format markdown --output .planning/phases/CURRIA-45-improve-billing-transparency-alerts-and-concurrency-proof/45-03-stress-export.md
+```
+
+4. Capture the post-run snapshot:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --session <session_id>
+```
+
+Verify:
+
+- the stress artifact shows accepted safe outcomes only
+- repeated requests collapse onto one durable `jobId`, or retries return `BILLING_RECONCILIATION_PENDING`
+- the snapshot now includes `credit_reservations`, `credit_ledger_entries`, and `billing_anomalies`
+- no anomaly summary crosses:
+  - `staleReconciliationMinutes = 30`
+  - `repeatedFailureCount = 2`
+  - `reservedBacklogCount = 10`
 
 ## Final checks
 

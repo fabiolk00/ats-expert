@@ -25,6 +25,7 @@ Before ad hoc SQL or manual webhook replay, start with the committed billing pro
 bash scripts/verify-staging.sh
 npx tsx scripts/replay-staging-asaas.ts --list-scenarios
 npx tsx scripts/check-staging-billing-state.ts --help
+npx tsx scripts/stress-export-generation.ts --help
 ```
 
 Prerequisites:
@@ -36,6 +37,19 @@ Prerequisites:
 - one database access path:
   - `psql` plus `STAGING_DB_URL`
   - or `NEXT_PUBLIC_SUPABASE_URL` plus `SUPABASE_SERVICE_ROLE_KEY`
+
+For export-specific proof, the repo-native path is:
+
+```bash
+npx tsx scripts/stress-export-generation.ts --url <staging-url> --session-id <session_id> --cookie "<cookie>" --requests 6 --concurrency 3 --format markdown
+npx tsx scripts/check-staging-billing-state.ts --session <session_id>
+```
+
+Safe outcomes:
+
+- repeated `202` responses that collapse onto one durable job id
+- `200` when the artifact already exists
+- `409 BILLING_RECONCILIATION_PENDING` when a previous failed export is still settling billing
 
 Phase 17 also needs to validate the live trust-anchor shape. Current production intent is `curria:v1:c:<checkoutReference>`, while the parser still accepts the older `curria:v1:u:<appUserId>:c:<checkoutReference>` format for compatibility. Use the replay helper with or without `--app-user` only to prove which shape staging still receives; do not emit new checkout links in the legacy format.
 
@@ -317,6 +331,13 @@ WHERE id = '<job_id>';
 ### Recovery
 
 - Preferred path: run the repo-native reconciliation routine so the repair is repeatable and logged.
+- Capture a committed evidence pair before and after repair:
+
+```bash
+npx tsx scripts/check-staging-billing-state.ts --session <session_id>
+npx tsx scripts/stress-export-generation.ts --url <staging-url> --session-id <session_id> --cookie "<cookie>" --requests 4 --concurrency 2 --format markdown
+```
+
 - After automatic repair, verify that:
   - the reservation is now `released` or `finalized`
   - `reconciliation_status = 'repaired'`
