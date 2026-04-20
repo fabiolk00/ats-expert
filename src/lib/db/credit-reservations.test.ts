@@ -244,6 +244,41 @@ describe('credit reservation repository', () => {
     })
   })
 
+  it('collapses simultaneous reserve attempts for the same generation intent into one hold', async () => {
+    reservationMaybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: buildReservationRow('reserved'), error: null })
+    mockSupabase.rpc
+      .mockResolvedValueOnce({ data: buildReservationRow('reserved'), error: null })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+      })
+
+    const [firstResult, secondResult] = await Promise.all([
+      reserveCreditForGenerationIntent({
+        userId: 'usr_123',
+        generationIntentKey: 'intent_123',
+        generationType: 'ATS_ENHANCEMENT',
+        jobId: 'job_123',
+        sessionId: 'session_123',
+      }),
+      reserveCreditForGenerationIntent({
+        userId: 'usr_123',
+        generationIntentKey: 'intent_123',
+        generationType: 'ATS_ENHANCEMENT',
+        jobId: 'job_123',
+        sessionId: 'session_123',
+      }),
+    ])
+
+    expect(firstResult.reservation.id).toBe('reservation_123')
+    expect(secondResult.reservation.id).toBe('reservation_123')
+    expect([firstResult.wasCreated, secondResult.wasCreated].sort()).toEqual([false, true])
+    expect(mockSupabase.rpc).toHaveBeenCalledTimes(2)
+  })
+
   it('surfaces contradictory terminal transitions for reconciliation instead of mutating silently', async () => {
     reservationMaybeSingle.mockResolvedValueOnce({ data: buildReservationRow('released'), error: null })
 

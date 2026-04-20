@@ -499,6 +499,70 @@ describe('generateBillableResume', () => {
     expect(mockReleaseCreditReservation).not.toHaveBeenCalled()
   })
 
+  it('keeps retry billing idempotent when the same pending generation is resumed more than once', async () => {
+    const cvState = buildCvState()
+    mockGetResumeGenerationByIdempotencyKey.mockResolvedValue(
+      buildPendingGeneration(cvState, { id: 'gen_pending_existing' }),
+    )
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockReserveCreditForGenerationIntent.mockResolvedValue(buildReservation({
+      generationIntentKey: 'dup_key',
+      resumeGenerationId: 'gen_pending_existing',
+    }))
+    mockGenerateFile.mockResolvedValue({
+      output: {
+        success: true,
+        pdfUrl: 'https://example.com/resume.pdf',
+        docxUrl: null,
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-12T12:01:00.000Z',
+      },
+    })
+    mockUpdateResumeGeneration.mockResolvedValue({
+      ...buildPendingGeneration(cvState, { id: 'gen_pending_existing', status: 'completed' }),
+      generatedCvState: cvState,
+      outputPdfPath: 'usr_123/sess_123/resume.pdf',
+      outputDocxPath: null,
+      updatedAt: new Date('2026-04-12T12:01:00.000Z'),
+    })
+
+    await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+      resumePendingGeneration: true,
+    })
+
+    await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+      resumePendingGeneration: true,
+    })
+
+    expect(mockReserveCreditForGenerationIntent).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      generationIntentKey: 'dup_key',
+    }))
+    expect(mockReserveCreditForGenerationIntent).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      generationIntentKey: 'dup_key',
+    }))
+    expect(mockFinalizeCreditReservation).toHaveBeenCalledTimes(2)
+    expect(mockReleaseCreditReservation).not.toHaveBeenCalled()
+  })
+
   it('preserves artifact availability when finalize and reconciliation marker writes both fail after render success', async () => {
     const cvState = buildCvState()
     mockGetLatestCvVersionForScope.mockResolvedValue({

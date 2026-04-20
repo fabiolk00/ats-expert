@@ -525,6 +525,85 @@ describe('generate route', () => {
     )
   })
 
+  it('reuses the same retry job when duplicate nonce-less retries hit the same failed generation', async () => {
+    const failedJob = buildJobSnapshot({
+      status: 'failed',
+      stage: 'render_artifact',
+      terminalErrorRef: {
+        kind: 'resume_generation_failure',
+        resumeGenerationId: 'gen_failed_123',
+        failureReason: 'Renderer failed.',
+      },
+      completedAt: '2026-04-16T10:05:00.000Z',
+    })
+    const retryJob = buildJobSnapshot({
+      jobId: 'job_retry_123',
+      status: 'running',
+      stage: 'reserve_credit',
+      terminalErrorRef: undefined,
+      claimedAt: '2026-04-16T10:06:00.000Z',
+      startedAt: '2026-04-16T10:06:00.000Z',
+    })
+    vi.mocked(createJob)
+      .mockResolvedValueOnce({
+        wasCreated: false,
+        job: failedJob,
+      } as never)
+      .mockResolvedValueOnce({
+        wasCreated: true,
+        job: retryJob,
+      } as never)
+      .mockResolvedValueOnce({
+        wasCreated: false,
+        job: failedJob,
+      } as never)
+      .mockResolvedValueOnce({
+        wasCreated: false,
+        job: retryJob,
+      } as never)
+    vi.mocked(startDurableJobProcessing).mockResolvedValue(retryJob as never)
+
+    const firstResponse = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/generate', {
+        method: 'POST',
+        headers: buildTrustedHeaders(),
+        body: JSON.stringify({ scope: 'base' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    const secondResponse = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/generate', {
+        method: 'POST',
+        headers: buildTrustedHeaders(),
+        body: JSON.stringify({ scope: 'base' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(firstResponse.status).toBe(202)
+    expect(secondResponse.status).toBe(202)
+    expect(await firstResponse.json()).toEqual(expect.objectContaining({
+      success: true,
+      inProgress: true,
+      jobId: 'job_retry_123',
+      billingStage: 'reserve_credit',
+    }))
+    expect(await secondResponse.json()).toEqual(expect.objectContaining({
+      success: true,
+      inProgress: true,
+      jobId: 'job_retry_123',
+      billingStage: 'reserve_credit',
+    }))
+
+    const retryCreateCalls = vi.mocked(createJob).mock.calls
+      .map(([input]) => input)
+      .filter((input) => typeof input.idempotencyKey === 'string' && input.idempotencyKey.includes(':retry:'))
+
+    expect(retryCreateCalls).toHaveLength(2)
+    expect(retryCreateCalls[0]?.idempotencyKey).toBe(retryCreateCalls[1]?.idempotencyKey)
+  })
+
   it('rejects cross-origin generation requests and logs the trust failure', async () => {
     const response = await POST(
       new NextRequest('https://example.com/api/session/sess_123/generate', {

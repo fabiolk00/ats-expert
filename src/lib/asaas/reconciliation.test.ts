@@ -203,4 +203,57 @@ describe('reconcileCreditReservations', () => {
       reconciliationStatus: 'manual_review',
     }))
   })
+
+  it('remains idempotent when the same unresolved reservation is repaired more than once', async () => {
+    mockListCreditReservationsForReconciliation
+      .mockResolvedValueOnce([
+        buildReservation({
+          status: 'needs_reconciliation',
+          reconciliationStatus: 'pending',
+          failureReason: 'release rpc failed',
+        }),
+      ])
+      .mockResolvedValueOnce([
+        buildReservation({
+          status: 'needs_reconciliation',
+          reconciliationStatus: 'pending',
+          failureReason: 'release rpc failed',
+        }),
+      ])
+    mockGetJob.mockResolvedValue({
+      jobId: 'job_123',
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      idempotencyKey: 'intent_123',
+      type: 'artifact_generation',
+      status: 'failed',
+      stage: 'release_credit',
+      dispatchInputRef: {
+        kind: 'session_cv_state',
+        sessionId: 'sess_123',
+        snapshotSource: 'base',
+      },
+      createdAt: '2026-04-20T00:00:00.000Z',
+      updatedAt: '2026-04-20T00:01:00.000Z',
+      completedAt: '2026-04-20T00:01:00.000Z',
+    })
+    mockReleaseCreditReservation.mockResolvedValue(buildReservation({
+      status: 'released',
+      releasedAt: new Date('2026-04-20T00:02:00.000Z'),
+    }))
+
+    const firstResult = await reconcileCreditReservations({ userId: 'usr_123' })
+    const secondResult = await reconcileCreditReservations({ userId: 'usr_123' })
+
+    expect(firstResult[0]).toEqual(expect.objectContaining({
+      reservationId: 'res_123',
+      action: 'released',
+    }))
+    expect(secondResult[0]).toEqual(expect.objectContaining({
+      reservationId: 'res_123',
+      action: 'released',
+    }))
+    expect(mockReleaseCreditReservation).toHaveBeenCalledTimes(2)
+    expect(mockMarkCreditReservationReconciliation).toHaveBeenCalledTimes(2)
+  })
 })
