@@ -132,7 +132,7 @@ export function ImportResumeModal({
   const activeFileImportIdRef = useRef(0)
   const isFileImportInFlightRef = useRef(false)
   const keepImportStateOnCloseRef = useRef(false)
-  const backgroundCloseResetTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const backgroundCloseResetTimeoutRef = useRef<number | null>(null)
   const [linkedinUrl, setLinkedinUrl] = useState("")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isLinkedinSubmitting, setIsLinkedinSubmitting] = useState(false)

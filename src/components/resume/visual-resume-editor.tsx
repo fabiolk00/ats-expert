@@ -305,7 +305,7 @@ export function VisualResumeEditor({
     }
 
     let cancelled = false
-    let stepTimeout: ReturnType<typeof window.setTimeout> | undefined
+    let stepTimeout: number | undefined
 
     const advance = (nextIndex: number) => {
       if (cancelled) {
