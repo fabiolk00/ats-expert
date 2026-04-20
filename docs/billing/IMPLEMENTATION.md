@@ -19,8 +19,8 @@ CurrIA billing is webhook-driven.
 - `user_quotas` stores subscription metadata plus the UI-facing display total in `credits_remaining`.
 - `billing_checkouts` is the source of truth for post-cutover paid checkout resolution.
 - `processed_events` guarantees idempotent webhook processing.
-- Resume-generation billing is anchored on successful `resume_generations`, not session creation or chat volume.
-- `credit_consumptions` gives the auditable record for each consumed generation credit.
+- Resume-generation billing now reserves one credit before render work starts, then finalizes or releases that hold by generation intent.
+- `credit_reservations` plus `credit_ledger_entries` are the auditable reservation and movement trail for export billing.
 
 ## Data Model
 
@@ -69,11 +69,24 @@ CurrIA billing is webhook-driven.
   - artifact paths when generation completes successfully
 - A session may contain many resume generations.
 
-### `credit_consumptions`
+### `credit_reservations`
 
-- Stores the auditable spend record for each billed generation.
-- Links one consumed credit event to one `resume_generations` row.
-- Prevents double-charge by enforcing one consumption record per generation.
+- Stores one mutable reservation lifecycle row per export generation intent.
+- Tracks:
+  - generation intent key
+  - optional `job_id`, `session_id`, `resume_target_id`, and `resume_generation_id`
+  - reservation status: `reserved`, `finalized`, `released`, `needs_reconciliation`
+  - reconciliation status: `clean`, `pending`, `repaired`, `manual_review`
+- This row is the reconciliation anchor when artifact success and billing finalization diverge.
+
+### `credit_ledger_entries`
+
+- Stores append-only reservation movement history.
+- Entry types currently used by export billing:
+  - `reservation_hold`
+  - `reservation_finalize`
+  - `reservation_release`
+- The ledger is written by the reservation RPC transitions and remains readable even if `resume_generations` persistence drifts.
 
 ## Runtime Billing Boundaries
 
@@ -81,8 +94,33 @@ CurrIA billing is webhook-driven.
 - Sending chat messages is free.
 - Pasting or analyzing a job description is free.
 - Manual preview edits are free.
-- A credit is consumed only after a resume generation succeeds.
+- A credit is reserved before render work starts.
+- Successful generation finalizes the reserved credit.
+- Failed generation releases the reserved credit.
+- If the artifact succeeds but finalization drifts, the artifact remains valid and the reservation moves into explicit reconciliation handling.
 - Replaying the same logical generation request through an idempotency key must return the existing result with `creditsUsed = 0`.
+
+## Export Reservation Lifecycle
+
+1. `/api/session/[id]/generate` creates or resumes the durable `artifact_generation` job.
+2. `generateBillableResume(...)` validates the billable source snapshot and creates or resumes the pending `resume_generations` row.
+3. The runtime reserves one credit through `reserveCreditForGenerationIntent(...)` keyed by the durable generation intent.
+4. Artifact render runs only after the reservation succeeds.
+5. On render success, the runtime finalizes the hold through `finalizeCreditReservation(...)`.
+6. On render failure, the runtime releases the hold through `releaseCreditReservation(...)`.
+7. If finalize or release drift after the artifact outcome is already known, the reservation is marked `needs_reconciliation` and operators can repair it through the reconciliation routine.
+
+## Reconciliation Model
+
+- `reconcileCreditReservations()` is the repo-native repair routine for stuck or contradictory reservation states.
+- The routine classifies evidence from:
+  - reservation status and reconciliation status
+  - durable job status and stage
+  - artifact metadata on the base session or target resume
+- Automatic repair is allowed only for the clear cases:
+  - terminal failed or cancelled job with a still-reserved hold -> release
+  - completed job plus ready artifact with a still-reserved hold -> finalize
+- Ambiguous cases are marked `needs_reconciliation` with `manual_review` instead of mutating balances blindly.
 
 ## Checkout Flow
 
@@ -284,6 +322,11 @@ Look for:
 - `billing.legacy_webhook_path`
 - `asaas.webhook.failed`
 - `asaas.webhook.duplicate_skipped`
+- `resume_generation.credit_reserved`
+- `resume_generation.credit_finalized`
+- `resume_generation.credit_released`
+- `resume_generation.billing_reconciliation_required`
+- `billing.credit_reconciliation_gap_detected`
 - RPC exceptions mentioning checkout mismatch, plan mismatch, or negative balance
 
 Useful queries:
@@ -304,6 +347,12 @@ Useful queries:
   - `SELECT event_type, COUNT(*) FROM processed_events GROUP BY event_type;`
 - legacy-path webhook payloads still reaching the system:
   - `SELECT event_type, processed_at, COALESCE(event_payload->'payment'->>'externalReference', event_payload->'subscription'->>'externalReference') AS external_reference FROM processed_events WHERE COALESCE(event_payload->'payment'->>'externalReference', event_payload->'subscription'->>'externalReference') ~ '^usr_[A-Za-z0-9]+$' ORDER BY processed_at DESC;`
+- reserved export intents that need operator attention:
+  - `SELECT id, user_id, generation_intent_key, status, reconciliation_status, job_id, session_id, resume_target_id, resume_generation_id, failure_reason, updated_at FROM credit_reservations WHERE status IN ('reserved', 'needs_reconciliation') ORDER BY updated_at DESC;`
+- append-only ledger trail for one export intent:
+  - `SELECT generation_intent_key, entry_type, credits_delta, balance_after, job_id, session_id, resume_target_id, resume_generation_id, created_at FROM credit_ledger_entries WHERE generation_intent_key = '<generation_intent_key>' ORDER BY created_at ASC;`
+- completed artifact jobs still waiting on billing repair:
+  - `SELECT id, user_id, session_id, resume_target_id, status, stage, completed_at FROM jobs WHERE type = 'artifact_generation' AND stage = 'needs_reconciliation' ORDER BY completed_at DESC;`
 
 Operational expectations:
 

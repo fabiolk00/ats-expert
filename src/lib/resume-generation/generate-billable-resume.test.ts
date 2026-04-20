@@ -13,6 +13,7 @@ const {
   mockFinalizeCreditReservation,
   mockReleaseCreditReservation,
   mockGetLatestCvVersionForScope,
+  mockMarkCreditReservationReconciliation,
   mockCreatePendingResumeGeneration,
   mockGetLatestCompletedResumeGenerationForScope,
   mockGetResumeGenerationByIdempotencyKey,
@@ -29,6 +30,7 @@ const {
   mockFinalizeCreditReservation: vi.fn(),
   mockReleaseCreditReservation: vi.fn(),
   mockGetLatestCvVersionForScope: vi.fn(),
+  mockMarkCreditReservationReconciliation: vi.fn(),
   mockCreatePendingResumeGeneration: vi.fn(),
   mockGetLatestCompletedResumeGenerationForScope: vi.fn(),
   mockGetResumeGenerationByIdempotencyKey: vi.fn(),
@@ -54,6 +56,10 @@ vi.mock('@/lib/asaas/quota', () => ({
 
 vi.mock('@/lib/db/cv-versions', () => ({
   getLatestCvVersionForScope: mockGetLatestCvVersionForScope,
+}))
+
+vi.mock('@/lib/db/credit-reservations', () => ({
+  markCreditReservationReconciliation: mockMarkCreditReservationReconciliation,
 }))
 
 vi.mock('@/lib/db/resume-generations', () => ({
@@ -146,6 +152,10 @@ describe('generateBillableResume', () => {
     mockUpdateResumeGeneration.mockResolvedValue(undefined)
     mockConsumeCreditForGeneration.mockResolvedValue(true)
     mockReserveCreditForGenerationIntent.mockResolvedValue(buildReservation())
+    mockMarkCreditReservationReconciliation.mockResolvedValue(buildReservation({
+      status: 'needs_reconciliation',
+      reconciliationStatus: 'pending',
+    }))
     mockFinalizeCreditReservation.mockResolvedValue(buildReservation({
       status: 'finalized',
       finalizedAt: new Date('2026-04-12T12:01:00.000Z'),

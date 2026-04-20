@@ -192,6 +192,11 @@ export type ArtifactStatusSummary = {
   stage?: string
   progress?: JobProgress
   errorMessage?: string
+  reconciliation?: {
+    required: boolean
+    status: 'pending' | 'manual_review' | 'repaired'
+    reason?: string
+  }
 }
 
 export type DownloadUrlsResponse = {
@@ -203,6 +208,7 @@ export type DownloadUrlsResponse = {
   stage?: string
   progress?: JobProgress
   errorMessage?: string
+  reconciliation?: ArtifactStatusSummary['reconciliation']
 }
 
 export type ResumeComparisonResponse = {

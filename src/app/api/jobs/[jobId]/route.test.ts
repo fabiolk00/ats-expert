@@ -133,4 +133,40 @@ describe('GET /api/jobs/[jobId]', () => {
       startedAt: '2026-04-17T00:00:01.000Z',
     })
   })
+
+  it('keeps the canonical DTO while exposing reservation-backed artifact stages', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(buildAppUser('usr_123'))
+    vi.mocked(getJob).mockResolvedValue({
+      jobId: 'job_123',
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      idempotencyKey: 'artifact:sess_123:abc',
+      type: 'artifact_generation',
+      status: 'completed',
+      stage: 'needs_reconciliation',
+      dispatchInputRef: {
+        kind: 'session_cv_state',
+        sessionId: 'sess_123',
+        snapshotSource: 'base',
+      },
+      createdAt: '2026-04-17T00:00:00.000Z',
+      updatedAt: '2026-04-17T00:00:10.000Z',
+      claimedAt: '2026-04-17T00:00:01.000Z',
+      startedAt: '2026-04-17T00:00:01.000Z',
+      completedAt: '2026-04-17T00:00:10.000Z',
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/jobs/job_123'),
+      { params: { jobId: 'job_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(expect.objectContaining({
+      jobId: 'job_123',
+      type: 'artifact_generation',
+      status: 'completed',
+      stage: 'needs_reconciliation',
+    }))
+  })
 })

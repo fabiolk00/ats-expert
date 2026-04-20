@@ -137,4 +137,28 @@ describe('SessionDocumentsPanel', () => {
     expect(screen.getByText('No credits available to finalize this generation.')).toBeInTheDocument()
     expect(screen.getByTestId('documents-progress-label')).toHaveTextContent('Ultima etapa: generation failed')
   })
+
+  it('shows a reconciliation notice while keeping the ready PDF available', () => {
+    mockUseSessionDocuments.mockReturnValue({
+      files: { docxUrl: null, pdfUrl: 'https://example.com/resume.pdf' },
+      artifactStatus: {
+        generationStatus: 'ready',
+        stage: 'needs_reconciliation',
+        reconciliation: {
+          required: true,
+          status: 'pending',
+          reason: 'billing finalize pending repair',
+        },
+      },
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
+    })
+
+    render(<SessionDocumentsPanel isSidebarOpen />)
+
+    expect(screen.getByText('Arquivo pronto. A cobranca desta geracao esta em reconciliacao.')).toBeInTheDocument()
+    expect(screen.getByText('billing finalize pending repair')).toBeInTheDocument()
+    expect(screen.getByText('Resume.pdf')).toBeInTheDocument()
+  })
 })

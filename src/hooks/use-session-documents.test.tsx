@@ -54,6 +54,7 @@ describe('useSessionDocuments', () => {
         label: 'rendering',
       },
       errorMessage: undefined,
+      reconciliation: undefined,
     })
     expect(result.current.error).toBeNull()
   })
@@ -93,6 +94,41 @@ describe('useSessionDocuments', () => {
       stage: undefined,
       progress: undefined,
       errorMessage: undefined,
+      reconciliation: undefined,
+    })
+  })
+
+  it('passes reconciliation detail through the existing polling hook', async () => {
+    vi.mocked(getDownloadUrls).mockResolvedValue({
+      docxUrl: null,
+      pdfUrl: 'https://example.com/resume.pdf',
+      available: true,
+      generationStatus: 'ready',
+      stage: 'needs_reconciliation',
+      reconciliation: {
+        required: true,
+        status: 'pending',
+        reason: 'billing finalize pending repair',
+      },
+    })
+
+    const { result } = renderHook(() => useSessionDocuments('sess_123'))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    expect(result.current.artifactStatus).toEqual({
+      generationStatus: 'ready',
+      jobId: undefined,
+      stage: 'needs_reconciliation',
+      progress: undefined,
+      errorMessage: undefined,
+      reconciliation: {
+        required: true,
+        status: 'pending',
+        reason: 'billing finalize pending repair',
+      },
     })
   })
 })

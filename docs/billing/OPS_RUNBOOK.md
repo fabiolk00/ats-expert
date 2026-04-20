@@ -9,6 +9,13 @@ This runbook covers diagnosis and recovery for the current Asaas billing flow.
 - Renewals come from settled payments or the legacy `SUBSCRIPTION_RENEWED` compatibility path.
 - `SUBSCRIPTION_CREATED` is informational only.
 - Cancellations and inactivations update metadata only and do not revoke credits.
+- Resume export billing now uses `credit_reservations` plus `credit_ledger_entries` instead of relying only on `resume_generations`.
+- Export jobs expose reservation stages through the existing job and file polling routes:
+  - `reserve_credit`
+  - `render_artifact`
+  - `finalize_credit`
+  - `release_credit`
+  - `needs_reconciliation`
 
 ## Phase 17 operator entrypoint
 
@@ -274,7 +281,83 @@ LIMIT 20;
 - if `resume_generations.status = 'failed'` after file rendering but before credit finalization, verify whether a PDF path was created and avoid replaying blindly
 - if the user retries with the same client request id and still sees a new charge, capture the duplicated `idempotency_key`, `generation_id`, and affected `credit_consumptions` rows before any manual refund
 
-## 9. Pre-cutover legacy subscription issue
+## 9. Export reservation stuck in `reserved` or `needs_reconciliation`
+
+### Checks
+
+```sql
+SELECT id, user_id, generation_intent_key, status, reconciliation_status, job_id, session_id, resume_target_id, resume_generation_id, failure_reason, updated_at
+FROM credit_reservations
+WHERE status IN ('reserved', 'needs_reconciliation')
+ORDER BY updated_at DESC;
+```
+
+```sql
+SELECT generation_intent_key, entry_type, credits_delta, balance_after, job_id, session_id, resume_target_id, resume_generation_id, created_at
+FROM credit_ledger_entries
+WHERE generation_intent_key = '<generation_intent_key>'
+ORDER BY created_at ASC;
+```
+
+```sql
+SELECT id, user_id, session_id, resume_target_id, status, stage, completed_at, terminal_error_ref, terminal_result_ref
+FROM jobs
+WHERE id = '<job_id>';
+```
+
+### Interpret the state
+
+- `status = 'reserved'` plus `jobs.status IN ('failed', 'cancelled')`:
+  the hold should be released.
+- `status = 'reserved'` plus `jobs.status = 'completed'` and the session or target artifact is ready:
+  the hold should be finalized.
+- `status = 'needs_reconciliation'` plus `reconciliation_status = 'manual_review'`:
+  evidence was ambiguous; do not force a balance mutation until engineering confirms the real artifact outcome.
+
+### Recovery
+
+- Preferred path: run the repo-native reconciliation routine so the repair is repeatable and logged.
+- After automatic repair, verify that:
+  - the reservation is now `released` or `finalized`
+  - `reconciliation_status = 'repaired'`
+  - exactly one matching `reservation_release` or `reservation_finalize` ledger entry exists for the intent
+- If the reservation is flagged `manual_review`, capture:
+  - `generation_intent_key`
+  - `job_id`
+  - session or target artifact metadata
+  - the full ledger trail
+  and escalate to engineering.
+
+## 10. Artifact ready but billing still needs reconciliation
+
+### What users and operators will see
+
+- `/api/file/[sessionId]` can return `available = true`, `generationStatus = 'ready'`, and `stage = 'needs_reconciliation'`.
+- The current dashboard documents panel keeps the PDF available and shows a reconciliation notice instead of blocking access to the file.
+- `/api/jobs/[jobId]` keeps the canonical job DTO and surfaces `stage = 'needs_reconciliation'` for artifact jobs.
+
+### Checks
+
+```sql
+SELECT id, generated_output
+FROM sessions
+WHERE id = '<session_id>';
+```
+
+If this was a target export:
+
+```sql
+SELECT id, generated_output
+FROM resume_targets
+WHERE id = '<resume_target_id>';
+```
+
+### Recovery
+
+- If the artifact is present and valid, do not revoke access just because billing is in reconciliation.
+- Repair the reservation first, then confirm the job stage leaves `needs_reconciliation`.
+
+## 11. Pre-cutover legacy subscription issue
 
 Legacy recurring flows still resolve by `user_quotas.asaas_subscription_id`.
 
@@ -290,7 +373,7 @@ If the row is missing or malformed:
 - confirm the plan is correct
 - then replay the renewal webhook
 
-## 10. Manual webhook replay
+## 12. Manual webhook replay
 
 Use the original webhook payload whenever possible. When you are following the committed Phase 3 proof path, prefer the replay helper over hand-crafted curl commands so the evidence stays repeatable.
 
@@ -323,7 +406,7 @@ npx tsx scripts/check-staging-billing-state.ts --checkout <checkout_reference>
 - `processed_events` must dedupe economic webhook mutations
 - `credit_accounts` is the authoritative runtime balance
 - `user_quotas` is metadata plus UI display state, not the spend authority
-- `resume_generations` plus `credit_consumptions` prove whether a paid artifact was already generated or charged
+- `resume_generations` describe export history, but `credit_reservations` plus `credit_ledger_entries` are the reservation and audit truth for export billing
 - paid artifact ownership checks are necessary but not sufficient; billing replay safety depends on generation state and credit mutation state together
 
 ## Escalate to engineering when

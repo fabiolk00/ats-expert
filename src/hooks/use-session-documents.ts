@@ -77,6 +77,7 @@ export function useSessionDocuments(sessionId: string | null): SessionDocuments 
           stage: nextFiles.stage,
           progress: nextFiles.progress,
           errorMessage: nextFiles.errorMessage,
+          reconciliation: nextFiles.reconciliation,
         })
       } catch (fetchError) {
         if (!isCancelled) {

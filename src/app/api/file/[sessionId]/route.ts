@@ -61,6 +61,33 @@ function resolveArtifactLifecycleStatus(
   }
 }
 
+function resolveArtifactReconciliation(
+  latestArtifactJob: JobStatusSnapshot | null,
+  errorMessage?: string,
+) {
+  if (!latestArtifactJob) {
+    return undefined
+  }
+
+  if (latestArtifactJob.stage === 'needs_reconciliation') {
+    return {
+      required: true,
+      status: 'pending' as const,
+      reason: errorMessage,
+    }
+  }
+
+  if (latestArtifactJob.status === 'failed' && latestArtifactJob.stage === 'release_credit') {
+    return {
+      required: true,
+      status: 'pending' as const,
+      reason: errorMessage,
+    }
+  }
+
+  return undefined
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { sessionId: string } },
@@ -128,6 +155,7 @@ export async function GET(
   const generationStatus = resolveArtifactGenerationStatus(artifactMetadata, latestArtifactJob)
   const lifecycleStatus = resolveArtifactLifecycleStatus(artifactMetadata, latestArtifactJob)
   const errorMessage = resolveArtifactErrorMessage(artifactMetadata, latestArtifactJob)
+  const reconciliation = resolveArtifactReconciliation(latestArtifactJob, errorMessage)
   const { pdfPath, status } = artifactMetadata
 
   if (status !== 'ready' || !pdfPath) {
@@ -156,6 +184,7 @@ export async function GET(
         stage: latestArtifactJob?.stage,
         progress: latestArtifactJob?.progress,
         errorMessage,
+        reconciliation,
       },
       { status: 200 },
     )
@@ -189,6 +218,7 @@ export async function GET(
       stage: latestArtifactJob?.stage,
       progress: latestArtifactJob?.progress,
       errorMessage,
+      reconciliation,
     })
   } catch (error) {
     logError('api.file.download_urls_failed', {

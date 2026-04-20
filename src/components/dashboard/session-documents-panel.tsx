@@ -198,6 +198,9 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
   }, [])
 
   const hasFiles = Boolean(files.pdfUrl)
+  const reconciliationMessage = artifactStatus.reconciliation?.required
+    ? 'Arquivo pronto. A cobranca desta geracao esta em reconciliacao.'
+    : null
   const progressLabel = formatArtifactProgressLabel({
     stage: artifactStatus.stage,
     progress: artifactStatus.progress,
@@ -284,6 +287,17 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
           {progressLabel ? (
             <p className="text-[11px] text-muted-foreground" data-testid="documents-progress-label">
               Ultima etapa: {progressLabel}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!error && reconciliationMessage ? (
+        <div className="space-y-1 px-2 py-1">
+          <p className="text-xs text-amber-700">{reconciliationMessage}</p>
+          {artifactStatus.reconciliation?.reason ? (
+            <p className="text-[11px] text-muted-foreground">
+              {artifactStatus.reconciliation.reason}
             </p>
           ) : null}
         </div>

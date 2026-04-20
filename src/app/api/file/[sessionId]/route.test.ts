@@ -138,6 +138,7 @@ describe('GET /api/file/[sessionId]', () => {
       pdfUrl: 'https://cdn.example.com/signed/pdf',
       available: true,
       generationStatus: 'ready',
+      reconciliation: undefined,
     })
     expect(getSession).toHaveBeenCalledWith('sess_123', 'usr_123')
     expect(createSignedResumeArtifactUrls).toHaveBeenCalledWith(
@@ -266,7 +267,7 @@ describe('GET /api/file/[sessionId]', () => {
         idempotencyKey: 'artifact:sess_123:retry',
         type: 'artifact_generation',
         status: 'failed',
-        stage: 'generation_failed',
+        stage: 'release_credit',
         dispatchInputRef: {
           kind: 'session_cv_state',
           sessionId: 'sess_123',
@@ -301,8 +302,82 @@ describe('GET /api/file/[sessionId]', () => {
       available: true,
       generationStatus: 'failed',
       jobId: 'job_failed_123',
-      stage: 'generation_failed',
+      stage: 'release_credit',
       errorMessage: 'Rendering failed for the latest retry.',
+      reconciliation: {
+        required: true,
+        status: 'pending',
+        reason: 'Rendering failed for the latest retry.',
+      },
+    })
+  })
+
+  it('returns reconciliation detail when the artifact is ready but billing finalize still needs repair', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(listJobsForSession).mockResolvedValue([
+      {
+        jobId: 'job_reconcile_123',
+        userId: 'usr_123',
+        sessionId: 'sess_123',
+        idempotencyKey: 'artifact:sess_123:reconcile',
+        type: 'artifact_generation',
+        status: 'completed',
+        stage: 'needs_reconciliation',
+        dispatchInputRef: {
+          kind: 'session_cv_state',
+          sessionId: 'sess_123',
+          snapshotSource: 'base',
+        },
+        createdAt: '2026-04-17T00:10:00.000Z',
+        updatedAt: '2026-04-17T00:11:00.000Z',
+        completedAt: '2026-04-17T00:11:00.000Z',
+      },
+    ] as never)
+    vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
+      docxUrl: 'https://cdn.example.com/signed/docx',
+      pdfUrl: 'https://cdn.example.com/signed/pdf',
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      docxUrl: null,
+      pdfUrl: 'https://cdn.example.com/signed/pdf',
+      available: true,
+      generationStatus: 'ready',
+      jobId: 'job_reconcile_123',
+      stage: 'needs_reconciliation',
+      errorMessage: undefined,
+      reconciliation: {
+        required: true,
+        status: 'pending',
+        reason: undefined,
+      },
     })
   })
 
