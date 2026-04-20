@@ -103,7 +103,7 @@ export default async function SettingsPage() {
                   <Button asChild variant="outline" className="rounded-full">
                     <Link href="/pricing">
                       <CreditCard className="mr-2 h-4 w-4" />
-                      Ver planos
+                      Ver como funciona
                     </Link>
                   </Button>
                 )}

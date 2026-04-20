@@ -13,24 +13,24 @@ export default function HeroSection() {
       <div className="container relative z-10 mx-auto px-4">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <div className="text-center lg:text-left">
-            <h1 className="text-balance text-4xl font-extrabold leading-tight tracking-tight md:text-5xl lg:text-6xl">
-              <span className="block">Passe no ATS.</span>
-              <span className="block bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            <h1 className="text-[clamp(2.2rem,8vw,4.5rem)] font-extrabold leading-[0.98] tracking-tight">
+              <span className="block whitespace-nowrap bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                 Consiga mais entrevistas.
               </span>
+              <span className="block">Passe no ATS.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground text-pretty md:text-xl lg:mx-0">
-              <BrandText text="CurrIA reescreve seu currículo com base no que recrutadores realmente buscam — usando dados reais de vagas." />
+              <BrandText text="A CurrIA analisa e reescreve seu currículo com base no que realmente gera entrevistas." />
             </p>
             <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
               <Button asChild size="lg" className="gap-2 text-base font-semibold">
                 <Link href="/what-is-ats">
-                  Analisar meu currículo grátis
+                  Ver meu score ATS grátis
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="text-base font-semibold text-foreground">
-                <a href="#pricing">Ver planos</a>
+                <a href="#pricing">Ver como funciona</a>
               </Button>
             </div>
           </div>

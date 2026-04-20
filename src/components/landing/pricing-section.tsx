@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Check, Gift, ShieldCheck, X } from "lucide-react"
+import { Check, Gift, ShieldCheck } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -45,7 +45,6 @@ export default function PricingSection() {
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => {
             const config = PLANS[plan.slug]
-            const hasJobManagement = plan.slug !== "free"
 
             return (
               <Card
@@ -88,17 +87,6 @@ export default function PricingSection() {
                         <span className="text-sm font-medium">{feature}</span>
                       </li>
                     ))}
-
-                    <li className="flex items-start gap-3">
-                      {hasJobManagement ? (
-                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
-                      ) : (
-                        <X className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
-                      )}
-                      <span className={`text-sm font-medium ${hasJobManagement ? "" : "text-muted-foreground"}`}>
-                        Gerenciamento de vagas
-                      </span>
-                    </li>
                   </ul>
 
                   <Button
@@ -131,7 +119,7 @@ export default function PricingSection() {
             <span>
               1 análise <strong className="text-foreground">totalmente gratuita</strong>
             </span>
-          </div>s
+          </div>
         </div>
       </div>
     </section>
