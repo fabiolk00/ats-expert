@@ -212,7 +212,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   asChild
                   variant="ghost"
                   size="sm"
-                  className="hidden rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground sm:flex"
+                  className="hidden rounded-xl text-sm font-medium text-foreground hover:bg-muted/60 hover:text-foreground sm:flex"
                 >
                   <Link href="/login">Entrar</Link>
                 </Button>
@@ -305,7 +305,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
               {showAuthButtons && (
                 <div className="mt-4 flex flex-col gap-2 border-t border-border/40 pt-4">
-                  <Button asChild variant="outline" className="w-full rounded-xl">
+                  <Button asChild variant="outline" className="w-full rounded-xl text-foreground">
                     <Link href="/login" onClick={closeMobileMenu}>
                       Entrar
                     </Link>
