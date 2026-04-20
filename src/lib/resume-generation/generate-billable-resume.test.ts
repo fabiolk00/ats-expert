@@ -13,6 +13,7 @@ const {
   mockGetLatestCompletedResumeGenerationForScope,
   mockGetResumeGenerationByIdempotencyKey,
   mockUpdateResumeGeneration,
+  mockLogWarn,
 } = vi.hoisted(() => ({
   mockGenerateFile: vi.fn(),
   mockCreateSignedResumeArtifactUrls: vi.fn(),
@@ -24,6 +25,7 @@ const {
   mockGetLatestCompletedResumeGenerationForScope: vi.fn(),
   mockGetResumeGenerationByIdempotencyKey: vi.fn(),
   mockUpdateResumeGeneration: vi.fn(),
+  mockLogWarn: vi.fn(),
 }))
 
 vi.mock('@/lib/agent/tools/generate-file', () => ({
@@ -47,6 +49,14 @@ vi.mock('@/lib/db/resume-generations', () => ({
   getLatestCompletedResumeGenerationForScope: mockGetLatestCompletedResumeGenerationForScope,
   getResumeGenerationByIdempotencyKey: mockGetResumeGenerationByIdempotencyKey,
   updateResumeGeneration: mockUpdateResumeGeneration,
+}))
+
+vi.mock('@/lib/observability/structured-log', () => ({
+  logWarn: mockLogWarn,
+  serializeError: (error: unknown) => ({
+    errorName: error instanceof Error ? error.name : 'Error',
+    errorMessage: error instanceof Error ? error.message : String(error),
+  }),
 }))
 
 function buildCvState() {
@@ -551,6 +561,15 @@ describe('generateBillableResume', () => {
       generatedCvState: cvState,
       failureReason: 'No credits available to finalize this generation.',
     })
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'resume_generation.billing_failed',
+      expect.objectContaining({
+        resumeGenerationId: 'gen_pending_credit',
+        stage: 'billing',
+        generationType: 'ATS_ENHANCEMENT',
+        errorCode: 'INSUFFICIENT_CREDITS',
+      }),
+    )
   })
 
   it('returns the generated artifact even when persisting the completed generation record fails', async () => {
@@ -607,5 +626,74 @@ describe('generateBillableResume', () => {
       resumeGenerationId: undefined,
     })
     expect(result.resumeGeneration).toBeUndefined()
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'resume_generation.persistence_failed',
+      expect.objectContaining({
+        resumeGenerationId: 'gen_pending_success',
+        status: 'completed',
+        stage: 'persistence',
+        errorMessage: 'resume_generations update failed',
+      }),
+    )
+  })
+
+  it('logs render-stage failures and does not attempt billing consumption', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockResolvedValue({
+      generation: {
+        id: 'gen_pending_render',
+        userId: 'usr_123',
+        sessionId: 'sess_123',
+        type: 'ATS_ENHANCEMENT',
+        status: 'pending',
+        sourceCvSnapshot: cvState,
+        versionNumber: 1,
+        createdAt: new Date('2026-04-12T12:00:00.000Z'),
+        updatedAt: new Date('2026-04-12T12:00:00.000Z'),
+      },
+      wasCreated: true,
+    })
+    mockGenerateFile.mockResolvedValue({
+      output: {
+        success: false,
+        code: 'GENERATION_ERROR',
+        error: 'File generation failed.',
+      },
+      generatedOutput: {
+        status: 'failed',
+        error: 'renderer crashed',
+      },
+    })
+
+    const result = await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+    })
+
+    expect(result.output).toEqual({
+      success: false,
+      code: 'GENERATION_ERROR',
+      error: 'File generation failed.',
+    })
+    expect(mockConsumeCreditForGeneration).not.toHaveBeenCalled()
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'resume_generation.render_failed',
+      expect.objectContaining({
+        resumeGenerationId: 'gen_pending_render',
+        stage: 'render',
+        generationType: 'ATS_ENHANCEMENT',
+        errorCode: 'GENERATION_ERROR',
+        errorMessage: 'renderer crashed',
+      }),
+    )
   })
 })

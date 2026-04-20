@@ -11,9 +11,14 @@ import {
   revokeSubscription,
 } from './quota'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
+import { logWarn } from '@/lib/observability/structured-log'
 
 vi.mock('@/lib/db/supabase-admin', () => ({
   getSupabaseAdminClient: vi.fn(),
+}))
+
+vi.mock('@/lib/observability/structured-log', () => ({
+  logWarn: vi.fn(),
 }))
 
 const creditAccountUpsert = vi.fn()
@@ -193,6 +198,66 @@ describe('quota credit source of truth', () => {
     expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'consume_credit_atomic', {
       p_user_id: 'usr_123',
     })
+  })
+
+  it('falls back to generic credit consumption when generation billing tables are unavailable', async () => {
+    mockSupabase.rpc
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'relation "credit_consumptions" does not exist' },
+      })
+      .mockResolvedValueOnce({ data: true, error: null })
+
+    await expect(
+      consumeCreditForGeneration('usr_123', 'gen_123', 'ATS_ENHANCEMENT'),
+    ).resolves.toBe(true)
+
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'consume_credit_atomic', {
+      p_user_id: 'usr_123',
+    })
+  })
+
+  it('falls back to generic credit consumption when resume_generations is unavailable', async () => {
+    mockSupabase.rpc
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'relation "resume_generations" does not exist' },
+      })
+      .mockResolvedValueOnce({ data: true, error: null })
+
+    await expect(
+      consumeCreditForGeneration('usr_123', 'gen_123', 'ATS_ENHANCEMENT'),
+    ).resolves.toBe(true)
+
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'consume_credit_atomic', {
+      p_user_id: 'usr_123',
+    })
+  })
+
+  it('falls back to generic credit consumption when generation billing columns drift', async () => {
+    mockSupabase.rpc
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'column "resume_generation_id" does not exist' },
+      })
+      .mockResolvedValueOnce({ data: true, error: null })
+
+    await expect(
+      consumeCreditForGeneration('usr_123', 'gen_123', 'ATS_ENHANCEMENT'),
+    ).resolves.toBe(true)
+
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'consume_credit_atomic', {
+      p_user_id: 'usr_123',
+    })
+    expect(logWarn).toHaveBeenCalledWith(
+      'billing.consume_credit_for_generation_fallback',
+      expect.objectContaining({
+        appUserId: 'usr_123',
+        resumeGenerationId: 'gen_123',
+        generationType: 'ATS_ENHANCEMENT',
+        stage: 'billing',
+      }),
+    )
   })
 
   it('returns the full billing view model when metadata and credits exist', async () => {
