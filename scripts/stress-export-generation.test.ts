@@ -226,4 +226,71 @@ describe('stress-export-generation', () => {
       }),
     })
   })
+
+  it('fails when duplicate concurrent requests fan out into multiple durable jobs', async () => {
+    const stdout = createBufferStream()
+    const stderr = createBufferStream()
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        inProgress: true,
+        jobId: 'job_a',
+        billingStage: 'reserve_credit',
+      }), {
+        status: 202,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        success: true,
+        inProgress: true,
+        jobId: 'job_b',
+        billingStage: 'reserve_credit',
+      }), {
+        status: 202,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        jobId: 'job_a',
+        status: 'completed',
+        stage: 'finalize_credit',
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        jobId: 'job_b',
+        status: 'completed',
+        stage: 'finalize_credit',
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }))
+
+    const exitCode = await runCli([
+      '--url', 'https://curria.example.com',
+      '--cookie', '__session=test-cookie',
+      '--session-id', 'sess_123',
+      '--requests', '2',
+      '--concurrency', '2',
+      '--poll-ms', '1',
+      '--settle-timeout-ms', '5',
+      '--format', 'markdown',
+    ], {
+      fetchImpl,
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+    })
+
+    expect(exitCode).toBe(1)
+    expect(stdout.read()).toBe('')
+    expect(stderr.read()).toContain('Duplicate requests created 2 durable jobs; expected at most 1.')
+  })
 })

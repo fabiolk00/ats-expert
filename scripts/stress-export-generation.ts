@@ -678,6 +678,8 @@ export async function stressExportGeneration(
 
   const durationMs = Date.now() - startedAt
   const summary = summarizeStressResults(requests, jobs)
+  const expectedMaxJobs = options.sessionIds.length
+  const duplicateFanout = summary.distinctJobCount > expectedMaxJobs
 
   if (summary.reconciliationPendingResponses > 0) {
     warnings.push('At least one retry was blocked by BILLING_RECONCILIATION_PENDING.')
@@ -685,11 +687,17 @@ export async function stressExportGeneration(
   if (summary.timedOutJobs > 0) {
     warnings.push('At least one durable job did not reach a terminal state before the settle timeout.')
   }
+  if (duplicateFanout) {
+    warnings.push(
+      `Duplicate requests created ${summary.distinctJobCount} durable jobs; expected at most ${expectedMaxJobs}.`,
+    )
+  }
 
   return {
     ok: summary.unexpectedResponses === 0
       && summary.anomalousJobs === 0
-      && summary.timedOutJobs === 0,
+      && summary.timedOutJobs === 0
+      && !duplicateFanout,
     requestOrigin: options.url,
     capturedAt: new Date().toISOString(),
     durationMs,
