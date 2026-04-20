@@ -210,6 +210,25 @@ export async function listCreditReservationsForReconciliation(input: {
   return (data ?? []).map((row) => mapCreditReservationRow(row as CreditReservationRow))
 }
 
+export async function listCreditReservationsForUser(input: {
+  userId: string
+  limit?: number
+}): Promise<CreditReservation[]> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('credit_reservations')
+    .select('*')
+    .eq('user_id', input.userId)
+    .order('created_at', { ascending: false })
+    .limit(input.limit ?? 50)
+
+  if (error) {
+    throw new Error(`Failed to list credit reservations for user: ${error.message}`)
+  }
+
+  return (data ?? []).map((row) => mapCreditReservationRow(row as CreditReservationRow))
+}
+
 export async function markCreditReservationReconciliation(input: {
   reservationId: string
   status: CreditReservationStatus
@@ -387,6 +406,25 @@ export async function getCreditLedgerEntriesForIntent(input: {
 
   if (error) {
     throw new Error(`Failed to load credit ledger entries for generation intent: ${error.message}`)
+  }
+
+  return (data ?? []).map((row) => mapCreditLedgerEntryRow(row as CreditLedgerEntryRow))
+}
+
+export async function listCreditLedgerEntriesForUser(input: {
+  userId: string
+  limit?: number
+}): Promise<CreditLedgerEntry[]> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('credit_ledger_entries')
+    .select('*')
+    .eq('user_id', input.userId)
+    .order('created_at', { ascending: false })
+    .limit(input.limit ?? 50)
+
+  if (error) {
+    throw new Error(`Failed to list credit ledger entries for user: ${error.message}`)
   }
 
   return (data ?? []).map((row) => mapCreditLedgerEntryRow(row as CreditLedgerEntryRow))
