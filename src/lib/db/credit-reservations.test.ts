@@ -5,6 +5,10 @@ import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import {
   finalizeCreditReservation,
   getCreditLedgerEntriesForIntent,
+  listCreditLedgerEntriesForUser,
+  listCreditReservationsForReconciliation,
+  listCreditReservationsForUser,
+  markCreditReservationReconciliation,
   releaseCreditReservation,
   reserveCreditForGenerationIntent,
   settleCreditReservationTransition,
@@ -39,6 +43,25 @@ function buildReservationRow(status: ReservationStatus) {
   }
 }
 
+function buildReservationRowForUser(input: {
+  userId: string
+  generationIntentKey: string
+  status: ReservationStatus
+  createdAt: string
+  sessionId?: string | null
+  resumeTargetId?: string | null
+}) {
+  return {
+    ...buildReservationRow(input.status),
+    user_id: input.userId,
+    generation_intent_key: input.generationIntentKey,
+    session_id: input.sessionId ?? null,
+    resume_target_id: input.resumeTargetId ?? null,
+    created_at: input.createdAt,
+    updated_at: input.createdAt,
+  }
+}
+
 function buildLedgerRow(entryType: 'reservation_hold' | 'reservation_finalize' | 'reservation_release') {
   return {
     id: `${entryType}_123`,
@@ -57,17 +80,44 @@ function buildLedgerRow(entryType: 'reservation_hold' | 'reservation_finalize' |
   }
 }
 
+function buildLedgerRowForUser(input: {
+  userId: string
+  generationIntentKey: string
+  entryType: 'reservation_hold' | 'reservation_finalize' | 'reservation_release'
+  createdAt: string
+  sessionId?: string | null
+  resumeTargetId?: string | null
+}) {
+  return {
+    ...buildLedgerRow(input.entryType),
+    user_id: input.userId,
+    generation_intent_key: input.generationIntentKey,
+    session_id: input.sessionId ?? null,
+    resume_target_id: input.resumeTargetId ?? null,
+    created_at: input.createdAt,
+  }
+}
+
 describe('credit reservation repository', () => {
   const reservationMaybeSingle = vi.fn()
-  const reservationInsertSingle = vi.fn()
   const reservationSelect = vi.fn()
-  const reservationInsert = vi.fn()
   const reservationEqUser = vi.fn()
   const reservationEqIntent = vi.fn()
+  const reservationOrder = vi.fn()
+  const reservationLimit = vi.fn()
+  const reservationIn = vi.fn()
+  const reservationReconEqUser = vi.fn()
+  const reservationReconOrder = vi.fn()
+  const reservationReconLimit = vi.fn()
+  const reservationUpdate = vi.fn()
+  const reservationUpdateEqId = vi.fn()
+  const reservationUpdateSelect = vi.fn()
+  const reservationUpdateSingle = vi.fn()
   const ledgerSelect = vi.fn()
   const ledgerEqUser = vi.fn()
   const ledgerEqIntent = vi.fn()
   const ledgerOrder = vi.fn()
+  const ledgerLimit = vi.fn()
 
   const mockSupabase = {
     rpc: vi.fn(),
@@ -75,7 +125,7 @@ describe('credit reservation repository', () => {
       if (table === 'credit_reservations') {
         return {
           select: reservationSelect,
-          insert: reservationInsert,
+          update: reservationUpdate,
         }
       }
 
@@ -97,26 +147,54 @@ describe('credit reservation repository', () => {
 
     reservationSelect.mockReturnValue({
       eq: reservationEqUser,
+      in: reservationIn,
     })
     reservationEqUser.mockReturnValue({
       eq: reservationEqIntent,
+      order: reservationOrder,
     })
     reservationEqIntent.mockReturnValue({
       maybeSingle: reservationMaybeSingle,
     })
-    reservationInsert.mockReturnValue({
-      select: reservationInsertSingle,
+    reservationOrder.mockReturnValue({
+      limit: reservationLimit,
     })
+    reservationLimit.mockResolvedValue({ data: [], error: null })
+    reservationIn.mockReturnValue({
+      eq: reservationReconEqUser,
+      order: reservationReconOrder,
+    })
+    reservationReconEqUser.mockReturnValue({
+      order: reservationReconOrder,
+    })
+    reservationReconOrder.mockReturnValue({
+      limit: reservationReconLimit,
+    })
+    reservationReconLimit.mockResolvedValue({ data: [], error: null })
+    reservationUpdate.mockReturnValue({
+      eq: reservationUpdateEqId,
+    })
+    reservationUpdateEqId.mockReturnValue({
+      select: reservationUpdateSelect,
+    })
+    reservationUpdateSelect.mockReturnValue({
+      single: reservationUpdateSingle,
+    })
+    reservationUpdateSingle.mockResolvedValue({ data: buildReservationRow('released'), error: null })
     ledgerSelect.mockReturnValue({
       eq: ledgerEqUser,
     })
     ledgerEqUser.mockReturnValue({
       eq: ledgerEqIntent,
+      order: ledgerOrder,
     })
     ledgerEqIntent.mockReturnValue({
       order: ledgerOrder,
     })
-    ledgerOrder.mockResolvedValue({ data: [], error: null })
+    ledgerOrder.mockReturnValue({
+      limit: ledgerLimit,
+    })
+    ledgerLimit.mockResolvedValue({ data: [], error: null })
   })
 
   it('returns the existing reservation when the same generation intent is reserved twice', async () => {
@@ -274,6 +352,130 @@ describe('credit reservation repository', () => {
       jobId: 'job_123',
       sessionId: 'session_123',
       resumeTargetId: 'target_123',
+    })
+  })
+
+  it('lists recent ledger entries for one user ordered newest-first without leaking other users', async () => {
+    ledgerLimit.mockResolvedValueOnce({
+      data: [
+        buildLedgerRowForUser({
+          userId: 'usr_123',
+          generationIntentKey: 'intent_newest',
+          entryType: 'reservation_finalize',
+          createdAt: '2026-04-20T00:05:00.000Z',
+          sessionId: 'session_newest',
+        }),
+        buildLedgerRowForUser({
+          userId: 'usr_123',
+          generationIntentKey: 'intent_older',
+          entryType: 'reservation_hold',
+          createdAt: '2026-04-20T00:01:00.000Z',
+          resumeTargetId: 'target_older',
+        }),
+      ],
+      error: null,
+    })
+
+    const entries = await listCreditLedgerEntriesForUser({
+      userId: 'usr_123',
+      limit: 2,
+    })
+
+    expect(entries).toHaveLength(2)
+    expect(entries.map((entry) => entry.generationIntentKey)).toEqual([
+      'intent_newest',
+      'intent_older',
+    ])
+    expect(ledgerEqUser).toHaveBeenCalledWith('user_id', 'usr_123')
+    expect(ledgerOrder).toHaveBeenCalledWith('created_at', { ascending: false })
+    expect(ledgerLimit).toHaveBeenCalledWith(2)
+  })
+
+  it('lists recent reservations for one user ordered newest-first with session and target evidence intact', async () => {
+    reservationLimit.mockResolvedValueOnce({
+      data: [
+        buildReservationRowForUser({
+          userId: 'usr_123',
+          generationIntentKey: 'intent_newest',
+          status: 'finalized',
+          createdAt: '2026-04-20T00:05:00.000Z',
+          sessionId: 'session_newest',
+        }),
+        buildReservationRowForUser({
+          userId: 'usr_123',
+          generationIntentKey: 'intent_older',
+          status: 'released',
+          createdAt: '2026-04-20T00:01:00.000Z',
+          resumeTargetId: 'target_older',
+        }),
+      ],
+      error: null,
+    })
+
+    const reservations = await listCreditReservationsForUser({
+      userId: 'usr_123',
+      limit: 2,
+    })
+
+    expect(reservations).toHaveLength(2)
+    expect(reservations[0]).toMatchObject({
+      generationIntentKey: 'intent_newest',
+      status: 'finalized',
+      sessionId: 'session_newest',
+    })
+    expect(reservations[1]).toMatchObject({
+      generationIntentKey: 'intent_older',
+      status: 'released',
+      resumeTargetId: 'target_older',
+    })
+    expect(reservationEqUser).toHaveBeenCalledWith('user_id', 'usr_123')
+    expect(reservationOrder).toHaveBeenCalledWith('created_at', { ascending: false })
+    expect(reservationLimit).toHaveBeenCalledWith(2)
+  })
+
+  it('lists reconciliation candidates oldest-first and can mark a reservation without mutating balance state', async () => {
+    reservationReconLimit.mockResolvedValueOnce({
+      data: [
+        buildReservationRowForUser({
+          userId: 'usr_123',
+          generationIntentKey: 'intent_stale',
+          status: 'needs_reconciliation',
+          createdAt: '2026-04-19T23:59:00.000Z',
+        }),
+      ],
+      error: null,
+    })
+    reservationUpdateSingle.mockResolvedValueOnce({
+      data: {
+        ...buildReservationRow('needs_reconciliation'),
+        id: 'reservation_stale',
+        status: 'needs_reconciliation',
+        reconciliation_status: 'manual_review',
+        failure_reason: 'stale_reconciliation',
+      },
+      error: null,
+    })
+
+    const reservations = await listCreditReservationsForReconciliation({
+      userId: 'usr_123',
+      limit: 1,
+    })
+    const updated = await markCreditReservationReconciliation({
+      reservationId: 'reservation_stale',
+      status: 'needs_reconciliation',
+      reconciliationStatus: 'manual_review',
+      failureReason: 'stale_reconciliation',
+      metadata: { source: 'test' },
+    })
+
+    expect(reservations).toHaveLength(1)
+    expect(reservationIn).toHaveBeenCalledWith('status', ['reserved', 'needs_reconciliation'])
+    expect(reservationReconEqUser).toHaveBeenCalledWith('user_id', 'usr_123')
+    expect(reservationReconOrder).toHaveBeenCalledWith('created_at', { ascending: true })
+    expect(updated).toMatchObject({
+      id: 'reservation_stale',
+      reconciliationStatus: 'manual_review',
+      failureReason: 'stale_reconciliation',
     })
   })
 
