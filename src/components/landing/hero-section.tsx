@@ -15,13 +15,11 @@ export default function HeroSection() {
           <div className="text-center lg:text-left">
             <h1 className="text-[clamp(2.2rem,8vw,4.5rem)] font-extrabold leading-[0.98] tracking-tight">
               <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent md:hidden">
-                <span className="block">Consiga mais</span>
-                <span className="block">entrevistas.</span>
+                <span className="block">Passe no ATS.</span>
               </span>
               <span className="hidden bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent md:block md:whitespace-nowrap">
                 Consiga mais entrevistas.
               </span>
-              <span className="block">Passe no ATS.</span>
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground text-pretty md:text-xl lg:mx-0">
               <BrandText text="Veja por que seu currículo está sendo ignorado e descubra o que precisa melhorar para passar no ATS." />
