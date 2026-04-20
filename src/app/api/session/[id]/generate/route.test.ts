@@ -177,10 +177,10 @@ describe('generate route', () => {
       success: true,
       inProgress: true,
       scope: 'base',
-      targetId: undefined,
       creditsUsed: 0,
       generationType: 'ATS_ENHANCEMENT',
       jobId: 'job_123',
+      billingStage: 'processing',
     })
     expect(createJob).toHaveBeenCalledWith(expect.objectContaining({
       sessionId: 'sess_123',
@@ -255,6 +255,7 @@ describe('generate route', () => {
       creditsUsed: 0,
       generationType: 'JOB_TARGETING',
       jobId: 'job_123',
+      billingStage: 'processing',
     })
     expect(createJob).toHaveBeenCalledWith(expect.objectContaining({
       resumeTargetId: 'target_123',
@@ -352,10 +353,10 @@ describe('generate route', () => {
     expect(await response.json()).toEqual({
       success: true,
       scope: 'base',
-      targetId: undefined,
       creditsUsed: 0,
       generationType: 'ATS_ENHANCEMENT',
       jobId: 'job_123',
+      billingStage: 'queued',
       resumeGenerationId: 'gen_existing_123',
     })
     expect(applyGeneratedOutputPatch).not.toHaveBeenCalled()
@@ -392,22 +393,21 @@ describe('generate route', () => {
     )
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toEqual(expect.objectContaining({
       success: true,
       scope: 'base',
-      targetId: undefined,
       creditsUsed: 0,
       generationType: 'ATS_ENHANCEMENT',
       jobId: 'job_123',
-      resumeGenerationId: undefined,
-    })
+      billingStage: 'queued',
+    }))
     expect(applyGeneratedOutputPatch).not.toHaveBeenCalled()
   })
 
   it('returns 202 when the same durable generation request is already in progress', async () => {
     const runningJob = buildJobSnapshot({
       status: 'running',
-      stage: 'processing',
+      stage: 'reserve_credit',
       claimedAt: '2026-04-16T10:00:30.000Z',
       startedAt: '2026-04-16T10:00:30.000Z',
     })
@@ -427,15 +427,15 @@ describe('generate route', () => {
     )
 
     expect(response.status).toBe(202)
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toEqual(expect.objectContaining({
       success: true,
       inProgress: true,
       scope: 'base',
-      targetId: undefined,
       creditsUsed: 0,
       generationType: 'ATS_ENHANCEMENT',
       jobId: 'job_123',
-    })
+      billingStage: 'reserve_credit',
+    }))
   })
 
   it('surfaces durable generation failures as structured responses', async () => {

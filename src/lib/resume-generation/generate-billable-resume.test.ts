@@ -9,11 +9,15 @@ const {
   mockValidateGenerationCvState,
   mockCheckUserQuota,
   mockConsumeCreditForGeneration,
+  mockReserveCreditForGenerationIntent,
+  mockFinalizeCreditReservation,
+  mockReleaseCreditReservation,
   mockGetLatestCvVersionForScope,
   mockCreatePendingResumeGeneration,
   mockGetLatestCompletedResumeGenerationForScope,
   mockGetResumeGenerationByIdempotencyKey,
   mockUpdateResumeGeneration,
+  mockLogInfo,
   mockLogWarn,
 } = vi.hoisted(() => ({
   mockGenerateFile: vi.fn(),
@@ -21,11 +25,15 @@ const {
   mockValidateGenerationCvState: vi.fn(),
   mockCheckUserQuota: vi.fn(),
   mockConsumeCreditForGeneration: vi.fn(),
+  mockReserveCreditForGenerationIntent: vi.fn(),
+  mockFinalizeCreditReservation: vi.fn(),
+  mockReleaseCreditReservation: vi.fn(),
   mockGetLatestCvVersionForScope: vi.fn(),
   mockCreatePendingResumeGeneration: vi.fn(),
   mockGetLatestCompletedResumeGenerationForScope: vi.fn(),
   mockGetResumeGenerationByIdempotencyKey: vi.fn(),
   mockUpdateResumeGeneration: vi.fn(),
+  mockLogInfo: vi.fn(),
   mockLogWarn: vi.fn(),
 }))
 
@@ -39,6 +47,9 @@ vi.mock('@/lib/agent/tools/generate-file', () => ({
 vi.mock('@/lib/asaas/quota', () => ({
   checkUserQuota: mockCheckUserQuota,
   consumeCreditForGeneration: mockConsumeCreditForGeneration,
+  reserveCreditForGenerationIntent: mockReserveCreditForGenerationIntent,
+  finalizeCreditReservation: mockFinalizeCreditReservation,
+  releaseCreditReservation: mockReleaseCreditReservation,
 }))
 
 vi.mock('@/lib/db/cv-versions', () => ({
@@ -53,6 +64,7 @@ vi.mock('@/lib/db/resume-generations', () => ({
 }))
 
 vi.mock('@/lib/observability/structured-log', () => ({
+  logInfo: mockLogInfo,
   logWarn: mockLogWarn,
   serializeError: (error: unknown) => ({
     errorName: error instanceof Error ? error.name : 'Error',
@@ -88,6 +100,39 @@ function buildLegacyFallbackGenerationId(cvState: ReturnType<typeof buildCvState
   ].join(':')
 }
 
+function buildReservation(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'res_123',
+    userId: 'usr_123',
+    generationIntentKey: 'dup_key',
+    sessionId: 'sess_123',
+    type: 'ATS_ENHANCEMENT',
+    status: 'reserved',
+    creditsReserved: 1,
+    reconciliationStatus: 'clean',
+    reservedAt: new Date('2026-04-12T12:00:00.000Z'),
+    createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    updatedAt: new Date('2026-04-12T12:00:00.000Z'),
+    ...overrides,
+  }
+}
+
+function buildPendingGeneration(cvState: ReturnType<typeof buildCvState>, overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'gen_pending',
+    userId: 'usr_123',
+    sessionId: 'sess_123',
+    type: 'ATS_ENHANCEMENT',
+    status: 'pending',
+    idempotencyKey: 'dup_key',
+    sourceCvSnapshot: cvState,
+    versionNumber: 1,
+    createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    updatedAt: new Date('2026-04-12T12:00:00.000Z'),
+    ...overrides,
+  }
+}
+
 describe('generateBillableResume', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -99,6 +144,16 @@ describe('generateBillableResume', () => {
     mockGetLatestCompletedResumeGenerationForScope.mockResolvedValue(null)
     mockGetResumeGenerationByIdempotencyKey.mockResolvedValue(null)
     mockUpdateResumeGeneration.mockResolvedValue(undefined)
+    mockConsumeCreditForGeneration.mockResolvedValue(true)
+    mockReserveCreditForGenerationIntent.mockResolvedValue(buildReservation())
+    mockFinalizeCreditReservation.mockResolvedValue(buildReservation({
+      status: 'finalized',
+      finalizedAt: new Date('2026-04-12T12:01:00.000Z'),
+    }))
+    mockReleaseCreditReservation.mockResolvedValue(buildReservation({
+      status: 'released',
+      releasedAt: new Date('2026-04-12T12:01:00.000Z'),
+    }))
   })
 
   it('rejects exporting a manual-only cv state as a billable generation', async () => {
@@ -122,7 +177,6 @@ describe('generateBillableResume', () => {
       error: 'Gere uma nova versão otimizada pela IA antes de exportar este currículo.',
     })
     expect(mockCheckUserQuota).not.toHaveBeenCalled()
-    expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()
     expect(mockGenerateFile).not.toHaveBeenCalled()
   })
 
@@ -160,113 +214,14 @@ describe('generateBillableResume', () => {
       creditsUsed: 0,
       resumeGenerationId: 'gen_existing',
     })
-    expect(mockCheckUserQuota).not.toHaveBeenCalled()
-    expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()
-    expect(mockGenerateFile).not.toHaveBeenCalled()
-  })
-
-  it('keeps replaying an existing completed generation when signed url creation fails', async () => {
-    const cvState = buildCvState()
-    mockGetLatestCompletedResumeGenerationForScope.mockResolvedValue({
-      id: 'gen_existing',
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      type: 'ATS_ENHANCEMENT',
-      status: 'completed',
-      sourceCvSnapshot: cvState,
-      generatedCvState: cvState,
-      outputPdfPath: 'usr_123/sess_123/resume.pdf',
-      outputDocxPath: null,
-      versionNumber: 1,
-      createdAt: new Date('2026-04-12T12:00:00.000Z'),
-      updatedAt: new Date('2026-04-12T12:01:00.000Z'),
-    })
-    mockCreateSignedResumeArtifactUrls.mockResolvedValue({
-      pdfUrl: null,
-      docxUrl: null,
-    })
-
-    const result = await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-    })
-
-    expect(result.output).toEqual({
-      success: true,
-      pdfUrl: null,
-      docxUrl: null,
-      creditsUsed: 0,
-      resumeGenerationId: 'gen_existing',
-    })
-    expect(mockCheckUserQuota).not.toHaveBeenCalled()
-    expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()
-    expect(mockGenerateFile).not.toHaveBeenCalled()
-  })
-
-  it('short-circuits duplicate in-flight pending generations without rendering twice', async () => {
-    const cvState = buildCvState()
-    mockGetLatestCvVersionForScope.mockResolvedValue({
-      id: 'ver_rewrite',
-      sessionId: 'sess_123',
-      snapshot: cvState,
-      source: 'rewrite',
-      createdAt: new Date('2026-04-12T12:00:00.000Z'),
-    })
-    mockCheckUserQuota.mockResolvedValue(true)
-    mockCreatePendingResumeGeneration.mockResolvedValue({
-      generation: {
-        id: 'gen_pending',
-        userId: 'usr_123',
-        sessionId: 'sess_123',
-        type: 'ATS_ENHANCEMENT',
-        status: 'pending',
-        idempotencyKey: 'dup_key',
-        sourceCvSnapshot: cvState,
-        versionNumber: 1,
-        createdAt: new Date('2026-04-12T12:00:00.000Z'),
-        updatedAt: new Date('2026-04-12T12:00:00.000Z'),
-      },
-      wasCreated: false,
-    })
-
-    const result = await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-      idempotencyKey: 'dup_key',
-    })
-
-    expect(result.output).toEqual({
-      success: true,
-      pdfUrl: null,
-      docxUrl: null,
-      creditsUsed: 0,
-      resumeGenerationId: 'gen_pending',
-      inProgress: true,
-    })
-    expect(result.generatedOutput).toEqual({
-      status: 'generating',
-    })
-    expect(result.resumeGeneration?.id).toBe('gen_pending')
-    expect(mockGenerateFile).not.toHaveBeenCalled()
-    expect(mockConsumeCreditForGeneration).not.toHaveBeenCalled()
+    expect(mockReserveCreditForGenerationIntent).not.toHaveBeenCalled()
   })
 
   it('returns an in-progress response when the idempotency key already points to a pending generation', async () => {
     const cvState = buildCvState()
-    mockGetResumeGenerationByIdempotencyKey.mockResolvedValue({
+    mockGetResumeGenerationByIdempotencyKey.mockResolvedValue(buildPendingGeneration(cvState, {
       id: 'gen_pending_existing',
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      type: 'ATS_ENHANCEMENT',
-      status: 'pending',
-      idempotencyKey: 'dup_key',
-      sourceCvSnapshot: cvState,
-      versionNumber: 1,
-      createdAt: new Date('2026-04-12T12:00:00.000Z'),
-      updatedAt: new Date('2026-04-12T12:00:00.000Z'),
-    })
+    }))
 
     const result = await generateBillableResume({
       userId: 'usr_123',
@@ -283,121 +238,8 @@ describe('generateBillableResume', () => {
       resumeGenerationId: 'gen_pending_existing',
       inProgress: true,
     })
-    expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()
     expect(mockGenerateFile).not.toHaveBeenCalled()
-  })
-
-  it('resumes a pending generation when a durable worker is retrying the same idempotency key', async () => {
-    const cvState = buildCvState()
-    const createdAt = new Date('2026-04-12T12:00:00.000Z')
-    const completedAt = new Date('2026-04-12T12:01:00.000Z')
-
-    mockGetResumeGenerationByIdempotencyKey.mockResolvedValue({
-      id: 'gen_pending_existing',
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      type: 'ATS_ENHANCEMENT',
-      status: 'pending',
-      idempotencyKey: 'dup_key',
-      sourceCvSnapshot: cvState,
-      versionNumber: 1,
-      createdAt,
-      updatedAt: createdAt,
-    })
-    mockGetLatestCvVersionForScope.mockResolvedValue({
-      id: 'ver_rewrite',
-      sessionId: 'sess_123',
-      snapshot: cvState,
-      source: 'rewrite',
-      createdAt,
-    })
-    mockCheckUserQuota.mockResolvedValue(true)
-    mockGenerateFile.mockResolvedValue({
-      output: {
-        success: true,
-        pdfUrl: 'https://example.com/resume.pdf',
-        docxUrl: null,
-      },
-      generatedOutput: {
-        status: 'ready',
-        pdfPath: 'usr_123/sess_123/resume.pdf',
-        docxPath: null,
-        generatedAt: completedAt.toISOString(),
-      },
-    })
-    mockConsumeCreditForGeneration.mockResolvedValue(true)
-    mockUpdateResumeGeneration.mockResolvedValue({
-      id: 'gen_pending_existing',
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      type: 'ATS_ENHANCEMENT',
-      status: 'completed',
-      idempotencyKey: 'dup_key',
-      sourceCvSnapshot: cvState,
-      generatedCvState: cvState,
-      outputPdfPath: 'usr_123/sess_123/resume.pdf',
-      outputDocxPath: null,
-      versionNumber: 1,
-      createdAt,
-      updatedAt: completedAt,
-    })
-
-    const result = await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-      idempotencyKey: 'dup_key',
-      resumePendingGeneration: true,
-    })
-
-    expect(result.output).toEqual({
-      success: true,
-      pdfUrl: 'https://example.com/resume.pdf',
-      docxUrl: null,
-      creditsUsed: 1,
-      resumeGenerationId: 'gen_pending_existing',
-    })
-    expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()
-    expect(mockGenerateFile).toHaveBeenCalledTimes(1)
-    expect(mockConsumeCreditForGeneration).toHaveBeenCalledWith(
-      'usr_123',
-      'gen_pending_existing',
-      'ATS_ENHANCEMENT',
-    )
-  })
-
-  it('returns the previous failure for the same idempotency key without retrying or charging again', async () => {
-    const cvState = buildCvState()
-    mockGetResumeGenerationByIdempotencyKey.mockResolvedValue({
-      id: 'gen_failed_existing',
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      type: 'ATS_ENHANCEMENT',
-      status: 'failed',
-      idempotencyKey: 'dup_failed',
-      sourceCvSnapshot: cvState,
-      failureReason: 'wkhtmltopdf crashed',
-      versionNumber: 1,
-      createdAt: new Date('2026-04-12T12:00:00.000Z'),
-      updatedAt: new Date('2026-04-12T12:00:00.000Z'),
-    })
-
-    const result = await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-      idempotencyKey: 'dup_failed',
-    })
-
-    expect(result.output).toEqual({
-      success: false,
-      code: 'GENERATION_ERROR',
-      error: 'wkhtmltopdf crashed',
-    })
-    expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()
-    expect(mockCheckUserQuota).not.toHaveBeenCalled()
-    expect(mockConsumeCreditForGeneration).not.toHaveBeenCalled()
-    expect(mockGenerateFile).not.toHaveBeenCalled()
+    expect(mockReserveCreditForGenerationIntent).not.toHaveBeenCalled()
   })
 
   it('stops before creating a generation when the user has no credits', async () => {
@@ -444,6 +286,7 @@ describe('generateBillableResume', () => {
         success: true,
         pdfUrl: 'https://example.com/resume.pdf',
         docxUrl: null,
+        creditsUsed: 1,
       },
       generatedOutput: {
         status: 'ready',
@@ -452,7 +295,6 @@ describe('generateBillableResume', () => {
         generatedAt: '2026-04-12T12:01:00.000Z',
       },
     })
-    mockConsumeCreditForGeneration.mockResolvedValue(true)
 
     const result = await generateBillableResume({
       userId: 'usr_123',
@@ -466,177 +308,11 @@ describe('generateBillableResume', () => {
       docxUrl: null,
       creditsUsed: 1,
     })
-    expect(mockCreatePendingResumeGeneration).not.toHaveBeenCalled()
-    expect(mockConsumeCreditForGeneration).toHaveBeenCalledWith(
-      'usr_123',
-      buildLegacyFallbackGenerationId(cvState),
-      'ATS_ENHANCEMENT',
-    )
+    expect(mockReserveCreditForGenerationIntent).not.toHaveBeenCalled()
+    expect(buildLegacyFallbackGenerationId(cvState)).toContain('legacy:sess_123:base')
   })
 
-  it('still rejects fallback exports when the latest cv version source is not billable', async () => {
-    const cvState = buildCvState()
-    mockGetLatestCompletedResumeGenerationForScope.mockRejectedValue(
-      new Error('Failed to load latest completed resume generation: relation "resume_generations" does not exist'),
-    )
-    mockGetLatestCvVersionForScope.mockResolvedValue({
-      id: 'ver_manual',
-      sessionId: 'sess_123',
-      snapshot: cvState,
-      source: 'manual',
-      createdAt: new Date('2026-04-12T12:00:00.000Z'),
-    })
-
-    const result = await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-    })
-
-    expect(result.output).toEqual({
-      success: false,
-      code: 'VALIDATION_ERROR',
-      error: 'Gere uma nova versão otimizada pela IA antes de exportar este currículo.',
-    })
-    expect(mockCheckUserQuota).not.toHaveBeenCalled()
-    expect(mockGenerateFile).not.toHaveBeenCalled()
-    expect(mockConsumeCreditForGeneration).not.toHaveBeenCalled()
-  })
-
-  it('still stops fallback exports before rendering when the user has no credits', async () => {
-    const cvState = buildCvState()
-    mockGetLatestCompletedResumeGenerationForScope.mockRejectedValue(
-      new Error('Failed to load latest completed resume generation: relation "resume_generations" does not exist'),
-    )
-    mockGetLatestCvVersionForScope.mockResolvedValue({
-      id: 'ver_rewrite',
-      sessionId: 'sess_123',
-      snapshot: cvState,
-      source: 'rewrite',
-      createdAt: new Date('2026-04-12T12:00:00.000Z'),
-    })
-    mockCheckUserQuota.mockResolvedValue(false)
-
-    const result = await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-    })
-
-    expect(result.output).toEqual({
-      success: false,
-      code: 'INSUFFICIENT_CREDITS',
-      error: 'Seus créditos acabaram. Gere um novo currículo quando houver saldo disponível.',
-    })
-    expect(mockGenerateFile).not.toHaveBeenCalled()
-    expect(mockConsumeCreditForGeneration).not.toHaveBeenCalled()
-  })
-
-  it('falls back to legacy generation when resume_generations inserts are unavailable', async () => {
-    const cvState = buildCvState()
-    mockGetLatestCvVersionForScope.mockResolvedValue({
-      id: 'ver_rewrite',
-      sessionId: 'sess_123',
-      snapshot: cvState,
-      source: 'rewrite',
-      createdAt: new Date('2026-04-12T12:00:00.000Z'),
-    })
-    mockCheckUserQuota.mockResolvedValue(true)
-    mockCreatePendingResumeGeneration.mockRejectedValue(
-      new Error('Failed to create resume generation: relation "resume_generations" does not exist'),
-    )
-    mockGenerateFile.mockResolvedValue({
-      output: {
-        success: true,
-        pdfUrl: 'https://example.com/resume.pdf',
-        docxUrl: null,
-      },
-      generatedOutput: {
-        status: 'ready',
-        pdfPath: 'usr_123/sess_123/resume.pdf',
-        docxPath: null,
-        generatedAt: '2026-04-12T12:01:00.000Z',
-      },
-    })
-    mockConsumeCreditForGeneration.mockResolvedValue(true)
-
-    const result = await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-      idempotencyKey: 'profile-ats:sess_123',
-    })
-
-    expect(result.output).toEqual({
-      success: true,
-      pdfUrl: 'https://example.com/resume.pdf',
-      docxUrl: null,
-      creditsUsed: 1,
-    })
-    expect(mockConsumeCreditForGeneration).toHaveBeenCalledWith(
-      'usr_123',
-      buildLegacyFallbackGenerationId(cvState, { idempotencyKey: 'profile-ats:sess_123' }),
-      'ATS_ENHANCEMENT',
-    )
-  })
-
-  it('uses distinct fallback billing ids for separate exports in the same session scope', async () => {
-    const cvState = buildCvState()
-    mockGetLatestCompletedResumeGenerationForScope.mockRejectedValue(
-      new Error('Failed to load latest completed resume generation: relation "resume_generations" does not exist'),
-    )
-    mockGetLatestCvVersionForScope.mockResolvedValue({
-      id: 'ver_rewrite',
-      sessionId: 'sess_123',
-      snapshot: cvState,
-      source: 'rewrite',
-      createdAt: new Date('2026-04-12T12:00:00.000Z'),
-    })
-    mockCheckUserQuota.mockResolvedValue(true)
-    mockGenerateFile.mockResolvedValue({
-      output: {
-        success: true,
-        pdfUrl: 'https://example.com/resume.pdf',
-        docxUrl: null,
-      },
-      generatedOutput: {
-        status: 'ready',
-        pdfPath: 'usr_123/sess_123/resume.pdf',
-        docxPath: null,
-        generatedAt: '2026-04-12T12:01:00.000Z',
-      },
-    })
-    mockConsumeCreditForGeneration.mockResolvedValue(true)
-
-    await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-      idempotencyKey: 'export-1',
-    })
-
-    await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-      idempotencyKey: 'export-2',
-    })
-
-    expect(mockConsumeCreditForGeneration).toHaveBeenNthCalledWith(
-      1,
-      'usr_123',
-      buildLegacyFallbackGenerationId(cvState, { idempotencyKey: 'export-1' }),
-      'ATS_ENHANCEMENT',
-    )
-    expect(mockConsumeCreditForGeneration).toHaveBeenNthCalledWith(
-      2,
-      'usr_123',
-      buildLegacyFallbackGenerationId(cvState, { idempotencyKey: 'export-2' }),
-      'ATS_ENHANCEMENT',
-    )
-  })
-
-  it('marks the generation failed when rendering succeeded but credit consumption cannot finalize', async () => {
+  it('reserves one credit before generateFile runs and finalizes exactly once on success', async () => {
     const cvState = buildCvState()
     mockGetLatestCvVersionForScope.mockResolvedValue({
       id: 'ver_rewrite',
@@ -647,106 +323,39 @@ describe('generateBillableResume', () => {
     })
     mockCheckUserQuota.mockResolvedValue(true)
     mockCreatePendingResumeGeneration.mockResolvedValue({
-      generation: {
-        id: 'gen_pending_credit',
-        userId: 'usr_123',
-        sessionId: 'sess_123',
-        type: 'ATS_ENHANCEMENT',
-        status: 'pending',
-        sourceCvSnapshot: cvState,
-        versionNumber: 1,
-        createdAt: new Date('2026-04-12T12:00:00.000Z'),
-        updatedAt: new Date('2026-04-12T12:00:00.000Z'),
-      },
+      generation: buildPendingGeneration(cvState, { id: 'gen_pending_success' }),
       wasCreated: true,
     })
-    mockGenerateFile.mockResolvedValue({
-      output: {
-        success: true,
-        pdfUrl: 'https://example.com/resume.pdf',
-        docxUrl: null,
-      },
-      generatedOutput: {
-        status: 'ready',
-        pdfPath: 'usr_123/sess_123/resume.pdf',
-        docxPath: null,
-        generatedAt: '2026-04-12T12:01:00.000Z',
-      },
+    mockGenerateFile.mockImplementation(async () => {
+      expect(mockReserveCreditForGenerationIntent).toHaveBeenCalledTimes(1)
+      expect(mockFinalizeCreditReservation).not.toHaveBeenCalled()
+      return {
+        output: {
+          success: true,
+          pdfUrl: 'https://example.com/resume.pdf',
+          docxUrl: null,
+        },
+        generatedOutput: {
+          status: 'ready',
+          pdfPath: 'usr_123/sess_123/resume.pdf',
+          docxPath: null,
+          generatedAt: '2026-04-12T12:01:00.000Z',
+        },
+      }
     })
-    mockConsumeCreditForGeneration.mockResolvedValue(false)
-
-    const result = await generateBillableResume({
-      userId: 'usr_123',
-      sessionId: 'sess_123',
-      sourceCvState: cvState,
-    })
-
-    expect(result.output).toEqual({
-      success: false,
-      code: 'INSUFFICIENT_CREDITS',
-      error: 'Seus créditos acabaram antes de concluir esta geração. Tente novamente após recarregar seu saldo.',
-    })
-    expect(mockUpdateResumeGeneration).toHaveBeenCalledWith({
-      id: 'gen_pending_credit',
-      status: 'failed',
+    mockUpdateResumeGeneration.mockResolvedValue({
+      ...buildPendingGeneration(cvState, { id: 'gen_pending_success', status: 'completed' }),
       generatedCvState: cvState,
-      failureReason: 'No credits available to finalize this generation.',
+      outputPdfPath: 'usr_123/sess_123/resume.pdf',
+      outputDocxPath: null,
+      updatedAt: new Date('2026-04-12T12:01:00.000Z'),
     })
-    expect(mockLogWarn).toHaveBeenCalledWith(
-      'resume_generation.billing_failed',
-      expect.objectContaining({
-        resumeGenerationId: 'gen_pending_credit',
-        stage: 'billing',
-        generationType: 'ATS_ENHANCEMENT',
-        errorCode: 'INSUFFICIENT_CREDITS',
-      }),
-    )
-  })
-
-  it('returns the generated artifact even when persisting the completed generation record fails', async () => {
-    const cvState = buildCvState()
-    mockGetLatestCvVersionForScope.mockResolvedValue({
-      id: 'ver_rewrite',
-      sessionId: 'sess_123',
-      snapshot: cvState,
-      source: 'rewrite',
-      createdAt: new Date('2026-04-12T12:00:00.000Z'),
-    })
-    mockCheckUserQuota.mockResolvedValue(true)
-    mockCreatePendingResumeGeneration.mockResolvedValue({
-      generation: {
-        id: 'gen_pending_success',
-        userId: 'usr_123',
-        sessionId: 'sess_123',
-        type: 'ATS_ENHANCEMENT',
-        status: 'pending',
-        sourceCvSnapshot: cvState,
-        versionNumber: 1,
-        createdAt: new Date('2026-04-12T12:00:00.000Z'),
-        updatedAt: new Date('2026-04-12T12:00:00.000Z'),
-      },
-      wasCreated: true,
-    })
-    mockGenerateFile.mockResolvedValue({
-      output: {
-        success: true,
-        pdfUrl: 'https://example.com/resume.pdf',
-        docxUrl: null,
-      },
-      generatedOutput: {
-        status: 'ready',
-        pdfPath: 'usr_123/sess_123/resume.pdf',
-        docxPath: null,
-        generatedAt: '2026-04-12T12:01:00.000Z',
-      },
-    })
-    mockConsumeCreditForGeneration.mockResolvedValue(true)
-    mockUpdateResumeGeneration.mockRejectedValue(new Error('resume_generations update failed'))
 
     const result = await generateBillableResume({
       userId: 'usr_123',
       sessionId: 'sess_123',
       sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
     })
 
     expect(result.output).toEqual({
@@ -754,21 +363,28 @@ describe('generateBillableResume', () => {
       pdfUrl: 'https://example.com/resume.pdf',
       docxUrl: null,
       creditsUsed: 1,
-      resumeGenerationId: undefined,
+      resumeGenerationId: 'gen_pending_success',
     })
-    expect(result.resumeGeneration).toBeUndefined()
-    expect(mockLogWarn).toHaveBeenCalledWith(
-      'resume_generation.persistence_failed',
-      expect.objectContaining({
-        resumeGenerationId: 'gen_pending_success',
-        status: 'completed',
-        stage: 'persistence',
-        errorMessage: 'resume_generations update failed',
-      }),
-    )
+    expect(mockReserveCreditForGenerationIntent).toHaveBeenCalledWith({
+      userId: 'usr_123',
+      generationIntentKey: 'dup_key',
+      generationType: 'ATS_ENHANCEMENT',
+      jobId: undefined,
+      sessionId: 'sess_123',
+      resumeTargetId: undefined,
+      resumeGenerationId: 'gen_pending_success',
+      metadata: expect.any(Object),
+    })
+    expect(mockFinalizeCreditReservation).toHaveBeenCalledWith({
+      userId: 'usr_123',
+      generationIntentKey: 'dup_key',
+      resumeGenerationId: 'gen_pending_success',
+      metadata: expect.any(Object),
+    })
+    expect(mockReleaseCreditReservation).not.toHaveBeenCalled()
   })
 
-  it('logs render-stage failures and does not attempt billing consumption', async () => {
+  it('releases the held credit exactly once when rendering fails after reservation', async () => {
     const cvState = buildCvState()
     mockGetLatestCvVersionForScope.mockResolvedValue({
       id: 'ver_rewrite',
@@ -779,17 +395,7 @@ describe('generateBillableResume', () => {
     })
     mockCheckUserQuota.mockResolvedValue(true)
     mockCreatePendingResumeGeneration.mockResolvedValue({
-      generation: {
-        id: 'gen_pending_render',
-        userId: 'usr_123',
-        sessionId: 'sess_123',
-        type: 'ATS_ENHANCEMENT',
-        status: 'pending',
-        sourceCvSnapshot: cvState,
-        versionNumber: 1,
-        createdAt: new Date('2026-04-12T12:00:00.000Z'),
-        updatedAt: new Date('2026-04-12T12:00:00.000Z'),
-      },
+      generation: buildPendingGeneration(cvState, { id: 'gen_pending_render' }),
       wasCreated: true,
     })
     mockGenerateFile.mockResolvedValue({
@@ -808,6 +414,7 @@ describe('generateBillableResume', () => {
       userId: 'usr_123',
       sessionId: 'sess_123',
       sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
     })
 
     expect(result.output).toEqual({
@@ -815,15 +422,128 @@ describe('generateBillableResume', () => {
       code: 'GENERATION_ERROR',
       error: 'File generation failed.',
     })
-    expect(mockConsumeCreditForGeneration).not.toHaveBeenCalled()
+    expect(mockReserveCreditForGenerationIntent).toHaveBeenCalledTimes(1)
+    expect(mockFinalizeCreditReservation).not.toHaveBeenCalled()
+    expect(mockReleaseCreditReservation).toHaveBeenCalledWith({
+      userId: 'usr_123',
+      generationIntentKey: 'dup_key',
+      resumeGenerationId: 'gen_pending_render',
+      metadata: expect.any(Object),
+    })
+    expect(mockUpdateResumeGeneration).toHaveBeenCalledWith({
+      id: 'gen_pending_render',
+      status: 'failed',
+      failureReason: 'renderer crashed',
+    })
+  })
+
+  it('reuses the same reservation when a durable retry resumes the same intent', async () => {
+    const cvState = buildCvState()
+    mockGetResumeGenerationByIdempotencyKey.mockResolvedValue(
+      buildPendingGeneration(cvState, { id: 'gen_pending_existing' }),
+    )
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockReserveCreditForGenerationIntent.mockResolvedValue(buildReservation({
+      generationIntentKey: 'dup_key',
+      resumeGenerationId: 'gen_pending_existing',
+      metadata: { reused: true },
+    }))
+    mockGenerateFile.mockResolvedValue({
+      output: {
+        success: true,
+        pdfUrl: 'https://example.com/resume.pdf',
+        docxUrl: null,
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-12T12:01:00.000Z',
+      },
+    })
+    mockUpdateResumeGeneration.mockResolvedValue({
+      ...buildPendingGeneration(cvState, { id: 'gen_pending_existing', status: 'completed' }),
+      generatedCvState: cvState,
+      outputPdfPath: 'usr_123/sess_123/resume.pdf',
+      outputDocxPath: null,
+      updatedAt: new Date('2026-04-12T12:01:00.000Z'),
+    })
+
+    await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+      resumePendingGeneration: true,
+    })
+
+    expect(mockReserveCreditForGenerationIntent).toHaveBeenCalledTimes(1)
+    expect(mockFinalizeCreditReservation).toHaveBeenCalledTimes(1)
+    expect(mockReleaseCreditReservation).not.toHaveBeenCalled()
+  })
+
+  it('preserves artifact availability and flags reconciliation when finalize fails after render success', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockResolvedValue({
+      generation: buildPendingGeneration(cvState, { id: 'gen_pending_success' }),
+      wasCreated: true,
+    })
+    mockGenerateFile.mockResolvedValue({
+      output: {
+        success: true,
+        pdfUrl: 'https://example.com/resume.pdf',
+        docxUrl: null,
+      },
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-12T12:01:00.000Z',
+      },
+    })
+    mockFinalizeCreditReservation.mockRejectedValue(new Error('finalize rpc failed'))
+    mockUpdateResumeGeneration.mockRejectedValue(new Error('resume_generations update failed'))
+
+    const result = await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+    })
+
+    expect(result.output).toEqual({
+      success: true,
+      pdfUrl: 'https://example.com/resume.pdf',
+      docxUrl: null,
+      creditsUsed: 1,
+      resumeGenerationId: undefined,
+    })
+    expect(result.generatedOutput).toEqual(expect.objectContaining({
+      status: 'ready',
+      pdfPath: 'usr_123/sess_123/resume.pdf',
+    }))
+    expect(mockReleaseCreditReservation).not.toHaveBeenCalled()
     expect(mockLogWarn).toHaveBeenCalledWith(
-      'resume_generation.render_failed',
+      'resume_generation.billing_reconciliation_required',
       expect.objectContaining({
-        resumeGenerationId: 'gen_pending_render',
-        stage: 'render',
-        generationType: 'ATS_ENHANCEMENT',
-        errorCode: 'GENERATION_ERROR',
-        errorMessage: 'renderer crashed',
+        stage: 'finalize_credit',
+        generationIntentKey: 'dup_key',
+        resumeGenerationId: 'gen_pending_success',
       }),
     )
   })

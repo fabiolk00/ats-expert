@@ -105,13 +105,14 @@ describe('processArtifactGenerationJob', () => {
         generatedAt: '2026-04-16T10:01:00.000Z',
       },
       resumeGeneration: undefined,
+      processingStage: 'finalize_credit',
     })
 
     const result = await processArtifactGenerationJob(buildJob())
 
     expect(result).toEqual({
       ok: true,
-      stage: 'completed',
+      stage: 'finalize_credit',
       resultRef: undefined,
     })
     expect(mockApplyGeneratedOutputPatch).toHaveBeenCalledWith(
@@ -121,5 +122,44 @@ describe('processArtifactGenerationJob', () => {
         pdfPath: 'usr_123/sess_123/resume.pdf',
       }),
     )
+  })
+
+  it('returns a release-credit failure stage when reservation-backed rendering fails', async () => {
+    mockGenerateBillableResume.mockResolvedValue({
+      output: {
+        success: false,
+        code: 'GENERATION_ERROR',
+        error: 'File generation failed.',
+      },
+      generatedOutput: {
+        status: 'failed',
+        error: 'renderer crashed',
+      },
+      resumeGeneration: {
+        id: 'gen_failed',
+        userId: 'usr_123',
+        sessionId: 'sess_123',
+        type: 'ATS_ENHANCEMENT',
+        status: 'failed',
+        sourceCvSnapshot: buildSession().cvState,
+        failureReason: 'renderer crashed',
+        versionNumber: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      processingStage: 'release_credit',
+    })
+
+    const result = await processArtifactGenerationJob(buildJob())
+
+    expect(result).toEqual({
+      ok: false,
+      stage: 'release_credit',
+      errorRef: {
+        kind: 'resume_generation_failure',
+        resumeGenerationId: 'gen_failed',
+        failureReason: 'renderer crashed',
+      },
+    })
   })
 })

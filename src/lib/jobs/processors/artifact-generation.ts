@@ -119,7 +119,7 @@ export async function processArtifactGenerationJob(
     if (result.resumeGeneration) {
       return {
         ok: false,
-        stage: 'generation_failed',
+        stage: result.processingStage ?? 'generation_failed',
         errorRef: {
           kind: 'resume_generation_failure',
           resumeGenerationId: result.resumeGeneration.id,
@@ -142,7 +142,7 @@ export async function processArtifactGenerationJob(
 
   return {
     ok: true,
-    stage: 'completed',
+    stage: result.processingStage ?? 'completed',
     resultRef: result.resumeGeneration
       ? buildResumeGenerationResultRef(result.resumeGeneration)
       : undefined,

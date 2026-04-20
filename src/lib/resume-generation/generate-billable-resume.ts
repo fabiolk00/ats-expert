@@ -7,7 +7,13 @@ import {
   validateGenerationCvState,
   type GenerateFileExecutionResult,
 } from '@/lib/agent/tools/generate-file'
-import { checkUserQuota, consumeCreditForGeneration } from '@/lib/asaas/quota'
+import {
+  checkUserQuota,
+  consumeCreditForGeneration,
+  finalizeCreditReservation,
+  releaseCreditReservation,
+  reserveCreditForGenerationIntent,
+} from '@/lib/asaas/quota'
 import { getLatestCvVersionForScope } from '@/lib/db/cv-versions'
 import {
   createPendingResumeGeneration,
@@ -15,7 +21,7 @@ import {
   getResumeGenerationByIdempotencyKey,
   updateResumeGeneration,
 } from '@/lib/db/resume-generations'
-import { logWarn, serializeError } from '@/lib/observability/structured-log'
+import { logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import type {
   GenerateFileInput,
   GenerateFileOutput,
@@ -34,6 +40,8 @@ type BillableGenerationResult = {
   patch?: ToolPatch
   generatedOutput?: GeneratedOutput
   resumeGeneration?: ResumeGeneration
+  processingStage?: string
+  needsReconciliation?: boolean
 }
 
 type ResumeGenerationPersistenceResult = {
@@ -88,6 +96,7 @@ function buildExistingGenerationSuccessResult(existing: ResumeGeneration): Billa
       },
     },
     resumeGeneration: existing,
+    processingStage: 'completed',
   }
 }
 
@@ -111,6 +120,7 @@ function buildPendingGenerationInProgressResult(existing: ResumeGeneration): Bil
       },
     },
     resumeGeneration: existing,
+    processingStage: 'reserve_credit',
   }
 }
 
@@ -135,22 +145,28 @@ async function safeUpdateResumeGeneration(
 }
 
 function logGenerationStageWarning(input: {
-  event: 'resume_generation.render_failed' | 'resume_generation.billing_failed'
+  event:
+    | 'resume_generation.render_failed'
+    | 'resume_generation.billing_failed'
+    | 'resume_generation.billing_reconciliation_required'
   userId: string
   sessionId: string
   targetId?: string
   resumeGenerationId?: string
+  generationIntentKey?: string
   type: ResumeGenerationType
   error?: string
   code?: string
+  stage?: string
 }): void {
   logWarn(input.event, {
     userId: input.userId,
     sessionId: input.sessionId,
     targetId: input.targetId,
     resumeGenerationId: input.resumeGenerationId,
+    generationIntentKey: input.generationIntentKey,
     generationType: input.type,
-    stage: input.event === 'resume_generation.render_failed' ? 'render' : 'billing',
+    stage: input.stage ?? 'billing',
     errorMessage: input.error,
     errorCode: input.code,
   })
@@ -231,6 +247,7 @@ async function generateWithoutResumeGenerationPersistence(input: {
         status: 'failed',
         error: 'No credits available to finalize this generation.',
       },
+      processingStage: 'billing_failed',
     }
   }
 
@@ -240,7 +257,15 @@ async function generateWithoutResumeGenerationPersistence(input: {
       ...generationResult.output,
       creditsUsed: 1,
     },
+    processingStage: 'completed',
   }
+}
+
+function resolveGenerationIntentKey(input: {
+  idempotencyKey?: string
+  resumeGeneration: ResumeGeneration
+}): string {
+  return input.idempotencyKey ?? input.resumeGeneration.id
 }
 
 export async function generateBillableResume(input: {
@@ -263,6 +288,7 @@ export async function generateBillableResume(input: {
         status: 'failed',
         error: validation.errorMessage,
       },
+      processingStage: 'validation_failed',
     }
   }
 
@@ -291,8 +317,7 @@ export async function generateBillableResume(input: {
         ...serializeError(error),
       })
       resumeGenerationSchemaUnavailable = true
-    }
-    else {
+    } else {
       throw error
     }
   }
@@ -345,8 +370,7 @@ export async function generateBillableResume(input: {
           ...serializeError(error),
         })
         resumeGenerationSchemaUnavailable = true
-      }
-      else {
+      } else {
         throw error
       }
     }
@@ -388,6 +412,7 @@ export async function generateBillableResume(input: {
             error: existing.failureReason,
           },
           resumeGeneration: existing,
+          processingStage: 'generation_failed',
         }
       }
 
@@ -407,6 +432,7 @@ export async function generateBillableResume(input: {
         TOOL_ERROR_CODES.VALIDATION_ERROR,
         'Gere uma nova versão otimizada pela IA antes de exportar este currículo.',
       ),
+      processingStage: 'validation_failed',
     }
   }
 
@@ -417,6 +443,7 @@ export async function generateBillableResume(input: {
         TOOL_ERROR_CODES.INSUFFICIENT_CREDITS,
         'Seus créditos acabaram. Gere um novo currículo quando houver saldo disponível.',
       ),
+      processingStage: 'reserve_credit',
     }
   }
 
@@ -455,8 +482,7 @@ export async function generateBillableResume(input: {
           ...serializeError(error),
         })
         resumeGenerationSchemaUnavailable = true
-      }
-      else {
+      } else {
         throw error
       }
     }
@@ -484,6 +510,36 @@ export async function generateBillableResume(input: {
     }
   }
 
+  const generationIntentKey = resolveGenerationIntentKey({
+    idempotencyKey: input.idempotencyKey,
+    resumeGeneration,
+  })
+
+  await reserveCreditForGenerationIntent({
+    userId: input.userId,
+    generationIntentKey,
+    generationType,
+    sessionId: input.sessionId,
+    resumeTargetId: input.targetId,
+    resumeGenerationId: resumeGeneration.id,
+    metadata: {
+      sessionId: input.sessionId,
+      targetId: input.targetId ?? null,
+      stage: 'reserve_credit',
+      resumePendingGeneration: input.resumePendingGeneration ?? false,
+    },
+  })
+
+  logInfo('resume_generation.credit_reserved', {
+    userId: input.userId,
+    sessionId: input.sessionId,
+    targetId: input.targetId,
+    resumeGenerationId: resumeGeneration.id,
+    generationIntentKey,
+    generationType,
+    stage: 'reserve_credit',
+  })
+
   const generationResult: GenerateFileExecutionResult = await generateFile(
     {
       cv_state: input.sourceCvState,
@@ -502,10 +558,48 @@ export async function generateBillableResume(input: {
       sessionId: input.sessionId,
       targetId: input.targetId,
       resumeGenerationId: resumeGeneration.id,
+      generationIntentKey,
       type: generationType,
       error: generationResult.generatedOutput?.error ?? generationResult.output.error,
       code: generationResult.output.code,
+      stage: 'render_artifact',
     })
+
+    try {
+      await releaseCreditReservation({
+        userId: input.userId,
+        generationIntentKey,
+        resumeGenerationId: resumeGeneration.id,
+        metadata: {
+          sessionId: input.sessionId,
+          targetId: input.targetId ?? null,
+          stage: 'release_credit',
+          reason: generationResult.generatedOutput?.error ?? generationResult.output.error,
+        },
+      })
+      logInfo('resume_generation.credit_released', {
+        userId: input.userId,
+        sessionId: input.sessionId,
+        targetId: input.targetId,
+        resumeGenerationId: resumeGeneration.id,
+        generationIntentKey,
+        generationType,
+        stage: 'release_credit',
+      })
+    } catch (error) {
+      logGenerationStageWarning({
+        event: 'resume_generation.billing_reconciliation_required',
+        userId: input.userId,
+        sessionId: input.sessionId,
+        targetId: input.targetId,
+        resumeGenerationId: resumeGeneration.id,
+        generationIntentKey,
+        type: generationType,
+        error: error instanceof Error ? error.message : String(error),
+        code: generationResult.output.code,
+        stage: 'release_credit',
+      })
+    }
 
     await safeUpdateResumeGeneration({
       id: resumeGeneration.id,
@@ -516,45 +610,45 @@ export async function generateBillableResume(input: {
     return {
       ...generationResult,
       resumeGeneration,
+      processingStage: 'release_credit',
     }
   }
 
-  const creditConsumed = await consumeCreditForGeneration(
-    input.userId,
-    resumeGeneration.id,
-    generationType,
-  )
-
-  if (!creditConsumed) {
-    logGenerationStageWarning({
-      event: 'resume_generation.billing_failed',
+  let needsReconciliation = false
+  try {
+    await finalizeCreditReservation({
+      userId: input.userId,
+      generationIntentKey,
+      resumeGenerationId: resumeGeneration.id,
+      metadata: {
+        sessionId: input.sessionId,
+        targetId: input.targetId ?? null,
+        stage: 'finalize_credit',
+      },
+    })
+    logInfo('resume_generation.credit_finalized', {
       userId: input.userId,
       sessionId: input.sessionId,
       targetId: input.targetId,
       resumeGenerationId: resumeGeneration.id,
+      generationIntentKey,
+      generationType,
+      stage: 'finalize_credit',
+    })
+  } catch (error) {
+    needsReconciliation = true
+    logGenerationStageWarning({
+      event: 'resume_generation.billing_reconciliation_required',
+      userId: input.userId,
+      sessionId: input.sessionId,
+      targetId: input.targetId,
+      resumeGenerationId: resumeGeneration.id,
+      generationIntentKey,
       type: generationType,
-      error: 'No credits available to finalize this generation.',
-      code: TOOL_ERROR_CODES.INSUFFICIENT_CREDITS,
+      error: error instanceof Error ? error.message : String(error),
+      code: TOOL_ERROR_CODES.INTERNAL_ERROR,
+      stage: 'finalize_credit',
     })
-
-    await safeUpdateResumeGeneration({
-      id: resumeGeneration.id,
-      status: 'failed',
-      generatedCvState: input.sourceCvState,
-      failureReason: 'No credits available to finalize this generation.',
-    })
-
-    return {
-      output: toolFailure(
-        TOOL_ERROR_CODES.INSUFFICIENT_CREDITS,
-        'Seus créditos acabaram antes de concluir esta geração. Tente novamente após recarregar seu saldo.',
-      ),
-      generatedOutput: {
-        status: 'failed',
-        error: 'No credits available to finalize this generation.',
-      },
-      resumeGeneration,
-    }
   }
 
   const persistence = await completeResumeGenerationBestEffort({
@@ -571,5 +665,7 @@ export async function generateBillableResume(input: {
       resumeGenerationId: persistence.resumeGenerationId,
     },
     resumeGeneration: persistence.resumeGeneration,
+    processingStage: needsReconciliation ? 'needs_reconciliation' : 'finalize_credit',
+    needsReconciliation,
   }
 }

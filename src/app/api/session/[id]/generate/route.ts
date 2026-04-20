@@ -116,6 +116,7 @@ function buildSuccessResponseBody(input: {
     creditsUsed: 0,
     generationType: resolveGenerationType(input.scope),
     jobId: input.job.jobId,
+    billingStage: input.job.stage,
     resumeGenerationId: input.job.terminalResultRef?.kind === 'resume_generation'
       ? input.job.terminalResultRef.resumeGenerationId
       : undefined,
