@@ -1,4 +1,3 @@
-import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import type { ResumeGenerationType } from '@/types/agent'
 
@@ -103,6 +102,7 @@ type SettleCreditReservationInput = {
   generationIntentKey: string
   action: ReservationTransitionAction
   resumeGenerationId?: string
+  metadata?: Record<string, unknown>
 }
 
 function isDuplicateKeyError(error: PostgrestErrorLike | null | undefined): boolean {
@@ -111,6 +111,18 @@ function isDuplicateKeyError(error: PostgrestErrorLike | null | undefined): bool
   }
 
   return error.code === '23505' || error.message?.toLowerCase().includes('duplicate key') === true
+}
+
+function isMissingReservationInfraError(message: string | undefined): boolean {
+  const normalized = (message ?? '').toLowerCase()
+
+  return (
+    normalized.includes('does not exist')
+    || normalized.includes('relation')
+    || normalized.includes('function')
+    || normalized.includes('column')
+    || normalized.includes('type')
+  )
 }
 
 function mapCreditReservationRow(row: CreditReservationRow): CreditReservation {
@@ -208,26 +220,18 @@ export async function reserveCreditForGenerationIntent(
   }
 
   const supabase = getSupabaseAdminClient()
-  const { data, error } = await supabase
-    .from('credit_reservations')
-    .insert({
-      id: createDatabaseId(),
-      user_id: input.userId,
-      generation_intent_key: input.generationIntentKey,
-      job_id: input.jobId ?? null,
-      session_id: input.sessionId ?? null,
-      resume_target_id: input.resumeTargetId ?? null,
-      resume_generation_id: input.resumeGenerationId ?? null,
-      type: input.generationType,
-      status: 'reserved',
-      credits_reserved: 1,
-      reconciliation_status: 'clean',
-      metadata: input.metadata ?? null,
-    })
-    .select('*')
-    .single<CreditReservationRow>()
+  const { data, error } = await supabase.rpc('reserve_credit_for_generation_intent', {
+    p_user_id: input.userId,
+    p_generation_intent_key: input.generationIntentKey,
+    p_generation_type: input.generationType,
+    p_job_id: input.jobId ?? null,
+    p_session_id: input.sessionId ?? null,
+    p_resume_target_id: input.resumeTargetId ?? null,
+    p_resume_generation_id: input.resumeGenerationId ?? null,
+    p_metadata: input.metadata ?? null,
+  })
 
-  if (error && isDuplicateKeyError(error)) {
+  if (error && (isDuplicateKeyError(error) || isMissingReservationInfraError(error.message))) {
     const duplicatedReservation = await getCreditReservationByIntent({
       userId: input.userId,
       generationIntentKey: input.generationIntentKey,
@@ -264,10 +268,56 @@ export async function settleCreditReservationTransition(
   }
 
   assertReservationTransitionAllowed(reservation, input.action)
-  return {
-    ...reservation,
-    resumeGenerationId: input.resumeGenerationId ?? reservation.resumeGenerationId,
+  if ((reservation.status === 'finalized' && input.action === 'finalize')
+    || (reservation.status === 'released' && input.action === 'release')) {
+    return {
+      ...reservation,
+      resumeGenerationId: input.resumeGenerationId ?? reservation.resumeGenerationId,
+    }
   }
+
+  const supabase = getSupabaseAdminClient()
+  const rpcName = input.action === 'finalize'
+    ? 'finalize_credit_reservation'
+    : 'release_credit_reservation'
+  const { data, error } = await supabase.rpc(rpcName, {
+    p_user_id: input.userId,
+    p_generation_intent_key: input.generationIntentKey,
+    p_resume_generation_id: input.resumeGenerationId ?? null,
+    p_metadata: input.metadata ?? null,
+  })
+
+  if (error || !data) {
+    throw new Error(
+      `Failed to ${input.action} credit reservation: ${error?.message ?? 'Unknown error'}`,
+    )
+  }
+
+  return mapCreditReservationRow(data as CreditReservationRow)
+}
+
+export async function finalizeCreditReservation(input: {
+  userId: string
+  generationIntentKey: string
+  resumeGenerationId?: string
+  metadata?: Record<string, unknown>
+}): Promise<CreditReservation> {
+  return settleCreditReservationTransition({
+    ...input,
+    action: 'finalize',
+  })
+}
+
+export async function releaseCreditReservation(input: {
+  userId: string
+  generationIntentKey: string
+  resumeGenerationId?: string
+  metadata?: Record<string, unknown>
+}): Promise<CreditReservation> {
+  return settleCreditReservationTransition({
+    ...input,
+    action: 'release',
+  })
 }
 
 export async function getCreditLedgerEntriesForIntent(input: {
@@ -279,13 +329,12 @@ export async function getCreditLedgerEntriesForIntent(input: {
     .from('credit_ledger_entries')
     .select('*')
     .eq('user_id', input.userId)
+    .eq('generation_intent_key', input.generationIntentKey)
     .order('created_at', { ascending: true })
 
   if (error) {
     throw new Error(`Failed to load credit ledger entries for generation intent: ${error.message}`)
   }
 
-  return (data ?? [])
-    .filter((row): row is CreditLedgerEntryRow => row.generation_intent_key === input.generationIntentKey)
-    .map(mapCreditLedgerEntryRow)
+  return (data ?? []).map((row) => mapCreditLedgerEntryRow(row as CreditLedgerEntryRow))
 }

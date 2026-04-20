@@ -1,5 +1,11 @@
 import type { ResumeGenerationType } from '@/types/agent'
 import { PLANS, type PlanSlug } from '@/lib/plans'
+import {
+  finalizeCreditReservation as finalizeCreditReservationRecord,
+  releaseCreditReservation as releaseCreditReservationRecord,
+  reserveCreditForGenerationIntent as reserveCreditForGenerationIntentRecord,
+  type CreditReservation,
+} from '@/lib/db/credit-reservations'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { createUpdatedAtTimestamp } from '@/lib/db/timestamps'
 import { logWarn } from '@/lib/observability/structured-log'
@@ -188,6 +194,38 @@ export async function consumeCreditForGeneration(
   }
 
   return data === true
+}
+
+export async function reserveCreditForGenerationIntent(input: {
+  userId: string
+  generationIntentKey: string
+  generationType: ResumeGenerationType
+  jobId?: string
+  sessionId?: string
+  resumeTargetId?: string
+  resumeGenerationId?: string
+  metadata?: Record<string, unknown>
+}): Promise<CreditReservation> {
+  const { reservation } = await reserveCreditForGenerationIntentRecord(input)
+  return reservation
+}
+
+export async function finalizeCreditReservation(input: {
+  userId: string
+  generationIntentKey: string
+  resumeGenerationId?: string
+  metadata?: Record<string, unknown>
+}): Promise<CreditReservation> {
+  return finalizeCreditReservationRecord(input)
+}
+
+export async function releaseCreditReservation(input: {
+  userId: string
+  generationIntentKey: string
+  resumeGenerationId?: string
+  metadata?: Record<string, unknown>
+}): Promise<CreditReservation> {
+  return releaseCreditReservationRecord(input)
 }
 
 export async function revokeSubscription(asaasSubscriptionId: string): Promise<void> {
