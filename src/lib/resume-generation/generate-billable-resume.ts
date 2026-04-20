@@ -588,16 +588,29 @@ export async function generateBillableResume(input: {
         stage: 'release_credit',
       })
     } catch (error) {
-      await markCreditReservationReconciliation({
-        reservationId: reservation.id,
-        status: 'needs_reconciliation',
-        reconciliationStatus: 'pending',
-        failureReason: error instanceof Error ? error.message : String(error),
-        metadata: {
-          source: 'render_failure_release',
+      try {
+        await markCreditReservationReconciliation({
+          reservationId: reservation.id,
+          status: 'needs_reconciliation',
+          reconciliationStatus: 'pending',
+          failureReason: error instanceof Error ? error.message : String(error),
+          metadata: {
+            source: 'render_failure_release',
+            generationIntentKey,
+          },
+        })
+      } catch (markerError) {
+        logWarn('resume_generation.reconciliation_marker_failed', {
+          userId: input.userId,
+          sessionId: input.sessionId,
+          targetId: input.targetId,
+          reservationId: reservation.id,
+          resumeGenerationId: resumeGeneration.id,
           generationIntentKey,
-        },
-      })
+          stage: 'release_credit',
+          ...serializeError(markerError),
+        })
+      }
       logGenerationStageWarning({
         event: 'resume_generation.billing_reconciliation_required',
         userId: input.userId,
@@ -648,16 +661,29 @@ export async function generateBillableResume(input: {
     })
   } catch (error) {
     needsReconciliation = true
-    await markCreditReservationReconciliation({
-      reservationId: reservation.id,
-      status: 'needs_reconciliation',
-      reconciliationStatus: 'pending',
-      failureReason: error instanceof Error ? error.message : String(error),
-      metadata: {
-        source: 'artifact_success_finalize',
+    try {
+      await markCreditReservationReconciliation({
+        reservationId: reservation.id,
+        status: 'needs_reconciliation',
+        reconciliationStatus: 'pending',
+        failureReason: error instanceof Error ? error.message : String(error),
+        metadata: {
+          source: 'artifact_success_finalize',
+          generationIntentKey,
+        },
+      })
+    } catch (markerError) {
+      logWarn('resume_generation.reconciliation_marker_failed', {
+        userId: input.userId,
+        sessionId: input.sessionId,
+        targetId: input.targetId,
+        reservationId: reservation.id,
+        resumeGenerationId: resumeGeneration.id,
         generationIntentKey,
-      },
-    })
+        stage: 'finalize_credit',
+        ...serializeError(markerError),
+      })
+    }
     logGenerationStageWarning({
       event: 'resume_generation.billing_reconciliation_required',
       userId: input.userId,

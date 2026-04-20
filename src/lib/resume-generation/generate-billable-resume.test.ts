@@ -499,7 +499,7 @@ describe('generateBillableResume', () => {
     expect(mockReleaseCreditReservation).not.toHaveBeenCalled()
   })
 
-  it('preserves artifact availability and flags reconciliation when finalize fails after render success', async () => {
+  it('preserves artifact availability when finalize and reconciliation marker writes both fail after render success', async () => {
     const cvState = buildCvState()
     mockGetLatestCvVersionForScope.mockResolvedValue({
       id: 'ver_rewrite',
@@ -527,6 +527,7 @@ describe('generateBillableResume', () => {
       },
     })
     mockFinalizeCreditReservation.mockRejectedValue(new Error('finalize rpc failed'))
+    mockMarkCreditReservationReconciliation.mockRejectedValue(new Error('marker update failed'))
     mockUpdateResumeGeneration.mockRejectedValue(new Error('resume_generations update failed'))
 
     const result = await generateBillableResume({
@@ -548,6 +549,24 @@ describe('generateBillableResume', () => {
       pdfPath: 'usr_123/sess_123/resume.pdf',
     }))
     expect(mockReleaseCreditReservation).not.toHaveBeenCalled()
+    expect(mockMarkCreditReservationReconciliation).toHaveBeenCalledWith({
+      reservationId: 'res_123',
+      status: 'needs_reconciliation',
+      reconciliationStatus: 'pending',
+      failureReason: 'finalize rpc failed',
+      metadata: {
+        source: 'artifact_success_finalize',
+        generationIntentKey: 'dup_key',
+      },
+    })
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'resume_generation.reconciliation_marker_failed',
+      expect.objectContaining({
+        generationIntentKey: 'dup_key',
+        stage: 'finalize_credit',
+        errorMessage: 'marker update failed',
+      }),
+    )
     expect(mockLogWarn).toHaveBeenCalledWith(
       'resume_generation.billing_reconciliation_required',
       expect.objectContaining({
