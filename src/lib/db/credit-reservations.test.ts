@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ResumeGenerationType } from '@/types/agent'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import {
+  finalizeCreditReservation,
   getCreditLedgerEntriesForIntent,
+  releaseCreditReservation,
   reserveCreditForGenerationIntent,
   settleCreditReservationTransition,
 } from './credit-reservations'
@@ -63,10 +65,12 @@ describe('credit reservation repository', () => {
   const reservationEqUser = vi.fn()
   const reservationEqIntent = vi.fn()
   const ledgerSelect = vi.fn()
-  const ledgerEq = vi.fn()
+  const ledgerEqUser = vi.fn()
+  const ledgerEqIntent = vi.fn()
   const ledgerOrder = vi.fn()
 
   const mockSupabase = {
+    rpc: vi.fn(),
     from: vi.fn((table: string) => {
       if (table === 'credit_reservations') {
         return {
@@ -104,9 +108,12 @@ describe('credit reservation repository', () => {
       select: reservationInsertSingle,
     })
     ledgerSelect.mockReturnValue({
-      eq: ledgerEq,
+      eq: ledgerEqUser,
     })
-    ledgerEq.mockReturnValue({
+    ledgerEqUser.mockReturnValue({
+      eq: ledgerEqIntent,
+    })
+    ledgerEqIntent.mockReturnValue({
       order: ledgerOrder,
     })
     ledgerOrder.mockResolvedValue({ data: [], error: null })
@@ -128,7 +135,35 @@ describe('credit reservation repository', () => {
 
     expect(result.wasCreated).toBe(false)
     expect(result.reservation.status).toBe('reserved')
-    expect(reservationInsert).not.toHaveBeenCalled()
+    expect(mockSupabase.rpc).not.toHaveBeenCalled()
+  })
+
+  it('reserves a new intent through the atomic rpc and leaves balance mutation to the database transition', async () => {
+    reservationMaybeSingle.mockResolvedValueOnce({ data: null, error: null })
+    mockSupabase.rpc.mockResolvedValueOnce({ data: buildReservationRow('reserved'), error: null })
+
+    const result = await reserveCreditForGenerationIntent({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      generationType: 'ATS_ENHANCEMENT',
+      jobId: 'job_123',
+      sessionId: 'session_123',
+      resumeTargetId: 'target_123',
+      metadata: { source: 'test' },
+    })
+
+    expect(result.wasCreated).toBe(true)
+    expect(result.reservation.status).toBe('reserved')
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('reserve_credit_for_generation_intent', {
+      p_user_id: 'usr_123',
+      p_generation_intent_key: 'intent_123',
+      p_generation_type: 'ATS_ENHANCEMENT',
+      p_job_id: 'job_123',
+      p_session_id: 'session_123',
+      p_resume_target_id: 'target_123',
+      p_resume_generation_id: null,
+      p_metadata: { source: 'test' },
+    })
   })
 
   it('surfaces contradictory terminal transitions for reconciliation instead of mutating silently', async () => {
@@ -142,6 +177,40 @@ describe('credit reservation repository', () => {
         resumeGenerationId: 'generation_123',
       }),
     ).rejects.toThrow('Cannot finalize credit reservation from released state')
+  })
+
+  it('finalizes and releases via dedicated rpc transitions without silently double-adjusting state', async () => {
+    reservationMaybeSingle
+      .mockResolvedValueOnce({ data: buildReservationRow('reserved'), error: null })
+      .mockResolvedValueOnce({ data: buildReservationRow('reserved'), error: null })
+    mockSupabase.rpc
+      .mockResolvedValueOnce({ data: buildReservationRow('finalized'), error: null })
+      .mockResolvedValueOnce({ data: buildReservationRow('released'), error: null })
+
+    const finalized = await finalizeCreditReservation({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      resumeGenerationId: 'generation_123',
+    })
+    const released = await releaseCreditReservation({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+    })
+
+    expect(finalized.status).toBe('finalized')
+    expect(released.status).toBe('released')
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(1, 'finalize_credit_reservation', {
+      p_user_id: 'usr_123',
+      p_generation_intent_key: 'intent_123',
+      p_resume_generation_id: 'generation_123',
+      p_metadata: null,
+    })
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'release_credit_reservation', {
+      p_user_id: 'usr_123',
+      p_generation_intent_key: 'intent_123',
+      p_resume_generation_id: null,
+      p_metadata: null,
+    })
   })
 
   it('maps append-only hold, finalize, and release ledger entries with optional evidence links', async () => {
@@ -170,5 +239,23 @@ describe('credit reservation repository', () => {
       sessionId: 'session_123',
       resumeTargetId: 'target_123',
     })
+  })
+
+  it('fails closed when the reservation rpc infrastructure is missing', async () => {
+    reservationMaybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+    mockSupabase.rpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'function reserve_credit_for_generation_intent does not exist' },
+    })
+
+    await expect(
+      reserveCreditForGenerationIntent({
+        userId: 'usr_123',
+        generationIntentKey: 'intent_123',
+        generationType: 'ATS_ENHANCEMENT',
+      }),
+    ).rejects.toThrow('Failed to reserve credit for generation intent: function reserve_credit_for_generation_intent does not exist')
   })
 })

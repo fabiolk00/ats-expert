@@ -2,19 +2,33 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PLANS } from '@/lib/plans'
 import {
+  finalizeCreditReservation as finalizeCreditReservationRecord,
+  releaseCreditReservation as releaseCreditReservationRecord,
+  reserveCreditForGenerationIntent as reserveCreditForGenerationIntentRecord,
+} from '@/lib/db/credit-reservations'
+import {
   checkUserQuota,
   consumeCredit,
   consumeCreditForGeneration,
+  finalizeCreditReservation,
   getActiveRecurringSubscription,
   getUserBillingInfo,
   grantCredits,
+  releaseCreditReservation,
   revokeSubscription,
+  reserveCreditForGenerationIntent,
 } from './quota'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { logWarn } from '@/lib/observability/structured-log'
 
 vi.mock('@/lib/db/supabase-admin', () => ({
   getSupabaseAdminClient: vi.fn(),
+}))
+
+vi.mock('@/lib/db/credit-reservations', () => ({
+  reserveCreditForGenerationIntent: vi.fn(),
+  finalizeCreditReservation: vi.fn(),
+  releaseCreditReservation: vi.fn(),
 }))
 
 vi.mock('@/lib/observability/structured-log', () => ({
@@ -108,6 +122,47 @@ describe('quota credit source of truth', () => {
       maybeSingle: userQuotaMaybeSingle,
     })
     mockSupabase.rpc.mockResolvedValue({ data: true, error: null })
+    vi.mocked(reserveCreditForGenerationIntentRecord).mockResolvedValue({
+      wasCreated: true,
+      reservation: {
+        id: 'reservation_123',
+        userId: 'usr_123',
+        generationIntentKey: 'intent_123',
+        type: 'ATS_ENHANCEMENT',
+        status: 'reserved',
+        creditsReserved: 1,
+        reservedAt: new Date('2026-04-20T00:00:00.000Z'),
+        reconciliationStatus: 'clean',
+        createdAt: new Date('2026-04-20T00:00:00.000Z'),
+        updatedAt: new Date('2026-04-20T00:00:00.000Z'),
+      },
+    })
+    vi.mocked(finalizeCreditReservationRecord).mockResolvedValue({
+      id: 'reservation_123',
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      type: 'ATS_ENHANCEMENT',
+      status: 'finalized',
+      creditsReserved: 1,
+      reservedAt: new Date('2026-04-20T00:00:00.000Z'),
+      finalizedAt: new Date('2026-04-20T00:01:00.000Z'),
+      reconciliationStatus: 'clean',
+      createdAt: new Date('2026-04-20T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-20T00:01:00.000Z'),
+    })
+    vi.mocked(releaseCreditReservationRecord).mockResolvedValue({
+      id: 'reservation_123',
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      type: 'ATS_ENHANCEMENT',
+      status: 'released',
+      creditsReserved: 1,
+      reservedAt: new Date('2026-04-20T00:00:00.000Z'),
+      releasedAt: new Date('2026-04-20T00:01:00.000Z'),
+      reconciliationStatus: 'clean',
+      createdAt: new Date('2026-04-20T00:00:00.000Z'),
+      updatedAt: new Date('2026-04-20T00:01:00.000Z'),
+    })
   })
 
   it('grants credits through credit_accounts and stores matching display totals in user_quotas', async () => {
@@ -257,6 +312,69 @@ describe('quota credit source of truth', () => {
         generationType: 'ATS_ENHANCEMENT',
         stage: 'billing',
       }),
+    )
+  })
+
+  it('reserves credit through the reservation-backed billing seam', async () => {
+    const reservation = await reserveCreditForGenerationIntent({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      generationType: 'ATS_ENHANCEMENT',
+      jobId: 'job_123',
+      sessionId: 'session_123',
+    })
+
+    expect(reservation.status).toBe('reserved')
+    expect(reserveCreditForGenerationIntentRecord).toHaveBeenCalledWith({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      generationType: 'ATS_ENHANCEMENT',
+      jobId: 'job_123',
+      sessionId: 'session_123',
+    })
+  })
+
+  it('finalizes an existing reservation without a second balance mutation in the wrapper layer', async () => {
+    const reservation = await finalizeCreditReservation({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      resumeGenerationId: 'generation_123',
+    })
+
+    expect(reservation.status).toBe('finalized')
+    expect(finalizeCreditReservationRecord).toHaveBeenCalledWith({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      resumeGenerationId: 'generation_123',
+    })
+  })
+
+  it('releases an existing reservation through the shared billing seam', async () => {
+    const reservation = await releaseCreditReservation({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+    })
+
+    expect(reservation.status).toBe('released')
+    expect(releaseCreditReservationRecord).toHaveBeenCalledWith({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+    })
+  })
+
+  it('fails closed when reservation infrastructure is unavailable', async () => {
+    vi.mocked(reserveCreditForGenerationIntentRecord).mockRejectedValueOnce(
+      new Error('Failed to reserve credit for generation intent: function reserve_credit_for_generation_intent does not exist'),
+    )
+
+    await expect(
+      reserveCreditForGenerationIntent({
+        userId: 'usr_123',
+        generationIntentKey: 'intent_123',
+        generationType: 'ATS_ENHANCEMENT',
+      }),
+    ).rejects.toThrow(
+      'Failed to reserve credit for generation intent: function reserve_credit_for_generation_intent does not exist',
     )
   })
 
