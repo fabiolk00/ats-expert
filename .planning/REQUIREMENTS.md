@@ -159,6 +159,12 @@
 - [x] **EXP-HILITE-SURFACING-PRIORITY-01**: Within a single experience entry, visible highlight slots explicitly prioritize `strong` evidence ahead of `secondary`, with category ordering that prefers `metric`, then `scope_scale`, before Tier 2 contextual categories can consume remaining capacity.
 - [x] **EXP-HILITE-SURFACING-TEST-01**: Focused unit coverage verifies tier dominance, cap preservation, zero-highlight safety, deterministic tie-breaking, and renderer-contract propagation for the entry-level surfacing policy.
 
+### Experience Highlight Entry Surfacing Hardening
+
+- [ ] **EXP-HILITE-SURFACING-HARDEN-01**: The experience-entry editorial surfacing policy is externalized into a named exported constant with explicit intent comments, and cap ownership is explicit in the surfacing API or documented at the cap source.
+- [ ] **EXP-HILITE-SURFACING-HARDEN-TEST-01**: Direct Layer 3 tests cover no-eligible-highlight entries, deterministic same-category ties, and explicit cap enforcement after editorial selection.
+- [ ] **EXP-HILITE-SURFACING-HARDEN-OBS-01**: The surfacing layer exposes lightweight debug-only observability that explains eligible, selected, and suppressed bullets without affecting normal product behavior or production UX.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -280,10 +286,13 @@
 | EXP-HILITE-SURFACING-01 | Phase 87 | Complete |
 | EXP-HILITE-SURFACING-PRIORITY-01 | Phase 87 | Complete |
 | EXP-HILITE-SURFACING-TEST-01 | Phase 87 | Complete |
+| EXP-HILITE-SURFACING-HARDEN-01 | Phase 88 | Planned |
+| EXP-HILITE-SURFACING-HARDEN-TEST-01 | Phase 88 | Planned |
+| EXP-HILITE-SURFACING-HARDEN-OBS-01 | Phase 88 | Planned |
 
 **Coverage:**
-- v1.6 requirements: 77 total
-- Mapped to phases: 77
+- v1.6 requirements: 80 total
+- Mapped to phases: 80
 - Unmapped: 0
 
 ---

@@ -594,3 +594,13 @@ Plans:
 
 Plans:
 - [x] 87-01-PLAN.md - Formalize the same-entry visible highlight selector as explicit Layer 3, preserve caps/contracts, and add focused editorial surfacing regressions (completed 2026-04-21)
+
+### Phase 88: Harden experience-entry highlight surfacing with explicit policy constant, edge-case tests, and debug observability
+
+**Goal:** Harden the new experience-entry surfacing layer so its editorial policy, cap contract, edge-case behavior, and debug traceability are explicit and durable without reopening selector, completion, tier-rendering, or ATS behavior.
+**Requirements**: [EXP-HILITE-SURFACING-HARDEN-01, EXP-HILITE-SURFACING-HARDEN-TEST-01, EXP-HILITE-SURFACING-HARDEN-OBS-01]
+**Depends on:** Phase 87
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 88 to break down)

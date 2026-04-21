@@ -125,6 +125,7 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 87]: Experience highlight surfacing now has an explicit same-entry Layer 3 selector that ranks finalized bullet results by editorial tier/category priority instead of raw improvement score alone.
 - [Phase 87]: Tier 1 same-entry evidence now consumes visible slots before Tier 2, while existing caps, zero-highlight safety, and renderer tier/category contracts remain unchanged.
 - Phase 87 completed: same-entry experience highlight surfacing is now an explicit Layer 3 selector with editorial Tier 1 dominance ahead of Tier 2.
+- Phase 88 added: Harden experience-entry highlight surfacing with explicit policy constant, edge-case tests, and debug observability.
 
 ### Pending Todos
 
