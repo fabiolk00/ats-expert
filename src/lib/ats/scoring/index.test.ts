@@ -116,6 +116,113 @@ describe('ATS readiness scoring contract', () => {
     expect(contract.display.mode).toBe('exact')
   })
 
+  it('allows a clearer executive summary to pass even when it is not longer than the original', () => {
+    const contract = buildAtsReadinessContractForEnhancement({
+      originalCvState: {
+        ...BASE_CV,
+        summary: 'Analista de dados com experiencia em SQL, apoio a relatorios, contato com areas internas e suporte geral a analises.',
+      },
+      optimizedCvState: {
+        ...BASE_CV,
+        summary: 'Analista de dados com foco em SQL, BI e indicadores executivos para decisoes de negocio.',
+      },
+      rewriteValidation: {
+        valid: true,
+        issues: [],
+      },
+      optimizationSummary: {
+        changedSections: ['summary', 'skills'],
+        notes: ['Resumo ficou mais claro e executivo.'],
+        keywordCoverageImprovement: ['SQL', 'BI'],
+      },
+    })
+
+    expect(contract.qualityGates.improvedSummaryClarity).toBe(true)
+    expect(contract.scoreStatus).toBe('final')
+  })
+
+  it('keeps the summary clarity gate closed when the rewrite stays too close or structurally noisy', () => {
+    const contract = buildAtsReadinessContractForEnhancement({
+      originalCvState: {
+        ...BASE_CV,
+        summary: 'Analista de dados com foco em SQL e Power BI para analytics.',
+      },
+      optimizedCvState: {
+        ...BASE_CV,
+        summary: 'Resumo Profissional: Analista de dados com foco em SQL e Power BI para analytics.',
+      },
+      rewriteValidation: {
+        valid: true,
+        issues: [],
+      },
+      optimizationSummary: {
+        changedSections: ['summary'],
+        notes: ['Resumo alterado superficialmente.'],
+        keywordCoverageImprovement: ['SQL'],
+      },
+    })
+
+    expect(contract.qualityGates.improvedSummaryClarity).toBe(false)
+    expect(contract.withholdReasons).toContain(
+      'Summary clarity did not improve enough to justify a final readiness score.',
+    )
+  })
+
+  it('uses explicit keyword improvement for ATS enhancement instead of depending on the no-JD fallback', () => {
+    const contract = buildAtsReadinessContractForEnhancement({
+      originalCvState: BASE_CV,
+      optimizedCvState: {
+        ...BASE_CV,
+        summary: 'Analista de dados com foco em SQL, Power BI e ETL para indicadores executivos.',
+        experience: [{
+          ...BASE_CV.experience[0],
+          bullets: ['Estruturei indicadores em SQL e Power BI para decisoes executivas.'],
+        }],
+      },
+      rewriteValidation: {
+        valid: true,
+        issues: [],
+      },
+      optimizationSummary: {
+        changedSections: ['summary', 'experience'],
+        notes: ['Mais visibilidade para stack principal.'],
+        keywordCoverageImprovement: ['SQL', 'Power BI', 'ETL'],
+      },
+    })
+
+    expect(contract.qualityGates.improvedKeywordVisibility).toBe(true)
+    expect(contract.scoreStatus).toBe('final')
+  })
+
+  it('keeps the no-JD fallback as backup only and does not let it override an explicit empty keyword signal', () => {
+    const contract = buildAtsReadinessContractForEnhancement({
+      originalCvState: BASE_CV,
+      optimizedCvState: {
+        ...BASE_CV,
+        summary: 'Liderei e implementei rotinas para analise operacional.',
+        experience: [{
+          ...BASE_CV.experience[0],
+          bullets: ['Implementei e otimizei processos com apoio ao time.'],
+        }],
+      },
+      rewriteValidation: {
+        valid: true,
+        issues: [],
+      },
+      optimizationSummary: {
+        changedSections: ['summary', 'experience'],
+        notes: ['Mais verbos de acao, sem ganho explicito de keywords.'],
+        keywordCoverageImprovement: [],
+      },
+    })
+
+    expect(contract.rawScoreAfter.breakdown.keywords).toBeGreaterThan(contract.rawScoreBefore.breakdown.keywords)
+    expect(contract.qualityGates.improvedKeywordVisibility).toBe(false)
+    expect(contract.withholdReasons).toContain(
+      'Keyword visibility did not improve enough to justify a final readiness score.',
+    )
+  })
+
   it('converts the old withheld path into an estimated numeric range when quality gates fail', () => {
     const contract = buildAtsReadinessContractForEnhancement({
       originalCvState: BASE_CV,

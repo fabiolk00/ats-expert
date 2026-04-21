@@ -12,6 +12,89 @@ type OptimizationSummary = {
 
 type RequiredSection = 'summary' | 'experience' | 'skills' | 'education'
 
+function normalizeForComparison(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function calculateTokenSimilarity(left: string, right: string): number {
+  const leftTokens = normalizeForComparison(left).split(' ').filter(Boolean)
+  const rightTokens = normalizeForComparison(right).split(' ').filter(Boolean)
+
+  if (leftTokens.length === 0 || rightTokens.length === 0) {
+    return 0
+  }
+
+  const rightCounts = new Map<string, number>()
+  rightTokens.forEach((token) => {
+    rightCounts.set(token, (rightCounts.get(token) ?? 0) + 1)
+  })
+
+  let overlap = 0
+  leftTokens.forEach((token) => {
+    const count = rightCounts.get(token) ?? 0
+    if (count > 0) {
+      overlap += 1
+      rightCounts.set(token, count - 1)
+    }
+  })
+
+  return (2 * overlap) / (leftTokens.length + rightTokens.length)
+}
+
+function countSummaryWords(summary: string): number {
+  return summary
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .length
+}
+
+function hasSummarySectionLabel(summary: string): boolean {
+  return /^(?:resumo profissional|professional summary|summary|resumo)\s*[:\-–]/i.test(summary.trim())
+}
+
+function countRepeatedSummaryPhrases(summary: string): number {
+  const phrases = summary
+    .split(/[.!?;]+|,(?=\s+[A-ZÀ-Ý])/u)
+    .map((phrase) => normalizeForComparison(phrase))
+    .filter((phrase) => phrase.split(' ').length >= 3)
+
+  const counts = new Map<string, number>()
+  phrases.forEach((phrase) => {
+    counts.set(phrase, (counts.get(phrase) ?? 0) + 1)
+  })
+
+  return Array.from(counts.values()).filter((count) => count > 1).length
+}
+
+function isStructurallyNoisySummary(summary: string): boolean {
+  const normalized = normalizeForComparison(summary)
+
+  if (!normalized) {
+    return true
+  }
+
+  if (hasSummarySectionLabel(summary)) {
+    return true
+  }
+
+  if (countSummaryWords(summary) > 48) {
+    return true
+  }
+
+  if (countRepeatedSummaryPhrases(summary) > 0) {
+    return true
+  }
+
+  return /(business intelligence|engenheiro de dados|analytics engineer|analista de dados)(?:\s+\S+){0,3}\s+\1/i.test(normalized)
+}
+
 function hasRequiredSection(cvState: CVState, section: RequiredSection): boolean {
   switch (section) {
     case 'summary':
@@ -47,11 +130,22 @@ export function evaluateAtsQualityGates(input: {
     optimizationSummary,
   } = input
 
-  const summaryChanged = optimizedCvState.summary.trim() !== originalCvState.summary.trim()
-  const summaryLongEnough = optimizedCvState.summary.trim().length >= Math.max(80, originalCvState.summary.trim().length)
+  const originalSummary = originalCvState.summary.trim()
+  const optimizedSummary = optimizedCvState.summary.trim()
+  const summaryChanged = optimizedSummary !== originalSummary
+  const summaryMeaningfullyDifferent = calculateTokenSimilarity(originalSummary, optimizedSummary) < 0.88
+  const summaryStructurallyHealthy =
+    countSummaryWords(optimizedSummary) >= 8
+    && !isStructurallyNoisySummary(optimizedSummary)
   const keywordSectionsChanged = optimizationSummary?.changedSections.some((section) =>
     section === 'summary' || section === 'experience' || section === 'skills') ?? false
   const explicitKeywordImprovement = (optimizationSummary?.keywordCoverageImprovement?.length ?? 0) > 0
+  const hasExplicitKeywordSignal = optimizationSummary?.keywordCoverageImprovement !== undefined
+  const fallbackKeywordImprovement = optimizedRaw.score.breakdown.keywords > originalRaw.score.breakdown.keywords
+    && (
+      keywordSectionsChanged
+      || optimizedCvState.skills.length > originalCvState.skills.length
+    )
 
   const beforeRequiredSections = requiredSectionsPresent(originalCvState)
   const afterRetainsRequiredSections = beforeRequiredSections.every((section) => hasRequiredSection(optimizedCvState, section))
@@ -59,16 +153,11 @@ export function evaluateAtsQualityGates(input: {
     .every((section) => hasRequiredSection(optimizedCvState, section))
 
   return {
-    improvedSummaryClarity: (summaryChanged && summaryLongEnough)
-      || (summaryChanged && optimizedCvState.summary.trim().length > originalCvState.summary.trim().length),
+    improvedSummaryClarity: summaryChanged
+      && summaryMeaningfullyDifferent
+      && summaryStructurallyHealthy,
     improvedKeywordVisibility: explicitKeywordImprovement
-      || (
-        optimizedRaw.score.breakdown.keywords >= originalRaw.score.breakdown.keywords
-        && (
-          keywordSectionsChanged
-          || optimizedCvState.skills.length >= originalCvState.skills.length
-        )
-      ),
+      || (!hasExplicitKeywordSignal && fallbackKeywordImprovement),
     noFactualDrift: rewriteValidation?.valid === true,
     noLossOfRequiredSections: afterRetainsRequiredSections && afterHasAllCoreSections,
     noReadabilityRegression: optimizedRaw.score.breakdown.format >= originalRaw.score.breakdown.format

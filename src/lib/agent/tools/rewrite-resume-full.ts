@@ -33,6 +33,51 @@ function matchesFocusSignal(value: string, signals: string[]): boolean {
   })
 }
 
+function normalizeForKeywordVisibility(value: string): string {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function buildKeywordSectionTexts(cvState: CVState): Record<'summary' | 'skills' | 'experience', string> {
+  return {
+    summary: normalizeForKeywordVisibility(cvState.summary),
+    skills: normalizeForKeywordVisibility(cvState.skills.join(' ')),
+    experience: normalizeForKeywordVisibility(
+      cvState.experience
+        .flatMap((entry) => [entry.title, ...entry.bullets])
+        .join(' '),
+    ),
+  }
+}
+
+function collectKeywordVisibilityImprovement(
+  originalCvState: CVState,
+  optimizedCvState: CVState,
+  focusSignals: string[],
+): string[] {
+  const originalSections = buildKeywordSectionTexts(originalCvState)
+  const optimizedSections = buildKeywordSectionTexts(optimizedCvState)
+  const sectionNames = Object.keys(originalSections) as Array<keyof typeof originalSections>
+
+  return Array.from(new Set(focusSignals.map((signal) => signal.trim()).filter(Boolean)))
+    .filter((signal) => normalizeForKeywordVisibility(signal).length >= 3)
+    .filter((signal) => {
+      const normalizedSignal = normalizeForKeywordVisibility(signal)
+      const originalVisibility = sectionNames.filter((section) =>
+        originalSections[section].includes(normalizedSignal)).length
+      const optimizedVisibility = sectionNames.filter((section) =>
+        optimizedSections[section].includes(normalizedSignal)).length
+
+      return optimizedVisibility > originalVisibility
+    })
+    .slice(0, 8)
+}
+
 function sanitizeJobTargetedSkills(
   originalSkills: CVState['skills'],
   rewrittenSkills: CVState['skills'],
@@ -622,15 +667,21 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
       notes.push('Preservei métricas reais de impacto enquanto reforcei a aderência ATS.')
     }
 
+    const keywordCoverageImprovement = params.mode === 'job_targeting'
+      ? Array.from(new Set(targetingPlan?.mustEmphasize ?? []))
+      : collectKeywordVisibilityImprovement(
+          params.cvState,
+          optimizedCvState,
+          rewritePlan?.keywordFocus ?? [],
+        )
+
     return {
       success: true,
       optimizedCvState,
       summary: {
         changedSections,
         notes: Array.from(new Set(notes)),
-        keywordCoverageImprovement: params.mode === 'job_targeting'
-          ? Array.from(new Set(targetingPlan?.mustEmphasize ?? []))
-          : undefined,
+        keywordCoverageImprovement,
       },
       diagnostics: {
         sectionAttempts,

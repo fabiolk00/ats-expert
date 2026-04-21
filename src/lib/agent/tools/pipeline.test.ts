@@ -548,6 +548,68 @@ describe('ATS enhancement reliability hardening', () => {
     expect(skillsCall?.instructions).toContain('do not replace specific tools, platforms, or methods with vague umbrella labels')
   })
 
+  it('populates keyword visibility improvement in ats_enhancement when stack terms become more visible across summary, skills, and experience', async () => {
+    const cvState = buildCvState()
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => {
+      if (section === 'summary') {
+        return {
+          output: {
+            success: true,
+            rewritten_content: 'Analista de dados com foco em SQL, Power BI e ETL para indicadores executivos.',
+            section_data: 'Analista de dados com foco em SQL, Power BI e ETL para indicadores executivos.',
+            keywords_added: ['SQL', 'Power BI', 'ETL'],
+            changes_made: ['Resumo reforcado'],
+          },
+        }
+      }
+
+      if (section === 'experience') {
+        return {
+          output: {
+            success: true,
+            rewritten_content: 'Experiencia reestruturada.',
+            section_data: [{
+              title: 'Analista de Dados',
+              company: 'Acme',
+              startDate: '2022',
+              endDate: '2024',
+              bullets: ['Estruturei dashboards em SQL e Power BI com automacoes ETL para indicadores executivos.'],
+            }],
+            keywords_added: ['SQL', 'Power BI', 'ETL'],
+            changes_made: ['Bullets fortalecidos'],
+          },
+        }
+      }
+
+      return {
+        output: buildSuccessfulRewriteOutput(cvState, section),
+      }
+    })
+
+    const result = await rewriteResumeFull({
+      mode: 'ats_enhancement',
+      cvState,
+      atsAnalysis: {
+        overallScore: 78,
+        structureScore: 80,
+        clarityScore: 77,
+        impactScore: 74,
+        keywordCoverageScore: 79,
+        atsReadabilityScore: 82,
+        issues: [],
+        recommendations: ['SQL', 'Power BI', 'ETL'],
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_ats_123',
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.summary?.keywordCoverageImprovement).toEqual(
+      expect.arrayContaining(['SQL', 'Power BI', 'ETL']),
+    )
+  })
+
   it('persists stage-aware ATS workflow metadata and logs completion', async () => {
     const session = buildSession()
     const originalSummary = session.cvState.summary

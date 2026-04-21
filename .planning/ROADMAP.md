@@ -564,3 +564,13 @@ Plans:
 
 Plans:
 - [x] 84-01-PLAN.md - Replace narrow completion shapes with reusable local phrase-structure rules for metric and scope/scale spans, add cross-domain regressions, and verify that compactness and zero-highlight behavior remain intact
+
+### Phase 85: Fix ATS enhancement gates for summary clarity and keyword visibility
+
+**Goal:** Correct ATS enhancement quality gates so concise but structurally stronger summaries and genuinely reinforced ATS keywords can pass final readiness without depending on length bias or the weak no-JD keyword proxy.
+**Requirements**: [ATS-GATE-SUMMARY-01, ATS-GATE-KEYWORDS-01, ATS-GATE-TEST-01]
+**Depends on:** Phase 84
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 85-01-PLAN.md - Replace the summary-length gate with structural clarity checks, emit explicit ATS keyword visibility signals during ats_enhancement, keep the no-JD fallback as backup only, and add focused readiness/pipeline regressions
