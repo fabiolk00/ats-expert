@@ -13,6 +13,9 @@ import {
 } from '@/lib/db/sessions'
 import { createJob } from '@/lib/jobs/repository'
 import { startDurableJobProcessing } from '@/lib/jobs/runtime'
+import { recordQuery } from '@/lib/observability/request-query-context'
+import { logInfo, logWarn } from '@/lib/observability/structured-log'
+import { runAgentLoop } from '@/lib/agent/agent-loop'
 
 const { mockReleaseMetadata } = vi.hoisted(() => ({
   mockReleaseMetadata: {
@@ -69,6 +72,15 @@ vi.mock('@/lib/jobs/repository', () => ({
 
 vi.mock('@/lib/jobs/runtime', () => ({
   startDurableJobProcessing: vi.fn(),
+}))
+
+vi.mock('@/lib/observability/structured-log', () => ({
+  logError: vi.fn(),
+  logInfo: vi.fn(),
+  logWarn: vi.fn(),
+  serializeError: (error: unknown) => ({
+    errorMessage: error instanceof Error ? error.message : String(error),
+  }),
 }))
 
 vi.mock('@/lib/runtime/release-metadata', () => ({
@@ -187,6 +199,39 @@ describe('/api/agent route', () => {
     expect(response.headers.get('X-Agent-Release')).toBe(mockReleaseMetadata.releaseId)
   })
 
+  it('emits the request query summary without a warning when DB activity stays under threshold', async () => {
+    vi.mocked(createSession).mockImplementation(async () => {
+      recordQuery('POST /rest/v1/sessions')
+      return buildSession({
+        id: 'sess_new',
+        phase: 'intake',
+        messageCount: 0,
+      })
+    })
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'oi' }),
+    }))
+
+    await response.text()
+
+    expect(response.status).toBe(200)
+    expect(logInfo).toHaveBeenCalledWith(
+      'db.request_queries',
+      expect.objectContaining({
+        requestMethod: 'POST',
+        requestPath: '/api/agent',
+        queryCount: 1,
+      }),
+    )
+    expect(logWarn).not.toHaveBeenCalledWith(
+      'db.n_plus_one_threshold_exceeded',
+      expect.anything(),
+    )
+  })
+
   it('returns X-Session-Id and emits sessionCreated before async acknowledgement on new sessions', async () => {
     const response = await POST(new NextRequest('http://localhost/api/agent', {
       method: 'POST',
@@ -235,5 +280,52 @@ describe('/api/agent route', () => {
     const events = parseSseDataEvents(await response.text())
     expect(events.map((event) => event.type)).toEqual(['text', 'done'])
     expect(events.some((event) => event.type === 'sessionCreated')).toBe(false)
+  })
+
+  it('emits a structured error event when the agent stream fails after starting', async () => {
+    vi.mocked(createSession).mockImplementation(async () => {
+      recordQuery('POST /rest/v1/sessions')
+      return buildSession({
+        id: 'sess_new',
+        phase: 'intake',
+        messageCount: 0,
+      })
+    })
+    vi.mocked(runAgentLoop).mockImplementationOnce(async function* () {
+      yield {
+        type: 'text',
+        content: 'Parcial',
+      }
+      throw new Error('stream exploded')
+    })
+
+    const response = await POST(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'oi' }),
+    }))
+
+    const events = parseSseDataEvents(await response.text())
+
+    expect(events.map((event) => event.type)).toEqual([
+      'sessionCreated',
+      'text',
+      'error',
+    ])
+    expect(logWarn).toHaveBeenCalledWith(
+      'agent.request.stream_failed',
+      expect.objectContaining({
+        success: false,
+        errorCode: 'INTERNAL_ERROR',
+      }),
+    )
+    expect(logInfo).toHaveBeenCalledWith(
+      'db.request_queries',
+      expect.objectContaining({
+        requestMethod: 'POST',
+        requestPath: '/api/agent',
+        queryCount: 1,
+      }),
+    )
   })
 })

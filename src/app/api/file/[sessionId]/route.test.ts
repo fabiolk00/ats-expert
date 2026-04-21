@@ -9,6 +9,7 @@ import { getResumeTargetForSession } from '@/lib/db/resume-targets'
 import { getSession, updateSession } from '@/lib/db/sessions'
 import { listJobsForSession } from '@/lib/jobs/repository'
 import { logError, logInfo } from '@/lib/observability/structured-log'
+import { recordQuery } from '@/lib/observability/request-query-context'
 
 import { GET } from './route'
 
@@ -97,6 +98,53 @@ describe('GET /api/file/[sessionId]', () => {
     expect(getResumeTargetForSession).not.toHaveBeenCalled()
     expect(createSignedResumeArtifactUrls).not.toHaveBeenCalled()
     expect(updateSession).not.toHaveBeenCalled()
+  })
+
+  it('emits a request query summary for successful file access resolution', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSession).mockImplementation(async () => {
+      recordQuery('GET /rest/v1/sessions?id=eq.sess_123')
+      return buildSession() as never
+    })
+    vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
+      docxUrl: 'https://cdn.example.com/signed/docx',
+      pdfUrl: 'https://cdn.example.com/signed/pdf',
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(logInfo).toHaveBeenCalledWith(
+      'db.request_queries',
+      expect.objectContaining({
+        requestMethod: 'GET',
+        requestPath: '/api/file/sess_123',
+        queryCount: 1,
+      }),
+    )
   })
 
   it('allows the owner to retrieve fresh signed URLs', async () => {

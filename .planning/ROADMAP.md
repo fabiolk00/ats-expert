@@ -494,3 +494,73 @@ Plans:
 
 Plans:
 - [x] 77-01-PLAN.md - Replace the PDF font embedding with a broader Inter asset plus deterministic text sanitization, render experience periods on the same header line as the role title with right alignment, reduce the estimated-score tooltip footprint, and harden PDF plus badge regression coverage
+
+### Phase 78: Per-request Prisma query counting with N+1 threshold detection
+
+**Goal:** Add request-scoped DB query counting with threshold-based N+1 suspicion logging for the highest-value API routes so we can detect abnormal PostgREST/DB fan-out without changing route contracts or business behavior.
+**Requirements**: [DB-QUERY-OBS-01, DB-QUERY-OBS-02, DB-QUERY-TEST-01]
+**Depends on:** Phase 77
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 78-01-PLAN.md - Add AsyncLocalStorage-backed request query context, instrument the live Supabase/PostgREST seam, wrap the priority API routes, and harden the feature with threshold/logging regression tests
+
+### Phase 79: Decouple experience rendered highlight from diff and make diff score-only
+
+**Goal:** Refactor optimized experience highlights so original-vs-optimized diff only drives improvement scoring, gating, and change indicators, while the rendered highlight span is selected from optimized bullet structure and contextual evidence alone.
+**Requirements**: [EXP-HILITE-SPLIT-01, EXP-HILITE-SPLIT-GATE-01, EXP-HILITE-SPLIT-TEST-01]
+**Depends on:** Phase 78
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 79-01-PLAN.md - Split experience highlight logic into diff-aware improvement gating plus optimized-text-first span selection, preserve preview contracts, and add regressions for structural spans and zero-highlight bullets
+
+### Phase 81: Calibrate experience span candidate taxonomy and ranking after diff render split
+
+**Goal:** Calibrate optimized-text-first experience span selection so candidate taxonomy, filtering, and ranking consistently prefer structural evidence over narrative phrasing while preserving compact, domain-agnostic highlights.
+**Requirements**: [EXP-HILITE-TAXONOMY-01, EXP-HILITE-RANKING-01, EXP-HILITE-TAXONOMY-TEST-01]
+**Depends on:** Phase 79
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 81-01-PLAN.md - Re-rank experience span candidates by structural taxonomy, filter weak standalone spans, preserve compact caps, and add regressions proving metrics/scope/contextual stacks beat narrative phrasing
+
+### Phase 80: Repeated query fingerprinting for stronger N+1 detection
+
+**Goal:** Extend request-scoped DB tracking with repeated normalized request-pattern aggregation so high-count requests can surface stronger N+1 suspicion signals without changing route behavior.
+**Requirements**: [DB-FP-OBS-01, DB-FP-OBS-02, DB-FP-TEST-01]
+**Depends on:** Phase 79
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 80-01-PLAN.md - Add conservative query fingerprint normalization, aggregate repeated request patterns per request, enrich warning payloads with repetition diagnostics, and harden the behavior with focused tests
+
+### Phase 82: Small tuning for contextual_stack recovery and span completeness in experience highlights
+
+**Goal:** Recover obvious contextual stack winners and improve compact span completeness so rendered experience highlights stay structurally strong while avoiding weak truncated tails.
+**Requirements**: [EXP-HILITE-STACK-01, EXP-HILITE-COMPLETE-01, EXP-HILITE-COMPLETE-TEST-01]
+**Depends on:** Phase 81
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 82-01-PLAN.md - Recover strong contextual stack clusters, trim dangling connector tails, slightly complete compact metric and scope spans, and add focused regressions without reopening diff-aware gating
+
+### Phase 83: Small Phase 83 - improve completeness of metric and scope/scale highlight spans
+
+**Goal:** Improve the visual completeness of metric and scope/scale experience highlights so winners stay compact but read as complete evidence phrases rather than clipped fragments.
+**Requirements**: [EXP-HILITE-METRIC-COMPLETE-01, EXP-HILITE-SCOPE-COMPLETE-01, EXP-HILITE-METRIC-COMPLETE-TEST-01]
+**Depends on:** Phase 82
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 83-01-PLAN.md - Add tightly bounded completion rules for metric and scope/scale winners, preserve compactness and zero-highlight behavior, and add regressions for readable evidence phrases without narrative drift
+
+### Phase 84: Generalize metric and scope scale span completion beyond current phrase shapes
+
+**Goal:** Generalize metric and scope/scale span completion so rendered experience highlights stay compact and readable across different resume segments and phrasing styles instead of depending on the previous batch's phrase shapes.
+**Requirements**: [EXP-HILITE-GENERALIZE-01, EXP-HILITE-GENERALIZE-02, EXP-HILITE-GENERALIZE-TEST-01]
+**Depends on:** Phase 83
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 84-01-PLAN.md - Replace narrow completion shapes with reusable local phrase-structure rules for metric and scope/scale spans, add cross-domain regressions, and verify that compactness and zero-highlight behavior remain intact

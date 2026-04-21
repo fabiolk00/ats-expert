@@ -28,15 +28,15 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Phase: 77 (corrigir encoding no pdf alinhar datas a direita na experiencia e reduzir o tooltip do badge estimado) - COMPLETE
+Phase: 80 (repeated query fingerprinting for stronger n+1 detection) - COMPLETE
 Plan: 01 complete
-Current Phase: 77
-Current Phase Name: corrigir encoding no pdf alinhar datas a direita na experiencia e reduzir o tooltip do badge estimado
+Current Phase: 80
+Current Phase Name: repeated query fingerprinting for stronger n+1 detection
 Current Plan: 01
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: PDF export now uses a broader Inter font asset with deterministic text sanitization, experience dates are right-aligned in the role header, and the estimated ATS badge tooltip is smaller and lighter without losing accessibility
+Last Activity Description: Request-scoped DB tracking now fingerprints repeated PostgREST request shapes, warning logs include repeated-pattern summaries plus suspectedNPlusOne, and the existing SSE-safe flush lifecycle remains intact
 
 Progress: [##########] 100%
 
@@ -116,6 +116,12 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 76]: `Estimado` ATS Readiness states now use a shared badge component with an embedded help affordance, so the explanation of the estimated range stays consistent anywhere that badge is rendered.
 - [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
+- Phase 78 added: Per-request Prisma query counting with N+1 threshold detection
+- [Phase 78]: The repo's live DB seam for these routes is Supabase/PostgREST, not a Prisma singleton, so request-scoped DB query observability is implemented via `getSupabaseAdminClient()` custom `global.fetch` instrumentation rather than unused Prisma-only infrastructure.
+- [Phase 78]: `/api/agent` is a streaming exception and flushes request query metrics on SSE completion/failure, while the other tracked routes use the generic request wrapper for automatic summary logging.
+- Phase 80 added: Repeated query fingerprinting for stronger N+1 detection
+- [Phase 80]: Repeated-pattern diagnostics now sit on top of the existing Phase 78 tracking architecture; the live seam remains Supabase/PostgREST descriptor tracking rather than SQL parsing or Prisma-only instrumentation.
+- [Phase 80]: Fingerprinting is conservative by design: UUIDs, numbers, opaque ids, and list shapes normalize, but semantic string filters such as status-like values should stay distinct when possible.
 
 ### Pending Todos
 

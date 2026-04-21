@@ -46,6 +46,12 @@ type HighlightMatch = {
 }
 
 type ExperienceHighlightCandidate = HighlightMatch & {
+  category: "metric" | "scope_scale" | "contextual_stack" | "anchored_leadership" | "anchored_outcome"
+  score: number
+}
+
+type ExperienceBulletImprovement = {
+  eligible: boolean
   score: number
 }
 
@@ -154,6 +160,7 @@ const SUMMARY_JSON_FIELD_PATTERN = /"(profile|content|text|rewritten_content)"\s
 const ATS_TECH_TERMS = [
   "sql",
   "bi",
+  "dbt",
   "etl",
   "python",
   "pyspark",
@@ -222,6 +229,21 @@ const EXPERIENCE_FALLBACK_PATTERNS = [
   /\b(?:escopo\s+)?(?:latam|global|regional)\b/giu,
   /\b\d+(?:[.,]\d+)?%?(?:\s+[\p{L}\p{N}]+){0,4}/giu,
 ]
+
+const WEAK_TRAILING_CONNECTORS = new Set([
+  "com",
+  "para",
+  "de",
+  "da",
+  "do",
+  "das",
+  "dos",
+  "em",
+  "ao",
+  "a",
+  "o",
+  "e",
+])
 
 function normalizeText(value: string | undefined): string {
   return (value ?? "")
@@ -429,6 +451,546 @@ function isLowValueGenericSpan(text: string): boolean {
   return /^(profissional|consultor|analista|business intelligence|apoiei|atuei|iniciei)(?:\s+[\p{L}\p{N}]+){0,3}$/iu.test(normalized)
 }
 
+function hasCandidateOverlap(left: HighlightMatch, right: HighlightMatch): boolean {
+  return !(left.end <= right.start || left.start >= right.end)
+}
+
+function trimWeakTrailingConnectors(text: string): string {
+  let next = text.trim()
+
+  while (next) {
+    const words = next.split(/\s+/)
+    const lastWord = normalizeText(words[words.length - 1] ?? "")
+    if (!WEAK_TRAILING_CONNECTORS.has(lastWord)) {
+      break
+    }
+
+    words.pop()
+    next = words.join(" ").trim().replace(/[,:;]+$/g, "").trim()
+  }
+
+  return next
+}
+
+function extractContextualStackCore(text: string): string {
+  const cleaned = text.trim().replace(/^[,:;]+|[,:;]+$/g, "").trim()
+  const withoutLead = cleaned.replace(/^(?:com|utilizando|usando|em)\s+/i, "")
+  const match = withoutLead.match(
+    /\b(?:[a-z0-9.+#-]+(?:\s+[a-z0-9.+#-]+)?\s*(?:,|\/|e)\s*){1,4}[a-z0-9.+#-]+(?:\s+[a-z0-9.+#-]+)?\b/i,
+  )
+
+  return trimWeakTrailingConnectors(match?.[0] ?? withoutLead)
+}
+
+function appendFollowingWords(
+  optimized: string,
+  start: number,
+  end: number,
+  maxWords: number,
+): HighlightMatch {
+  const tail = optimized.slice(end)
+  const tailMatch = tail.match(new RegExp(`^\\s+([^\\s,.;:]+(?:\\s+[^\\s,.;:]+){0,${Math.max(0, maxWords - 1)}})`))
+  if (!tailMatch?.[1]) {
+    return {
+      text: optimized.slice(start, end).trim(),
+      start,
+      end,
+    }
+  }
+
+  const expanded = `${optimized.slice(start, end).trim()} ${tailMatch[1]}`.trim()
+  return {
+    text: expanded,
+    start,
+    end: start + expanded.length,
+  }
+}
+
+function prependImmediateWord(
+  optimized: string,
+  start: number,
+  end: number,
+  allowedWordPattern: RegExp,
+): HighlightMatch {
+  const prefix = optimized.slice(0, start)
+  const prefixMatch = prefix.match(/([^\s,.;:]+)\s+$/)
+  if (!prefixMatch?.[1] || !allowedWordPattern.test(normalizeText(prefixMatch[1]))) {
+    return {
+      text: optimized.slice(start, end).trim(),
+      start,
+      end,
+    }
+  }
+
+  const expandedStart = start - prefixMatch[0].length
+  return {
+    text: optimized.slice(expandedStart, end).trim(),
+    start: expandedStart,
+    end,
+  }
+}
+
+function buildWindowedMatch(
+  optimized: string,
+  windowStart: number,
+  match: RegExpMatchArray,
+): HighlightMatch {
+  const text = match[0]?.trim() ?? ""
+  const relativeStart = match.index ?? -1
+  const start = relativeStart >= 0 ? windowStart + relativeStart : -1
+
+  return {
+    text,
+    start,
+    end: start >= 0 ? start + text.length : -1,
+  }
+}
+
+function collectWindowPatternMatches(
+  optimized: string,
+  start: number,
+  end: number,
+  patterns: RegExp[],
+  windowPadding = 72,
+): HighlightMatch[] {
+  const windowStart = Math.max(0, start - windowPadding)
+  const windowEnd = Math.min(optimized.length, end + windowPadding)
+  const windowText = optimized.slice(windowStart, windowEnd)
+  const matches: HighlightMatch[] = []
+
+  for (const pattern of patterns) {
+    const activePattern = new RegExp(pattern.source, pattern.flags)
+    for (const match of windowText.matchAll(activePattern)) {
+      const candidate = buildWindowedMatch(optimized, windowStart, match)
+      if (candidate.text.length > 0) {
+        matches.push(candidate)
+      }
+    }
+  }
+
+  return matches
+}
+
+function pickBestCompletedSpan(
+  optimized: string,
+  start: number,
+  end: number,
+  patterns: RegExp[],
+  anchorStart = start,
+  anchorEnd = end,
+): HighlightMatch | null {
+  const candidates = collectWindowPatternMatches(optimized, start, end, patterns)
+    .map((candidate) => ({
+      ...candidate,
+      wordCount: getWordCount(candidate.text),
+    }))
+    .filter((candidate) =>
+      candidate.start <= anchorStart
+      && candidate.end >= anchorEnd
+      && candidate.wordCount > 0
+      && candidate.wordCount <= 7
+      && candidate.text.length <= 52,
+    )
+    .sort((left, right) =>
+      left.wordCount - right.wordCount
+      || left.text.length - right.text.length
+      || left.start - right.start,
+    )
+
+  if (candidates.length === 0) {
+    return null
+  }
+
+  const { wordCount: _wordCount, ...best } = candidates[0]
+  return best
+}
+
+function findMetricAnchorBounds(
+  optimized: string,
+  start: number,
+  end: number,
+): { start: number; end: number } {
+  const current = optimized.slice(start, end)
+  const anchorMatch = current.match(/(?:r\$\s*)?\d+(?:[.,]\d+)?(?:\s*(?:mil|k|mi|mm|milhoes|milh[oõ]es))?%?/i)
+
+  if (!anchorMatch || anchorMatch.index === undefined) {
+    return { start, end }
+  }
+
+  const anchorStart = start + anchorMatch.index
+  return {
+    start: anchorStart,
+    end: anchorStart + anchorMatch[0].length,
+  }
+}
+
+function getImmediatePrefixToken(
+  optimized: string,
+  start: number,
+): string | null {
+  const prefix = optimized.slice(0, start)
+  const match = prefix.match(/([^\s,.;:]+)\s+$/)
+  return match?.[1] ?? null
+}
+
+function pickBestMetricCompletedSpan(
+  optimized: string,
+  start: number,
+  end: number,
+  patterns: RegExp[],
+): HighlightMatch | null {
+  const anchor = findMetricAnchorBounds(optimized, start, end)
+  const candidates = collectWindowPatternMatches(optimized, start, end, patterns)
+    .map((candidate) => ({
+      ...candidate,
+      wordCount: getWordCount(candidate.text),
+    }))
+    .filter((candidate) =>
+      candidate.start <= anchor.start
+      && candidate.end >= anchor.end
+      && candidate.wordCount > 0
+      && candidate.wordCount <= 7
+      && candidate.text.length <= 52,
+    )
+    .sort((left, right) =>
+      left.wordCount - right.wordCount
+      || left.text.length - right.text.length
+      || left.start - right.start,
+    )
+
+  if (candidates.length === 0) {
+    return null
+  }
+
+  const { wordCount: _wordCount, ...best } = candidates[0]
+  return best
+}
+
+function completeMetricSpan(
+  optimized: string,
+  start: number,
+  end: number,
+): HighlightMatch {
+  const current = optimized.slice(start, end).trim()
+  const anchor = findMetricAnchorBounds(optimized, start, end)
+  const anchorText = optimized.slice(anchor.start, anchor.end)
+  const beforeAnchor = optimized.slice(Math.max(0, anchor.start - 72), anchor.start)
+  const leftNounPhraseMatch = beforeAnchor.match(/([\p{L}\p{N}]+(?:\s+de\s+[\p{L}\p{N}]+){0,2})\s+em\s*$/iu)
+
+  if (leftNounPhraseMatch) {
+    const phrase = leftNounPhraseMatch[1]
+    if (getWordCount(phrase) >= 2 && getWordCount(phrase) <= 4) {
+      const expanded = `${phrase} em ${anchorText}`.trim()
+      if (getWordCount(expanded) <= 6 && expanded.length <= 44) {
+        return {
+          text: expanded,
+          start: anchor.start - (`${phrase} em `.length),
+          end: anchor.start - (`${phrase} em `.length) + expanded.length,
+        }
+      }
+    }
+  }
+
+  const immediatePrefix = getImmediatePrefixToken(optimized, anchor.start)
+  const rightWindow = optimized.slice(anchor.start, Math.min(optimized.length, anchor.end + 72))
+  const rightMetricObjectMatch = rightWindow.match(
+    /^(?:r\$\s*)?\d+(?:[.,]\d+)?(?:\s*(?:mil|k|mi|mm|milhoes|milh[oõ]es))?%?(?:\s+(?:o|a|os|as))?\s+[\p{L}\p{N}]+(?:\s+de\s+[\p{L}\p{N}]+){0,1}\b/iu,
+  )
+
+  if (rightMetricObjectMatch) {
+    const normalizedImmediatePrefix = immediatePrefix ? normalizeText(immediatePrefix) : ""
+    const prefix = normalizedImmediatePrefix && /^(?:em|r\$|usd|eur)$/i.test(normalizedImmediatePrefix) ? `${immediatePrefix} ` : ""
+    const expanded = `${prefix}${rightMetricObjectMatch[0].trim()}`.trim()
+    const expandedStart = prefix ? anchor.start - prefix.length : anchor.start
+    const maxWords = /r\$/i.test(expanded) ? 8 : 7
+
+    if (getWordCount(expanded) <= maxWords && expanded.length <= 44) {
+      return {
+        text: expanded,
+        start: expandedStart,
+        end: expandedStart + expanded.length,
+      }
+    }
+  }
+
+  const metricShapeMatch = pickBestMetricCompletedSpan(optimized, start, end, [
+    /\b[\p{L}\p{N}]+(?:\s+de\s+[\p{L}\p{N}]+){0,2}\s+em\s+(?:r\$\s*)?\d+(?:[.,]\d+)?(?:\s*(?:mil|k|mi|mm|milhoes|milh[oõ]es))?%?\b/giu,
+    /\bem\s+(?:r\$\s*)?\d+(?:[.,]\d+)?(?:\s*(?:mil|k|mi|mm|milhoes|milh[oõ]es))?%?\s+(?:o|a|os|as)\s+[\p{L}\p{N}]+(?:\s+de\s+[\p{L}\p{N}]+){0,2}\b/giu,
+    /\b(?:r\$\s*)?\d+(?:[.,]\d+)?(?:\s*(?:mil|k|mi|mm|milhoes|milh[oõ]es))?%?\s+(?:o|a|os|as)\s+[\p{L}\p{N}]+(?:\s+de\s+[\p{L}\p{N}]+){0,2}\b/giu,
+    /\b(?:r\$\s*)?\d+(?:[.,]\d+)?(?:\s*(?:mil|k|mi|mm|milhoes|milh[oõ]es))?\s+horas?\s+por\s+(?:semana|mes|m[eê]s)\b/giu,
+    /\b(?:r\$\s*)?\d+(?:[.,]\d+)?(?:\s*(?:mil|k|mi|mm|milhoes|milh[oõ]es))?\s+[\p{L}\p{N}]+(?:\s+de\s+[\p{L}\p{N}]+){0,2}\b/giu,
+  ])
+
+  if (metricShapeMatch) {
+    return metricShapeMatch
+  }
+
+  const before = optimized.slice(Math.max(0, start - 72), start)
+  const nounPhraseMatch = before.match(/([\p{L}\p{N}]+(?:\s+de\s+[\p{L}\p{N}]+){0,2})\s+em\s*$/iu)
+
+  if (nounPhraseMatch) {
+    const phrase = nounPhraseMatch[1]
+    if (getWordCount(phrase) >= 2) {
+      const expandedStart = start - (`${phrase} em `.length)
+      const expanded = optimized.slice(expandedStart, end).trim()
+      if (getWordCount(expanded) <= 7 && expanded.length <= 52) {
+        return {
+          text: expanded,
+          start: expandedStart,
+          end: expandedStart + expanded.length,
+        }
+      }
+    }
+  }
+
+  if (/^\d+(?:[.,]\d+)?%?(?:\s|$)/.test(current)) {
+    let next = prependImmediateWord(optimized, start, end, /^(?:em|de)$/i)
+    if (/^\d+(?:[.,]\d+)?%?(?:\s+(?:o|a|os|as)\b)?/i.test(next.text) && getWordCount(next.text) <= 6) {
+      next = appendFollowingWords(optimized, next.start, next.end, 1)
+    }
+
+    return next
+  }
+
+  return {
+    text: current,
+    start,
+    end,
+  }
+}
+
+function completeScopeScaleSpan(
+  optimized: string,
+  start: number,
+  end: number,
+): HighlightMatch {
+  const scopeShapeMatch = pickBestCompletedSpan(optimized, start, end, [
+    /\b[\p{L}\p{N}]+\s+(?:regional|nacional|global|internacional|latam)\s+com\s+alto\s+volume(?:\s+de\s+[\p{L}\p{N}]+){0,2}\b/giu,
+    /\b(?:escopo\s+)?(?:regional|nacional|global|internacional|latam)\s+para\s+multipl(?:as|os)\s+[\p{L}\p{N}]+(?:\s+[\p{L}\p{N}]+)?\b/giu,
+    /\b(?:mais\s+de\s+\d+|dezenas\s+de|centenas\s+de|milhares\s+de)\s+[\p{L}\p{N}]+(?:\s+[\p{L}\p{N}]+){0,3}\b/giu,
+    /\balto\s+volume\s+de\s+[\p{L}\p{N}]+(?:\s+[\p{L}\p{N}]+){0,2}\b/giu,
+    /\b[\p{L}\p{N}]+\s+(?:regional|nacional|global|internacional|latam)\b/giu,
+  ])
+
+  if (scopeShapeMatch) {
+    return scopeShapeMatch
+  }
+
+  let next = prependImmediateWord(optimized, start, end, /^(?:escopo)$/i)
+
+  if (/\b(?:global|regional|nacional|internacional|latam)\s+para\s+multipl(?:as|os)\b/i.test(next.text)) {
+    next = appendFollowingWords(optimized, next.start, next.end, 1)
+  }
+
+  if (/\b(?:alto volume de|grandes volumes? de|dezenas de|centenas de|milhares de|mais de \d+)\b/i.test(next.text)) {
+    next = appendFollowingWords(optimized, next.start, next.end, 3)
+  }
+
+  return {
+    text: next.text.trim(),
+    start: next.start,
+    end: next.start + next.text.trim().length,
+  }
+}
+
+function expandIncompleteEvidenceSpan(
+  optimized: string,
+  start: number,
+  end: number,
+  category: ExperienceHighlightCandidate["category"],
+): HighlightMatch {
+  let nextStart = start
+  let nextEnd = end
+  let nextText = optimized.slice(nextStart, nextEnd).trim()
+
+  if (category === "contextual_stack") {
+    const core = extractContextualStackCore(nextText)
+    const offset = nextText.toLowerCase().indexOf(core.toLowerCase())
+    if (core && offset >= 0) {
+      nextStart += offset
+      nextEnd = nextStart + core.length
+      nextText = core
+    }
+  }
+
+  if (category === "metric") {
+    const completed = completeMetricSpan(optimized, nextStart, nextEnd)
+    nextStart = completed.start
+    nextEnd = completed.end
+    nextText = completed.text
+  }
+
+  if (category === "scope_scale") {
+    const completed = completeScopeScaleSpan(optimized, nextStart, nextEnd)
+    nextStart = completed.start
+    nextEnd = completed.end
+    nextText = completed.text
+  }
+
+  nextText = trimWeakTrailingConnectors(nextText)
+  nextEnd = nextStart + nextText.length
+
+  if (
+    (category === "metric" || category === "scope_scale")
+    && /\b(?:mais de \d+|alto volume de|dezenas de|centenas de|milhares de)\b/i.test(nextText)
+  ) {
+    const tail = optimized.slice(nextEnd)
+    const tailMatch = tail.match(/^\s+([^\s,.;:]+(?:\s+[^\s,.;:]+){0,2})/)
+    if (tailMatch?.[1]) {
+      const expanded = `${nextText} ${tailMatch[1]}`.trim()
+      if (getWordCount(expanded) <= 6 && expanded.length <= 52) {
+        nextText = expanded
+        nextEnd = nextStart + expanded.length
+      }
+    }
+  }
+
+  return {
+    text: nextText,
+    start: nextStart,
+    end: nextEnd,
+  }
+}
+
+function buildExperienceCandidate(
+  optimized: string,
+  match: HighlightMatch,
+  category: ExperienceHighlightCandidate["category"],
+): ExperienceHighlightCandidate | null {
+  const refinedMatch = expandIncompleteEvidenceSpan(optimized, match.start, match.end, category)
+  const text = normalizeHumanReadableText(refinedMatch.text)
+  const normalized = normalizeText(text)
+  const wordCount = getWordCount(text)
+  const techTermCount = countTechTerms(text)
+  const hasMetric = /\d/.test(normalized)
+  const hasScope = /\b(latam|global|regional|nacional|internacional|multi(?:pais|country))\b/.test(normalized)
+  const hasScale = /\b(grandes volumes?|alto volume|mais de|multipl(?:as|os)|dezenas|centenas|milhares)\b/.test(normalized)
+  const hasLeadership = /\b(lider\w*|coordenei|gerenciei|supervisionei|owner|responsavel)\b/.test(normalized)
+  const hasOutcome = /\b(reduz|aument|elev|melhor|otimiz|aceler|ampli|expand|contribu)\w*/.test(normalized)
+  const hasMethodology = /\b(scrum|agile|kanban|lean|itil|okrs?|iso|six sigma|framework|metodologia|certifica\w*)\b/.test(normalized)
+  const meaningfulContext = isMeaningfulExperienceContext(text) || isMeaningfulExperienceContext(optimized)
+
+  if (!text || match.start < 0 || match.end <= match.start) {
+    return null
+  }
+
+  if (!normalized || isLowValueGenericSpan(text) || wordCount > 7 || text.length > 52) {
+    return null
+  }
+
+  if (category === "contextual_stack" && (techTermCount < 2 || (!meaningfulContext && !hasMethodology))) {
+    return null
+  }
+
+  if (category === "anchored_leadership" && (!hasLeadership || (!hasMetric && !hasScope && !hasScale && techTermCount < 1))) {
+    return null
+  }
+
+  if (category === "anchored_outcome" && (!hasOutcome || (!hasMetric && !hasScope && !hasScale))) {
+    return null
+  }
+
+  let score = 0
+  switch (category) {
+    case "metric":
+      score += 100
+      break
+    case "scope_scale":
+      score += 80
+      break
+    case "contextual_stack":
+      score += 60
+      break
+    case "anchored_leadership":
+      score += 40
+      break
+    case "anchored_outcome":
+      score += 20
+      break
+  }
+
+  if (hasMetric) score += 12
+  if (hasScope) score += 8
+  if (hasScale) score += 7
+  if (techTermCount >= 2) score += 6
+  if (hasMethodology) score += 4
+  if (meaningfulContext) score += 3
+  if (wordCount <= 4) score += 2
+  if (match.start < 10 && category !== "metric" && category !== "scope_scale") score -= 3
+
+  return {
+    ...refinedMatch,
+    text,
+    category,
+    score,
+  }
+}
+
+function collectPatternMatches(
+  optimized: string,
+  pattern: RegExp,
+  category: ExperienceHighlightCandidate["category"],
+): ExperienceHighlightCandidate[] {
+  const activePattern = new RegExp(pattern.source, pattern.flags)
+
+  return Array.from(optimized.matchAll(activePattern), (rawMatch) => {
+    const text = normalizeHumanReadableText(rawMatch[0] ?? "")
+    const start = rawMatch.index ?? -1
+    return buildExperienceCandidate(
+      optimized,
+      { text, start, end: start >= 0 ? start + (rawMatch[0]?.length ?? 0) : -1 },
+      category,
+    )
+  }).filter((candidate): candidate is ExperienceHighlightCandidate => candidate !== null)
+}
+
+function collectRankedExperienceHighlightCandidates(optimized: string): ExperienceHighlightCandidate[] {
+  const metricPatterns = [
+    /\b\d+(?:[.,]\d+)?%(?:\s+[^\s,.;:]+){0,4}/giu,
+    /\b(?:r\$\s*|usd\s*|eur\s*)\d+(?:[.,]\d+)?(?:\s+[^\s,.;:]+){0,3}/giu,
+    /\b\d+(?:[.,]\d+)?\s*(?:mil|k|mi|mm|milhoes|milh[oõ]es)(?:\s+[^\s,.;:]+){0,3}/giu,
+  ]
+  const scopeScalePatterns = [
+    /\b(?:latam|global|regional|nacional|internacional)\b(?:\s+[^\s,.;:]+){0,2}/giu,
+    /\b(?:mais de|multipl(?:as|os)|grandes volumes?|alto volume|dezenas|centenas|milhares)\s+(?:[^\s,.;:]+){1,4}/giu,
+  ]
+  const contextualStackPatterns = [
+    /\b(?:[a-z0-9.+#-]+(?:\s+[a-z0-9.+#-]+)?\s*(?:,|\/|e)\s*){1,4}[a-z0-9.+#-]+(?:\s+[a-z0-9.+#-]+)?\b/giu,
+    /\b(?:com|utilizando|usando|em)\s+(?:[a-z0-9.+#-]+(?:\s+[a-z0-9.+#-]+)?\s*(?:,|\/|e)\s*){1,4}[a-z0-9.+#-]+(?:\s+[a-z0-9.+#-]+)?\b/giu,
+  ]
+  const leadershipPatterns = [
+    /\b(?:lider\w*|coordenei|gerenciei|supervisionei|owner|responsavel(?:\s+por)?)\b(?:\s+[^\s,.;:]+){1,5}/giu,
+  ]
+  const outcomePatterns = [
+    /\b(?:reduz\w*|aument\w*|elev\w*|melhor\w*|otimiz\w*|aceler\w*|ampli\w*|expand\w*|contribu\w*)(?:\s+[^\s,.;:]+){1,5}/giu,
+  ]
+
+  const rawCandidates = [
+    ...metricPatterns.flatMap((pattern) => collectPatternMatches(optimized, pattern, "metric")),
+    ...scopeScalePatterns.flatMap((pattern) => collectPatternMatches(optimized, pattern, "scope_scale")),
+    ...contextualStackPatterns.flatMap((pattern) => collectPatternMatches(optimized, pattern, "contextual_stack")),
+    ...leadershipPatterns.flatMap((pattern) => collectPatternMatches(optimized, pattern, "anchored_leadership")),
+    ...outcomePatterns.flatMap((pattern) => collectPatternMatches(optimized, pattern, "anchored_outcome")),
+  ]
+
+  const deduped: ExperienceHighlightCandidate[] = []
+
+  for (const candidate of rawCandidates.sort((left, right) => right.score - left.score || left.start - right.start)) {
+    if (
+      deduped.some((existing) =>
+        normalizeText(existing.text) === normalizeText(candidate.text)
+        || hasCandidateOverlap(existing, candidate),
+      )
+    ) {
+      continue
+    }
+
+    deduped.push(candidate)
+  }
+
+  return deduped
+}
+
 function collectExperienceHighlightCandidates(original: string, optimized: string): ExperienceHighlightCandidate[] {
   const originalNormalized = normalizeText(original)
 
@@ -462,6 +1024,15 @@ function collectExperienceHighlightCandidates(original: string, optimized: strin
       const hasScale = /\b(grandes volumes de dados|mais de|m[uú]ltiplas?)\b/.test(normalized)
       const hasOutcome = /\b(reduz|aument|elev|melhor|otimiz|aceler|contribu)\w*/.test(normalized)
       const meaningfulContext = isMeaningfulExperienceContext(candidate.text) || isMeaningfulExperienceContext(optimized)
+      const category: ExperienceHighlightCandidate["category"] = hasMetric
+        ? "metric"
+        : hasScope || hasScale
+        ? "scope_scale"
+        : techTermCount >= 2
+        ? "contextual_stack"
+        : hasOutcome
+        ? "anchored_outcome"
+        : "anchored_leadership"
 
       let score = 0
       if (hasMetric) score += 5
@@ -477,6 +1048,7 @@ function collectExperienceHighlightCandidates(original: string, optimized: strin
 
       return {
         ...candidate,
+        category,
         score,
       }
     })
@@ -501,6 +1073,40 @@ function buildExperienceHighlightLine(text: string, candidate: ExperienceHighlig
   return {
     segments: collapseSegments(segments),
     highlightWholeLine: false,
+  }
+}
+
+function evaluateExperienceBulletImprovement(
+  original: string,
+  optimized: string,
+): ExperienceBulletImprovement {
+  if (!optimized.trim()) {
+    return { eligible: false, score: 0 }
+  }
+
+  if (original.trim() && isMinorFormattingOnlyChange(original, optimized)) {
+    return { eligible: false, score: 0 }
+  }
+
+  const originalSimilarity = original.trim() ? calculateTextSimilarity(original, optimized) : 0
+  const diffSignals = scorePhraseUnit(optimized, buildTokenCounts(original))
+  const renderCandidate = collectRankedExperienceHighlightCandidates(optimized)[0] ?? null
+
+  let score = diffSignals.score
+  if (!original.trim()) score += 2
+  if (originalSimilarity < 0.75) score += 2
+  else if (originalSimilarity < 0.9) score += 1
+
+  const eligible = renderCandidate !== null
+    && (
+      score >= 5
+      || diffSignals.hasMetric
+      || diffSignals.hasScope
+    )
+
+  return {
+    eligible,
+    score: eligible ? score : 0,
   }
 }
 
@@ -809,7 +1415,7 @@ export function buildRelevantHighlightLine(
   }
 
   if (mode === "experience") {
-    const bestCandidate = collectExperienceHighlightCandidates(original, optimized)[0] ?? null
+    const bestCandidate = collectRankedExperienceHighlightCandidates(optimized)[0] ?? null
     return buildExperienceHighlightLine(optimized, bestCandidate)
   }
 
@@ -871,11 +1477,15 @@ function buildBulletHighlight(
 } {
   const originalBullets = originalEntry?.bullets ?? []
   const closestOriginalBullet = findClosestOriginalBullet(originalBullets, optimizedBullet) ?? ""
-  const bestCandidate = collectExperienceHighlightCandidates(closestOriginalBullet, optimizedBullet)[0] ?? null
+  const improvement = evaluateExperienceBulletImprovement(closestOriginalBullet, optimizedBullet)
+  const bestCandidate = collectRankedExperienceHighlightCandidates(optimizedBullet)[0] ?? null
+  const canRenderHighlight = improvement.eligible && bestCandidate !== null
 
   return {
-    line: buildExperienceHighlightLine(optimizedBullet, bestCandidate),
-    score: bestCandidate?.score ?? 0,
+    line: canRenderHighlight
+      ? buildExperienceHighlightLine(optimizedBullet, bestCandidate)
+      : createNonHighlightedLine(optimizedBullet),
+    score: canRenderHighlight ? improvement.score : 0,
   }
 }
 

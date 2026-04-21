@@ -24,6 +24,7 @@ import {
   updateSession,
 } from '@/lib/db/sessions'
 import { AGENT_CONFIG } from '@/lib/agent/config'
+import { flushRequestQueryTracking } from '@/lib/observability/request-query-tracking'
 import { createRequestTimingTracker } from '@/lib/observability/request-timing'
 import { logInfo, logWarn } from '@/lib/observability/structured-log'
 import { agentLimiter } from '@/lib/rate-limit'
@@ -505,6 +506,7 @@ export async function handleAgentPost(req: NextRequest): Promise<Response> {
           errorCode: code,
           errorMessage,
         })
+        flushRequestQueryTracking()
         send({ type: 'error', error: errorMessage, code, requestId })
         controller.close()
       }
@@ -600,6 +602,7 @@ export async function handleAgentPost(req: NextRequest): Promise<Response> {
             success: true,
             ...timing.snapshot(),
           })
+          flushRequestQueryTracking()
           controller.close()
           return
         } catch (err) {
@@ -631,8 +634,7 @@ export async function handleAgentPost(req: NextRequest): Promise<Response> {
         for await (const event of loop) {
           send(event)
         }
-      } finally {
-        clearInterval(heartbeat)
+
         logInfo('agent.request.stream_completed', {
           ...releaseMetadata,
           requestId,
@@ -645,7 +647,20 @@ export async function handleAgentPost(req: NextRequest): Promise<Response> {
           success: true,
           ...timing.snapshot(),
         })
+        flushRequestQueryTracking()
         controller.close()
+      } catch (error) {
+        const isAbort = (error instanceof Error || error instanceof DOMException) && error.name === 'AbortError'
+        const errorMessage = isAbort
+          ? 'A requisicao demorou muito. Por favor, tente novamente.'
+          : 'Algo deu errado. Por favor, tente novamente.'
+        sendStreamError(
+          errorMessage,
+          TOOL_ERROR_CODES.INTERNAL_ERROR,
+          heartbeat,
+        )
+      } finally {
+        clearInterval(heartbeat)
       }
     },
   })

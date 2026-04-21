@@ -98,6 +98,267 @@ describe("optimized preview highlights", () => {
     expect(highlightedSegments.some((segment) => segment.text.includes("ETL, SQL e Power BI"))).toBe(true)
   })
 
+  it("favors structural metric evidence over narrative phrasing when both are present", () => {
+    const result = buildRelevantHighlightLine(
+      "Atuei com melhoria continua na operacao.",
+      "Melhorei a eficiencia do processo, reduzindo em 27% o tempo de atendimento.",
+      "experience",
+    )
+
+    const highlightedSegments = result.segments.filter((segment) => segment.highlighted)
+
+    expect(highlightedSegments).toHaveLength(1)
+    expect(highlightedSegments[0]?.text).toContain("27%")
+    expect(highlightedSegments[0]?.text).not.toContain("Melhorei a eficiencia")
+  })
+
+  it("prefers explicit scope or scale over generic leadership phrasing", () => {
+    const result = buildRelevantHighlightLine(
+      "Coordenei rotinas internas do time.",
+      "Coordenei a frente analitica em escopo global para multiplas operacoes.",
+      "experience",
+    )
+
+    const highlightedSegments = result.segments.filter((segment) => segment.highlighted)
+
+    expect(highlightedSegments).toHaveLength(1)
+    expect(highlightedSegments[0]?.text.toLowerCase()).toMatch(/global|multiplas/)
+  })
+
+  it("does not highlight abstract narrative outcomes without structural anchors", () => {
+    const result = buildRelevantHighlightLine(
+      "Apoiei o time com demandas internas.",
+      "Melhorei a colaboracao entre areas e gerei mais alinhamento estrategico.",
+      "experience",
+    )
+
+    expect(result.segments.some((segment) => segment.highlighted)).toBe(false)
+  })
+
+  it("selects the rendered experience span from optimized structural evidence instead of the closest diff fragment", () => {
+    const result = buildRelevantHighlightLine(
+      "Liderei dashboards estrategicos com governanca analitica.",
+      "Liderei dashboards estrategicos com governanca analitica, reduzindo em 32% o tempo de publicacao.",
+      "experience",
+    )
+
+    const highlightedSegments = result.segments.filter((segment) => segment.highlighted)
+
+    expect(highlightedSegments).toHaveLength(1)
+    expect(highlightedSegments[0]?.text).toContain("32%")
+  })
+
+  it("allows zero highlight when the bullet changed but no strong optimized structural span exists", () => {
+    const original = buildCvState({
+      experience: [
+        {
+          title: "Analista de BI",
+          company: "Acme",
+          location: "Curitiba",
+          startDate: "01/2024",
+          endDate: "04/2026",
+          bullets: [
+            "Criei dashboards para o time.",
+            "Monitorei indicadores internos.",
+          ],
+        },
+      ],
+    })
+    const optimized = buildCvState({
+      experience: [
+        {
+          title: "Analista de BI",
+          company: "Acme",
+          location: "Curitiba",
+          startDate: "01/2024",
+          endDate: "04/2026",
+          bullets: [
+            "Atuei de forma colaborativa com diferentes stakeholders do negocio.",
+            "Monitorei indicadores internos.",
+          ],
+        },
+      ],
+    })
+
+    const result = buildOptimizedPreviewHighlights(original, optimized)
+
+    expect(
+      result.experience[0]?.bullets[0]?.segments.some((segment) => segment.highlighted),
+    ).toBe(false)
+  })
+
+  it("recovers obvious contextual stack clusters when they are the strongest available evidence", () => {
+    const result = buildRelevantHighlightLine(
+      "Criei relatorios para acompanhamento operacional.",
+      "Utilizando dbt, SQL e Power BI para governanca analitica recorrente.",
+      "experience",
+    )
+
+    const highlightedSegments = result.segments.filter((segment) => segment.highlighted)
+
+    expect(highlightedSegments).toHaveLength(1)
+    expect(highlightedSegments[0]?.text).toContain("dbt, SQL e Power BI")
+  })
+
+  it("trims weak trailing connectors from rendered experience spans", () => {
+    const result = buildRelevantHighlightLine(
+      "Coordenei rotinas locais do time.",
+      "Coordenei a frente analitica em escopo global para o time comercial.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text.toLowerCase()).not.toMatch(/\b(com|para|de|da|do|das|dos|em|ao|a|o|e)\s*$/)
+  })
+
+  it("expands compact metric winners into a more complete evidence phrase", () => {
+    const result = buildRelevantHighlightLine(
+      "Experiencia base antiga.",
+      "Otimizei pipelines ETL no Databricks e reduzi o tempo de processamento em 40%.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toContain("tempo de processamento em 40%")
+    expect(highlightedSegment?.text).not.toContain("Otimizei pipelines")
+  })
+
+  it("expands compact scope and scale winners into a more complete evidence phrase", () => {
+    const result = buildRelevantHighlightLine(
+      "Coordenei rotinas internas do time.",
+      "Coordenei a frente analitica em escopo global para multiplas operacoes.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toBe("escopo global para multiplas operacoes")
+  })
+
+  it("makes compact metric and scope evidence slightly more complete without over-expanding", () => {
+    const result = buildRelevantHighlightLine(
+      "Consolidei bases para analise operacional.",
+      "Integrei mais de 40 fontes de dados para governanca analitica.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toContain("mais de 40")
+    expect(highlightedSegment?.text).toContain("fontes")
+    expect(highlightedSegment?.text.length ?? 0).toBeLessThan("mais de 40 fontes de dados para governanca analitica.".length)
+  })
+
+  it("keeps metric and scope expansion bounded instead of drifting into narrative phrasing", () => {
+    const result = buildRelevantHighlightLine(
+      "Aumentei em 15% os indicadores de qualidade de producao na LATAM com dashboards em Power BI.",
+      "Liderei dashboards estrategicos e governanca analitica, contribuindo para aumento de 15% nos indicadores de qualidade de producao na LATAM.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toContain("15%")
+    expect(highlightedSegment?.text).not.toContain("Liderei dashboards estrategicos")
+    expect((highlightedSegment?.text.length ?? 0) / "Liderei dashboards estrategicos e governanca analitica, contribuindo para aumento de 15% nos indicadores de qualidade de producao na LATAM.".length).toBeLessThan(0.45)
+  })
+
+  it("keeps zero highlight for weak narrative bullets after the completeness tuning", () => {
+    const result = buildRelevantHighlightLine(
+      "Apoiei a equipe em demandas recorrentes.",
+      "Atuei em parceria com diferentes areas para ampliar alinhamento interno.",
+      "experience",
+    )
+
+    expect(result.segments.some((segment) => segment.highlighted)).toBe(false)
+  })
+
+  it("generalizes metric completion for a sales-style percentage phrase", () => {
+    const result = buildRelevantHighlightLine(
+      "Acompanhei a carteira comercial e apoiei o time de vendas.",
+      "Reduzi em 18% o ciclo de fechamento de contratos enterprise.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toContain("18%")
+    expect(highlightedSegment?.text).toContain("ciclo de fechamento")
+    expect(highlightedSegment?.text).not.toContain("Acompanhei")
+  })
+
+  it("generalizes metric completion for a healthcare-style wait-time phrase", () => {
+    const result = buildRelevantHighlightLine(
+      "Apoiei rotinas da clinica e acompanhamentos internos.",
+      "Reduzi o tempo de espera em 22% no fluxo de triagem ambulatorial.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toBe("tempo de espera em 22%")
+  })
+
+  it("generalizes metric completion for a customer-success currency phrase", () => {
+    const result = buildRelevantHighlightLine(
+      "Apoiei a jornada de clientes com contatos recorrentes.",
+      "Aumentei em R$ 180 mil a receita de expansao da base ativa.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toContain("R$ 180 mil")
+    expect(highlightedSegment?.text).toContain("receita")
+    expect(highlightedSegment?.text).not.toContain("Aumentei")
+  })
+
+  it("generalizes scope and scale completion for an operations-style volume phrase", () => {
+    const result = buildRelevantHighlightLine(
+      "Acompanhei rotinas logisticas e controles operacionais.",
+      "Liderei operacao nacional com alto volume de entregas diarias.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toBe("operacao nacional com alto volume de entregas")
+  })
+
+  it("generalizes scope and scale completion for a sales-style account volume phrase", () => {
+    const result = buildRelevantHighlightLine(
+      "Atendi clientes estrategicos da operacao.",
+      "Gerenciei carteira regional com mais de 120 contas ativas.",
+      "experience",
+    )
+
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
+
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toBe("mais de 120 contas ativas")
+  })
+
+  it("preserves zero highlight for weak education-style narrative bullets", () => {
+    const result = buildRelevantHighlightLine(
+      "Ministrei aulas e acompanhei o desenvolvimento das turmas.",
+      "Atuei de forma colaborativa com docentes e coordenacao pedagogica.",
+      "experience",
+    )
+
+    expect(result.segments.some((segment) => segment.highlighted)).toBe(false)
+  })
+
   it("caps highlighted bullets per experience entry", () => {
     const original = buildCvState({
       experience: [

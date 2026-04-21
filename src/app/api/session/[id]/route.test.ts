@@ -6,6 +6,8 @@ import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
 import { listJobsForSession } from '@/lib/jobs/repository'
 import { recordAtsReadinessCompatFieldEmission } from '@/lib/ats/scoring'
+import { recordQuery } from '@/lib/observability/request-query-context'
+import { logInfo, logWarn } from '@/lib/observability/structured-log'
 
 import { GET } from './route'
 
@@ -35,6 +37,15 @@ vi.mock('@/lib/db/resume-targets', () => ({
 
 vi.mock('@/lib/jobs/repository', () => ({
   listJobsForSession: vi.fn(),
+}))
+
+vi.mock('@/lib/observability/structured-log', () => ({
+  logError: vi.fn(),
+  logInfo: vi.fn(),
+  logWarn: vi.fn(),
+  serializeError: (error: unknown) => ({
+    errorMessage: error instanceof Error ? error.message : String(error),
+  }),
 }))
 
 describe('session route', () => {
@@ -158,6 +169,14 @@ describe('session route', () => {
       hasCanonicalReadiness: true,
       contractVersion: 2,
     })
+    expect(logInfo).toHaveBeenCalledWith(
+      'db.request_queries',
+      expect.objectContaining({
+        requestMethod: 'GET',
+        requestPath: '/api/session/sess_123',
+        queryCount: 0,
+      }),
+    )
   })
 
   it('derives a canonical ATS Readiness fallback for legacy ATS sessions without persisted atsReadiness', async () => {
@@ -298,5 +317,124 @@ describe('session route', () => {
     expect(body.session.atsReadiness.display.formattedScorePtBr).toMatch(/^\d+(–\d+)?$/)
     expect(body.session.atsReadiness.display.estimatedRangeMin).toBeGreaterThanOrEqual(89)
     expect(body.session.atsReadiness.display.estimatedRangeMax).toBeLessThanOrEqual(95)
+  })
+
+  it('emits a threshold warning when mocked DB work exceeds the configured limit', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({ id: 'usr_123' } as never)
+    vi.mocked(getSession).mockImplementation(async () => {
+      for (let index = 0; index < 16; index += 1) {
+        recordQuery(`GET /rest/v1/sessions?id=eq.${index}&select=*`)
+      }
+
+      return {
+        id: 'sess_warn',
+        userId: 'usr_123',
+        phase: 'dialog',
+        stateVersion: 1,
+        cvState: {
+          fullName: 'Ana Silva',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          summary: 'Resumo base.',
+          experience: [],
+          skills: ['SQL'],
+          education: [],
+        },
+        agentState: {
+          workflowMode: 'dialog',
+        },
+        generatedOutput: {
+          status: 'idle',
+        },
+        internalHeuristicAtsScore: undefined,
+        messageCount: 1,
+        creditConsumed: false,
+        createdAt: '2026-04-21T00:00:00.000Z',
+        updatedAt: '2026-04-21T00:00:00.000Z',
+      } as never
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_warn'),
+      { params: { id: 'sess_warn' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(logWarn).toHaveBeenCalledWith(
+      'db.n_plus_one_threshold_exceeded',
+      expect.objectContaining({
+        requestMethod: 'GET',
+        requestPath: '/api/session/sess_warn',
+        queryCount: 16,
+        threshold: 15,
+        uniqueQueryPatternCount: 1,
+        repeatedQueryPatternCount: 1,
+        maxRepeatedPatternCount: 16,
+        suspectedNPlusOne: true,
+        sampledQueries: expect.any(Array),
+        topRepeatedQueryPatterns: [{
+          fingerprint: 'GET /rest/v1/sessions?id=eq.:number&select=*',
+          sample: 'GET /rest/v1/sessions?id=eq.0&select=*',
+          count: 16,
+        }],
+      }),
+    )
+  })
+
+  it('does not flag suspected N+1 when high DB activity is diverse', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({ id: 'usr_123' } as never)
+    vi.mocked(getSession).mockImplementation(async () => {
+      for (let index = 0; index < 16; index += 1) {
+        recordQuery(`GET /rest/v1/resource_${index}?id=eq.${index}`)
+      }
+
+      return {
+        id: 'sess_diverse',
+        userId: 'usr_123',
+        phase: 'dialog',
+        stateVersion: 1,
+        cvState: {
+          fullName: 'Ana Silva',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          summary: 'Resumo base.',
+          experience: [],
+          skills: ['SQL'],
+          education: [],
+        },
+        agentState: {
+          workflowMode: 'dialog',
+        },
+        generatedOutput: {
+          status: 'idle',
+        },
+        internalHeuristicAtsScore: undefined,
+        messageCount: 1,
+        creditConsumed: false,
+        createdAt: '2026-04-21T00:00:00.000Z',
+        updatedAt: '2026-04-21T00:00:00.000Z',
+      } as never
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_diverse'),
+      { params: { id: 'sess_diverse' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(logWarn).toHaveBeenCalledWith(
+      'db.n_plus_one_threshold_exceeded',
+      expect.objectContaining({
+        requestMethod: 'GET',
+        requestPath: '/api/session/sess_diverse',
+        queryCount: 16,
+        threshold: 15,
+        uniqueQueryPatternCount: 16,
+        repeatedQueryPatternCount: 0,
+        maxRepeatedPatternCount: 0,
+        suspectedNPlusOne: false,
+        topRepeatedQueryPatterns: [],
+      }),
+    )
   })
 })

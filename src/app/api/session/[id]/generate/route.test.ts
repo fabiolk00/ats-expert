@@ -13,6 +13,7 @@ import {
 import { createJob, listActiveJobsForUser } from '@/lib/jobs/repository'
 import { startDurableJobProcessing } from '@/lib/jobs/runtime'
 import { logInfo, logWarn } from '@/lib/observability/structured-log'
+import { recordQuery } from '@/lib/observability/request-query-context'
 
 import { POST } from './route'
 
@@ -208,6 +209,43 @@ describe('generate route', () => {
         sessionId: 'sess_123',
         scope: 'base',
         success: true,
+      }),
+    )
+  })
+
+  it('emits a request query summary for generation requests', async () => {
+    vi.mocked(getSession).mockImplementation(async () => {
+      recordQuery('GET /rest/v1/sessions?id=eq.sess_123')
+      recordQuery('GET /rest/v1/resume_targets?session_id=eq.sess_123')
+      return buildSession() as never
+    })
+    vi.mocked(createJob).mockResolvedValue({
+      wasCreated: true,
+      job: buildJobSnapshot(),
+    } as never)
+    vi.mocked(startDurableJobProcessing).mockResolvedValue(buildJobSnapshot({
+      status: 'running',
+      stage: 'processing',
+      claimedAt: '2026-04-16T10:00:30.000Z',
+      startedAt: '2026-04-16T10:00:30.000Z',
+    }) as never)
+
+    const response = await POST(
+      new NextRequest('https://example.com/api/session/sess_123/generate', {
+        method: 'POST',
+        headers: buildTrustedHeaders(),
+        body: JSON.stringify({ scope: 'base' }),
+      }),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(202)
+    expect(logInfo).toHaveBeenCalledWith(
+      'db.request_queries',
+      expect.objectContaining({
+        requestMethod: 'POST',
+        requestPath: '/api/session/sess_123/generate',
+        queryCount: 2,
       }),
     )
   })
