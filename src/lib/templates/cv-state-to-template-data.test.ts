@@ -178,11 +178,11 @@ describe('cvStateToTemplateData', () => {
   it('sanitizes structured summary payloads that store the text under profile', () => {
     const result = cvStateToTemplateData({
       ...buildCvState(),
-      summary: '{"section":"summary","profile":"Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiencia em ambientes corporativos."}',
+      summary: '{"section":"summary","profile":"Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiência em ambientes corporativos."}',
     })
 
     expect(result.summary).toBe(
-      'Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiencia em ambientes corporativos.',
+      'Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiência em ambientes corporativos.',
     )
   })
 })

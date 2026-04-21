@@ -329,7 +329,7 @@ describe('ResumeComparisonView', () => {
         originalCvState={buildCvState('Consultor de BI com dashboards e apoio a clientes.')}
         optimizedCvState={{
           ...buildCvState('ignored'),
-          summary: '{"section":"summary","profile":"Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiencia em ambientes corporativos."}' as never,
+          summary: '{"section":"summary","profile":"Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiência em ambientes corporativos."}' as never,
         }}
         generationType="ATS_ENHANCEMENT"
         sessionId="sess_123"
@@ -338,7 +338,7 @@ describe('ResumeComparisonView', () => {
     )
 
     const summary = screen.getByTestId('optimized-summary-highlight')
-    expect(summary).toHaveTextContent('Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiencia em ambientes corporativos.')
+    expect(summary).toHaveTextContent('Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiência em ambientes corporativos.')
     expect(summary).not.toHaveTextContent('{"section":"summary"')
   })
 
