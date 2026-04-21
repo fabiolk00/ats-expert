@@ -1,4 +1,5 @@
 import { appendMessage, applyToolPatchWithVersion } from '@/lib/db/sessions'
+import { recordAtsReadinessCompatFieldEmission } from '@/lib/ats/scoring'
 import type { AgentDoneChunk, AgentPatchChunk, Session } from '@/types/agent'
 
 type SessionPatch = NonNullable<Parameters<typeof applyToolPatchWithVersion>[1]>
@@ -48,6 +49,15 @@ export function buildDoneChunk(params: {
   toolIterations: number
   maxMessages: number
 }): AgentDoneChunk {
+  if (params.session.internalHeuristicAtsScore) {
+    recordAtsReadinessCompatFieldEmission({
+      surface: 'agent_done_chunk',
+      workflowMode: params.session.agentState.workflowMode,
+      hasCanonicalReadiness: Boolean(params.session.agentState.atsReadiness),
+      contractVersion: params.session.agentState.atsReadiness?.contractVersion,
+    })
+  }
+
   return {
     type: 'done',
     requestId: params.requestId,

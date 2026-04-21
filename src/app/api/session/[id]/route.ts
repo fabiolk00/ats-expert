@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
+  recordAtsReadinessCompatFieldEmission,
   resolveSessionAtsReadiness,
 } from '@/lib/ats/scoring'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
@@ -38,6 +39,15 @@ export async function GET(
       sessionId: session.id,
       limit: 10,
     })
+
+    if (session.internalHeuristicAtsScore) {
+      recordAtsReadinessCompatFieldEmission({
+        surface: 'session_response',
+        workflowMode: session.agentState.workflowMode,
+        hasCanonicalReadiness: Boolean(atsReadiness),
+        contractVersion: atsReadiness?.contractVersion,
+      })
+    }
 
     return NextResponse.json({
       session: {

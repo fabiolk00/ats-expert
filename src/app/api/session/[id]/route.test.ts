@@ -5,8 +5,21 @@ import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
 import { listJobsForSession } from '@/lib/jobs/repository'
+import { recordAtsReadinessCompatFieldEmission } from '@/lib/ats/scoring'
 
 import { GET } from './route'
+
+const { mockRecordAtsReadinessCompatFieldEmission } = vi.hoisted(() => ({
+  mockRecordAtsReadinessCompatFieldEmission: vi.fn(),
+}))
+
+vi.mock('@/lib/ats/scoring', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/ats/scoring')>('@/lib/ats/scoring')
+  return {
+    ...actual,
+    recordAtsReadinessCompatFieldEmission: mockRecordAtsReadinessCompatFieldEmission,
+  }
+})
 
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn(),
@@ -97,7 +110,7 @@ describe('session route', () => {
       generatedOutput: {
         status: 'ready',
       },
-      atsScore: {
+      internalHeuristicAtsScore: {
         total: 74,
         breakdown: {
           format: 16,
@@ -139,6 +152,12 @@ describe('session route', () => {
       body.session.atsReadiness.displayedReadinessScoreBefore,
     )
     expect(body.session.atsReadiness.displayedReadinessScoreAfter).toBeGreaterThanOrEqual(89)
+    expect(vi.mocked(recordAtsReadinessCompatFieldEmission)).toHaveBeenCalledWith({
+      surface: 'session_response',
+      workflowMode: 'ats_enhancement',
+      hasCanonicalReadiness: true,
+      contractVersion: 2,
+    })
   })
 
   it('derives a canonical ATS Readiness fallback for legacy ATS sessions without persisted atsReadiness', async () => {
@@ -173,7 +192,7 @@ describe('session route', () => {
       generatedOutput: {
         status: 'idle',
       },
-      atsScore: {
+      internalHeuristicAtsScore: {
         total: 12,
         breakdown: {
           format: 2,

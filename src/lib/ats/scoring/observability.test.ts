@@ -6,6 +6,7 @@ import { logInfo } from '@/lib/observability/structured-log'
 import { buildBaselineAtsReadinessContract, buildAtsReadinessContractForEnhancement } from './index'
 import {
   buildAtsReadinessDecisionLog,
+  recordAtsReadinessCompatFieldEmission,
   recordAtsReadinessDecision,
   serializeWithholdReasons,
 } from './observability'
@@ -126,5 +127,28 @@ describe('ATS readiness observability', () => {
     expect(recordMetricCounter).toHaveBeenCalledWith('architecture.ats_readiness.finalized', expect.objectContaining({
       contractVersion: ATS_READINESS_CONTRACT_VERSION,
     }))
+  })
+
+  it('records compatibility-field emission for legacy atsScore seams', () => {
+    recordAtsReadinessCompatFieldEmission({
+      surface: 'session_response',
+      workflowMode: 'ats_enhancement',
+      hasCanonicalReadiness: true,
+      contractVersion: ATS_READINESS_CONTRACT_VERSION,
+    })
+
+    expect(logInfo).toHaveBeenCalledWith('ats_readiness.compat_field_emitted', expect.objectContaining({
+      surface: 'session_response',
+      workflowMode: 'ats_enhancement',
+      hasCanonicalReadiness: true,
+      contractVersion: ATS_READINESS_CONTRACT_VERSION,
+    }))
+    expect(recordMetricCounter).toHaveBeenCalledWith(
+      'architecture.ats_readiness.compat_session_ats_score_emitted',
+      expect.objectContaining({
+        contractVersion: ATS_READINESS_CONTRACT_VERSION,
+        surface: 'session_response',
+      }),
+    )
   })
 })

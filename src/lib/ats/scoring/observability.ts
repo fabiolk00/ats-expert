@@ -4,6 +4,10 @@ import { logInfo } from '@/lib/observability/structured-log'
 import { ATS_READINESS_CONTRACT_VERSION } from './types'
 import type { AtsReadinessDecisionLog, AtsReadinessScoreContract } from './types'
 
+type AtsReadinessCompatSurface =
+  | 'session_response'
+  | 'agent_done_chunk'
+
 export function serializeWithholdReasons(reasons: string[]): string {
   return JSON.stringify([...reasons])
 }
@@ -136,4 +140,29 @@ export function recordAtsReadinessDecision(contract: AtsReadinessScoreContract):
       evaluationStage: decision.evaluationStage,
     })
   }
+}
+
+export function recordAtsReadinessCompatFieldEmission(input: {
+  surface: AtsReadinessCompatSurface
+  workflowMode?: string
+  hasCanonicalReadiness: boolean
+  contractVersion?: number
+}): void {
+  const metric = input.surface === 'session_response'
+    ? 'architecture.ats_readiness.compat_session_ats_score_emitted'
+    : 'architecture.ats_readiness.compat_agent_done_chunk_ats_score_emitted'
+
+  logInfo('ats_readiness.compat_field_emitted', {
+    contractVersion: input.contractVersion ?? ATS_READINESS_CONTRACT_VERSION,
+    surface: input.surface,
+    workflowMode: input.workflowMode,
+    hasCanonicalReadiness: input.hasCanonicalReadiness,
+  })
+
+  recordMetricCounter(metric, {
+    contractVersion: input.contractVersion ?? ATS_READINESS_CONTRACT_VERSION,
+    surface: input.surface,
+    workflowMode: input.workflowMode,
+    hasCanonicalReadiness: input.hasCanonicalReadiness,
+  })
 }

@@ -374,3 +374,13 @@ Plans:
 
 Plans:
 - [x] 66-01-PLAN.md - Rename internal raw ATS score seams to explicit heuristic-diagnostic names, keep legacy adapters compatibility-only, and add regression coverage so product paths stay on ATS Readiness v2
+
+### Phase 67: Estabilizacao pos-refactor do ATS Readiness
+
+**Goal:** Add production-oriented stabilization hooks after the ATS Readiness refactor by measuring compatibility-field emission, documenting the semantic boundary for onboarding, and keeping sunset decisions data-driven without reopening the scoring contract.
+**Requirements**: [ATS-STABILIZE-OBS-01, ATS-STABILIZE-DOC-01, ATS-STABILIZE-TEST-01]
+**Depends on:** Phase 66
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 67-01-PLAN.md - Add compat-field telemetry, publish a short ATS Readiness boundary note, and cover the stabilization seam with regression tests

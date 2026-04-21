@@ -9,14 +9,19 @@ import {
   persistPatch,
 } from './agent-persistence'
 
-const { mockAppendMessage, mockApplyToolPatchWithVersion } = vi.hoisted(() => ({
+const { mockAppendMessage, mockApplyToolPatchWithVersion, mockRecordAtsReadinessCompatFieldEmission } = vi.hoisted(() => ({
   mockAppendMessage: vi.fn(),
   mockApplyToolPatchWithVersion: vi.fn(),
+  mockRecordAtsReadinessCompatFieldEmission: vi.fn(),
 }))
 
 vi.mock('@/lib/db/sessions', () => ({
   appendMessage: mockAppendMessage,
   applyToolPatchWithVersion: mockApplyToolPatchWithVersion,
+}))
+
+vi.mock('@/lib/ats/scoring', () => ({
+  recordAtsReadinessCompatFieldEmission: mockRecordAtsReadinessCompatFieldEmission,
 }))
 
 function buildSession() {
@@ -135,6 +140,12 @@ describe('agent persistence helpers', () => {
       maxMessages: 30,
       isNewSession: false,
       toolIterations: 3,
+    })
+    expect(mockRecordAtsReadinessCompatFieldEmission).toHaveBeenCalledWith({
+      surface: 'agent_done_chunk',
+      workflowMode: undefined,
+      hasCanonicalReadiness: false,
+      contractVersion: undefined,
     })
   })
 })

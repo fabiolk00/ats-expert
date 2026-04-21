@@ -172,5 +172,10 @@ export function resolveDisplayedReadinessScore(
 }
 
 export { ATS_READINESS_CONTRACT_VERSION } from './types'
-export { buildAtsReadinessDecisionLog, recordAtsReadinessDecision, serializeWithholdReasons } from './observability'
+export {
+  buildAtsReadinessDecisionLog,
+  recordAtsReadinessCompatFieldEmission,
+  recordAtsReadinessDecision,
+  serializeWithholdReasons,
+} from './observability'
 export { normalizePersistedAtsReadiness, resolveDisplayedReadinessScoreForSession, resolveSessionAtsReadiness } from './session-readiness'

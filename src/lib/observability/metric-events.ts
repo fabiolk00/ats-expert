@@ -41,6 +41,8 @@ export type MetricCounterEventName =
   | 'architecture.ats_readiness.raw_decreased_display_protected'
   | 'architecture.ats_readiness.comparison_rendered'
   | 'architecture.ats_readiness.legacy_fallback_used'
+  | 'architecture.ats_readiness.compat_session_ats_score_emitted'
+  | 'architecture.ats_readiness.compat_agent_done_chunk_ats_score_emitted'
 
 export function recordMetricCounter(
   metric: MetricCounterEventName,

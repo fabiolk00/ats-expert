@@ -196,6 +196,9 @@
 | ATS-RAW-CLEANUP-01 | Phase 66 | Complete |
 | ATS-RAW-CLEANUP-COMPAT-01 | Phase 66 | Complete |
 | ATS-RAW-CLEANUP-TEST-01 | Phase 66 | Complete |
+| ATS-STABILIZE-OBS-01 | Phase 67 | Complete |
+| ATS-STABILIZE-DOC-01 | Phase 67 | Complete |
+| ATS-STABILIZE-TEST-01 | Phase 67 | Complete |
 
 **Coverage:**
 - v1.6 requirements: 59 total

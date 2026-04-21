@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 64
-current_phase_name: converter withheld pending quality em faixa estimada numerica no ats readiness score ui em pt br
+current_phase: 67
+current_phase_name: estabilizacao pos-refactor do ats readiness
 current_plan: 01
 status: complete
-stopped_at: Completed 64-01-PLAN.md
-last_updated: "2026-04-21T04:35:00.000Z"
+stopped_at: Completed 67-01-PLAN.md
+last_updated: "2026-04-21T07:10:00.000Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 23
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** ATS Readiness now always resolves to an exact score or a short estimated numeric range in the ATS enhancement product flow; the next milestone action is milestone audit and closeout.
+**Current focus:** ATS Readiness post-refactor stabilization now measures compatibility-field emission and ships a short boundary note so legacy sunset decisions can be based on telemetry instead of guesswork.
 
 ## Current Position
 
-Phase: 64 (converter withheld pending quality em faixa estimada numerica no ats readiness score ui em pt br) - COMPLETE
+Phase: 67 (estabilizacao pos-refactor do ats readiness) - COMPLETE
 Plan: 01 complete
-Current Phase: 64
-Current Phase Name: converter withheld pending quality em faixa estimada numerica no ats readiness score ui em pt br
+Current Phase: 67
+Current Phase Name: estabilizacao pos-refactor do ats readiness
 Current Plan: 01
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: ATS enhancement no longer leaves the user with a pending score state; canonical ATS Readiness now returns exact scores or short estimated numeric ranges, keeps monotonicity and floor/cap rules, and preserves observability plus legacy-session safety
+Last Activity Description: ATS Readiness post-refactor stabilization now measures legacy compat-field emission, keeps sunset planning data-driven, and documents the final product-vs-diagnostic semantic boundary for future contributors
 
 Progress: [##########] 100%
 
@@ -93,6 +93,8 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 65]: ATS Readiness is now formally versioned as contract v2, legacy persisted shapes normalize centrally into the v2 display contract, and residual internal raw-score references are either isolated as heuristic diagnostics or aligned to the canonical readiness semantics.
 - [Phase 66]: Internal runtime and persistence now refer to the raw ATS diagnostic as `internalHeuristicAtsScore`, while compatibility adapters still expose legacy `atsScore` only where older consumers need it.
 - [Phase 66]: The semantic boundary is now explicit in types, context builders, agent persistence, and tests: raw ATS telemetry is diagnostic only, and ATS Readiness v2 remains the sole product-facing score contract.
+- [Phase 67]: Session-response and agent done-chunk compatibility aliases now emit explicit telemetry so legacy ATS score sunset decisions can be guided by real usage.
+- [Phase 67]: `docs/ats-readiness-product-vs-internal.md` now captures the final semantic boundary between ATS Readiness v2 and internal heuristic ATS diagnostics for onboarding and future cleanup work.
 - [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 
@@ -107,6 +109,6 @@ Baseline carried forward from earlier shipped milestones:
 
 ## Session Continuity
 
-Last session: 2026-04-21T05:05:00.000Z
-Stopped at: Completed 66-01-PLAN.md
+Last session: 2026-04-21T07:10:00.000Z
+Stopped at: Completed 67-01-PLAN.md
 Resume file: None
