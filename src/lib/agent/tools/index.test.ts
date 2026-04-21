@@ -293,6 +293,11 @@ describe('agent tool dispatch', () => {
     expect(applyToolPatchWithVersion).toHaveBeenCalledWith(session, {
       atsScore: atsResult,
       agentState: {
+        atsReadiness: expect.objectContaining({
+          productLabel: 'ATS Readiness Score',
+          rawInternalScoreBefore: 88,
+          displayedReadinessScoreBefore: 88,
+        }),
         targetJobDescription: 'job description',
       },
     }, undefined)

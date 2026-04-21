@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { AGENT_CONFIG } from "@/lib/agent/config"
+import type { AtsReadinessScoreContract } from "@/lib/ats/scoring/types"
 import { cn } from "@/lib/utils"
 import type { AgentDoneChunk, AgentStreamChunk, Phase } from "@/types/agent"
 import type { CVState } from "@/types/cv"
@@ -406,11 +407,16 @@ interface ChatInterfaceProps {
 type SessionSnapshotResponse = {
   session?: {
     phase?: Phase
+    atsReadiness?: AtsReadinessScoreContract
     atsScore?: {
       total?: number
     }
     messageCount?: number
   }
+}
+
+function getDisplayedReadinessScore(atsReadiness?: AtsReadinessScoreContract): number | undefined {
+  return atsReadiness?.displayedReadinessScoreCurrent
 }
 
 function ChatWindowChrome() {
@@ -459,7 +465,7 @@ export function ChatInterface({
   const [currentToolName, setCurrentToolName] = useState<string | null>(null)
   const [activeAssistantMessageId, setActiveAssistantMessageId] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>("intake")
-  const [atsScore, setAtsScore] = useState<number | undefined>()
+  const [atsReadiness, setAtsReadiness] = useState<AtsReadinessScoreContract | undefined>()
   const [messageCount, setMessageCount] = useState(0)
   const [maxMessages] = useState(AGENT_CONFIG.maxMessagesPerSession)
   const [sessionLimitReached, setSessionLimitReached] = useState(false)
@@ -467,7 +473,8 @@ export function ChatInterface({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const isInputDisabled = disabled || isStreaming || sessionLimitReached || sessionExpired
-  const showGenerationApproval = phase === "confirm" || (phase === "dialog" && atsScore !== undefined)
+  const displayedReadinessScore = getDisplayedReadinessScore(atsReadiness)
+  const showGenerationApproval = phase === "confirm" || (phase === "dialog" && displayedReadinessScore !== undefined)
 
   const applySessionState = (nextSessionId: string | undefined): void => {
     setSessionId(nextSessionId)
@@ -517,8 +524,8 @@ export function ChatInterface({
         setPhase(data.session.phase)
       }
 
-      if (data.session.atsScore?.total !== undefined) {
-        setAtsScore(data.session.atsScore.total)
+      if (data.session.atsReadiness) {
+        setAtsReadiness(data.session.atsReadiness)
       }
 
       if (data.session.messageCount !== undefined) {
@@ -536,7 +543,7 @@ export function ChatInterface({
 
     if (!initialSessionId) {
       setPhase("intake")
-      setAtsScore(undefined)
+      setAtsReadiness(undefined)
       setMessageCount(0)
       setUploadedFile(null)
       setMessages((previous) => (hasConversationMessages(previous) ? previous : welcomeMessages))
@@ -806,8 +813,8 @@ export function ChatInterface({
                   setIsToolExecuting(false)
                   setCurrentToolName(null)
                   setPhase(chunk.phase)
-                  if (chunk.patch.atsScore?.total !== undefined) {
-                    setAtsScore(chunk.patch.atsScore.total)
+                  if (chunk.patch.agentState?.atsReadiness) {
+                    setAtsReadiness(chunk.patch.agentState.atsReadiness)
                   }
                   break
 
@@ -823,8 +830,8 @@ export function ChatInterface({
                     ),
                   )
                   setPhase(chunk.phase)
-                  if (chunk.atsScore?.total !== undefined) {
-                    setAtsScore(chunk.atsScore.total)
+                  if (chunk.atsReadiness) {
+                    setAtsReadiness(chunk.atsReadiness)
                   }
                   if (chunk.messageCount !== undefined) {
                     setMessageCount(chunk.messageCount)
@@ -968,7 +975,9 @@ export function ChatInterface({
             </span>
             <div className="flex items-center gap-2 text-xs">
               {phase !== "intake" ? <span className="text-muted-foreground">Fase: {phase}</span> : null}
-              {atsScore !== undefined ? <span className="text-muted-foreground">ATS: {atsScore}</span> : null}
+              {displayedReadinessScore !== undefined ? (
+                <span className="text-muted-foreground">ATS Readiness: {displayedReadinessScore}</span>
+              ) : null}
             </div>
           </div>
         </div>

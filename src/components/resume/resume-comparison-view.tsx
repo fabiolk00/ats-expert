@@ -8,6 +8,7 @@ import Logo from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
 import { cn } from "@/lib/utils"
+import type { AtsReadinessScoreContract } from "@/lib/ats/scoring/types"
 import type { ResumeGenerationType } from "@/types/agent"
 import type { CVState } from "@/types/cv"
 import type { PreviewLockSummary } from "@/types/dashboard"
@@ -20,8 +21,9 @@ type ResumeComparisonViewProps = {
   previewLock?: PreviewLockSummary
   targetJobDescription?: string
   originalScore?: number
-  optimizedScore?: number
+  optimizedScore?: number | null
   scoreLabel?: string
+  atsReadiness?: AtsReadinessScoreContract
   optimizationNotes?: string[]
   backHref?: string
   onContinue: () => void
@@ -303,7 +305,8 @@ export function ResumeComparisonView({
   targetJobDescription,
   originalScore,
   optimizedScore,
-  scoreLabel = "Score ATS",
+  scoreLabel = "ATS Readiness Score",
+  atsReadiness,
   optimizationNotes = [],
   backHref = "/dashboard/resume/new",
   onContinue,
@@ -469,10 +472,15 @@ export function ResumeComparisonView({
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] text-zinc-500 dark:text-zinc-400 sm:text-xs">{scoreLabel}:</span>
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 sm:text-xs">
-                  {(optimizedScore ?? 0)}%
+                  {optimizedScore === null ? "Pendente" : `${optimizedScore ?? 0}%`}
                 </span>
               </div>
             </div>
+            {atsReadiness?.scoreStatus === "withheld_pending_quality" ? (
+              <p className="mb-3 text-xs text-amber-700 dark:text-amber-300 sm:text-sm">
+                Score final pendente de validação de qualidade.
+              </p>
+            ) : null}
             <ResumeDocument
               cvState={currentOptimizedCvState}
               variant="optimized"

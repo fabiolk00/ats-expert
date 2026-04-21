@@ -8,5 +8,5 @@ export default function ATSScoreBadge({
   showLabel?: boolean
 }) {
   const color = score >= 80 ? "bg-green-500" : score >= 60 ? "bg-yellow-500" : "bg-red-500"
-  return <Badge className={color}>{showLabel ? `ATS: ${score}` : score}</Badge>
+  return <Badge className={color}>{showLabel ? `ATS Readiness: ${score}` : score}</Badge>
 }

@@ -40,11 +40,11 @@ describe('session-comparison response', () => {
         },
         originalScore: {
           total: 40,
-          label: 'Score ATS',
+          label: 'ATS Readiness Score',
         },
         optimizedScore: {
           total: 60,
-          label: 'Score ATS',
+          label: 'ATS Readiness Score',
         },
       },
     })
@@ -54,11 +54,11 @@ describe('session-comparison response', () => {
       sessionId: 'sess_1',
       originalScore: {
         total: 40,
-        label: 'Score ATS',
+        label: 'ATS Readiness Score',
       },
       optimizedScore: {
         total: 60,
-        label: 'Score ATS',
+        label: 'ATS Readiness Score',
       },
     })
   })

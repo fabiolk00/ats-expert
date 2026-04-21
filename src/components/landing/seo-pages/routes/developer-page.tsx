@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import SEOPageTemplate from "@/components/landing/seo-pages/seo-page-template";
 import { Code2 } from "lucide-react";
@@ -12,7 +12,7 @@ export default function DeveloperPage() {
         accent: "bg-blue-600",
         bgAccent: "bg-blue-500/10",
         textAccent: "text-blue-600",
-        badgeLabel: "Guia de Currículo para Devs",
+        badgeLabel: "Guia de CurrÃ­culo para Devs",
         icon: <Code2 className="w-6 h-6 text-blue-600" />,
         heroVisual: (
           <div className="w-full h-full p-8 font-mono text-[13px] leading-relaxed flex flex-col justify-center bg-white text-zinc-700 rounded-b-xl relative overflow-hidden">
@@ -31,7 +31,7 @@ export default function DeveloperPage() {
                     <div className="absolute right-6 bottom-1 w-2 h-2 bg-emerald-500 rounded-full" />
                   </div>
                 </div>
-                <div className="text-zinc-500 mb-2">{'/* Otimiza��o de Score ATS */'}</div>
+                <div className="text-zinc-500 mb-2">{'/* ATS Readiness optimization */'}</div>
                 <div><span className="text-pink-600">import</span> {'{ '}<span className="text-blue-600">Scanner</span>{' }'} <span className="text-pink-600">from</span> <span className="text-emerald-600">&apos;@curria/ats&apos;</span>;</div>
                 <br/>
                 <div><span className="text-pink-600">const</span> <span className="text-[#0a0a0a]">resume</span> <span className="text-pink-600">=</span> <span className="text-pink-600">await</span> <span className="text-blue-600">Scanner</span>.<span className="text-blue-500">analyze</span>();</div>
@@ -58,19 +58,19 @@ export default function DeveloperPage() {
         )
       }}
       content={{
-        heroTitle: "Currículo de Desenvolvedor otimizado para ATS",
+        heroTitle: "CurrÃ­culo de Desenvolvedor otimizado para ATS",
         heroSubtitle: "Pare de ser rejeitado por algoritmos. Formate sua stack e impacto da maneira exata que os parsers e recrutadores buscam.",
         problemCards: [
-          { title: "Stack Tecnológica Oculta", desc: "Se você esconder sua stack em parágrafos densos, o parser falha em associar a habilidade aos seus anos de experiência." },
-          { title: "Impacto de Engenharia Vago", desc: "'Escrevi código para o backend' não traduz para uma vaga sênior. Você precisa de métricas exatas de latência, escala e performance." },
-          { title: "Links do GitHub Ignorados", desc: "Muitos sistemas ATS não conseguem seguir URLs. Se suas conquistas vivem apenas nos seus repositórios, elas não existem para o ATS." }
+          { title: "Stack TecnolÃ³gica Oculta", desc: "Se vocÃª esconder sua stack em parÃ¡grafos densos, o parser falha em associar a habilidade aos seus anos de experiÃªncia." },
+          { title: "Impacto de Engenharia Vago", desc: "'Escrevi cÃ³digo para o backend' nÃ£o traduz para uma vaga sÃªnior. VocÃª precisa de mÃ©tricas exatas de latÃªncia, escala e performance." },
+          { title: "Links do GitHub Ignorados", desc: "Muitos sistemas ATS nÃ£o conseguem seguir URLs. Se suas conquistas vivem apenas nos seus repositÃ³rios, elas nÃ£o existem para o ATS." }
         ],
         filterChecklist: [
-          { item: "Fontes padrão sem kerning customizado", checked: true },
-          { item: "Experiência cronológica lida com sucesso", checked: true },
+          { item: "Fontes padrÃ£o sem kerning customizado", checked: true },
+          { item: "ExperiÃªncia cronolÃ³gica lida com sucesso", checked: true },
           { item: "Match exato para linguagens requeridas (ex: 'Node.js' vs 'Node')", checked: true },
           { item: "Layouts complexos de tabelas para habilidades", checked: false },
-          { item: "Gráficos SVG de progresso ou pizza", checked: false }
+          { item: "GrÃ¡ficos SVG de progresso ou pizza", checked: false }
         ],
         keywords: [
           { category: "Linguagens", term: "JavaScript / TypeScript" },
@@ -82,35 +82,35 @@ export default function DeveloperPage() {
           { category: "Infraestrutura", term: "Docker / Kubernetes" },
           { category: "Infraestrutura", term: "AWS / GCP / Azure" },
           { category: "Infraestrutura", term: "CI/CD (Actions/GitLab)" },
-          { category: "Arquitetura & BD", term: "Microserviços / APIs REST" },
+          { category: "Arquitetura & BD", term: "MicroserviÃ§os / APIs REST" },
           { category: "Arquitetura & BD", term: "PostgreSQL / MongoDB" },
           { category: "Arquitetura & BD", term: "Redis / Kafka" },
         ],
         goodVsBad: {
-          bad: "Responsável por melhorar o banco de dados e deixar a aplicação mais rápida.",
-          good: "Arquitetou uma camada de cache distribuída em Redis, reduzindo a carga no banco de dados em 40% e melhorando o tempo de resposta da API de 800ms para 120ms em mais de 2 milhões de requisições diárias."
+          bad: "ResponsÃ¡vel por melhorar o banco de dados e deixar a aplicaÃ§Ã£o mais rÃ¡pida.",
+          good: "Arquitetou uma camada de cache distribuÃ­da em Redis, reduzindo a carga no banco de dados em 40% e melhorando o tempo de resposta da API de 800ms para 120ms em mais de 2 milhÃµes de requisiÃ§Ãµes diÃ¡rias."
         },
         specializations: [
-          { title: "Engenharia Frontend", desc: "Foque fortemente em performance de renderização, gerenciamento de estado e arquitetura moderna de componentes.", tags: ["React", "Gerenciamento de Estado", "Web Vitals", "Acessibilidade (A11y)"] },
-          { title: "Arquitetura Backend", desc: "Enfatize design de sistemas, otimização de banco de dados, cache e microsserviços.", tags: ["Microsserviços", "System Design", "SQL/NoSQL", "APIs GraphQL/REST"] },
-          { title: "DevOps / SRE", desc: "Destaque automação, eficiência de pipelines, infraestrutura em nuvem e uptime.", tags: ["Terraform", "Kubernetes", "Pipelines CI/CD", "Monitoramento"] },
-          { title: "Mobile / iOS & Android", desc: "Concentre-se em design responsivo, gerenciamento de estado nativo, publicação em lojas de apps e performance mobile.", tags: ["React Native", "Swift/Kotlin", "App Store/Play Store", "Performance Mobile"] }
+          { title: "Engenharia Frontend", desc: "Foque fortemente em performance de renderizaÃ§Ã£o, gerenciamento de estado e arquitetura moderna de componentes.", tags: ["React", "Gerenciamento de Estado", "Web Vitals", "Acessibilidade (A11y)"] },
+          { title: "Arquitetura Backend", desc: "Enfatize design de sistemas, otimizaÃ§Ã£o de banco de dados, cache e microsserviÃ§os.", tags: ["MicrosserviÃ§os", "System Design", "SQL/NoSQL", "APIs GraphQL/REST"] },
+          { title: "DevOps / SRE", desc: "Destaque automaÃ§Ã£o, eficiÃªncia de pipelines, infraestrutura em nuvem e uptime.", tags: ["Terraform", "Kubernetes", "Pipelines CI/CD", "Monitoramento"] },
+          { title: "Mobile / iOS & Android", desc: "Concentre-se em design responsivo, gerenciamento de estado nativo, publicaÃ§Ã£o em lojas de apps e performance mobile.", tags: ["React Native", "Swift/Kotlin", "App Store/Play Store", "Performance Mobile"] }
         ],
         seniority: [
-          { level: "Desenvolvedor Júnior", tips: ["Destaque projetos pessoais e as stacks de tecnologia exatas utilizadas.", "Foque na agilidade de aprendizado, trabalho em equipe e code reviews.", "Não exagere nas suas habilidades; seja honesto sobre seus fundamentos."] },
-          { level: "Desenvolvedor Pleno", tips: ["Mostre propriedade sobre features inteiras, do design ao deploy.", "Quantifique as melhorias de performance e redução de bugs.", "Mencione a mentoria de juniores ou a liderança de pequenas sprints ágeis."] },
-          { level: "Engenheiro Sênior / Staff", tips: ["Foque em arquitetura de sistemas, escalabilidade e padrões de engenharia.", "Mostre impacto de negócios (ex: reduziu os custos de nuvem em 30%).", "Destaque a liderança interfuncional e o planejamento de roadmap."] }
+          { level: "Desenvolvedor JÃºnior", tips: ["Destaque projetos pessoais e as stacks de tecnologia exatas utilizadas.", "Foque na agilidade de aprendizado, trabalho em equipe e code reviews.", "NÃ£o exagere nas suas habilidades; seja honesto sobre seus fundamentos."] },
+          { level: "Desenvolvedor Pleno", tips: ["Mostre propriedade sobre features inteiras, do design ao deploy.", "Quantifique as melhorias de performance e reduÃ§Ã£o de bugs.", "Mencione a mentoria de juniores ou a lideranÃ§a de pequenas sprints Ã¡geis."] },
+          { level: "Engenheiro SÃªnior / Staff", tips: ["Foque em arquitetura de sistemas, escalabilidade e padrÃµes de engenharia.", "Mostre impacto de negÃ³cios (ex: reduziu os custos de nuvem em 30%).", "Destaque a lideranÃ§a interfuncional e o planejamento de roadmap."] }
         ],
         roadmap: [
-          { step: "Audite Sua Stack", detail: "Extraia cada linguagem, framework e ferramenta que você conhece. Categorize-os claramente no topo." },
+          { step: "Audite Sua Stack", detail: "Extraia cada linguagem, framework e ferramenta que vocÃª conhece. Categorize-os claramente no topo." },
           { step: "Alinhe com a Vaga", detail: "Modifique seus bullet points para apresentar proeminentemente as palavras-chave exatas que o empregador busca." },
-          { step: "Quantifique o Código", detail: "Adicione números reais: linhas de código refatoradas, latência reduzida, usuários suportados ou custos economizados." },
-          { step: "Formate para a Máquina", detail: "Remova colunas, tabelas complexas e gráficos. Atenha-se a uma coluna única e parsing padrão de PDF." }
+          { step: "Quantifique o CÃ³digo", detail: "Adicione nÃºmeros reais: linhas de cÃ³digo refatoradas, latÃªncia reduzida, usuÃ¡rios suportados ou custos economizados." },
+          { step: "Formate para a MÃ¡quina", detail: "Remova colunas, tabelas complexas e grÃ¡ficos. Atenha-se a uma coluna Ãºnica e parsing padrÃ£o de PDF." }
         ],
         faq: [
-          { q: "Devo incluir um link para o meu GitHub?", a: "Sim, sempre inclua seu GitHub e LinkedIn na seção de contato. Embora o ATS possa não ler seus repositórios, os recrutadores humanos que aprovarem você certamente o farão." },
-          { q: "O ATS lê trechos de código se eu os colocar?", a: "Não coloque trechos de código no seu currículo. Isso confundirá o parser e parecerá bagunçado. Atenha-se a explicar a arquitetura e o impacto nos negócios em texto simples." },
-          { q: "E se eu conhecer um framework mas ele não estiver listado na vaga?", a: "Liste-o na sua seção dedicada de 'Habilidades', mas priorize a stack de tecnologia exigida nos bullet points reais de experiência para garantir uma alta taxa de correspondência." }
+          { q: "Devo incluir um link para o meu GitHub?", a: "Sim, sempre inclua seu GitHub e LinkedIn na seÃ§Ã£o de contato. Embora o ATS possa nÃ£o ler seus repositÃ³rios, os recrutadores humanos que aprovarem vocÃª certamente o farÃ£o." },
+          { q: "O ATS lÃª trechos de cÃ³digo se eu os colocar?", a: "NÃ£o coloque trechos de cÃ³digo no seu currÃ­culo. Isso confundirÃ¡ o parser e parecerÃ¡ bagunÃ§ado. Atenha-se a explicar a arquitetura e o impacto nos negÃ³cios em texto simples." },
+          { q: "E se eu conhecer um framework mas ele nÃ£o estiver listado na vaga?", a: "Liste-o na sua seÃ§Ã£o dedicada de 'Habilidades', mas priorize a stack de tecnologia exigida nos bullet points reais de experiÃªncia para garantir uma alta taxa de correspondÃªncia." }
         ]
       }}
     />

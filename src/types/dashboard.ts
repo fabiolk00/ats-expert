@@ -18,6 +18,7 @@ import type {
   GapAnalysisResult,
 } from '@/types/cv'
 import type { BillingHistoryResponse as SerializedBillingHistoryResponse } from '@/types/billing'
+import type { AtsReadinessScoreContract } from '@/lib/ats/scoring/types'
 
 export type PreviewLockSummary = {
   locked: true
@@ -162,6 +163,7 @@ export type SessionWorkspace = {
         result: AtsAnalysisResult
         analyzedAt: string
       }
+      atsReadiness?: AtsReadinessScoreContract
       atsWorkflowRun?: AtsWorkflowRun
       rewriteStatus?: RewriteStatus
       optimizedCvState?: CVState
@@ -182,6 +184,7 @@ export type SessionWorkspace = {
       }
     }
     generatedOutput: GeneratedOutput
+    atsReadiness?: AtsReadinessScoreContract
     atsScore?: ATSScoreResult
     messageCount: number
     creditConsumed: boolean
@@ -245,12 +248,13 @@ export type ResumeComparisonResponse = {
     notes: string[]
     keywordCoverageImprovement?: string[]
   }
+  atsReadiness?: AtsReadinessScoreContract
   originalScore: {
     total: number
     label: string
   }
   optimizedScore: {
-    total: number
+    total: number | null
     label: string
   }
 }

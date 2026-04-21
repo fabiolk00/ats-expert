@@ -1405,7 +1405,7 @@ describe("UserDataPage", () => {
       ),
     ).toBeInTheDocument()
     expect(screen.getByText("Construção e leitura estruturada do currículo")).toBeInTheDocument()
-    expect(screen.getByText("Score ATS geral, clareza e legibilidade do currículo.")).toBeInTheDocument()
+    expect(screen.getByText("ATS Readiness Score, clareza e legibilidade do currículo.")).toBeInTheDocument()
     expect(screen.getByText("Reescrita estratégica de resumo e bullets.")).toBeInTheDocument()
     expect(screen.getByText("Template ATS em PDF textual, simples e objetivo.")).toBeInTheDocument()
     expect(screen.getByTestId("ats-panel-badge")).toHaveClass("bg-foreground", "text-background")

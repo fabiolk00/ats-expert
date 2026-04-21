@@ -4,6 +4,7 @@ import { updateSession } from '@/lib/db/sessions'
 import { analyzeAtsGeneral } from '@/lib/agent/tools/ats-analysis'
 import { rewriteResumeFull } from '@/lib/agent/tools/rewrite-resume-full'
 import { validateRewrite } from '@/lib/agent/tools/validate-rewrite'
+import { buildAtsReadinessContractForEnhancement } from '@/lib/ats/scoring'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import type { Session } from '@/types/agent'
 import type { CVState } from '@/types/cv'
@@ -421,6 +422,13 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
     ...session.agentState,
     workflowMode: 'ats_enhancement',
     atsAnalysis,
+    atsReadiness: buildAtsReadinessContractForEnhancement({
+      originalCvState: session.cvState,
+      optimizedCvState: finalOptimizedCvState,
+      rewriteValidation: finalValidation,
+      optimizationSummary: finalOptimizationSummary,
+      previousContract: session.agentState.atsReadiness,
+    }),
     rewriteStatus: finalValidation.valid ? 'completed' : 'failed',
     optimizedCvState: finalValidation.valid ? finalOptimizedCvState : previousOptimizedCvState,
     optimizedAt: finalValidation.valid ? optimizedAt : previousOptimizedAt,

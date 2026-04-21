@@ -31,6 +31,13 @@ function formatSessionDate(value: Date): string {
   })
 }
 
+function getDisplayedReadinessScoreForSession(session: {
+  agentState: { atsReadiness?: { displayedReadinessScoreCurrent: number } }
+  atsScore?: { total: number }
+}): number | undefined {
+  return session.agentState.atsReadiness?.displayedReadinessScoreCurrent ?? session.atsScore?.total
+}
+
 export default async function SettingsPage() {
   const [appUser, clerkUser] = await Promise.all([getCurrentAppUser(), currentUser()])
 
@@ -53,12 +60,12 @@ export default async function SettingsPage() {
   const formattedSessions = sessions.map((session) => ({
     id: session.id,
     phase: session.phase,
-    atsScore: session.atsScore?.total,
+    atsScore: getDisplayedReadinessScoreForSession(session),
     createdAt: formatSessionDate(session.updatedAt),
   }))
 
   const bestScore = sessions.reduce<number | null>((best, session) => {
-    const score = session.atsScore?.total
+    const score = getDisplayedReadinessScoreForSession(session)
     if (score === undefined) {
       return best
     }
@@ -142,7 +149,7 @@ export default async function SettingsPage() {
                   <span className="text-lg font-black">{sessions.length}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
-                  <span className="text-sm text-muted-foreground">Melhor score ATS</span>
+                  <span className="text-sm text-muted-foreground">Melhor ATS Readiness Score</span>
                   <span className="text-lg font-black">{bestScore ?? "--"}</span>
                 </div>
               </div>

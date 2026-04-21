@@ -129,6 +129,7 @@ describe('agent persistence helpers', () => {
       sessionId: 'sess_123',
       phase: 'analysis',
       atsScore: session.atsScore,
+      atsReadiness: undefined,
       messageCount: 5,
       maxMessages: 30,
       isNewSession: false,

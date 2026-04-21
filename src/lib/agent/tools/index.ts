@@ -2,6 +2,7 @@ import type OpenAI from 'openai'
 
 import { AGENT_CONFIG } from '@/lib/agent/config'
 import { scoreATS } from '@/lib/ats/score'
+import { buildBaselineAtsReadinessContract } from '@/lib/ats/scoring'
 import {
   updateResumeTargetGeneratedOutput,
 } from '@/lib/db/resume-targets'
@@ -340,13 +341,18 @@ export async function executeTool(
         output: { success: true, result },
         patch: {
           atsScore: result,
-          agentState: job_description
-            ? {
-                targetJobDescription: job_description,
-                ...(session.agentState.gapAnalysis ? { gapAnalysis: undefined } : {}),
-                ...(session.agentState.targetFitAssessment ? { targetFitAssessment: undefined } : {}),
-              }
-            : undefined,
+          agentState: {
+            ...(job_description
+              ? {
+                  targetJobDescription: job_description,
+                  ...(session.agentState.gapAnalysis ? { gapAnalysis: undefined } : {}),
+                  ...(session.agentState.targetFitAssessment ? { targetFitAssessment: undefined } : {}),
+                }
+              : {}),
+            atsReadiness: buildBaselineAtsReadinessContract({
+              cvState: session.cvState,
+            }),
+          },
         },
       }
     }

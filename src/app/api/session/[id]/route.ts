@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
+import {
+  buildAtsReadinessContractForEnhancement,
+  buildBaselineAtsReadinessContract,
+} from '@/lib/ats/scoring'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
 import {
@@ -24,6 +28,22 @@ export async function GET(
   }
 
   try {
+    const atsReadiness = session.agentState.atsReadiness
+      ?? (
+        session.agentState.workflowMode === 'ats_enhancement' && session.agentState.optimizedCvState
+          ? buildAtsReadinessContractForEnhancement({
+              originalCvState: session.cvState,
+              optimizedCvState: session.agentState.optimizedCvState,
+              rewriteValidation: session.agentState.rewriteValidation,
+              optimizationSummary: session.agentState.optimizationSummary,
+            })
+          : session.agentState.workflowMode === 'ats_enhancement'
+            ? buildBaselineAtsReadinessContract({
+                cvState: session.cvState,
+              })
+            : undefined
+      )
+
     const targets = await getResumeTargetsForSession(session.id)
     const jobs = await listJobsForSession({
       userId: appUser.id,
@@ -47,6 +67,7 @@ export async function GET(
           gapAnalysis: session.agentState.gapAnalysis,
           targetingPlan: session.agentState.targetingPlan,
           atsAnalysis: session.agentState.atsAnalysis,
+          atsReadiness,
           atsWorkflowRun: session.agentState.atsWorkflowRun,
           rewriteStatus: session.agentState.rewriteStatus,
           optimizedCvState: sanitizeGeneratedCvStateForClient(
@@ -60,6 +81,7 @@ export async function GET(
           rewriteValidation: session.agentState.rewriteValidation,
         },
         generatedOutput: sanitizeGeneratedOutputForClient(session.generatedOutput),
+        atsReadiness,
         atsScore: session.atsScore,
         messageCount: session.messageCount,
         creditConsumed: session.creditConsumed,

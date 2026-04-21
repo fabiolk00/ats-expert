@@ -209,7 +209,7 @@ function sanitizeResumeData(value: CVState): CVState {
 
 const atsFeatures: AtsFeature[] = [
   { id: "analysis", label: "Construção e leitura estruturada do currículo", icon: FileSearch },
-  { id: "keywords", label: "Score ATS geral, clareza e legibilidade do currículo.", icon: Target },
+  { id: "keywords", label: "ATS Readiness Score, clareza e legibilidade do currículo.", icon: Target },
   { id: "structure", label: "Reescrita estratégica de resumo e bullets.", icon: PenLine },
   { id: "rewrite", label: "Template ATS em PDF textual, simples e objetivo.", icon: FileOutput },
 ]

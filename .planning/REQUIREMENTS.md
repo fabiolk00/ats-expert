@@ -99,6 +99,12 @@
 - [x] **PENDING-PERSIST-OBS-01**: Pending-generation persistence failures log branch, DB code/details, latest version, source scope, and generation intent context so ATS-without-target failures are diagnosable from runtime logs.
 - [x] **PENDING-PERSIST-TEST-01**: Regression coverage proves create-branch failure, reuse-branch failure, narrowed failure codes, and top-level tool-log propagation for pending-generation persistence problems.
 
+### Canonical ATS Readiness Scoring Contract
+
+- [x] **ATS-READINESS-01**: ATS enhancement uses one canonical ATS Readiness score contract for product surfaces while preserving raw heuristic ATS scoring separately for internal diagnostics and experiments.
+- [x] **ATS-READINESS-CONF-01**: Product-facing ATS Readiness scores are confidence-aware, quality-gated, withheld when unsafe to show, and non-decreasing after successful ATS enhancement with a minimum displayed floor of 89.
+- [x] **ATS-READINESS-TEST-01**: Regression coverage proves monotonic ATS Readiness display, quality-gated withholding, confidence classification, API contract shaping, and the historical optimized-lower-than-original failure mode can no longer occur.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -169,10 +175,13 @@
 | RESUME-GEN-TS-01 | Phase 61 | Complete |
 | RESUME-GEN-TS-ALIGN-01 | Phase 61 | Complete |
 | RESUME-GEN-TS-TEST-01 | Phase 61 | Complete |
+| ATS-READINESS-01 | Phase 62 | Complete |
+| ATS-READINESS-CONF-01 | Phase 62 | Complete |
+| ATS-READINESS-TEST-01 | Phase 62 | Complete |
 
 **Coverage:**
-- v1.6 requirements: 44 total
-- Mapped to phases: 44
+- v1.6 requirements: 47 total
+- Mapped to phases: 47
 - Unmapped: 0
 
 ---

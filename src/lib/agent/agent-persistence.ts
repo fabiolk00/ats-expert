@@ -54,6 +54,7 @@ export function buildDoneChunk(params: {
     sessionId: params.session.id,
     phase: params.session.phase,
     atsScore: params.session.atsScore,
+    atsReadiness: params.session.agentState.atsReadiness,
     messageCount: params.session.messageCount + 1,
     maxMessages: params.maxMessages,
     isNewSession: params.isNewSession,

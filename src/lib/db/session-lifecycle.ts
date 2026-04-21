@@ -144,7 +144,10 @@ export async function applyToolPatch(session: Session, patch?: ToolPatch): Promi
   await updateSession(session.id, {
     phase: patch.phase !== undefined ? mergedSession.phase : undefined,
     cvState: patch.cvState !== undefined ? mergedSession.cvState : undefined,
-    agentState: patch.agentState !== undefined ? mergedSession.agentState : undefined,
+    agentState:
+      patch.agentState !== undefined || patch.atsReadiness !== undefined
+        ? mergedSession.agentState
+        : undefined,
     generatedOutput:
       patch.generatedOutput !== undefined ? mergedSession.generatedOutput : undefined,
     atsScore: patch.atsScore !== undefined ? mergedSession.atsScore : undefined,

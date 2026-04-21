@@ -483,7 +483,7 @@ describe("ChatInterface", () => {
         return new Response(
           createSSEStream([
             { type: "text", content: "Recebi a vaga e ela já ficou salva como referência para o seu currículo." },
-            { type: "done", sessionId: "sess_dialog_ready", phase: "dialog", atsScore: { total: 47 }, messageCount: 3 },
+            { type: "done", sessionId: "sess_dialog_ready", phase: "dialog", atsReadiness: { displayedReadinessScoreCurrent: 47 }, messageCount: 3 },
           ]),
           { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_dialog_ready" } },
         )
@@ -494,7 +494,7 @@ describe("ChatInterface", () => {
           JSON.stringify({
             session: {
               phase: "dialog",
-              atsScore: { total: 47 },
+              atsReadiness: { displayedReadinessScoreCurrent: 47 },
               messageCount: 3,
             },
           }),
@@ -1220,7 +1220,9 @@ describe("ChatInterface", () => {
           JSON.stringify({
             session: {
               phase: "dialog",
-              atsScore: { total: 88 },
+              atsReadiness: {
+                displayedReadinessScoreCurrent: 88,
+              },
               messageCount: 3,
             },
           }),
@@ -1245,7 +1247,7 @@ describe("ChatInterface", () => {
     await waitFor(() => {
       expect(screen.getByText(/Mensagem\s+3\s+de\s+30/i)).toBeInTheDocument()
       expect(screen.getByText(/Fase:\s+dialog/i)).toBeInTheDocument()
-      expect(screen.getByText(/ATS:\s+88/i)).toBeInTheDocument()
+      expect(screen.getByText(/ATS Readiness:\s+88/i)).toBeInTheDocument()
     })
   })
 
@@ -1317,7 +1319,9 @@ describe("ChatInterface", () => {
           JSON.stringify({
             session: {
               phase: "dialog",
-              atsScore: { total: 88 },
+              atsReadiness: {
+                displayedReadinessScoreCurrent: 88,
+              },
               messageCount: 3,
             },
           }),

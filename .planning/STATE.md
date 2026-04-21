@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Architecture hardening for critical route semantics is complete; the next milestone action is milestone audit and closeout.
+**Current focus:** Canonical ATS Readiness scoring for ATS enhancement is complete locally; the next milestone action is milestone audit and closeout.
 
 ## Current Position
 
-Phase: 60 (pending resume generation persistence narrowing) - COMPLETE
+Phase: 62 (canonical ATS readiness scoring contract for ATS enhancement flow) - COMPLETE
 Plan: 01 complete
-Current Phase: 60
-Current Phase Name: pending resume generation persistence narrowing
+Current Phase: 62
+Current Phase Name: canonical ATS readiness scoring contract for ATS enhancement flow
 Current Plan: 01
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: Pending resume-generation persistence now distinguishes create vs reuse failures, logs raw DB diagnostics, and preserves narrower failure codes through the billable-path tool log
+Last Activity Description: ATS enhancement now emits a canonical ATS Readiness contract with raw-vs-displayed score separation, confidence, quality-gated monotonic display rules, and product/UI migration away from direct heuristic ATS scores
 
 Progress: [##########] 100%
 
@@ -87,6 +87,7 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 - [Phase 60]: Pending resume-generation persistence failures now distinguish create vs reuse branches, preserve raw DB diagnostics, and surface narrower billable failure codes for this hotspot.
 - [Phase 61]: `resume_generations` create persistence now writes `updated_at` explicitly on insert so direct Supabase inserts stay aligned with the table contract and the existing update path.
+- [Phase 62]: ATS enhancement now has one canonical product-facing ATS Readiness contract that keeps raw heuristic scores internal, enforces monotonic displayed post-enhancement scores, and withholds optimized display scores when confidence or quality gates do not justify them safely.
 - [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 

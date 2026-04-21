@@ -14,7 +14,7 @@ export const PLANS = {
     description: "Experimente sem compromisso",
     features: [
       "1 análise de currículo grátis",
-      "Score ATS básico",
+      "ATS Readiness Score básico",
       "Lista de palavras-chave",
       "Sugestões de melhoria",
     ],

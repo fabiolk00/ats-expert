@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getSession } from '@/lib/db/sessions'
-import { analyzeAtsGeneral } from '@/lib/agent/tools/ats-analysis'
 
 import { GET } from './route'
 
@@ -13,10 +12,6 @@ vi.mock('@/lib/auth/app-user', () => ({
 
 vi.mock('@/lib/db/sessions', () => ({
   getSession: vi.fn(),
-}))
-
-vi.mock('@/lib/agent/tools/ats-analysis', () => ({
-  analyzeAtsGeneral: vi.fn(),
 }))
 
 describe('session comparison route', () => {
@@ -89,7 +84,7 @@ describe('session comparison route', () => {
     expect(await response.json()).toEqual({ error: 'No optimized resume found for this session.' })
   })
 
-  it('recomputes ATS scores for both original and optimized resumes on the dedicated compare route', async () => {
+  it('returns ATS Readiness scores and prevents optimized lower-than-original display after enhancement', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
     } as Awaited<ReturnType<typeof getCurrentAppUser>>)
@@ -103,13 +98,13 @@ describe('session comparison route', () => {
         phone: '555-0100',
         linkedin: 'https://linkedin.com/in/ana',
         location: 'Sao Paulo',
-        summary: 'Resumo base.',
+        summary: 'Resumo base com SQL e BI.',
         experience: [{
           title: 'Analista',
           company: 'Acme',
           startDate: '2022',
           endDate: '2024',
-          bullets: ['Criei dashboards.'],
+          bullets: ['Criei dashboards e reduzi o tempo de reporte em 20%.'],
         }],
         skills: ['SQL', 'Power BI', 'ETL'],
         education: [{
@@ -122,19 +117,28 @@ describe('session comparison route', () => {
       agentState: {
         workflowMode: 'ats_enhancement',
         lastRewriteMode: 'ats_enhancement',
+        rewriteValidation: {
+          valid: true,
+          issues: [],
+        },
+        optimizationSummary: {
+          changedSections: ['summary', 'experience', 'skills'],
+          notes: ['Resumo e experiência reforçados para ATS.'],
+          keywordCoverageImprovement: ['SQL'],
+        },
         optimizedCvState: {
           fullName: 'Ana Silva',
           email: 'ana@example.com',
           phone: '555-0100',
           linkedin: 'https://linkedin.com/in/ana',
           location: 'Sao Paulo',
-          summary: 'Resumo otimizado.',
+          summary: 'Resumo otimizado com maior clareza, SQL, BI e foco em indicadores para tomada de decisão executiva.',
           experience: [{
             title: 'Analista',
             company: 'Acme',
             startDate: '2022',
             endDate: '2024',
-            bullets: ['Estruturei dashboards executivos com foco em indicadores.'],
+            bullets: ['Estruturei dashboards executivos e reduzi o tempo de reporte em 25%.'],
           }],
           skills: ['SQL', 'Power BI', 'ETL', 'Dashboards'],
           education: [{
@@ -144,40 +148,11 @@ describe('session comparison route', () => {
           }],
           certifications: [],
         },
-        optimizationSummary: {
-          changedSections: ['summary', 'experience', 'skills'],
-          notes: ['Resumo e experiência reforçados para ATS.'],
-        },
+      },
+      generatedOutput: {
+        status: 'ready',
       },
     } as unknown as Awaited<ReturnType<typeof getSession>>)
-
-    vi.mocked(analyzeAtsGeneral)
-      .mockResolvedValueOnce({
-        success: true,
-        result: {
-          overallScore: 58,
-          structureScore: 70,
-          clarityScore: 60,
-          impactScore: 40,
-          keywordCoverageScore: 55,
-          atsReadabilityScore: 65,
-          issues: [],
-          recommendations: [],
-        },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        result: {
-          overallScore: 71,
-          structureScore: 84,
-          clarityScore: 73,
-          impactScore: 58,
-          keywordCoverageScore: 69,
-          atsReadabilityScore: 72,
-          issues: [],
-          recommendations: [],
-        },
-      })
 
     const response = await GET(
       new NextRequest('https://example.com/api/session/sess_123/comparison'),
@@ -185,22 +160,26 @@ describe('session comparison route', () => {
     )
 
     expect(response.status).toBe(200)
-    expect(analyzeAtsGeneral).toHaveBeenCalledTimes(2)
-    expect(await response.json()).toMatchObject({
+    const body = await response.json()
+    expect(body).toMatchObject({
       sessionId: 'sess_123',
       generationType: 'ATS_ENHANCEMENT',
       originalScore: {
-        total: 58,
-        label: 'Score ATS',
+        label: 'ATS Readiness Score',
       },
       optimizedScore: {
-        total: 71,
-        label: 'Score ATS',
+        label: 'ATS Readiness Score',
+      },
+      atsReadiness: {
+        scoreStatus: 'final',
+        rawInternalConfidence: expect.any(String),
       },
     })
+    expect(body.optimizedScore.total).toBeGreaterThanOrEqual(body.originalScore.total)
+    expect(body.optimizedScore.total).toBeGreaterThanOrEqual(89)
   })
 
-  it('returns a synthetic optimized preview when the free-trial artifact is locked', async () => {
+  it('withholds the optimized ATS Readiness score when quality gates fail', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
     } as Awaited<ReturnType<typeof getCurrentAppUser>>)
@@ -214,71 +193,50 @@ describe('session comparison route', () => {
         phone: '555-0100',
         linkedin: 'https://linkedin.com/in/ana',
         location: 'Sao Paulo',
-        summary: 'Resumo base.',
-        experience: [],
-        skills: ['SQL'],
-        education: [],
+        summary: 'Resumo base com SQL e BI.',
+        experience: [{
+          title: 'Analista',
+          company: 'Acme',
+          startDate: '2022',
+          endDate: '2024',
+          bullets: ['Criei dashboards e reduzi o tempo de reporte em 20%.'],
+        }],
+        skills: ['SQL', 'Power BI', 'ETL'],
+        education: [{
+          degree: 'Bacharel em Sistemas',
+          institution: 'USP',
+          year: '2020',
+        }],
         certifications: [],
       },
       agentState: {
         workflowMode: 'ats_enhancement',
         lastRewriteMode: 'ats_enhancement',
+        rewriteValidation: {
+          valid: false,
+          issues: [{ severity: 'high', message: 'Unsupported claims.', section: 'summary' }],
+        },
+        optimizationSummary: {
+          changedSections: ['summary'],
+          notes: ['Resumo alterado.'],
+        },
         optimizedCvState: {
           fullName: 'Ana Silva',
           email: 'ana@example.com',
           phone: '555-0100',
           linkedin: 'https://linkedin.com/in/ana',
           location: 'Sao Paulo',
-          summary: 'Resumo real que não deve vazar.',
+          summary: 'Resumo curto',
           experience: [],
-          skills: ['SQL', 'Python'],
+          skills: ['SQL'],
           education: [],
           certifications: [],
         },
       },
       generatedOutput: {
         status: 'ready',
-        pdfPath: 'usr_123/sess_123/resume.pdf',
-        previewAccess: {
-          locked: true,
-          blurred: true,
-          canViewRealContent: false,
-          requiresUpgrade: true,
-          requiresRegenerationAfterUnlock: true,
-          reason: 'free_trial_locked',
-          lockedAt: '2026-04-20T12:00:00.000Z',
-          message: 'Seu preview gratuito está bloqueado. Faça upgrade e gere novamente para liberar o currículo real.',
-        },
       },
     } as unknown as Awaited<ReturnType<typeof getSession>>)
-
-    vi.mocked(analyzeAtsGeneral)
-      .mockResolvedValueOnce({
-        success: true,
-        result: {
-          overallScore: 58,
-          structureScore: 70,
-          clarityScore: 60,
-          impactScore: 40,
-          keywordCoverageScore: 55,
-          atsReadabilityScore: 65,
-          issues: [],
-          recommendations: [],
-        },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        result: {
-          overallScore: 61,
-          structureScore: 70,
-          clarityScore: 60,
-          impactScore: 40,
-          keywordCoverageScore: 55,
-          atsReadabilityScore: 65,
-          issues: [],
-          recommendations: [],
-        },
-      })
 
     const response = await GET(
       new NextRequest('https://example.com/api/session/sess_123/comparison'),
@@ -287,69 +245,13 @@ describe('session comparison route', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
-      optimizedCvState: {
-        fullName: 'Preview bloqueado',
-        summary: 'Esta é uma visualização ilustrativa. O currículo real gerado no free trial não fica disponível para leitura ou download.',
+      atsReadiness: {
+        scoreStatus: 'withheld_pending_quality',
       },
-      previewLock: {
-        locked: true,
-        blurred: true,
-        reason: 'free_trial_locked',
-        requiresUpgrade: true,
-        requiresPaidRegeneration: true,
+      optimizedScore: {
+        total: null,
+        label: 'ATS Readiness Score',
       },
     })
-  })
-
-  it('returns an internal error when scoring throws unexpectedly', async () => {
-    vi.mocked(getCurrentAppUser).mockResolvedValue({
-      id: 'usr_123',
-    } as Awaited<ReturnType<typeof getCurrentAppUser>>)
-
-    vi.mocked(getSession).mockResolvedValue({
-      id: 'sess_123',
-      userId: 'usr_123',
-      cvState: {
-        fullName: 'Ana Silva',
-        email: 'ana@example.com',
-        phone: '555-0100',
-        linkedin: 'https://linkedin.com/in/ana',
-        location: 'Sao Paulo',
-        summary: 'Resumo base.',
-        experience: [],
-        skills: ['SQL'],
-        education: [],
-        certifications: [],
-      },
-      agentState: {
-        workflowMode: 'ats_enhancement',
-        lastRewriteMode: 'ats_enhancement',
-        optimizedCvState: {
-          fullName: 'Ana Silva',
-          email: 'ana@example.com',
-          phone: '555-0100',
-          linkedin: 'https://linkedin.com/in/ana',
-          location: 'Sao Paulo',
-          summary: 'Resumo otimizado.',
-          experience: [],
-          skills: ['SQL', 'Python'],
-          education: [],
-          certifications: [],
-        },
-      },
-      generatedOutput: {
-        status: 'ready',
-      },
-    } as unknown as Awaited<ReturnType<typeof getSession>>)
-
-    vi.mocked(analyzeAtsGeneral).mockRejectedValue(new Error('boom'))
-
-    const response = await GET(
-      new NextRequest('https://example.com/api/session/sess_123/comparison'),
-      { params: { id: 'sess_123' } },
-    )
-
-    expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({ error: 'Internal server error' })
   })
 })

@@ -1,5 +1,7 @@
-import { analyzeAtsGeneral } from '@/lib/agent/tools/ats-analysis'
 import { scoreATS } from '@/lib/ats/score'
+import {
+  buildAtsReadinessContractForEnhancement,
+} from '@/lib/ats/scoring'
 import {
   getPreviewLockSummary,
   sanitizeGeneratedCvStateForClient,
@@ -17,7 +19,7 @@ function resolveGenerationType(
 function resolveScoreLabel(
   generationType: Extract<SessionComparisonDecision, { kind: 'success' }>['body']['generationType'],
 ): string {
-  return generationType === 'JOB_TARGETING' ? 'AderÃªncia Ã  vaga' : 'Score ATS'
+  return generationType === 'JOB_TARGETING' ? 'Aderencia a vaga' : 'ATS Readiness Score'
 }
 
 export async function decideSessionComparison(
@@ -43,34 +45,24 @@ export async function decideSessionComparison(
   const targetJobDescription = context.session.agentState.targetJobDescription
 
   try {
+    const atsReadiness = generationType === 'ATS_ENHANCEMENT'
+      ? buildAtsReadinessContractForEnhancement({
+          originalCvState: context.session.cvState,
+          optimizedCvState,
+          rewriteValidation: context.session.agentState.rewriteValidation,
+          optimizationSummary: context.session.agentState.optimizationSummary,
+          previousContract: context.session.agentState.atsReadiness,
+        })
+      : undefined
+
     const originalResumeText = buildResumeTextFromCvState(context.session.cvState)
     const optimizedResumeText = buildResumeTextFromCvState(optimizedCvState)
 
-    const [originalAnalysis, optimizedAnalysis] = generationType === 'ATS_ENHANCEMENT'
-      ? await Promise.all([
-          analyzeAtsGeneral(context.session.cvState, context.session.userId, context.session.id),
-          analyzeAtsGeneral(optimizedCvState, context.session.userId, context.session.id),
-        ])
-      : await Promise.all([
-          Promise.resolve({
-            success: true,
-            result: {
-              overallScore: scoreATS(originalResumeText, targetJobDescription).total,
-            },
-          }),
-          Promise.resolve({
-            success: true,
-            result: {
-              overallScore: scoreATS(optimizedResumeText, targetJobDescription).total,
-            },
-          }),
-        ])
-
-    const originalScore = originalAnalysis.success && originalAnalysis.result
-      ? originalAnalysis.result.overallScore
+    const originalScore = generationType === 'ATS_ENHANCEMENT' && atsReadiness
+      ? atsReadiness.displayedReadinessScoreBefore
       : scoreATS(originalResumeText, targetJobDescription).total
-    const optimizedScore = optimizedAnalysis.success && optimizedAnalysis.result
-      ? optimizedAnalysis.result.overallScore
+    const optimizedScore = generationType === 'ATS_ENHANCEMENT' && atsReadiness
+      ? atsReadiness.displayedReadinessScoreAfter
       : scoreATS(optimizedResumeText, targetJobDescription).total
 
     return {
@@ -84,6 +76,7 @@ export async function decideSessionComparison(
         optimizedCvState,
         previewLock: getPreviewLockSummary(context.session.generatedOutput),
         optimizationSummary: context.session.agentState.optimizationSummary,
+        atsReadiness,
         originalScore: {
           total: originalScore,
           label,

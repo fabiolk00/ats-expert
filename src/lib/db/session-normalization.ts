@@ -162,6 +162,10 @@ export function mergeToolPatch(session: Session, patch: ToolPatch): Session {
       ? normalizeAgentState(session.agentState)
       : normalizeAgentState(mergeAgentState(session.agentState, patch.agentState))
 
+  if (patch.atsReadiness !== undefined) {
+    nextAgentState.atsReadiness = patch.atsReadiness
+  }
+
   const nextGeneratedOutput =
     patch.generatedOutput === undefined
       ? normalizeGeneratedOutput(session.generatedOutput)

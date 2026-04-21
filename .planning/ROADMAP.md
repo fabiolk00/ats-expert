@@ -324,3 +324,13 @@ Plans:
 
 Plans:
 - [x] 61-01-PLAN.md - Align resume-generation create timestamps with the DB contract and prove the create branch persists updated_at explicitly
+
+### Phase 62: Canonical ATS Readiness scoring contract for ATS enhancement flow
+
+**Goal:** Replace ambiguous ATS scoring behavior with a canonical ATS Readiness scoring contract that preserves raw heuristic scoring internally while enforcing a stable, quality-gated, non-decreasing product score for ATS enhancement flows.
+**Requirements**: [ATS-READINESS-01, ATS-READINESS-CONF-01, ATS-READINESS-TEST-01]
+**Depends on:** Phase 61
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 62-01-PLAN.md - Introduce a canonical ATS Readiness scoring module, separate raw vs displayed scores, enforce monotonic display policy with confidence and quality gates, migrate ATS enhancement UI/API surfaces, and add regression coverage

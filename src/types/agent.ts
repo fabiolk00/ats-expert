@@ -7,6 +7,7 @@ import type {
   GapAnalysisResult,
   Phase,
 } from './cv'
+import type { AtsReadinessScoreContract } from '@/lib/ats/scoring/types'
 import type { ToolErrorCode, ToolFailure } from '@/lib/agent/tool-errors'
 
 export type { Phase }
@@ -138,6 +139,7 @@ export type AgentState = {
     result: AtsAnalysisResult
     analyzedAt: string
   }
+  atsReadiness?: AtsReadinessScoreContract
   rewriteStatus?: RewriteStatus
   atsWorkflowRun?: AtsWorkflowRun
   optimizedCvState?: CVState
@@ -257,6 +259,7 @@ export type Session = {
   cvState: CVState
   agentState: AgentState
   generatedOutput: GeneratedOutput
+  // Deprecated for main product UI: keep raw heuristic ATS score for internal diagnostics and compatibility.
   atsScore?: ATSScoreResult
   creditsUsed: number
   messageCount: number
@@ -276,6 +279,7 @@ export type ToolPatch = Partial<{
   agentState: AgentStatePatch
   generatedOutput: Partial<GeneratedOutput>
   atsScore: ATSScoreResult
+  atsReadiness: AtsReadinessScoreContract
 }>
 
 export type TargetFitAssessment = {
@@ -517,6 +521,7 @@ export type AgentDoneChunk = {
   sessionId: string
   phase: Phase
   atsScore?: ATSScoreResult
+  atsReadiness?: AtsReadinessScoreContract
   messageCount?: number
   maxMessages?: number
   isNewSession?: boolean
