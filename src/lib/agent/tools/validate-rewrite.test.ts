@@ -141,6 +141,12 @@ describe('validateRewrite', () => {
     const result = validateRewrite(original, optimized)
 
     expect(result.issues.some((issue) => issue.message.includes('métrica real de impacto'))).toBe(false)
+    expect(result.editorialMetrics).toEqual(expect.objectContaining({
+      premiumBulletCountOriginal: 1,
+      premiumBulletCountFinal: 1,
+      regressionCount: 0,
+      metricPreservationStatus: 'full',
+    }))
   })
 
   it('flags editorial regression when a strong metric disappears from experience', () => {
@@ -169,6 +175,15 @@ describe('validateRewrite', () => {
       severity: 'medium',
       section: 'experience',
       message: expect.stringContaining('métrica real de impacto'),
+    }))
+    expect(result.editorialMetrics).toEqual(expect.objectContaining({
+      premiumBulletCountOriginal: 1,
+      premiumBulletCountFinal: 0,
+      regressionCount: 1,
+      percentMetricLost: true,
+      scopeLost: true,
+      impactLost: true,
+      metricPreservationStatus: 'regressed',
     }))
   })
 })

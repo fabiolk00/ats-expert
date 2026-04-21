@@ -394,3 +394,13 @@ Plans:
 
 Plans:
 - [x] 68-01-PLAN.md - Add premium metric-bullet detection, metric-regression validation, stronger rewrite guardrails, and regression coverage for quantified ATS rewrite preservation
+
+### Phase 69: Observabilidade editorial para preservacao de metricas reais no rewrite ATS
+
+**Goal:** Make the Phase 68 editorial metric-preservation guard measurable in production by emitting safe structured events and counters for premium-bullet detection, metric regressions, recovery-path selection, and final preservation outcomes in ATS enhancement flows.
+**Requirements**: [ATS-METRIC-OBS-01, ATS-METRIC-OBS-RECOVERY-01, ATS-METRIC-OBS-TEST-01]
+**Depends on:** Phase 68
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 69-01-PLAN.md - Add centralized editorial observability for premium-bullet detection, regression diagnosis, recovery-path selection, and final preservation outcomes without leaking resume content

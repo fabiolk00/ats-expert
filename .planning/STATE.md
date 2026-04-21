@@ -36,7 +36,7 @@ Current Plan: 01
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: ATS enhancement rewrite now treats quantified impact as premium evidence, detects editorial metric regression before persistence, and preserves real outcome bullets like the observed 15% LATAM case
+Last Activity Description: ATS enhancement now emits editorial observability for premium-bullet detection, metric regressions, recovery paths, and final preservation outcomes without logging resume text
 
 Progress: [##########] 100%
 
@@ -97,6 +97,8 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 67]: `docs/ats-readiness-product-vs-internal.md` now captures the final semantic boundary between ATS Readiness v2 and internal heuristic ATS diagnostics for onboarding and future cleanup work.
 - [Phase 68]: ATS rewrite prompts now treat quantified bullets as premium evidence and explicitly forbid replacing factual metric bullets with generic wording.
 - [Phase 68]: Validation now detects editorial metric regression when strong original impact bullets lose their numbers, scope, or substantive result in the optimized rewrite.
+- [Phase 69]: ATS enhancement now records structured editorial telemetry for premium-bullet detection, metric regressions, recovery-path selection, and final preservation status using counts and flags only.
+- [Phase 69]: Editorial observability is centralized in the ATS rewrite domain and intentionally avoids logging bullet text, names, or other sensitive resume content.
 - [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 
@@ -112,5 +114,5 @@ Baseline carried forward from earlier shipped milestones:
 ## Session Continuity
 
 Last session: 2026-04-21T08:35:00.000Z
-Stopped at: Completed 68-01-PLAN.md
+Stopped at: Completed 69-01-PLAN.md
 Resume file: None

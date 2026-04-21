@@ -43,6 +43,17 @@ export type MetricCounterEventName =
   | 'architecture.ats_readiness.legacy_fallback_used'
   | 'architecture.ats_readiness.compat_session_ats_score_emitted'
   | 'architecture.ats_readiness.compat_agent_done_chunk_ats_score_emitted'
+  | 'architecture.ats_editorial.premium_bullets_detected'
+  | 'architecture.ats_editorial.percent_premium_bullets_detected'
+  | 'architecture.ats_editorial.metric_regression_detected'
+  | 'architecture.ats_editorial.metric_regression_percent_lost'
+  | 'architecture.ats_editorial.metric_regression_scope_lost'
+  | 'architecture.ats_editorial.smart_repair_used'
+  | 'architecture.ats_editorial.conservative_fallback_used'
+  | 'architecture.ats_editorial.revert_used'
+  | 'architecture.ats_editorial.metric_preservation_full'
+  | 'architecture.ats_editorial.metric_preservation_partial'
+  | 'architecture.ats_editorial.metric_preservation_regressed'
 
 export function recordMetricCounter(
   metric: MetricCounterEventName,

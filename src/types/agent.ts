@@ -92,6 +92,20 @@ export type RewriteValidationResult = {
     message: string
     section?: string
   }>
+  editorialMetrics?: {
+    premiumBulletCountOriginal: number
+    premiumBulletCountFinal: number
+    premiumBulletCount: number
+    premiumPercentBulletCount: number
+    premiumScopeBulletCount: number
+    premiumTechnologyImpactBulletCount: number
+    regressionCount: number
+    percentMetricLost: boolean
+    scopeLost: boolean
+    impactLost: boolean
+    section: 'experience'
+    metricPreservationStatus: 'none' | 'full' | 'partial' | 'regressed'
+  }
 }
 
 export type TargetingPlan = {

@@ -1,6 +1,6 @@
 import type { CVState, ExperienceEntry } from '@/types/cv'
 
-const METRIC_PATTERN = /\b\d+(?:[.,]\d+)?%?\b/g
+const METRIC_PATTERN = /\d+(?:[.,]\d+)?%?/g
 const IMPACT_TERMS = [
   'aument',
   'reduz',
@@ -93,6 +93,30 @@ export type MetricImpactRegression = {
   scopeTerms: string[]
 }
 
+export type PremiumMetricBulletSummary = {
+  premiumBulletCount: number
+  premiumPercentBulletCount: number
+  premiumScopeBulletCount: number
+  premiumTechnologyImpactBulletCount: number
+  section: 'experience'
+}
+
+export type MetricImpactPreservationStatus =
+  | 'none'
+  | 'full'
+  | 'partial'
+  | 'regressed'
+
+export type MetricImpactComparison = PremiumMetricBulletSummary & {
+  premiumBulletCountOriginal: number
+  premiumBulletCountFinal: number
+  regressionCount: number
+  percentMetricLost: boolean
+  scopeLost: boolean
+  impactLost: boolean
+  metricPreservationStatus: MetricImpactPreservationStatus
+}
+
 function normalize(value: string | undefined): string {
   return (value ?? '')
     .normalize('NFD')
@@ -172,6 +196,42 @@ function buildBulletSignals(text: string) {
     scopeTerms,
     technologyTerms,
     contentTokens,
+  }
+}
+
+function summarizeHighValueBulletSignals(bullets: string[]): PremiumMetricBulletSummary {
+  let premiumBulletCount = 0
+  let premiumPercentBulletCount = 0
+  let premiumScopeBulletCount = 0
+  let premiumTechnologyImpactBulletCount = 0
+
+  bullets.forEach((bullet) => {
+    if (!isHighValueMetricBullet(bullet)) {
+      return
+    }
+
+    const signals = buildBulletSignals(bullet)
+    premiumBulletCount += 1
+
+    if (signals.metricTokens.some((token) => token.includes('%'))) {
+      premiumPercentBulletCount += 1
+    }
+
+    if (signals.scopeTerms.length > 0) {
+      premiumScopeBulletCount += 1
+    }
+
+    if (signals.technologyTerms.length > 0 && signals.impactTerms.length > 0) {
+      premiumTechnologyImpactBulletCount += 1
+    }
+  })
+
+  return {
+    premiumBulletCount,
+    premiumPercentBulletCount,
+    premiumScopeBulletCount,
+    premiumTechnologyImpactBulletCount,
+    section: 'experience',
   }
 }
 
@@ -257,6 +317,12 @@ export function findMetricImpactRegressions(
   return regressions
 }
 
+export function summarizePremiumMetricBullets(cvState: CVState): PremiumMetricBulletSummary {
+  return summarizeHighValueBulletSignals(
+    cvState.experience.flatMap((entry) => entry.bullets),
+  )
+}
+
 export function countPreservedMetricImpactBullets(
   originalCvState: CVState,
   optimizedCvState: CVState,
@@ -282,4 +348,35 @@ export function countPreservedMetricImpactBullets(
   })
 
   return preservedCount
+}
+
+export function compareMetricImpactPreservation(
+  originalCvState: CVState,
+  optimizedCvState: CVState,
+): MetricImpactComparison {
+  const premiumSummary = summarizePremiumMetricBullets(originalCvState)
+  const regressions = findMetricImpactRegressions(originalCvState, optimizedCvState)
+  const preservedCount = countPreservedMetricImpactBullets(originalCvState, optimizedCvState)
+
+  let metricPreservationStatus: MetricImpactPreservationStatus = 'none'
+  if (premiumSummary.premiumBulletCount > 0) {
+    if (regressions.length === 0 && preservedCount >= premiumSummary.premiumBulletCount) {
+      metricPreservationStatus = 'full'
+    } else if (preservedCount > 0) {
+      metricPreservationStatus = 'partial'
+    } else {
+      metricPreservationStatus = 'regressed'
+    }
+  }
+
+  return {
+    ...premiumSummary,
+    premiumBulletCountOriginal: premiumSummary.premiumBulletCount,
+    premiumBulletCountFinal: preservedCount,
+    regressionCount: regressions.length,
+    percentMetricLost: regressions.some((regression) => regression.metricTokens.some((token) => token.includes('%'))),
+    scopeLost: regressions.some((regression) => regression.scopeTerms.length > 0),
+    impactLost: regressions.some((regression) => regression.impactTerms.length > 0),
+    metricPreservationStatus,
+  }
 }

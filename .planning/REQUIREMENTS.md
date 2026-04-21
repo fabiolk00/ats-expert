@@ -202,6 +202,9 @@
 | ATS-METRIC-PRESERVE-01 | Phase 68 | Complete |
 | ATS-METRIC-PRESERVE-GATE-01 | Phase 68 | Complete |
 | ATS-METRIC-PRESERVE-TEST-01 | Phase 68 | Complete |
+| ATS-METRIC-OBS-01 | Phase 69 | Complete |
+| ATS-METRIC-OBS-RECOVERY-01 | Phase 69 | Complete |
+| ATS-METRIC-OBS-TEST-01 | Phase 69 | Complete |
 
 **Coverage:**
 - v1.6 requirements: 59 total

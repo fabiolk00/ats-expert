@@ -17,6 +17,10 @@ const {
   mockLogInfo,
   mockLogWarn,
   mockLogError,
+  mockRecordPremiumBulletsDetected,
+  mockRecordMetricRegressionDetected,
+  mockRecordRecoveryPathSelected,
+  mockRecordFinalMetricPreservationResult,
 } = vi.hoisted(() => ({
   mockAnalyzeAtsGeneral: vi.fn(),
   mockAnalyzeGap: vi.fn(),
@@ -27,6 +31,10 @@ const {
   mockLogInfo: vi.fn(),
   mockLogWarn: vi.fn(),
   mockLogError: vi.fn(),
+  mockRecordPremiumBulletsDetected: vi.fn(),
+  mockRecordMetricRegressionDetected: vi.fn(),
+  mockRecordRecoveryPathSelected: vi.fn(),
+  mockRecordFinalMetricPreservationResult: vi.fn(),
 }))
 
 vi.mock('@/lib/agent/tools/ats-analysis', () => ({
@@ -51,6 +59,13 @@ vi.mock('@/lib/db/cv-versions', () => ({
 
 vi.mock('@/lib/db/sessions', () => ({
   updateSession: mockUpdateSession,
+}))
+
+vi.mock('@/lib/agent/tools/metric-impact-observability', () => ({
+  recordPremiumBulletsDetected: mockRecordPremiumBulletsDetected,
+  recordMetricRegressionDetected: mockRecordMetricRegressionDetected,
+  recordRecoveryPathSelected: mockRecordRecoveryPathSelected,
+  recordFinalMetricPreservationResult: mockRecordFinalMetricPreservationResult,
 }))
 
 vi.mock('@/lib/observability/structured-log', () => ({
@@ -414,6 +429,18 @@ describe('ATS enhancement reliability hardening', () => {
       currentStage: 'persist_version',
     })
     expect(mockCreateCvVersion).toHaveBeenCalledTimes(1)
+    expect(mockRecordPremiumBulletsDetected).toHaveBeenCalledWith(expect.objectContaining({
+      workflowMode: 'ats_enhancement',
+      sessionId: session.id,
+    }))
+    expect(mockRecordMetricRegressionDetected).toHaveBeenCalledWith(expect.objectContaining({
+      workflowMode: 'ats_enhancement',
+      regressionCount: 0,
+    }))
+    expect(mockRecordFinalMetricPreservationResult).toHaveBeenCalledWith(expect.objectContaining({
+      workflowMode: 'ats_enhancement',
+      recoveryPath: 'none',
+    }))
     expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.started', expect.any(Object))
     expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.completed', expect.objectContaining({
       workflowMode: 'ats_enhancement',
@@ -487,6 +514,7 @@ describe('ATS enhancement reliability hardening', () => {
       workflowMode: 'ats_enhancement',
       recoveryKind: 'smart_repair',
     }))
+    expect(mockRecordRecoveryPathSelected).not.toHaveBeenCalled()
     expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.completed', expect.objectContaining({
       workflowMode: 'ats_enhancement',
       success: true,
@@ -614,6 +642,29 @@ describe('ATS enhancement reliability hardening', () => {
 
     expect(result.success).toBe(true)
     expect(session.agentState.optimizedCvState?.experience).toEqual(session.cvState.experience)
+    expect(mockRecordMetricRegressionDetected).toHaveBeenCalledWith(expect.objectContaining({
+      workflowMode: 'ats_enhancement',
+      regressionCount: 1,
+      percentMetricLost: true,
+      scopeLost: true,
+    }))
+    expect(mockRecordRecoveryPathSelected).toHaveBeenCalledWith(expect.objectContaining({
+      workflowMode: 'ats_enhancement',
+      path: 'smart_repair',
+      regressionCount: 1,
+    }))
+    expect(mockRecordFinalMetricPreservationResult).toHaveBeenCalledWith(expect.objectContaining({
+      workflowMode: 'ats_enhancement',
+      recoveryPath: 'smart_repair',
+      premiumBulletCountOriginal: 1,
+      premiumBulletCountFinal: 1,
+      metricPreservationStatus: 'full',
+    }))
+    const serializedObservabilityCalls = JSON.stringify(mockRecordMetricRegressionDetected.mock.calls)
+      + JSON.stringify(mockRecordRecoveryPathSelected.mock.calls)
+      + JSON.stringify(mockRecordFinalMetricPreservationResult.mock.calls)
+    expect(serializedObservabilityCalls).not.toContain('Aumentei em 15%')
+    expect(serializedObservabilityCalls).not.toContain('LATAM com dashboards')
     expect(session.agentState.optimizationSummary?.notes).toContain(
       'Experiência revertida para a versão original após validação conservadora.',
     )

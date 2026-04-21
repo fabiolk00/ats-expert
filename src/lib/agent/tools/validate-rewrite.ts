@@ -1,6 +1,6 @@
 import type { RewriteValidationResult, WorkflowMode, TargetingPlan } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
-import { findMetricImpactRegressions } from './metric-impact-guard'
+import { compareMetricImpactPreservation, findMetricImpactRegressions } from './metric-impact-guard'
 
 function normalize(value: string | undefined): string {
   return (value ?? '').trim().toLowerCase()
@@ -49,6 +49,7 @@ export function validateRewrite(
   const issues: RewriteValidationResult['issues'] = []
   const originalEvidenceText = buildEvidenceText(originalCvState)
   const optimizedSummary = normalize(optimizedCvState.summary)
+  const editorialMetrics = compareMetricImpactPreservation(originalCvState, optimizedCvState)
 
   const originalCompanies = new Set(originalCvState.experience.map((entry) => normalize(entry.company)))
   const originalTitleCompanyPairs = new Set(
@@ -211,5 +212,6 @@ export function validateRewrite(
   return {
     valid: issues.length === 0,
     issues,
+    editorialMetrics,
   }
 }

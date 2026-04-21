@@ -2,6 +2,13 @@ import { executeWithStageRetry } from '@/lib/agent/ats-enhancement-retry'
 import { createCvVersion } from '@/lib/db/cv-versions'
 import { updateSession } from '@/lib/db/sessions'
 import { analyzeAtsGeneral } from '@/lib/agent/tools/ats-analysis'
+import {
+  recordFinalMetricPreservationResult,
+  recordMetricRegressionDetected,
+  recordPremiumBulletsDetected,
+  recordRecoveryPathSelected,
+} from '@/lib/agent/tools/metric-impact-observability'
+import { compareMetricImpactPreservation, summarizePremiumMetricBullets } from '@/lib/agent/tools/metric-impact-guard'
 import { rewriteResumeFull } from '@/lib/agent/tools/rewrite-resume-full'
 import { validateRewrite } from '@/lib/agent/tools/validate-rewrite'
 import { buildAtsReadinessContractForEnhancement } from '@/lib/ats/scoring'
@@ -209,6 +216,12 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
     stage: 'analysis',
   })
 
+  recordPremiumBulletsDetected({
+    workflowMode: 'ats_enhancement',
+    sessionId: session.id,
+    ...summarizePremiumMetricBullets(session.cvState),
+  })
+
   const atsAnalysisResult = await executeWithStageRetry(
     async (attempt) => {
       session.agentState.atsWorkflowRun = buildWorkflowRun(session, {
@@ -328,9 +341,18 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
   const optimizedAt = new Date().toISOString()
   const validationIssueMessages = validation.issues.map((issue) => issue.message)
   const validationIssueSections = Array.from(new Set(validation.issues.map((issue) => issue.section).filter(Boolean)))
+  const initialEditorialMetrics = validation.editorialMetrics
+    ?? compareMetricImpactPreservation(session.cvState, rewriteResult.optimizedCvState)
   let finalOptimizedCvState = rewriteResult.optimizedCvState
   let finalValidation = validation
   let finalOptimizationSummary = rewriteResult.summary
+  let editorialRecoveryPath: 'none' | 'smart_repair' | 'conservative_fallback' | 'revert' = 'none'
+
+  recordMetricRegressionDetected({
+    workflowMode: 'ats_enhancement',
+    sessionId: session.id,
+    ...initialEditorialMetrics,
+  })
 
   if (!validation.valid) {
     const smartRepair = buildSmartAtsRepairCvState(
@@ -362,6 +384,16 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
         originalIssueCount: validation.issues.length,
         originalIssueSections: validationIssueSections.join(', ') || undefined,
       })
+      if (initialEditorialMetrics.regressionCount > 0) {
+        editorialRecoveryPath = 'smart_repair'
+        recordRecoveryPathSelected({
+          workflowMode: 'ats_enhancement',
+          sessionId: session.id,
+          path: 'smart_repair',
+          regressionCount: initialEditorialMetrics.regressionCount,
+          premiumBulletCount: initialEditorialMetrics.premiumBulletCountOriginal,
+        })
+      }
     } else {
       const conservativeFallback = buildSmartAtsRepairCvState(
         session.cvState,
@@ -393,6 +425,16 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
           originalIssueCount: validation.issues.length,
           originalIssueSections: validationIssueSections.join(', ') || undefined,
         })
+        if (initialEditorialMetrics.regressionCount > 0) {
+          editorialRecoveryPath = 'conservative_fallback'
+          recordRecoveryPathSelected({
+            workflowMode: 'ats_enhancement',
+            sessionId: session.id,
+            path: 'conservative_fallback',
+            regressionCount: initialEditorialMetrics.regressionCount,
+            premiumBulletCount: initialEditorialMetrics.premiumBulletCountOriginal,
+          })
+        }
       } else {
         finalOptimizedCvState = structuredClone(session.cvState)
         finalValidation = validateRewrite(session.cvState, finalOptimizedCvState)
@@ -414,9 +456,29 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
           originalIssueCount: validation.issues.length,
           originalIssueSections: validationIssueSections.join(', ') || undefined,
         })
+        if (initialEditorialMetrics.regressionCount > 0) {
+          editorialRecoveryPath = 'revert'
+          recordRecoveryPathSelected({
+            workflowMode: 'ats_enhancement',
+            sessionId: session.id,
+            path: 'revert',
+            regressionCount: initialEditorialMetrics.regressionCount,
+            premiumBulletCount: initialEditorialMetrics.premiumBulletCountOriginal,
+          })
+        }
       }
     }
   }
+
+  const finalEditorialMetrics = finalValidation.editorialMetrics
+    ?? compareMetricImpactPreservation(session.cvState, finalOptimizedCvState)
+
+  recordFinalMetricPreservationResult({
+    workflowMode: 'ats_enhancement',
+    sessionId: session.id,
+    recoveryPath: editorialRecoveryPath,
+    ...finalEditorialMetrics,
+  })
 
   const nextAgentState: Session['agentState'] = {
     ...session.agentState,
