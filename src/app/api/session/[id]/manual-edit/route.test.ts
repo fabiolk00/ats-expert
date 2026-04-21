@@ -187,6 +187,7 @@ describe('manual edit route', () => {
           generatedAt: undefined,
           error: undefined,
           previewAccess: undefined,
+          staleArtifact: undefined,
         },
       },
       'manual',
@@ -316,6 +317,8 @@ describe('manual edit route', () => {
       success: true,
       scope: 'base',
       changed: true,
+      artifactRefreshDeferred: false,
+      artifactStalePreserved: false,
     })
     expect(applyToolPatchWithVersion).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'sess_123' }),
@@ -330,6 +333,7 @@ describe('manual edit route', () => {
           generatedAt: undefined,
           error: undefined,
           previewAccess: undefined,
+          staleArtifact: undefined,
         },
       },
       'manual',
@@ -397,6 +401,8 @@ describe('manual edit route', () => {
       scope: 'target',
       targetId: 'target_123',
       changed: true,
+      artifactRefreshDeferred: false,
+      artifactStalePreserved: false,
     })
     expect(updateResumeTargetCvStateWithVersion).toHaveBeenCalledWith({
       sessionId: 'sess_123',
@@ -441,6 +447,8 @@ describe('manual edit route', () => {
       success: true,
       scope: 'optimized',
       changed: true,
+      artifactRefreshDeferred: false,
+      artifactStalePreserved: false,
     })
     expect(applyToolPatchWithVersion).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'sess_123' }),
@@ -458,6 +466,7 @@ describe('manual edit route', () => {
           generatedAt: undefined,
           error: undefined,
           previewAccess: undefined,
+          staleArtifact: undefined,
         },
       },
     )
@@ -513,6 +522,8 @@ describe('manual edit route', () => {
       success: true,
       scope: 'optimized',
       changed: true,
+      artifactRefreshDeferred: true,
+      artifactStalePreserved: true,
     })
     expect(applyToolPatchWithVersion).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'sess_123' }),
@@ -523,14 +534,14 @@ describe('manual edit route', () => {
           }),
           rewriteStatus: 'completed',
         }),
+        generatedOutput: {
+          staleArtifact: {
+            reason: 'manual_edit_saved_while_export_active',
+            staleSince: expect.any(String),
+            pendingJobId: 'job_active_123',
+          },
+        },
       },
-    )
-    expect(applyToolPatchWithVersion).not.toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        generatedOutput: expect.anything(),
-      }),
-      expect.anything(),
     )
   })
 

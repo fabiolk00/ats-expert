@@ -2,8 +2,8 @@ import Link from "next/link"
 
 import type { AtsReadinessDisplayContract } from "@/lib/ats/scoring/types"
 import ATSScoreBadge from "@/components/ats-score-badge"
+import { AtsReadinessStatusBadge } from "@/components/ats-readiness-status-badge"
 import PhaseBadge from "@/components/phase-badge"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
 type Phase = "intake" | "analysis" | "dialog" | "confirm" | "generation"
@@ -41,7 +41,9 @@ export default function SessionList({ sessions }: SessionListProps) {
                       score={session.atsReadiness.displayedReadinessScoreCurrent}
                       formattedScore={session.atsReadiness.display.formattedScorePtBr}
                     />
-                    <Badge variant="outline">{session.atsReadiness.display.badgeTextPtBr}</Badge>
+                    <AtsReadinessStatusBadge
+                      badgeText={session.atsReadiness.display.badgeTextPtBr}
+                    />
                   </>
                 ) : null}
               </div>

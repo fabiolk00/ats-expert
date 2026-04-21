@@ -228,4 +228,40 @@ describe('PreviewPanel', () => {
     expect(screen.queryByTestId('preview-open-external')).not.toBeInTheDocument()
     expect(screen.queryByTestId('resume-editor-state')).not.toBeInTheDocument()
   })
+
+  it('shows an explicit warning when the available pdf is stale after a saved manual edit', async () => {
+    vi.mocked(getDownloadUrls).mockResolvedValue({
+      available: true,
+      docxUrl: null,
+      pdfUrl: 'https://example.com/resume-stale.pdf',
+      generationStatus: 'generating',
+      artifactStale: {
+        reason: 'manual_edit_saved_while_export_active',
+        message: 'O PDF disponível ainda corresponde à versão anterior. Gere um novo arquivo após a exportação atual terminar para refletir a edição salva.',
+        staleSince: '2026-04-21T13:05:00.000Z',
+        pendingJobId: 'job_running_123',
+      },
+      previewLock: undefined,
+    })
+
+    render(
+      <PreviewPanel
+        inline
+        showCloseButton={false}
+        fileOverride={{
+          sessionId: 'sess_123',
+          targetId: null,
+          type: 'pdf',
+          label: 'Resume',
+        }}
+      />,
+    )
+
+    await waitFor(() => {
+    expect(screen.getByText('O PDF disponível ainda corresponde à versão anterior. Gere um novo arquivo após a exportação atual terminar para refletir a edição salva.')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('preview-download-pdf')).toBeInTheDocument()
+    expect(screen.getByTestId('preview-panel-frame')).toHaveAttribute('src', 'https://example.com/resume-stale.pdf')
+  })
 })

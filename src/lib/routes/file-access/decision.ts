@@ -75,6 +75,14 @@ export function resolveArtifactReconciliation(
 function buildBaseResponseBody(context: FileAccessContext) {
   const generationStatus = resolveArtifactGenerationStatus(context)
   const errorMessage = resolveArtifactErrorMessage(context)
+  const artifactStale = context.artifactMetadata.staleArtifact
+    ? {
+      reason: context.artifactMetadata.staleArtifact.reason,
+      message: 'O PDF disponível ainda corresponde à versão anterior. Gere um novo arquivo após a exportação atual terminar para refletir a edição salva.',
+      staleSince: context.artifactMetadata.staleArtifact.staleSince,
+      pendingJobId: context.artifactMetadata.staleArtifact.pendingJobId,
+    }
+    : undefined
 
   return {
     docxUrl: null,
@@ -84,6 +92,7 @@ function buildBaseResponseBody(context: FileAccessContext) {
     stage: context.latestArtifactJob?.stage,
     progress: context.latestArtifactJob?.progress,
     errorMessage,
+    artifactStale,
     previewLock: getPreviewLockSummary(context.artifactMetadata),
     reconciliation: resolveArtifactReconciliation(context, errorMessage),
   }

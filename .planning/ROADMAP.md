@@ -464,3 +464,23 @@ Plans:
 
 Plans:
 - [x] 74-01-PLAN.md - Narrow export conflict policy to the current session scope, keep the previous artifact available when a real same-scope export is already active during manual save, treat post-save export conflicts as saved-but-deferred in the editor UX, add observability for save/download conflict states, and cover the real deadlock regression with route and modal tests
+
+### Phase 75: Code review e hardening por testes do fluxo de edição manual vs export ativo
+
+**Goal:** Critically review the Phase 74 manual-edit versus active-export policy, make the stale-artifact state explicit across route/UI/download surfaces, and harden the dangerous edge cases through stronger tests before treating the flow as settled.
+**Requirements**: [MANUAL-EXPORT-REVIEW-01, MANUAL-EXPORT-REVIEW-TEST-01, MANUAL-EXPORT-REVIEW-OBS-01]
+**Depends on:** Phase 74
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 75-01-PLAN.md - Review the Phase 74 policy, expose stale-artifact state explicitly to file access and preview surfaces, harden manual-save versus active-export tests, and document the resulting state machine plus residual risks
+
+### Phase 76: Adicionar ícone de ajuda no badge Estimado com explicação curta do contexto do ATS
+
+**Goal:** Make the `Estimado` ATS Readiness badge self-explanatory by adding a compact help affordance that explains why the score is shown as a range without leaking internal scoring jargon.
+**Requirements**: [ATS-ESTIMATED-HELP-01, ATS-ESTIMATED-HELP-TEST-01]
+**Depends on:** Phase 75
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 76-01-PLAN.md - Add a shared estimated-score help badge with accessible tooltip behavior, wire it into ATS readiness surfaces that render `Estimado`, and cover display plus interaction regressions

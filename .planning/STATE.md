@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 74
-current_phase_name: corrigir bloqueio indevido de edicao manual por exportacao e restaurar confiabilidade do download do arquivo
+current_phase: 76
+current_phase_name: adicionar icone de ajuda no badge estimado com explicacao curta do contexto do ats
 current_plan: 01
 status: complete
-stopped_at: Completed 74-01-PLAN.md
-last_updated: "2026-04-21T11:10:00.000Z"
+stopped_at: Completed 76-01-PLAN.md
+last_updated: "2026-04-21T15:25:00.000Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 24
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Manual resume edits now survive real export conflicts without falling into a dead zone: unrelated exports no longer block regeneration, same-scope active exports keep the last valid artifact usable, and the editor now reports saved-but-deferred PDF refreshes clearly.
+**Current focus:** ATS estimated scores now explain themselves more clearly in-product: the `Estimado` badge carries a compact help affordance with plain-language context, while final scores remain visually clean.
 
 ## Current Position
 
-Phase: 74 (corrigir bloqueio indevido de edicao manual por exportacao e restaurar confiabilidade do download do arquivo) - COMPLETE
+Phase: 76 (adicionar icone de ajuda no badge estimado com explicacao curta do contexto do ats) - COMPLETE
 Plan: 01 complete
-Current Phase: 74
-Current Phase Name: corrigir bloqueio indevido de edicao manual por exportacao e restaurar confiabilidade do download do arquivo
+Current Phase: 76
+Current Phase Name: adicionar icone de ajuda no badge estimado com explicacao curta do contexto do ats
 Current Plan: 01
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: Manual resume edits now persist even when a real export is already running, unrelated exports no longer block regeneration, and the editor keeps users out of the save/download dead zone with deferred-refresh messaging
+Last Activity Description: Estimated ATS Readiness badges now expose a compact accessible help cue in the comparison and session-list surfaces so users understand why the score is shown as a range
 
 Progress: [##########] 100%
 
@@ -111,6 +111,9 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 73]: Premium highlight behavior remains intact for materially improved high-value bullets such as quantified metric/scope cases, while the inline green treatment is now visually softer and less diff-like.
 - [Phase 74]: Session-generate export conflicts are now scoped to the current session/target instead of any active artifact job owned by the user, so unrelated exports no longer block manual-edit regeneration.
 - [Phase 74]: When a real same-scope export is already in progress, manual save now persists the edited resume without immediately invalidating the last valid artifact, and the editor surfaces the PDF refresh as deferred instead of failing the save.
+- [Phase 75]: The Phase 74 policy is no longer treated as implicitly safe: preserved stale artifacts now carry explicit `staleArtifact` metadata through file-access responses, preview surfaces, and tests so “saved but PDF still old” is visible instead of silent.
+- [Phase 75]: The current policy is accepted only in adjusted form: keeping the old PDF available during a same-scope active export is defensible as long as the product surfaces clearly mark that artifact as stale and awaiting resynchronization.
+- [Phase 76]: `Estimado` ATS Readiness states now use a shared badge component with an embedded help affordance, so the explanation of the estimated range stays consistent anywhere that badge is rendered.
 - [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 

@@ -32,6 +32,12 @@ export type FileAccessResponseBody = {
   stage?: string
   progress?: JobStatusSnapshot['progress']
   errorMessage?: string
+  artifactStale?: {
+    reason: 'manual_edit_saved_while_export_active'
+    message: string
+    staleSince?: string
+    pendingJobId?: string
+  }
   previewLock?: PreviewLockSummary
   reconciliation?: {
     required: true

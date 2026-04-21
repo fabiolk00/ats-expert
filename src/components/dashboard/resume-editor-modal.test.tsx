@@ -239,7 +239,7 @@ describe('ResumeEditorModal', () => {
 
     expect(screen.queryByText('EXPORT_ALREADY_PROCESSING')).not.toBeInTheDocument()
     expect(toast.success).toHaveBeenCalledWith(
-      'Sua edição foi salva. A exportação atual precisa terminar antes de atualizar o PDF.',
+      'Sua edição foi salva, mas o PDF disponível ainda corresponde à versão anterior. Gere um novo arquivo após a conclusão da exportação atual.',
     )
   })
 })

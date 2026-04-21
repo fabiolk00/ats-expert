@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -158,7 +158,7 @@ export function ResumeEditorModal({
       close()
       onSaved(structuredClone(draft))
       const successMessage = generationDeferredByActiveExport
-        ? 'Sua edição foi salva. A exportação atual precisa terminar antes de atualizar o PDF.'
+        ? 'Sua edição foi salva, mas o PDF disponível ainda corresponde à versão anterior. Gere um novo arquivo após a conclusão da exportação atual.'
         : 'Edição salva. Atualizando o PDF.'
       toast.success(successMessage)
     } catch (err) {
@@ -183,8 +183,8 @@ export function ResumeEditorModal({
 
         <TabsContent value="experience" forceMount hidden={activeTab !== 'experience'} className={activeTab === 'experience' ? 'mt-0 space-y-4' : 'hidden'}>
           <div className="flex items-center justify-between gap-3">
-            <Section title="Experiência" subtitle="Edite cargos, datas e bullets." />
-            <Button type="button" size="sm" className="bg-[#b8860b] text-white hover:bg-[#a47609]" onClick={() => update((current) => ({ ...current, experience: [...current.experience, { title: '', company: '', location: '', startDate: '', endDate: 'present', bullets: [''] }] }))}><Plus className="h-4 w-4" />Adicionar experiência</Button>
+            <Section title="ExperiÃªncia" subtitle="Edite cargos, datas e bullets." />
+            <Button type="button" size="sm" className="bg-[#b8860b] text-white hover:bg-[#a47609]" onClick={() => update((current) => ({ ...current, experience: [...current.experience, { title: '', company: '', location: '', startDate: '', endDate: 'present', bullets: [''] }] }))}><Plus className="h-4 w-4" />Adicionar experiÃªncia</Button>
           </div>
           {draft.experience.map((item, index) => (
             <div key={`experience-${index}`} className={`${cardClass} space-y-3`}>
@@ -194,11 +194,11 @@ export function ResumeEditorModal({
                   <Input placeholder="Empresa" value={item.company} className={inputClass} onChange={(event) => update((current) => ({ ...current, experience: current.experience.map((entry, entryIndex) => entryIndex === index ? { ...entry, company: event.target.value } : entry) }))} />
                   <Input placeholder="Local" value={item.location ?? ''} className={inputClass} onChange={(event) => update((current) => ({ ...current, experience: current.experience.map((entry, entryIndex) => entryIndex === index ? { ...entry, location: event.target.value } : entry) }))} />
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Input placeholder="Início" value={item.startDate} className={inputClass} onChange={(event) => update((current) => ({ ...current, experience: current.experience.map((entry, entryIndex) => entryIndex === index ? { ...entry, startDate: event.target.value } : entry) }))} />
+                    <Input placeholder="InÃ­cio" value={item.startDate} className={inputClass} onChange={(event) => update((current) => ({ ...current, experience: current.experience.map((entry, entryIndex) => entryIndex === index ? { ...entry, startDate: event.target.value } : entry) }))} />
                     <Input placeholder="Fim" value={item.endDate} className={inputClass} onChange={(event) => update((current) => ({ ...current, experience: current.experience.map((entry, entryIndex) => entryIndex === index ? { ...entry, endDate: event.target.value } : entry) }))} />
                   </div>
                 </div>
-                <Button type="button" variant="ghost" size="icon-sm" className="text-[#9c9789] hover:bg-[#fff6ef] hover:text-[#b8860b]" onClick={() => update((current) => ({ ...current, experience: current.experience.filter((_, entryIndex) => entryIndex !== index) }))}><Trash2 className="h-4 w-4" /><span className="sr-only">Remover experiência</span></Button>
+                <Button type="button" variant="ghost" size="icon-sm" className="text-[#9c9789] hover:bg-[#fff6ef] hover:text-[#b8860b]" onClick={() => update((current) => ({ ...current, experience: current.experience.filter((_, entryIndex) => entryIndex !== index) }))}><Trash2 className="h-4 w-4" /><span className="sr-only">Remover experiÃªncia</span></Button>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
@@ -218,19 +218,19 @@ export function ResumeEditorModal({
 
         <TabsContent value="education" forceMount hidden={activeTab !== 'education'} className={activeTab === 'education' ? 'mt-0 space-y-4' : 'hidden'}>
           <div className="flex items-center justify-between gap-3">
-            <Section title="Educação" subtitle="Formação, instituição e ano." />
-            <Button type="button" size="sm" className="bg-[#b8860b] text-white hover:bg-[#a47609]" onClick={() => update((current) => ({ ...current, education: [...current.education, { degree: '', institution: '', year: '', gpa: '' }] }))}><Plus className="h-4 w-4" />Adicionar formação</Button>
+            <Section title="EducaÃ§Ã£o" subtitle="FormaÃ§Ã£o, instituiÃ§Ã£o e ano." />
+            <Button type="button" size="sm" className="bg-[#b8860b] text-white hover:bg-[#a47609]" onClick={() => update((current) => ({ ...current, education: [...current.education, { degree: '', institution: '', year: '', gpa: '' }] }))}><Plus className="h-4 w-4" />Adicionar formaÃ§Ã£o</Button>
           </div>
           {draft.education.map((item, index) => (
             <div key={`education-${index}`} className={`${cardClass} space-y-3`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="grid flex-1 gap-3 sm:grid-cols-2">
                   <Input placeholder="Curso" value={item.degree} className={inputClass} onChange={(event) => update((current) => ({ ...current, education: current.education.map((entry, entryIndex) => entryIndex === index ? { ...entry, degree: event.target.value } : entry) }))} />
-                  <Input placeholder="Instituição" value={item.institution} className={inputClass} onChange={(event) => update((current) => ({ ...current, education: current.education.map((entry, entryIndex) => entryIndex === index ? { ...entry, institution: event.target.value } : entry) }))} />
+                  <Input placeholder="InstituiÃ§Ã£o" value={item.institution} className={inputClass} onChange={(event) => update((current) => ({ ...current, education: current.education.map((entry, entryIndex) => entryIndex === index ? { ...entry, institution: event.target.value } : entry) }))} />
                   <Input placeholder="Ano" value={item.year} className={inputClass} onChange={(event) => update((current) => ({ ...current, education: current.education.map((entry, entryIndex) => entryIndex === index ? { ...entry, year: event.target.value } : entry) }))} />
                   <Input placeholder="GPA (opcional)" value={item.gpa ?? ''} className={inputClass} onChange={(event) => update((current) => ({ ...current, education: current.education.map((entry, entryIndex) => entryIndex === index ? { ...entry, gpa: event.target.value } : entry) }))} />
                 </div>
-                <Button type="button" variant="ghost" size="icon-sm" className="text-[#9c9789] hover:bg-[#fff6ef] hover:text-[#b8860b]" onClick={() => update((current) => ({ ...current, education: current.education.filter((_, entryIndex) => entryIndex !== index) }))}><Trash2 className="h-4 w-4" /><span className="sr-only">Remover formação</span></Button>
+                <Button type="button" variant="ghost" size="icon-sm" className="text-[#9c9789] hover:bg-[#fff6ef] hover:text-[#b8860b]" onClick={() => update((current) => ({ ...current, education: current.education.filter((_, entryIndex) => entryIndex !== index) }))}><Trash2 className="h-4 w-4" /><span className="sr-only">Remover formaÃ§Ã£o</span></Button>
               </div>
             </div>
           ))}
@@ -259,24 +259,24 @@ export function ResumeEditorModal({
             <Input placeholder="Email" value={draft.email} className={inputClass} onChange={(event) => update((current) => ({ ...current, email: event.target.value }))} />
             <Input placeholder="Telefone" value={draft.phone} className={inputClass} onChange={(event) => update((current) => ({ ...current, phone: event.target.value }))} />
             <Input placeholder="LinkedIn" value={draft.linkedin ?? ''} className={inputClass} onChange={(event) => update((current) => ({ ...current, linkedin: event.target.value }))} />
-            <Input placeholder="Localização" value={draft.location ?? ''} className={`${inputClass} sm:col-span-2`} onChange={(event) => update((current) => ({ ...current, location: event.target.value }))} />
+            <Input placeholder="LocalizaÃ§Ã£o" value={draft.location ?? ''} className={`${inputClass} sm:col-span-2`} onChange={(event) => update((current) => ({ ...current, location: event.target.value }))} />
           </div>
         </TabsContent>
 
         <TabsContent value="certifications" forceMount hidden={activeTab !== 'certifications'} className={activeTab === 'certifications' ? 'mt-0 space-y-4' : 'hidden'}>
           <div className="flex items-center justify-between gap-3">
-            <Section title="Certificações" subtitle="Certificações profissionais e credenciais." />
-            <Button type="button" size="sm" className="bg-[#b8860b] text-white hover:bg-[#a47609]" onClick={() => update((current) => ({ ...current, certifications: [...(current.certifications ?? []), { name: '', issuer: '', year: '' }] }))}><Plus className="h-4 w-4" />Adicionar certificação</Button>
+            <Section title="CertificaÃ§Ãµes" subtitle="CertificaÃ§Ãµes profissionais e credenciais." />
+            <Button type="button" size="sm" className="bg-[#b8860b] text-white hover:bg-[#a47609]" onClick={() => update((current) => ({ ...current, certifications: [...(current.certifications ?? []), { name: '', issuer: '', year: '' }] }))}><Plus className="h-4 w-4" />Adicionar certificaÃ§Ã£o</Button>
           </div>
           {(draft.certifications ?? []).map((item, index) => (
             <div key={`certification-${index}`} className={`${cardClass} space-y-3`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="grid flex-1 gap-3 sm:grid-cols-3">
-                  <Input placeholder="Nome da certificação" value={item.name} className={inputClass} onChange={(event) => update((current) => ({ ...current, certifications: (current.certifications ?? []).map((entry, entryIndex) => entryIndex === index ? { ...entry, name: event.target.value } : entry) }))} />
+                  <Input placeholder="Nome da certificaÃ§Ã£o" value={item.name} className={inputClass} onChange={(event) => update((current) => ({ ...current, certifications: (current.certifications ?? []).map((entry, entryIndex) => entryIndex === index ? { ...entry, name: event.target.value } : entry) }))} />
                   <Input placeholder="Emissor" value={item.issuer} className={inputClass} onChange={(event) => update((current) => ({ ...current, certifications: (current.certifications ?? []).map((entry, entryIndex) => entryIndex === index ? { ...entry, issuer: event.target.value } : entry) }))} />
                   <Input placeholder="Ano" value={item.year ?? ''} className={inputClass} onChange={(event) => update((current) => ({ ...current, certifications: (current.certifications ?? []).map((entry, entryIndex) => entryIndex === index ? { ...entry, year: event.target.value } : entry) }))} />
                 </div>
-                <Button type="button" variant="ghost" size="icon-sm" className="text-[#9c9789] hover:bg-[#fff6ef] hover:text-[#b8860b]" onClick={() => update((current) => ({ ...current, certifications: (current.certifications ?? []).filter((_, entryIndex) => entryIndex !== index) }))}><Trash2 className="h-4 w-4" /><span className="sr-only">Remover certificação</span></Button>
+                <Button type="button" variant="ghost" size="icon-sm" className="text-[#9c9789] hover:bg-[#fff6ef] hover:text-[#b8860b]" onClick={() => update((current) => ({ ...current, certifications: (current.certifications ?? []).filter((_, entryIndex) => entryIndex !== index) }))}><Trash2 className="h-4 w-4" /><span className="sr-only">Remover certificaÃ§Ã£o</span></Button>
               </div>
             </div>
           ))}
@@ -289,17 +289,17 @@ export function ResumeEditorModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={!isSaving} className="flex max-h-[85vh] max-w-[92vw] flex-col gap-0 overflow-hidden border-[#e8e5dc] bg-[#fffef9] p-0 text-[#2c2a25] sm:max-w-4xl">
         <DialogHeader className="border-b border-[#e8e5dc] px-5 py-4">
-          <DialogTitle className="text-base font-bold tracking-[-0.02em] text-[#2c2a25]">Editar currículo</DialogTitle>
-          <DialogDescription className="text-xs text-[#9c9789]">Altere as seções e atualize o PDF com a versão salva.</DialogDescription>
+          <DialogTitle className="text-base font-bold tracking-[-0.02em] text-[#2c2a25]">Editar currÃ­culo</DialogTitle>
+          <DialogDescription className="text-xs text-[#9c9789]">Altere as seÃ§Ãµes e atualize o PDF com a versÃ£o salva.</DialogDescription>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Tab)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <TabsList className="h-auto flex-wrap justify-start gap-1 rounded-none border-b border-[#e8e5dc] bg-transparent px-4 py-3 text-[#9c9789]">
             <TabsTrigger value="summary" className="data-[state=active]:bg-[#f7f5ef] data-[state=active]:text-[#2c2a25]">Resumo</TabsTrigger>
-            <TabsTrigger value="experience" className="data-[state=active]:bg-[#f7f5ef] data-[state=active]:text-[#2c2a25]">Experiência</TabsTrigger>
-            <TabsTrigger value="education" className="data-[state=active]:bg-[#f7f5ef] data-[state=active]:text-[#2c2a25]">Educação</TabsTrigger>
+            <TabsTrigger value="experience" className="data-[state=active]:bg-[#f7f5ef] data-[state=active]:text-[#2c2a25]">ExperiÃªncia</TabsTrigger>
+            <TabsTrigger value="education" className="data-[state=active]:bg-[#f7f5ef] data-[state=active]:text-[#2c2a25]">EducaÃ§Ã£o</TabsTrigger>
             <TabsTrigger value="skills" className="data-[state=active]:bg-[#f7f5ef] data-[state=active]:text-[#2c2a25]">Skills</TabsTrigger>
             <TabsTrigger value="contact" className="data-[state=active]:bg-[#f7f5ef] data-[state=active]:text-[#2c2a25]">Contato</TabsTrigger>
-            <TabsTrigger value="certifications" className="data-[state=active]:bg-[#f7f5ef] data-[state=active]:text-[#2c2a25]">Certificações</TabsTrigger>
+            <TabsTrigger value="certifications" className="data-[state=active]:bg-[#f7f5ef] data-[state=active]:text-[#2c2a25]">CertificaÃ§Ãµes</TabsTrigger>
           </TabsList>
           <div className="min-h-0 flex-1 overflow-hidden">
             {isLoading ? <div className="flex h-full items-center justify-center px-5 py-10"><Loader2 className="h-5 w-5 animate-spin text-[#9c9789]" /></div> : null}
@@ -308,7 +308,7 @@ export function ResumeEditorModal({
           </div>
         </Tabs>
         <DialogFooter className="items-center justify-between border-t border-[#e8e5dc] px-5 py-3">
-          <p className="text-xs text-[#9c9789]">{saveError ?? 'As alterações salvas atualizam a versão usada no preview e na exportação.'}</p>
+          <p className="text-xs text-[#9c9789]">{saveError ?? 'As alteraÃ§Ãµes salvas atualizam a versÃ£o usada no preview e na exportaÃ§Ã£o.'}</p>
           <div className="flex gap-2">
             <Button type="button" variant="outline" className="border-[#e0ddd4] bg-transparent text-[#2c2a25]" disabled={isSaving} onClick={close}>Cancelar</Button>
             <Button type="button" disabled={isSaving || !draft || isLoading || Boolean(error)} className="bg-[#b8860b] text-white hover:bg-[#a47609]" onClick={() => void save()}>
@@ -320,4 +320,6 @@ export function ResumeEditorModal({
     </Dialog>
   )
 }
+
+
 

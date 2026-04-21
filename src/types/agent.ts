@@ -258,6 +258,11 @@ export type GeneratedOutput = {
   generatedAt?: string
   error?: string
   previewAccess?: PreviewAccess
+  staleArtifact?: {
+    reason: 'manual_edit_saved_while_export_active'
+    staleSince: string
+    pendingJobId?: string
+  }
 }
 
 export type Message = {
@@ -473,12 +478,14 @@ export type ManualEditOutput =
   | ToolFailure
 
 export type ResumeEditorSaveOutput =
-  | {
-      success: true
-      changed: boolean
-      scope: 'base' | 'optimized' | 'target'
-      targetId?: string
-    }
+    | {
+        success: true
+        changed: boolean
+        scope: 'base' | 'optimized' | 'target'
+        targetId?: string
+        artifactRefreshDeferred?: boolean
+        artifactStalePreserved?: boolean
+      }
   | ToolFailure
   | ToolFailure
 

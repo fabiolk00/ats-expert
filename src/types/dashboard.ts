@@ -213,6 +213,12 @@ export type ArtifactStatusSummary = {
   stage?: string
   progress?: JobProgress
   errorMessage?: string
+  artifactStale?: {
+    reason: 'manual_edit_saved_while_export_active'
+    message: string
+    staleSince?: string
+    pendingJobId?: string
+  }
   previewLock?: PreviewLockSummary
   reconciliation?: {
     required: boolean
@@ -231,6 +237,7 @@ export type DownloadUrlsResponse = {
   stage?: string
   progress?: JobProgress
   errorMessage?: string
+  artifactStale?: ArtifactStatusSummary['artifactStale']
   previewLock?: PreviewLockSummary
   reconciliation?: ArtifactStatusSummary['reconciliation']
 }

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+﻿import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
 import SessionList from "./session-list"
@@ -23,8 +23,8 @@ describe("SessionList", () => {
                 confidence: "low",
                 labelPtBr: "ATS Readiness Score",
                 badgeTextPtBr: "Estimado",
-                helperTextPtBr: "Faixa estimada com base na otimização concluída.",
-                formattedScorePtBr: "89–91",
+                helperTextPtBr: "Faixa estimada com base na otimizaÃ§Ã£o concluÃ­da.",
+                formattedScorePtBr: "89â€“91",
               },
             },
           },
@@ -32,7 +32,11 @@ describe("SessionList", () => {
       />,
     )
 
-    expect(screen.getByText("ATS Readiness Score: 89–91")).toBeInTheDocument()
+    expect(screen.getByText("ATS Readiness Score: 89â€“91")).toBeInTheDocument()
     expect(screen.getByText("Estimado")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Explicação do score estimado" })).toBeInTheDocument()
   })
+
 })
+
+

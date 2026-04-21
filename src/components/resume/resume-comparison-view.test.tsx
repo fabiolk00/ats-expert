@@ -184,8 +184,76 @@ describe('ResumeComparisonView', () => {
 
     expect(screen.getByText('89–91')).toBeInTheDocument()
     expect(screen.getByText('Estimado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Explicação do score estimado' })).toBeInTheDocument()
     expect(screen.queryByText('Faixa estimada com base na otimização concluída.')).not.toBeInTheDocument()
     expect(screen.queryByText('Pendente')).not.toBeInTheDocument()
+  })
+
+  it('does not render the estimated help icon when the ATS readiness status is final', () => {
+    render(
+      <ResumeComparisonView
+        originalCvState={buildCvState('Original summary')}
+        optimizedCvState={buildCvState('Optimized summary')}
+        generationType="ATS_ENHANCEMENT"
+        sessionId="sess_123"
+        originalScore={84}
+        optimizedScore={92}
+        atsReadiness={{
+          contractVersion: 2,
+          workflowMode: 'ats_enhancement',
+          evaluationStage: 'post_enhancement',
+          productLabel: 'ATS Readiness Score',
+          rawInternalScoreSource: 'scoreATS.total',
+          rawInternalScoreBefore: 84,
+          rawInternalScoreAfter: 92,
+          rawInternalConfidence: 'high',
+          displayedReadinessScoreBefore: 84,
+          displayedReadinessScoreAfter: 92,
+          displayedReadinessBandBefore: 'borderline',
+          displayedReadinessBandAfter: 'excellent',
+          displayedReadinessScoreCurrent: 92,
+          displayedReadinessBandCurrent: 'excellent',
+          scoreStatus: 'final',
+          display: {
+            mode: 'exact',
+            scoreStatus: 'final',
+            exactScore: 92,
+            estimatedRangeMin: null,
+            estimatedRangeMax: null,
+            confidence: 'high',
+            labelPtBr: 'ATS Readiness Score',
+            badgeTextPtBr: 'Final',
+            helperTextPtBr: 'Score final após a otimização do currículo.',
+            formattedScorePtBr: '92',
+          },
+          qualityGates: {
+            improvedSummaryClarity: true,
+            improvedKeywordVisibility: true,
+            noFactualDrift: true,
+            noLossOfRequiredSections: true,
+            noReadabilityRegression: true,
+            noUnsupportedClaimsIntroduced: true,
+          },
+          withholdReasons: [],
+          rawScoreBefore: {
+            total: 84,
+            breakdown: { format: 16, structure: 16, contact: 8, keywords: 22, impact: 22 },
+            issues: [],
+            suggestions: [],
+          },
+          rawScoreAfter: {
+            total: 92,
+            breakdown: { format: 19, structure: 19, contact: 8, keywords: 23, impact: 23 },
+            issues: [],
+            suggestions: [],
+          },
+        }}
+        onContinue={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Final')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Explicação do score estimado' })).not.toBeInTheDocument()
   })
 
   it('does not render the optimization note banner in the comparison UI', () => {

@@ -50,6 +50,7 @@ function createInvalidatedGeneratedOutputPatch(): Partial<GeneratedOutput> {
     generatedAt: undefined,
     error: undefined,
     previewAccess: undefined,
+    staleArtifact: undefined,
   }
 }
 
@@ -110,6 +111,35 @@ function logManualSaveWithActiveExport(input: {
     resolution: 'kept_existing_artifact_until_export_finishes',
     jobId: input.activeJob.jobId,
   })
+
+  logInfo('resume_artifact.stale_preserved_for_download', {
+    sessionId: input.sessionId,
+    scope: input.scope,
+    targetId: input.targetId,
+    pendingJobId: input.activeJob.jobId,
+  })
+}
+
+function createDeferredArtifactMarker(activeJob: JobStatusSnapshot): NonNullable<GeneratedOutput['staleArtifact']> {
+  return {
+    reason: 'manual_edit_saved_while_export_active',
+    staleSince: new Date().toISOString(),
+    pendingJobId: activeJob.jobId,
+  }
+}
+
+function createPreservedGeneratedOutput(
+  output: GeneratedOutput,
+  activeJob: JobStatusSnapshot,
+): GeneratedOutput {
+  return {
+    ...output,
+    staleArtifact: createDeferredArtifactMarker(activeJob),
+  }
+}
+
+function shouldPreserveArtifactWhileExportRuns(output?: GeneratedOutput | null): boolean {
+  return output?.status === 'ready' && Boolean(output.pdfPath)
 }
 
 export async function POST(
@@ -194,12 +224,21 @@ export async function POST(
           userId: appUser.id,
           derivedCvState: body.data.cvState,
         })
-        if (activeArtifactJob) {
+        const preservedExistingArtifact = activeArtifactJob && shouldPreserveArtifactWhileExportRuns(target.generatedOutput)
+          ? activeArtifactJob
+          : null
+
+        if (preservedExistingArtifact && target.generatedOutput) {
+          await updateResumeTargetGeneratedOutput(
+            session.id,
+            body.data.targetId,
+            createPreservedGeneratedOutput(target.generatedOutput, preservedExistingArtifact),
+          )
           logManualSaveWithActiveExport({
             sessionId: session.id,
             targetId: body.data.targetId,
             scope: 'target',
-            activeJob: activeArtifactJob,
+            activeJob: preservedExistingArtifact,
           })
         } else {
           await updateResumeTargetGeneratedOutput(
@@ -219,7 +258,7 @@ export async function POST(
           targetId: body.data.targetId,
           scope: 'target',
           changed: true,
-          invalidatedArtifact: !activeArtifactJob,
+          invalidatedArtifact: !preservedExistingArtifact && !activeArtifactJob,
         }))
 
         return NextResponse.json({
@@ -227,6 +266,8 @@ export async function POST(
           scope: 'target',
           targetId: body.data.targetId,
           changed: true,
+          artifactRefreshDeferred: Boolean(activeArtifactJob),
+          artifactStalePreserved: Boolean(preservedExistingArtifact),
         })
       }
 
@@ -267,6 +308,9 @@ export async function POST(
           })
         }
 
+        const preservedExistingArtifact = activeArtifactJob && shouldPreserveArtifactWhileExportRuns(session.generatedOutput)
+          ? activeArtifactJob
+          : null
         const patch: ToolPatch = {
           agentState: {
             optimizedCvState: body.data.cvState,
@@ -274,16 +318,20 @@ export async function POST(
             rewriteStatus: 'completed',
           },
         }
-        if (!activeArtifactJob) {
+        if (preservedExistingArtifact) {
+          patch.generatedOutput = {
+            staleArtifact: createDeferredArtifactMarker(preservedExistingArtifact),
+          }
+        } else if (!activeArtifactJob) {
           patch.generatedOutput = createInvalidatedGeneratedOutputPatch()
         }
 
         await applyToolPatchWithVersion(session, patch)
-        if (activeArtifactJob) {
+        if (preservedExistingArtifact) {
           logManualSaveWithActiveExport({
             sessionId: session.id,
             scope: 'optimized',
-            activeJob: activeArtifactJob,
+            activeJob: preservedExistingArtifact,
           })
         } else {
           logInfo('resume_export.stale_artifact_invalidated', {
@@ -296,13 +344,15 @@ export async function POST(
           sessionId: session.id,
           scope: 'optimized',
           changed: true,
-          invalidatedArtifact: !activeArtifactJob,
+          invalidatedArtifact: !preservedExistingArtifact && !activeArtifactJob,
         }))
 
         return NextResponse.json({
           success: true,
           scope: 'optimized',
           changed: true,
+          artifactRefreshDeferred: Boolean(activeArtifactJob),
+          artifactStalePreserved: Boolean(preservedExistingArtifact),
         })
       }
 
@@ -331,18 +381,25 @@ export async function POST(
           sessionId: session.id,
         })
         : null
+      const preservedExistingArtifact = activeArtifactJob && shouldPreserveArtifactWhileExportRuns(session.generatedOutput)
+        ? activeArtifactJob
+        : null
       const shouldInvalidateArtifact = !session.agentState.optimizedCvState && !activeArtifactJob
       const patch: ToolPatch = { cvState: body.data.cvState }
-      if (shouldInvalidateArtifact) {
+        if (preservedExistingArtifact) {
+          patch.generatedOutput = {
+            staleArtifact: createDeferredArtifactMarker(preservedExistingArtifact),
+          }
+      } else if (shouldInvalidateArtifact) {
         patch.generatedOutput = createInvalidatedGeneratedOutputPatch()
       }
 
       await applyToolPatchWithVersion(session, patch, 'manual')
-      if (activeArtifactJob) {
+      if (preservedExistingArtifact) {
         logManualSaveWithActiveExport({
           sessionId: session.id,
           scope: 'base',
-          activeJob: activeArtifactJob,
+          activeJob: preservedExistingArtifact,
         })
       } else if (shouldInvalidateArtifact) {
         logInfo('resume_export.stale_artifact_invalidated', {
@@ -362,6 +419,8 @@ export async function POST(
         success: true,
         scope: 'base',
         changed: true,
+        artifactRefreshDeferred: Boolean(activeArtifactJob),
+        artifactStalePreserved: Boolean(preservedExistingArtifact),
       })
     }
 
@@ -387,20 +446,28 @@ export async function POST(
           sessionId: session.id,
         })
         : null
+      const preservedExistingArtifact = activeArtifactJob && shouldPreserveArtifactWhileExportRuns(session.generatedOutput)
+        ? activeArtifactJob
+        : null
       const shouldInvalidateArtifact = !session.agentState.optimizedCvState && !activeArtifactJob
       const patch: ToolPatch = {
         ...result.patch,
-        generatedOutput: shouldInvalidateArtifact
-          ? createInvalidatedGeneratedOutputPatch()
-          : result.patch.generatedOutput,
+        generatedOutput: preservedExistingArtifact
+          ? {
+            ...(result.patch.generatedOutput ?? {}),
+            staleArtifact: createDeferredArtifactMarker(preservedExistingArtifact),
+          }
+          : shouldInvalidateArtifact
+            ? createInvalidatedGeneratedOutputPatch()
+            : result.patch.generatedOutput,
       }
 
       await applyToolPatchWithVersion(session, patch, 'manual')
-      if (activeArtifactJob) {
+      if (preservedExistingArtifact) {
         logManualSaveWithActiveExport({
           sessionId: session.id,
           scope: 'base',
-          activeJob: activeArtifactJob,
+          activeJob: preservedExistingArtifact,
         })
       } else if (shouldInvalidateArtifact) {
         logInfo('resume_export.stale_artifact_invalidated', {

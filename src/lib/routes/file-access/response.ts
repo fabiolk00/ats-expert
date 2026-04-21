@@ -71,6 +71,16 @@ export async function toFileAccessResponse(
       try {
         const signedUrls = await createSignedResumeArtifactUrls(undefined, decision.pdfPath)
 
+        if (decision.body.artifactStale) {
+          logInfo('resume_artifact.downloaded_while_stale', {
+            sessionId: context.session.id,
+            targetId: context.targetId,
+            resumeTargetId: context.target?.id ?? null,
+            staleReason: decision.body.artifactStale.reason,
+            pendingJobId: decision.body.artifactStale.pendingJobId,
+          })
+        }
+
         logInfo('resume_export.used_latest_resume_state', {
           sessionId: context.session.id,
           targetId: context.targetId,

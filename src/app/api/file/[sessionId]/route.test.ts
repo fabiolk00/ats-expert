@@ -379,6 +379,97 @@ describe('GET /api/file/[sessionId]', () => {
     })
   })
 
+  it('marks the download as stale when a previous ready artifact is preserved after manual save during an active export', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSession).mockResolvedValue({
+      ...buildSession(),
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        generatedAt: '2026-04-21T13:00:00.000Z',
+        staleArtifact: {
+          reason: 'manual_edit_saved_while_export_active',
+          staleSince: '2026-04-21T13:05:00.000Z',
+          pendingJobId: 'job_running_123',
+        },
+      },
+    })
+    vi.mocked(listJobsForSession).mockResolvedValue([
+      {
+        jobId: 'job_running_123',
+        userId: 'usr_123',
+        sessionId: 'sess_123',
+        idempotencyKey: 'artifact:sess_123:updated',
+        type: 'artifact_generation',
+        status: 'running',
+        stage: 'rendering',
+        dispatchInputRef: {
+          kind: 'session_cv_state',
+          sessionId: 'sess_123',
+          snapshotSource: 'optimized',
+        },
+        createdAt: '2026-04-21T13:04:00.000Z',
+        updatedAt: '2026-04-21T13:05:00.000Z',
+      },
+    ] as never)
+    vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
+      docxUrl: null,
+      pdfUrl: 'https://cdn.example.com/signed/pdf-stale',
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      docxUrl: null,
+      pdfUrl: 'https://cdn.example.com/signed/pdf-stale',
+      pdfFileName: 'Curriculo_Ana_Silva.pdf',
+      available: true,
+      generationStatus: 'generating',
+      jobId: 'job_running_123',
+      stage: 'rendering',
+      errorMessage: undefined,
+      artifactStale: {
+        reason: 'manual_edit_saved_while_export_active',
+        message: 'O PDF disponível ainda corresponde à versão anterior. Gere um novo arquivo após a exportação atual terminar para refletir a edição salva.',
+        staleSince: '2026-04-21T13:05:00.000Z',
+        pendingJobId: 'job_running_123',
+      },
+      reconciliation: undefined,
+    })
+    expect(logInfo).toHaveBeenCalledWith(
+      'resume_artifact.downloaded_while_stale',
+      expect.objectContaining({
+        sessionId: 'sess_123',
+        pendingJobId: 'job_running_123',
+        staleReason: 'manual_edit_saved_while_export_active',
+      }),
+    )
+  })
+
   it('returns reconciliation detail when the artifact is ready but billing finalize still needs repair', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',

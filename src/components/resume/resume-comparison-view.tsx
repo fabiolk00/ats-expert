@@ -5,6 +5,7 @@ import { ArrowLeft, Download, Highlighter, Loader2, Pencil } from "lucide-react"
 
 import { ResumeEditorModal } from "@/components/dashboard/resume-editor-modal"
 import Logo from "@/components/logo"
+import { AtsReadinessStatusBadge } from "@/components/ats-readiness-status-badge"
 import { Button } from "@/components/ui/button"
 import { buildOptimizedPreviewHighlights, type HighlightedLine } from "@/lib/resume/optimized-preview-highlights"
 import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
@@ -562,9 +563,10 @@ export function ResumeComparisonView({
                   {optimizedScoreLabel}
                 </span>
                 {atsReadiness?.display ? (
-                  <span className="rounded-full border border-emerald-200 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-900/40 dark:text-emerald-300 sm:text-xs">
-                    {atsReadiness.display.badgeTextPtBr}
-                  </span>
+                  <AtsReadinessStatusBadge
+                    badgeText={atsReadiness.display.badgeTextPtBr}
+                    className="border-emerald-200 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-900/40 dark:text-emerald-300 sm:text-xs"
+                  />
                 ) : null}
               </div>
             </div>

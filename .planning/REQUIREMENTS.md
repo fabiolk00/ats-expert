@@ -84,6 +84,17 @@
 - [x] **MANUAL-EXPORT-LOCK-01**: Manual resume edits only treat an export as blocking when it belongs to the same session scope, and a real same-scope in-flight export no longer forces the current valid artifact into an unusable dead zone.
 - [x] **MANUAL-EXPORT-UX-01**: When a manual save lands during a real active export, the edit is still persisted canonically and the UI reports the export update as deferred instead of presenting a generic save failure.
 - [x] **MANUAL-EXPORT-TEST-01**: Regression coverage proves stale or unrelated export flags no longer block manual save, same-scope active exports preserve a usable artifact while edits persist, and download availability continues to reflect the actual artifact state.
+
+### Manual Edit vs Active Export Review Hardening
+
+- [x] **MANUAL-EXPORT-REVIEW-01**: The manual-edit versus active-export policy is reviewed as a product-state machine, and stale-artifact states are explicit instead of being silently served as if the latest PDF were already synchronized with the saved edit.
+- [x] **MANUAL-EXPORT-REVIEW-TEST-01**: Regression coverage proves the adjusted policy across save-persisted plus stale-artifact cases, active same-scope export preservation, file-access signaling, and preview awareness.
+- [x] **MANUAL-EXPORT-REVIEW-OBS-01**: Download and save observability make it measurable when a stale artifact is preserved after manual save or served while a newer export is still pending.
+
+### Estimated ATS Readiness Help Affordance
+
+- [x] **ATS-ESTIMATED-HELP-01**: Product surfaces that render the ATS Readiness `Estimado` badge also render a compact help affordance that explains the estimated range in plain PT-BR without exposing internal scoring jargon.
+- [x] **ATS-ESTIMATED-HELP-TEST-01**: Regression coverage proves the help icon only appears for estimated readiness states and the explanation stays accessible through hover, focus, and click interactions.
 - [x] **REPO-HYGIENE-DOC-01**: Architecture and planning docs expose clear canonical entry points so contributors can find current source-of-truth guidance quickly.
 - [x] **REPO-HYGIENE-GUARD-01**: Lightweight hygiene guardrails explain what belongs in `.planning/` and keep local scratch outputs out of version control.
 
@@ -229,6 +240,11 @@
 | ATS-METRIC-OBS-01 | Phase 69 | Complete |
 | ATS-METRIC-OBS-RECOVERY-01 | Phase 69 | Complete |
 | ATS-METRIC-OBS-TEST-01 | Phase 69 | Complete |
+| MANUAL-EXPORT-REVIEW-01 | Phase 75 | Complete |
+| MANUAL-EXPORT-REVIEW-TEST-01 | Phase 75 | Complete |
+| MANUAL-EXPORT-REVIEW-OBS-01 | Phase 75 | Complete |
+| ATS-ESTIMATED-HELP-01 | Phase 76 | Complete |
+| ATS-ESTIMATED-HELP-TEST-01 | Phase 76 | Complete |
 | MANUAL-EDIT-CANON-01 | Phase 70 | Complete |
 | MANUAL-EDIT-EXPORT-01 | Phase 70 | Complete |
 | MANUAL-EDIT-OBS-01 | Phase 70 | Complete |

@@ -20,6 +20,7 @@ type PreviewPanelProps = {
 }
 
 type GenerationStatus = 'idle' | 'generating' | 'ready' | 'failed'
+type ArtifactStaleSummary = NonNullable<Awaited<ReturnType<typeof getDownloadUrls>>['artifactStale']>
 
 export function PreviewPanel({
   inline = false,
@@ -90,6 +91,7 @@ function PreviewPanelContent({
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus>('idle')
   const [editorScope, setEditorScope] = useState<'base' | 'optimized'>('base')
   const [downloadFileName, setDownloadFileName] = useState<string | null>(null)
+  const [artifactStale, setArtifactStale] = useState<ArtifactStaleSummary | null>(null)
 
   const cacheKey = `${file.sessionId}:${file.targetId ?? 'base'}`
 
@@ -101,6 +103,7 @@ function PreviewPanelContent({
     setPreviewLock(null)
     setGenerationStatus('idle')
     setDownloadFileName(null)
+    setArtifactStale(null)
 
     const cachedUrl = getCachedUrl(cacheKey)
     if (cachedUrl) {
@@ -111,6 +114,7 @@ function PreviewPanelContent({
     try {
       const urls = await getDownloadUrls(file.sessionId, file.targetId ?? undefined)
       setGenerationStatus(urls.generationStatus)
+      setArtifactStale(urls.artifactStale ?? null)
 
       if (!urls.pdfUrl) {
         if (urls.generationStatus === 'generating') {
@@ -303,6 +307,12 @@ function PreviewPanelContent({
       {downloadError ? (
         <div className="border-b border-border bg-destructive/5 px-4 py-2">
           <p className="text-xs text-destructive">{downloadError}</p>
+        </div>
+      ) : null}
+
+      {artifactStale ? (
+        <div className="border-b border-border bg-amber-50 px-4 py-2">
+          <p className="text-xs text-amber-900">{artifactStale.message}</p>
         </div>
       ) : null}
 
