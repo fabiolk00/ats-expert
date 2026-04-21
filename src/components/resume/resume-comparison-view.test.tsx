@@ -273,7 +273,7 @@ describe('ResumeComparisonView', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('highlights relevant improvements only in the optimized column', () => {
+  it('keeps summary visually clean while highlighting only compact experience improvements', () => {
     render(
       <ResumeComparisonView
         originalCvState={{
@@ -315,34 +315,31 @@ describe('ResumeComparisonView', () => {
     expect(screen.getByText('Ocultar destaques')).toBeInTheDocument()
 
     const summaryHighlight = screen.getByTestId('optimized-summary-highlight')
-    expect(summaryHighlight.querySelector('[data-highlighted="true"]')).not.toBeNull()
-    expect(summaryHighlight.querySelectorAll('[data-highlighted="true"]').length).toBeLessThanOrEqual(3)
+    expect(summaryHighlight).toHaveTextContent('Atuação em Senior Business Intelligence, Consultor de Business Intelligence e Desenvolvedor de Business Intelligence.')
+    expect(summaryHighlight.querySelector('[data-highlighted="true"]')).toBeNull()
 
     const bulletHighlight = screen.getByTestId('optimized-bullet-highlight-0-0')
-    expect(bulletHighlight.closest('span')).toBeInTheDocument()
+    expect(bulletHighlight.querySelectorAll('[data-highlighted="true"]').length).toBeLessThanOrEqual(1)
     expect(screen.getAllByText(/15%/)).toHaveLength(2)
   })
 
-  it('suppresses noisy single-word summary highlights while preserving stronger chunks', () => {
+  it('renders structured summary payloads as clean text without leaking serialized blobs', () => {
     render(
       <ResumeComparisonView
         originalCvState={buildCvState('Consultor de BI com dashboards e apoio a clientes.')}
-        optimizedCvState={buildCvState('Consultor de BI com dashboards, apoio, cliente, consultoria, Senior Business Intelligence e continuidade operacional.')}
+        optimizedCvState={{
+          ...buildCvState('ignored'),
+          summary: '{"section":"summary","profile":"Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiencia em ambientes corporativos."}' as never,
+        }}
         generationType="ATS_ENHANCEMENT"
         sessionId="sess_123"
         onContinue={vi.fn()}
       />,
     )
 
-    const summaryHighlight = screen.getByTestId('optimized-summary-highlight')
-    const highlightedSegments = Array.from(summaryHighlight.querySelectorAll('[data-highlighted="true"]'))
-      .map((element) => element.textContent?.trim() ?? '')
-
-    expect(highlightedSegments.length).toBeLessThanOrEqual(3)
-    expect(highlightedSegments.some((text) => text.includes('Senior Business Intelligence'))).toBe(true)
-    expect(highlightedSegments.some((text) => text.includes('continuidade operacional'))).toBe(true)
-    expect(highlightedSegments).not.toContain('cliente')
-    expect(highlightedSegments).not.toContain('consultoria')
+    const summary = screen.getByTestId('optimized-summary-highlight')
+    expect(summary).toHaveTextContent('Profissional de Business Intelligence e Engenharia de Dados com mais de 5 anos de experiencia em ambientes corporativos.')
+    expect(summary).not.toHaveTextContent('{"section":"summary"')
   })
 
   it('lets the user hide visual highlights without changing the content', async () => {
@@ -361,5 +358,8 @@ describe('ResumeComparisonView', () => {
 
     expect(screen.getByRole('button', { name: /mostrar destaques/i })).toBeInTheDocument()
     expect(screen.getByTestId('optimized-summary-highlight').querySelector('[data-highlighted="true"]')).toBeNull()
+    expect(screen.getByTestId('optimized-summary-highlight')).toHaveTextContent(
+      'Atuação em Senior Business Intelligence com dashboards estratégicos.',
+    )
   })
 })

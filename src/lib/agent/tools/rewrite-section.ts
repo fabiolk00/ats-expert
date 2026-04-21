@@ -195,7 +195,7 @@ function extractStructuredTextContent(value: string): string | null {
           }
 
           const itemRecord = item as Record<string, unknown>
-          const content = [itemRecord.content, itemRecord.text]
+          const content = [itemRecord.content, itemRecord.text, itemRecord.profile]
             .find((candidate) => typeof candidate === 'string')
 
           return typeof content === 'string' ? content : []
@@ -210,6 +210,10 @@ function extractStructuredTextContent(value: string): string | null {
 
   if (typeof record.content === 'string' && record.content.trim()) {
     return record.content.replace(/\s+/g, ' ').trim()
+  }
+
+  if (typeof record.profile === 'string' && record.profile.trim()) {
+    return record.profile.replace(/\s+/g, ' ').trim()
   }
 
   if (typeof record.rewritten_content === 'string' && record.rewritten_content.trim() !== value.trim()) {
@@ -321,6 +325,8 @@ function buildSectionPromptInstructions(section: RewriteSectionInput['section'])
     case 'summary':
       return [
         'Resumo Profissional: 4 a 6 linhas, destacando perfil real, senioridade e diferencial sem buzzwords genéricos.',
+        'Resumo Profissional: não inclua rótulos internos como "Resumo Profissional:" ou "Professional Summary:" dentro do conteúdo.',
+        'Resumo Profissional: use tom executivo, conciso e não repetitivo, sem repetir papel, domínio ou stack de forma inflada.',
       ]
     case 'skills':
       return [
@@ -330,6 +336,7 @@ function buildSectionPromptInstructions(section: RewriteSectionInput['section'])
       return [
         'Experiência: mantenha ferramentas, métricas, senioridade, escopo e contexto de negócio em cada bullet.',
         'Experiência: preserve percentuais, reduções de tempo, economia, throughput, SLA, volumes e impacto regional/global sempre que forem reais.',
+        'Experiência: escreva bullets concisos com estrutura de ação + contexto + impacto quando houver suporte factual no original.',
       ]
     case 'education':
       return [

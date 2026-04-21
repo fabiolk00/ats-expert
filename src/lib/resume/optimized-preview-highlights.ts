@@ -41,6 +41,10 @@ type HighlightMatch = {
   end: number
 }
 
+type ExperienceHighlightCandidate = HighlightMatch & {
+  score: number
+}
+
 const STRONG_VERB_PREFIXES = [
   "lider",
   "otimiz",
@@ -142,6 +146,35 @@ const STOPWORDS = new Set([
 ])
 
 const WORD_PATTERN = /[\p{L}\p{N}%./+-]+/u
+const SUMMARY_JSON_FIELD_PATTERN = /"(profile|content|text|rewritten_content)"\s*:\s*"((?:\\.|[^"\\])*)"/i
+const ATS_TECH_TERMS = [
+  "sql",
+  "bi",
+  "etl",
+  "python",
+  "pyspark",
+  "power bi",
+  "qlik",
+  "qlik sense",
+  "qlik cloud",
+  "databricks",
+  "azure databricks",
+  "gcp",
+  "bigquery",
+  "apis",
+  "api",
+  "sharepoint",
+  "dynamics crm",
+]
+const EXPERIENCE_CONTEXTUAL_PATTERNS = [
+  /(?:até|mais de|cerca de|aproximadamente|quase)\s+\d+(?:[.,]\d+)?%?(?:\s+[^\s,.;:]+){0,3}/giu,
+  /\d+(?:[.,]\d+)?%(?:\s+[^\s,.;:]+){0,3}/giu,
+  /\b(?:latam|global|regional)\b/giu,
+  /\bgrandes volumes de dados\b/giu,
+  /\b(?:mais de|m[uú]ltiplas?)\s+(?:fontes|bases|dashboards|pipelines|aplica(?:coes|ções)|clientes|times|processos|fontes de dados)\b/giu,
+  /\b(?:azure databricks(?:\s+com\s+pyspark)?|pyspark|power bi\s+para\s+[\p{L}\s]{2,24}|bi\s+em\s+gcp,\s*bigquery|etl,\s*sql\s+e\s+power bi|sql,\s*python\s+e\s+power bi|qlik(?:\s+sense|\s+cloud)?|sharepoint|dynamics crm)\b/giu,
+  /\b(?:reduz\w*|aument\w*|elev\w*|melhor\w*|otimiz\w*|aceler\w*|contribu\w*)(?:\s+[^\s,.;:]+){0,4}/giu,
+]
 
 const STRUCTURAL_LABEL_PATTERNS = [
   /^resumo profissional[:\-\s]*$/i,
@@ -193,6 +226,79 @@ function normalizeText(value: string | undefined): string {
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim()
+}
+
+function normalizeHumanReadableText(value: string): string {
+  return value.replace(/\s+/g, " ").trim()
+}
+
+function parseStructuredSummaryRecord(record: Record<string, unknown>): string | null {
+  if (Array.isArray(record.items)) {
+    const lines = record.items
+      .flatMap((item) => {
+        if (typeof item === "string") {
+          return item
+        }
+
+        if (!item || typeof item !== "object") {
+          return []
+        }
+
+        const itemRecord = item as Record<string, unknown>
+        const content = [itemRecord.content, itemRecord.text, itemRecord.profile]
+          .find((candidate) => typeof candidate === "string")
+
+        return typeof content === "string" ? content : []
+      })
+      .map((item) => normalizeHumanReadableText(item))
+      .filter(Boolean)
+
+    if (lines.length > 0) {
+      return lines.join(" ")
+    }
+  }
+
+  const directField = [record.profile, record.content, record.text, record.rewritten_content]
+    .find((candidate) => typeof candidate === "string" && candidate.trim())
+
+  return typeof directField === "string"
+    ? normalizeHumanReadableText(directField)
+    : null
+}
+
+export function normalizePreviewSummaryText(summary: unknown): string {
+  if (typeof summary === "string") {
+    const trimmed = summary.trim()
+    if (!trimmed) {
+      return ""
+    }
+
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return parseStructuredSummaryRecord(parsed as Record<string, unknown>) ?? trimmed
+        }
+      } catch {
+        const match = trimmed.match(SUMMARY_JSON_FIELD_PATTERN)
+        if (match?.[2]) {
+          try {
+            return normalizeHumanReadableText(JSON.parse(`"${match[2]}"`))
+          } catch {
+            return normalizeHumanReadableText(match[2].replace(/\\"/g, '"'))
+          }
+        }
+      }
+    }
+
+    return normalizeHumanReadableText(trimmed)
+  }
+
+  if (summary && typeof summary === "object" && !Array.isArray(summary)) {
+    return parseStructuredSummaryRecord(summary as Record<string, unknown>) ?? ""
+  }
+
+  return ""
 }
 
 function tokenizePreservingWhitespace(text: string): string[] {
@@ -301,6 +407,97 @@ function isStructuralPhraseUnit(content: string): boolean {
 
 function createNonHighlightedLine(text: string): HighlightedLine {
   return { segments: [{ text, highlighted: false }], highlightWholeLine: false }
+}
+
+function countTechTerms(text: string): number {
+  const normalized = normalizeText(text)
+  return ATS_TECH_TERMS.filter((term) => normalized.includes(term)).length
+}
+
+function isMeaningfulExperienceContext(text: string): boolean {
+  const normalized = normalizeText(text)
+  return /\d/.test(normalized)
+    || /\b(latam|global|regional|volume|volumes|fontes|bases|supply chain|crm|sharepoint|apis?|bigquery|databricks|pyspark|governanca|analitica|dados)\b/i.test(normalized)
+}
+
+function isLowValueGenericSpan(text: string): boolean {
+  const normalized = normalizeText(text)
+  return /^(profissional|consultor|analista|business intelligence|apoiei|atuei|iniciei)(?:\s+[\p{L}\p{N}]+){0,3}$/iu.test(normalized)
+}
+
+function collectExperienceHighlightCandidates(original: string, optimized: string): ExperienceHighlightCandidate[] {
+  const originalNormalized = normalizeText(original)
+
+  return EXPERIENCE_CONTEXTUAL_PATTERNS
+    .flatMap((pattern) => {
+      const activePattern = new RegExp(pattern.source, pattern.flags)
+      return Array.from(optimized.matchAll(activePattern), (match) => {
+        const text = normalizeHumanReadableText(match[0] ?? "")
+        const start = match.index ?? -1
+        const end = start >= 0 ? start + (match[0]?.length ?? 0) : -1
+        return { text, start, end }
+      })
+    })
+    .filter((candidate) => {
+      if (!candidate.text || candidate.start < 0 || candidate.end <= candidate.start) {
+        return false
+      }
+
+      const normalizedCandidate = normalizeText(candidate.text)
+      return normalizedCandidate.length > 0
+        && !originalNormalized.includes(normalizedCandidate)
+        && !isLowValueGenericSpan(candidate.text)
+        && getWordCount(candidate.text) <= 6
+        && candidate.text.length <= 48
+    })
+    .map((candidate) => {
+      const normalized = normalizeText(candidate.text)
+      const techTermCount = countTechTerms(candidate.text)
+      const hasMetric = /\d/.test(normalized)
+      const hasScope = /\b(latam|global|regional)\b/.test(normalized)
+      const hasScale = /\b(grandes volumes de dados|mais de|m[uú]ltiplas?)\b/.test(normalized)
+      const hasOutcome = /\b(reduz|aument|elev|melhor|otimiz|aceler|contribu)\w*/.test(normalized)
+      const meaningfulContext = isMeaningfulExperienceContext(candidate.text) || isMeaningfulExperienceContext(optimized)
+
+      let score = 0
+      if (hasMetric) score += 5
+      if (hasScope) score += 3
+      if (hasScale) score += 2
+      if (hasOutcome) score += 2
+      if (techTermCount >= 2) score += 3
+      if (techTermCount >= 2 && meaningfulContext) score += 2
+      if (meaningfulContext) score += 2
+      if (techTermCount === 1 && meaningfulContext) score += 2
+      if (techTermCount === 1 && !meaningfulContext) score -= 3
+      if (candidate.start < 12 && !hasMetric && !hasScope && !(techTermCount >= 2 && meaningfulContext)) score -= 2
+
+      return {
+        ...candidate,
+        score,
+      }
+    })
+    .filter((candidate) => candidate.score >= 4)
+    .sort((left, right) => right.score - left.score || left.start - right.start)
+}
+
+function buildExperienceHighlightLine(text: string, candidate: ExperienceHighlightCandidate | null): HighlightedLine {
+  if (!candidate) {
+    return createNonHighlightedLine(text)
+  }
+
+  const segments: HighlightSegment[] = []
+  if (candidate.start > 0) {
+    segments.push({ text: text.slice(0, candidate.start), highlighted: false })
+  }
+  segments.push({ text: text.slice(candidate.start, candidate.end), highlighted: true })
+  if (candidate.end < text.length) {
+    segments.push({ text: text.slice(candidate.end), highlighted: false })
+  }
+
+  return {
+    segments: collapseSegments(segments),
+    highlightWholeLine: false,
+  }
 }
 
 function collectRegexMatches(
@@ -595,12 +792,21 @@ export function buildRelevantHighlightLine(
   optimized: string,
   mode: HighlightDensityMode = "inline",
 ): HighlightedLine {
+  if (mode === "summary") {
+    return createNonHighlightedLine(normalizePreviewSummaryText(optimized))
+  }
+
   if (!optimized.trim()) {
     return createNonHighlightedLine(optimized)
   }
 
   if (!original.trim() || isMinorFormattingOnlyChange(original, optimized)) {
     return createNonHighlightedLine(optimized)
+  }
+
+  if (mode === "experience") {
+    const bestCandidate = collectExperienceHighlightCandidates(original, optimized)[0] ?? null
+    return buildExperienceHighlightLine(optimized, bestCandidate)
   }
 
   const chunked = buildChunkedHighlightLine(original, optimized, mode)
@@ -655,11 +861,18 @@ function findClosestOriginalBullet(originalBullets: string[], optimizedBullet: s
 function buildBulletHighlight(
   originalEntry: ExperienceEntry | undefined,
   optimizedBullet: string,
-): HighlightedLine {
+): {
+  line: HighlightedLine
+  score: number
+} {
   const originalBullets = originalEntry?.bullets ?? []
   const closestOriginalBullet = findClosestOriginalBullet(originalBullets, optimizedBullet) ?? ""
+  const bestCandidate = collectExperienceHighlightCandidates(closestOriginalBullet, optimizedBullet)[0] ?? null
 
-  return buildRelevantHighlightLine(closestOriginalBullet, optimizedBullet, "experience")
+  return {
+    line: buildExperienceHighlightLine(optimizedBullet, bestCandidate),
+    score: bestCandidate?.score ?? 0,
+  }
 }
 
 function findMatchingExperienceEntry(
@@ -680,13 +893,26 @@ export function buildOptimizedPreviewHighlights(
   optimizedCvState: CVState,
 ): OptimizedPreviewHighlights {
   return {
-    summary: buildRelevantHighlightLine(originalCvState.summary, optimizedCvState.summary, "summary"),
+    summary: createNonHighlightedLine(normalizePreviewSummaryText(optimizedCvState.summary)),
     experience: optimizedCvState.experience.map((optimizedEntry) => {
       const originalEntry = findMatchingExperienceEntry(originalCvState.experience, optimizedEntry)
+      const scoredBullets = optimizedEntry.bullets.map((bullet) => buildBulletHighlight(originalEntry, bullet))
+      const highlightedBulletIndexes = new Set(
+        scoredBullets
+          .map((entry, index) => ({ index, score: entry.score }))
+          .filter((entry) => entry.score > 0)
+          .sort((left, right) => right.score - left.score)
+          .slice(0, 2)
+          .map((entry) => entry.index),
+      )
 
       return {
-        title: buildRelevantHighlightLine(originalEntry?.title ?? "", optimizedEntry.title, "inline"),
-        bullets: optimizedEntry.bullets.map((bullet) => buildBulletHighlight(originalEntry, bullet)),
+        title: createNonHighlightedLine(optimizedEntry.title),
+        bullets: scoredBullets.map((entry, index) =>
+          highlightedBulletIndexes.has(index)
+            ? entry.line
+            : createNonHighlightedLine(optimizedEntry.bullets[index] ?? ""),
+        ),
       }
     }),
   }

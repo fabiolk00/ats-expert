@@ -7,7 +7,11 @@ import { ResumeEditorModal } from "@/components/dashboard/resume-editor-modal"
 import Logo from "@/components/logo"
 import { AtsReadinessStatusBadge } from "@/components/ats-readiness-status-badge"
 import { Button } from "@/components/ui/button"
-import { buildOptimizedPreviewHighlights, type HighlightedLine } from "@/lib/resume/optimized-preview-highlights"
+import {
+  buildOptimizedPreviewHighlights,
+  normalizePreviewSummaryText,
+  type HighlightedLine,
+} from "@/lib/resume/optimized-preview-highlights"
 import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
 import { cn } from "@/lib/utils"
 import type { AtsReadinessScoreContract } from "@/lib/ats/scoring/types"
@@ -114,6 +118,8 @@ function ResumeDocument({
   const isOptimized = variant === "optimized"
   const compare = originalCvState || cvState
   const isLockedPreview = isOptimized && previewLock?.locked === true
+  const displaySummary = normalizePreviewSummaryText(cvState.summary)
+  const compareSummary = normalizePreviewSummaryText(compare.summary)
   const highlights = useMemo(
     () => isOptimized && originalCvState
       ? buildOptimizedPreviewHighlights(originalCvState, cvState)
@@ -195,24 +201,18 @@ function ResumeDocument({
         </div>
       </div>
 
-      {cvState.summary ? (
+      {displaySummary ? (
         <div className={cn("mb-4 sm:mb-6", isLockedPreview ? "select-none blur-sm" : undefined)}>
           <h3 className="mb-1.5 flex items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 sm:mb-2 sm:text-xs">
             Resumo
             {isOptimized ? (
-              <ChangeIndicator show={hasTextChanged(compare.summary, cvState.summary)} />
+              <ChangeIndicator show={hasTextChanged(compareSummary, displaySummary)} />
             ) : null}
           </h3>
           <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300 sm:text-sm">
-            {highlights ? (
-              <HighlightText
-                line={highlights.summary}
-                enabled={showHighlights}
-                testId={isOptimized ? "optimized-summary-highlight" : undefined}
-              />
-            ) : (
-              cvState.summary
-            )}
+            <span data-testid={isOptimized ? "optimized-summary-highlight" : undefined}>
+              {displaySummary}
+            </span>
           </p>
         </div>
       ) : null}

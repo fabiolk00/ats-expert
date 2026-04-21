@@ -74,6 +74,44 @@ function extractNumbers(text: string): string[] {
   return Array.from(text.match(/\d+(?:[.,]\d+)?%?/g) ?? [])
 }
 
+function stripSummarySectionLabel(value: string): string {
+  return value.replace(
+    /^(?:[-*\s]*)(?:resumo profissional|professional summary|summary|resumo)\s*[:\-–]\s*/iu,
+    '',
+  )
+}
+
+function dedupeSummarySentences(value: string): string {
+  const seen = new Set<string>()
+
+  return value
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .filter((sentence) => {
+      const normalized = sentence
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+      if (!normalized || seen.has(normalized)) {
+        return false
+      }
+
+      seen.add(normalized)
+      return true
+    })
+    .join(' ')
+    .trim()
+}
+
+function normalizeAtsSummaryOutput(value: string): string {
+  return dedupeSummarySentences(stripSummarySectionLabel(value.trim())).replace(/\s+/g, ' ').trim()
+}
+
 function sanitizeAtsSummary(
   originalCvState: CVState,
   optimizedCvState: CVState,
@@ -84,12 +122,17 @@ function sanitizeAtsSummary(
     return originalCvState.summary
   }
 
-  const summaryIssues = issues.filter((issue) => issue.section === 'summary')
-  if (summaryIssues.length === 0) {
-    return optimizedSummary
+  const normalizedOptimizedSummary = normalizeAtsSummaryOutput(optimizedSummary)
+  if (!normalizedOptimizedSummary) {
+    return originalCvState.summary
   }
 
-  const normalizedSummary = optimizedSummary.toLowerCase()
+  const summaryIssues = issues.filter((issue) => issue.section === 'summary')
+  if (summaryIssues.length === 0) {
+    return normalizedOptimizedSummary
+  }
+
+  const normalizedSummary = normalizedOptimizedSummary.toLowerCase()
   const optimizedExperienceText = optimizedCvState.experience
     .flatMap((entry) => [entry.title, ...entry.bullets])
     .join(' ')
@@ -104,7 +147,7 @@ function sanitizeAtsSummary(
     return normalizedSummary.includes(normalizedSkill) && !optimizedExperienceText.includes(normalizedSkill)
   })
   const originalNumbers = new Set(extractNumbers(originalEvidenceText))
-  const unsupportedNumbers = extractNumbers(optimizedSummary).filter((value) => !originalNumbers.has(value))
+  const unsupportedNumbers = extractNumbers(normalizedOptimizedSummary).filter((value) => !originalNumbers.has(value))
   const bannedTokens = Array.from(new Set([
     ...unsupportedSkills.map(normalize),
     ...experienceMissingSkills.map(normalize),
@@ -115,7 +158,7 @@ function sanitizeAtsSummary(
     return optimizedSummary
   }
 
-  const repairedSummary = splitIntoSentences(optimizedSummary)
+  const repairedSummary = splitIntoSentences(normalizedOptimizedSummary)
     .filter((sentence) => {
       const normalizedSentence = sentence.toLowerCase()
       return !bannedTokens.some((token) => normalizedSentence.includes(token))
