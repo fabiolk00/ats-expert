@@ -31,6 +31,16 @@ export type MetricCounterEventName =
   | 'architecture.generate_resume.stage_failure.persist_completed_generation'
   | 'architecture.generate_resume.stage_failure.persist_failed_generation'
   | 'architecture.generate_resume.stage_failure.reconciliation_marking'
+  | 'architecture.ats_readiness.finalized'
+  | 'architecture.ats_readiness.estimated_range'
+  | 'architecture.ats_readiness.withheld'
+  | 'architecture.ats_readiness.withheld_converted_to_range'
+  | 'architecture.ats_readiness.v1_normalized_to_v2'
+  | 'architecture.ats_readiness.floor_89_applied'
+  | 'architecture.ats_readiness.low_confidence'
+  | 'architecture.ats_readiness.raw_decreased_display_protected'
+  | 'architecture.ats_readiness.comparison_rendered'
+  | 'architecture.ats_readiness.legacy_fallback_used'
 
 export function recordMetricCounter(
   metric: MetricCounterEventName,

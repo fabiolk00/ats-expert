@@ -105,6 +105,12 @@
 - [x] **ATS-READINESS-CONF-01**: Product-facing ATS Readiness scores are confidence-aware, quality-gated, withheld when unsafe to show, and non-decreasing after successful ATS enhancement with a minimum displayed floor of 89.
 - [x] **ATS-READINESS-TEST-01**: Regression coverage proves monotonic ATS Readiness display, quality-gated withholding, confidence classification, API contract shaping, and the historical optimized-lower-than-original failure mode can no longer occur.
 
+### ATS Readiness Hardening and Migration Audit
+
+- [x] **ATS-READINESS-HARDEN-01**: No product-facing ATS enhancement surface computes display score ownership outside the canonical ATS Readiness module, and remaining legacy ATS score fields are compatibility-only and clearly deprecated.
+- [x] **ATS-READINESS-OBS-01**: Canonical ATS Readiness decisions emit structured logs, contract-version metadata, and outcome metrics for finalization, withholding, floor-89 application, low confidence, monotonicity protection, comparison rendering, and legacy fallback usage.
+- [x] **ATS-READINESS-MIGRATION-01**: Legacy ATS sessions without persisted `atsReadiness` resolve through one deterministic canonical fallback path, and mixed old/new session shapes remain safe across session and comparison routes.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -178,10 +184,22 @@
 | ATS-READINESS-01 | Phase 62 | Complete |
 | ATS-READINESS-CONF-01 | Phase 62 | Complete |
 | ATS-READINESS-TEST-01 | Phase 62 | Complete |
+| ATS-READINESS-HARDEN-01 | Phase 63 | Complete |
+| ATS-READINESS-OBS-01 | Phase 63 | Complete |
+| ATS-READINESS-MIGRATION-01 | Phase 63 | Complete |
+| ATS-READINESS-RANGE-01 | Phase 64 | Complete |
+| ATS-READINESS-RANGE-OBS-01 | Phase 64 | Complete |
+| ATS-READINESS-RANGE-TEST-01 | Phase 64 | Complete |
+| ATS-READINESS-V2-01 | Phase 65 | Complete |
+| ATS-READINESS-V2-COMPAT-01 | Phase 65 | Complete |
+| ATS-READINESS-V2-CLEANUP-01 | Phase 65 | Complete |
+| ATS-RAW-CLEANUP-01 | Phase 66 | Complete |
+| ATS-RAW-CLEANUP-COMPAT-01 | Phase 66 | Complete |
+| ATS-RAW-CLEANUP-TEST-01 | Phase 66 | Complete |
 
 **Coverage:**
-- v1.6 requirements: 47 total
-- Mapped to phases: 47
+- v1.6 requirements: 59 total
+- Mapped to phases: 59
 - Unmapped: 0
 
 ---

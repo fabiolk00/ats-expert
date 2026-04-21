@@ -67,7 +67,7 @@ function buildSession(): Session {
       pdfPath: 'usr_123/sess_123/resume.pdf',
       generatedAt: '2026-03-27T12:00:00.000Z',
     },
-    atsScore: undefined,
+    internalHeuristicAtsScore: undefined,
     creditsUsed: 1,
     messageCount: 5,
     creditConsumed: true,

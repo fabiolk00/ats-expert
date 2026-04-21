@@ -53,7 +53,9 @@ export function buildDoneChunk(params: {
     requestId: params.requestId,
     sessionId: params.session.id,
     phase: params.session.phase,
-    atsScore: params.session.atsScore,
+    internalHeuristicAtsScore: params.session.internalHeuristicAtsScore,
+    // Legacy compatibility alias for older consumers. Product UI must use atsReadiness.
+    atsScore: params.session.internalHeuristicAtsScore,
     atsReadiness: params.session.agentState.atsReadiness,
     messageCount: params.session.messageCount + 1,
     maxMessages: params.maxMessages,

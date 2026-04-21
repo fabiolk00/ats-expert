@@ -11,6 +11,7 @@ import { PlanUpdateSection } from "@/components/dashboard/plan-update-section"
 import { loadOptionalBillingInfo } from "@/lib/asaas/optional-billing-info"
 import { getCurrentAppUser } from "@/lib/auth/app-user"
 import { canAccessOperationsDashboard } from "@/lib/auth/operations-access"
+import { resolveSessionAtsReadiness } from "@/lib/ats/scoring"
 import { db } from "@/lib/db/sessions"
 import { PLANS } from "@/lib/plans"
 
@@ -31,11 +32,8 @@ function formatSessionDate(value: Date): string {
   })
 }
 
-function getDisplayedReadinessScoreForSession(session: {
-  agentState: { atsReadiness?: { displayedReadinessScoreCurrent: number } }
-  atsScore?: { total: number }
-}): number | undefined {
-  return session.agentState.atsReadiness?.displayedReadinessScoreCurrent ?? session.atsScore?.total
+function getAtsReadinessSnapshotForSession(session: Parameters<typeof resolveSessionAtsReadiness>[0]["session"]) {
+  return resolveSessionAtsReadiness({ session })
 }
 
 export default async function SettingsPage() {
@@ -58,14 +56,14 @@ export default async function SettingsPage() {
     "E-mail não disponível"
 
   const formattedSessions = sessions.map((session) => ({
+    atsReadiness: getAtsReadinessSnapshotForSession(session),
     id: session.id,
     phase: session.phase,
-    atsScore: getDisplayedReadinessScoreForSession(session),
     createdAt: formatSessionDate(session.updatedAt),
   }))
 
   const bestScore = sessions.reduce<number | null>((best, session) => {
-    const score = getDisplayedReadinessScoreForSession(session)
+    const score = getAtsReadinessSnapshotForSession(session)?.displayedReadinessScoreCurrent
     if (score === undefined) {
       return best
     }

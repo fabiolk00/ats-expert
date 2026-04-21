@@ -1003,7 +1003,7 @@ describe('runAgentLoop streaming', () => {
     const session = {
       ...buildSession(),
       phase: 'analysis' as const,
-      atsScore: {
+      internalHeuristicAtsScore: {
         total: 78,
         breakdown: {
           format: 80,
@@ -1061,9 +1061,9 @@ describe('runAgentLoop streaming', () => {
       .map((event) => event.content)
       .join('')
 
-    expect(finalText).toContain('Pontuacao ATS atual: 78/100.')
     expect(finalText).toContain('Aderência inicial: parcial.')
     expect(finalText).toContain('Principais gaps: ETL, DAX, impacto mensuravel.')
+    expect(finalText).not.toContain('ATS score:')
     expect(finalText).not.toContain('Tente novamente com um pedido curto')
   })
 
@@ -1071,7 +1071,7 @@ describe('runAgentLoop streaming', () => {
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
-      atsScore: {
+      internalHeuristicAtsScore: {
         total: 44,
         breakdown: {
           format: 70,
@@ -1528,7 +1528,7 @@ describe('runAgentLoop streaming', () => {
         }
       })
       .mockImplementationOnce(async (_toolName, _toolInput, currentSession) => {
-        currentSession.atsScore = {
+        currentSession.internalHeuristicAtsScore = {
           total: 51,
           breakdown: {
             format: 70,
@@ -1545,7 +1545,7 @@ describe('runAgentLoop streaming', () => {
           output: { success: true, total: 51 },
           outputJson: JSON.stringify({ success: true, total: 51 }),
           persistedPatch: {
-            atsScore: currentSession.atsScore,
+            internalHeuristicAtsScore: currentSession.internalHeuristicAtsScore,
           },
         }
       })
@@ -1627,7 +1627,7 @@ describe('runAgentLoop streaming', () => {
     expect(events).toContainEqual(expect.objectContaining({
       type: 'patch',
       patch: expect.objectContaining({
-        atsScore: expect.objectContaining({
+        internalHeuristicAtsScore: expect.objectContaining({
           total: 51,
         }),
       }),
@@ -1680,7 +1680,7 @@ describe('runAgentLoop streaming', () => {
     const session = {
       ...buildSession(),
       phase: 'confirm' as const,
-      atsScore: {
+      internalHeuristicAtsScore: {
         total: 69,
         breakdown: {
           format: 70,
@@ -1762,7 +1762,7 @@ describe('runAgentLoop streaming', () => {
         },
         outputJson: JSON.stringify({ success: true, result: { total: 73 } }),
         persistedPatch: {
-          atsScore: {
+          internalHeuristicAtsScore: {
             total: 73,
             breakdown: {
               format: 70,
@@ -1922,7 +1922,7 @@ describe('runAgentLoop streaming', () => {
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
-      atsScore: {
+      internalHeuristicAtsScore: {
         total: 52,
         breakdown: {
           format: 70,
@@ -2024,7 +2024,7 @@ describe('runAgentLoop streaming', () => {
           },
           outputJson: JSON.stringify({ success: true, result: { total: 56 } }),
           persistedPatch: {
-            atsScore: {
+            internalHeuristicAtsScore: {
               total: 56,
               breakdown: {
                 format: 70,
@@ -2130,7 +2130,7 @@ describe('runAgentLoop streaming', () => {
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
-      atsScore: {
+      internalHeuristicAtsScore: {
         total: 69,
         breakdown: {
           format: 70,
@@ -2257,7 +2257,7 @@ describe('runAgentLoop streaming', () => {
           },
           outputJson: JSON.stringify({ success: true, result: { total: 73 } }),
           persistedPatch: {
-            atsScore: {
+            internalHeuristicAtsScore: {
               total: 73,
               breakdown: {
                 format: 70,
@@ -2327,7 +2327,7 @@ describe('runAgentLoop streaming', () => {
       2,
       'sess_123',
       'assistant',
-      expect.stringContaining('ATS Score antes: 69/100. ATS agora: 73/100.'),
+      expect.stringContaining('Diagnostico ATS interno atual: 73.'),
     )
   })
 
@@ -2341,7 +2341,7 @@ describe('runAgentLoop streaming', () => {
         sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
         targetJobDescription: 'Senior Analytics Engineer com foco em dbt, SQL e BigQuery.',
       },
-      atsScore: {
+      internalHeuristicAtsScore: {
         total: 43,
         breakdown: {
           format: 60,
@@ -2503,7 +2503,7 @@ describe('runAgentLoop streaming', () => {
           },
           outputJson: JSON.stringify({ success: true, result: { total: 69 } }),
           persistedPatch: {
-            atsScore: {
+            internalHeuristicAtsScore: {
               total: 69,
               breakdown: {
                 format: 70,

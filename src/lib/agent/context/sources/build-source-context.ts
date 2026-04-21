@@ -164,10 +164,11 @@ ${truncate(targetJobDescription, maxChars)}
 function buildAnalysisSnapshotContext(session: Session): string {
   const lines: string[] = []
 
-  if (session.atsScore) {
-    lines.push(`ATS score: ${session.atsScore.total}/100.`)
-    const topIssue = session.atsScore.issues[0]
-    const topSuggestion = session.atsScore.suggestions[0]
+  if (session.internalHeuristicAtsScore) {
+    // Keep the raw heuristic score in prompt context for internal agent reasoning only.
+    lines.push(`Internal heuristic ATS score: ${session.internalHeuristicAtsScore.total}/100.`)
+    const topIssue = session.internalHeuristicAtsScore.issues[0]
+    const topSuggestion = session.internalHeuristicAtsScore.suggestions[0]
     if (topIssue) lines.push(`Top issue: ${topIssue.section} - ${truncate(topIssue.message, 160)}`)
     if (topSuggestion) lines.push(`Top suggestion: ${truncate(topSuggestion, 160)}`)
   }

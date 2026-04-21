@@ -118,4 +118,73 @@ describe('ResumeComparisonView', () => {
     expect(screen.queryByTitle('Baixar PDF')).not.toBeInTheDocument()
     expect(screen.queryByTestId('resume-editor-modal')).not.toBeInTheDocument()
   })
+
+  it('renders estimated ATS Readiness ranges in pt-BR without showing pending copy', () => {
+    render(
+      <ResumeComparisonView
+        originalCvState={buildCvState('Original summary')}
+        optimizedCvState={buildCvState('Optimized summary')}
+        generationType="ATS_ENHANCEMENT"
+        sessionId="sess_123"
+        originalScore={84}
+        optimizedScore={89}
+        atsReadiness={{
+          contractVersion: 2,
+          workflowMode: 'ats_enhancement',
+          evaluationStage: 'post_enhancement',
+          productLabel: 'ATS Readiness Score',
+          rawInternalScoreSource: 'scoreATS.total',
+          rawInternalScoreBefore: 84,
+          rawInternalScoreAfter: 61,
+          rawInternalConfidence: 'low',
+          displayedReadinessScoreBefore: 89,
+          displayedReadinessScoreAfter: 89,
+          displayedReadinessBandBefore: 'excellent',
+          displayedReadinessBandAfter: 'excellent',
+          displayedReadinessScoreCurrent: 89,
+          displayedReadinessBandCurrent: 'excellent',
+          scoreStatus: 'estimated_range',
+          display: {
+            mode: 'estimated_range',
+            scoreStatus: 'estimated_range',
+            exactScore: null,
+            estimatedRangeMin: 89,
+            estimatedRangeMax: 91,
+            confidence: 'low',
+            labelPtBr: 'ATS Readiness Score',
+            badgeTextPtBr: 'Estimado',
+            helperTextPtBr: 'Faixa estimada com base na otimização concluída.',
+            formattedScorePtBr: '89–91',
+          },
+          qualityGates: {
+            improvedSummaryClarity: false,
+            improvedKeywordVisibility: false,
+            noFactualDrift: true,
+            noLossOfRequiredSections: true,
+            noReadabilityRegression: false,
+            noUnsupportedClaimsIntroduced: true,
+          },
+          withholdReasons: ['Low scoring confidence combined with contradictory internal ATS signals.'],
+          rawScoreBefore: {
+            total: 84,
+            breakdown: { format: 16, structure: 16, contact: 8, keywords: 22, impact: 22 },
+            issues: [],
+            suggestions: [],
+          },
+          rawScoreAfter: {
+            total: 61,
+            breakdown: { format: 13, structure: 12, contact: 8, keywords: 14, impact: 14 },
+            issues: [],
+            suggestions: [],
+          },
+        }}
+        onContinue={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('89–91')).toBeInTheDocument()
+    expect(screen.getByText('Estimado')).toBeInTheDocument()
+    expect(screen.getByText('Faixa estimada com base na otimização concluída.')).toBeInTheDocument()
+    expect(screen.queryByText('Pendente')).not.toBeInTheDocument()
+  })
 })

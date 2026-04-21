@@ -2,15 +2,23 @@ import type { RewriteValidationResult } from '@/types/agent'
 import type { CVState } from '@/types/cv'
 
 import { deriveAtsReadinessConfidence } from './confidence'
-import { bandFromScore, clampDisplayedReadinessScore } from './display-score'
+import {
+  bandFromScore,
+  buildAtsReadinessDisplayContract,
+  buildEstimatedReadinessRange,
+  clampDisplayedReadinessScore,
+} from './display-score'
+import { recordAtsReadinessDecision } from './observability'
 import { evaluateAtsQualityGates, buildWithholdReasons } from './quality-gates'
 import { computeRawAtsScoreSnapshot } from './raw-score'
+import { ATS_READINESS_CONTRACT_VERSION } from './types'
 import type { AtsReadinessScoreContract } from './types'
 
 // Canonical ATS Readiness scoring contract for product surfaces:
 // - rawInternalScore* preserves the underlying heuristic ATS score for diagnostics and experiments
 // - displayedReadinessScore* is the only product-facing score users should see in ATS enhancement flows
 // - post-enhancement display is monotonic, quality-gated, and floored at 89 when the optimized result is safe to show
+// - internal heuristic ATS diagnostics must never be treated as the ATS Readiness product truth
 
 type OptimizationSummary = {
   changedSections: Array<'summary' | 'experience' | 'skills' | 'education' | 'certifications'>
@@ -36,7 +44,8 @@ export function buildBaselineAtsReadinessContract(input: {
   const confidence = deriveAtsReadinessConfidence(input.cvState, rawBefore)
   const displayedBefore = clampDisplayedReadinessScore(rawBefore.score.total)
 
-  return {
+  const contract: AtsReadinessScoreContract = {
+    contractVersion: ATS_READINESS_CONTRACT_VERSION,
     workflowMode: 'ats_enhancement',
     evaluationStage: 'baseline_only',
     productLabel: 'ATS Readiness Score',
@@ -51,11 +60,22 @@ export function buildBaselineAtsReadinessContract(input: {
     displayedReadinessScoreCurrent: displayedBefore,
     displayedReadinessBandCurrent: bandFromScore(displayedBefore),
     scoreStatus: 'final',
+    display: buildAtsReadinessDisplayContract({
+      scoreStatus: 'final',
+      exactScore: displayedBefore,
+      estimatedRangeMin: null,
+      estimatedRangeMax: null,
+      confidence,
+    }),
     qualityGates: buildDefaultQualityGates(),
     withholdReasons: [],
     rawScoreBefore: rawBefore.score,
     rawScoreAfter: rawBefore.score,
   }
+
+  recordAtsReadinessDecision(contract)
+
+  return contract
 }
 
 export function buildAtsReadinessContractForEnhancement(input: {
@@ -91,15 +111,24 @@ export function buildAtsReadinessContractForEnhancement(input: {
   })
 
   const canDisplayOptimizedScore = withholdReasons.length === 0
-  const displayedAfter = canDisplayOptimizedScore
+  const exactDisplayedAfter = canDisplayOptimizedScore
     ? clampDisplayedReadinessScore(Math.max(
         displayedBefore,
         optimizedRaw.score.total,
         89,
       ))
     : null
+  const estimatedRange = canDisplayOptimizedScore
+    ? null
+    : buildEstimatedReadinessRange({
+        displayedReadinessScoreBefore: displayedBefore,
+        rawInternalScoreAfter: optimizedRaw.score.total,
+      })
+  const displayedAfter = exactDisplayedAfter ?? estimatedRange?.min ?? displayedBefore
+  const scoreStatus = exactDisplayedAfter === null ? 'estimated_range' : 'final'
 
-  return {
+  const contract: AtsReadinessScoreContract = {
+    contractVersion: ATS_READINESS_CONTRACT_VERSION,
     workflowMode: 'ats_enhancement',
     evaluationStage: 'post_enhancement',
     productLabel: 'ATS Readiness Score',
@@ -110,15 +139,26 @@ export function buildAtsReadinessContractForEnhancement(input: {
     displayedReadinessScoreBefore: displayedBefore,
     displayedReadinessScoreAfter: displayedAfter,
     displayedReadinessBandBefore: bandFromScore(displayedBefore),
-    displayedReadinessBandAfter: displayedAfter === null ? null : bandFromScore(displayedAfter),
-    displayedReadinessScoreCurrent: displayedAfter ?? displayedBefore,
-    displayedReadinessBandCurrent: bandFromScore(displayedAfter ?? displayedBefore),
-    scoreStatus: displayedAfter === null ? 'withheld_pending_quality' : 'final',
+    displayedReadinessBandAfter: bandFromScore(displayedAfter),
+    displayedReadinessScoreCurrent: displayedAfter,
+    displayedReadinessBandCurrent: bandFromScore(displayedAfter),
+    scoreStatus,
+    display: buildAtsReadinessDisplayContract({
+      scoreStatus,
+      exactScore: exactDisplayedAfter,
+      estimatedRangeMin: estimatedRange?.min ?? null,
+      estimatedRangeMax: estimatedRange?.max ?? null,
+      confidence,
+    }),
     qualityGates,
     withholdReasons,
     rawScoreBefore: originalRaw.score,
     rawScoreAfter: optimizedRaw.score,
   }
+
+  recordAtsReadinessDecision(contract)
+
+  return contract
 }
 
 export function resolveDisplayedReadinessScore(
@@ -130,3 +170,7 @@ export function resolveDisplayedReadinessScore(
 
   return contract.displayedReadinessScoreCurrent
 }
+
+export { ATS_READINESS_CONTRACT_VERSION } from './types'
+export { buildAtsReadinessDecisionLog, recordAtsReadinessDecision, serializeWithholdReasons } from './observability'
+export { normalizePersistedAtsReadiness, resolveDisplayedReadinessScoreForSession, resolveSessionAtsReadiness } from './session-readiness'

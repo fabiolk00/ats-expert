@@ -158,6 +158,7 @@ export async function analyzeAtsGeneral(
     const impactScore = clampScore(baseScore.breakdown.impact * 5)
     const keywordCoverageScore = clampScore(baseScore.breakdown.keywords * 100 / 30)
     const atsReadabilityScore = clampScore((baseScore.breakdown.format + baseScore.breakdown.contact) * 100 / 30)
+    // Internal analyzer metric only. This is not the ATS Readiness product contract.
     const overallScore = clampScore(
       (structureScore * 0.2)
       + (clarityScore * 0.2)

@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 60
-current_phase_name: pending resume generation persistence narrowing
+current_phase: 64
+current_phase_name: converter withheld pending quality em faixa estimada numerica no ats readiness score ui em pt br
 current_plan: 01
 status: complete
-stopped_at: Completed 60-01-PLAN.md
-last_updated: "2026-04-21T03:08:00.000Z"
+stopped_at: Completed 64-01-PLAN.md
+last_updated: "2026-04-21T04:35:00.000Z"
 last_activity: 2026-04-21
 progress:
-  total_phases: 20
-  completed_phases: 10
-  total_plans: 10
-  completed_plans: 10
+  total_phases: 23
+  completed_phases: 13
+  total_plans: 13
+  completed_plans: 13
   percent: 100
 ---
 
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Canonical ATS Readiness scoring for ATS enhancement is complete locally; the next milestone action is milestone audit and closeout.
+**Current focus:** ATS Readiness now always resolves to an exact score or a short estimated numeric range in the ATS enhancement product flow; the next milestone action is milestone audit and closeout.
 
 ## Current Position
 
-Phase: 62 (canonical ATS readiness scoring contract for ATS enhancement flow) - COMPLETE
+Phase: 64 (converter withheld pending quality em faixa estimada numerica no ats readiness score ui em pt br) - COMPLETE
 Plan: 01 complete
-Current Phase: 62
-Current Phase Name: canonical ATS readiness scoring contract for ATS enhancement flow
+Current Phase: 64
+Current Phase Name: converter withheld pending quality em faixa estimada numerica no ats readiness score ui em pt br
 Current Plan: 01
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: ATS enhancement now emits a canonical ATS Readiness contract with raw-vs-displayed score separation, confidence, quality-gated monotonic display rules, and product/UI migration away from direct heuristic ATS scores
+Last Activity Description: ATS enhancement no longer leaves the user with a pending score state; canonical ATS Readiness now returns exact scores or short estimated numeric ranges, keeps monotonicity and floor/cap rules, and preserves observability plus legacy-session safety
 
 Progress: [##########] 100%
 
@@ -88,6 +88,11 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 60]: Pending resume-generation persistence failures now distinguish create vs reuse branches, preserve raw DB diagnostics, and surface narrower billable failure codes for this hotspot.
 - [Phase 61]: `resume_generations` create persistence now writes `updated_at` explicitly on insert so direct Supabase inserts stay aligned with the table contract and the existing update path.
 - [Phase 62]: ATS enhancement now has one canonical product-facing ATS Readiness contract that keeps raw heuristic scores internal, enforces monotonic displayed post-enhancement scores, and withholds optimized display scores when confidence or quality gates do not justify them safely.
+- [Phase 63]: ATS Readiness observability now logs decision metadata with contract version and metrics, old sessions without persisted readiness resolve through one canonical fallback path, and remaining product surfaces no longer choose raw `atsScore` as their primary source of truth.
+- [Phase 64]: ATS enhancement no longer leaves the optimized product score empty; canonical readiness now emits either an exact score or a short estimated numeric range in pt-BR for the main product surfaces.
+- [Phase 65]: ATS Readiness is now formally versioned as contract v2, legacy persisted shapes normalize centrally into the v2 display contract, and residual internal raw-score references are either isolated as heuristic diagnostics or aligned to the canonical readiness semantics.
+- [Phase 66]: Internal runtime and persistence now refer to the raw ATS diagnostic as `internalHeuristicAtsScore`, while compatibility adapters still expose legacy `atsScore` only where older consumers need it.
+- [Phase 66]: The semantic boundary is now explicit in types, context builders, agent persistence, and tests: raw ATS telemetry is diagnostic only, and ATS Readiness v2 remains the sole product-facing score contract.
 - [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 
@@ -102,6 +107,6 @@ Baseline carried forward from earlier shipped milestones:
 
 ## Session Continuity
 
-Last session: 2026-04-21T03:25:00.000Z
-Stopped at: Completed 61-01-PLAN.md
+Last session: 2026-04-21T05:05:00.000Z
+Stopped at: Completed 66-01-PLAN.md
 Resume file: None

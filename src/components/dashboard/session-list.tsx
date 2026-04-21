@@ -1,7 +1,9 @@
 import Link from "next/link"
 
+import type { AtsReadinessDisplayContract } from "@/lib/ats/scoring/types"
 import ATSScoreBadge from "@/components/ats-score-badge"
 import PhaseBadge from "@/components/phase-badge"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 
 type Phase = "intake" | "analysis" | "dialog" | "confirm" | "generation"
@@ -9,7 +11,10 @@ type Phase = "intake" | "analysis" | "dialog" | "confirm" | "generation"
 interface Session {
   id: string
   phase: Phase
-  atsScore?: number
+  atsReadiness?: {
+    displayedReadinessScoreCurrent: number
+    display: AtsReadinessDisplayContract
+  }
   createdAt: string
 }
 
@@ -30,7 +35,15 @@ export default function SessionList({ sessions }: SessionListProps) {
               </div>
               <div className="flex flex-wrap gap-2">
                 <PhaseBadge phase={session.phase} />
-                {session.atsScore !== undefined ? <ATSScoreBadge score={session.atsScore} /> : null}
+                {session.atsReadiness?.display ? (
+                  <>
+                    <ATSScoreBadge
+                      score={session.atsReadiness.displayedReadinessScoreCurrent}
+                      formattedScore={session.atsReadiness.display.formattedScorePtBr}
+                    />
+                    <Badge variant="outline">{session.atsReadiness.display.badgeTextPtBr}</Badge>
+                  </>
+                ) : null}
               </div>
             </CardContent>
           </Card>

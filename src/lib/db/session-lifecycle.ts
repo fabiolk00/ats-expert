@@ -113,7 +113,7 @@ export async function updateSession(
     cvState: CVState
     agentState: AgentState
     generatedOutput: GeneratedOutput
-    atsScore: ATSScoreResult
+    internalHeuristicAtsScore: ATSScoreResult
     creditsUsed: number
     messageCount: number
     creditConsumed: boolean
@@ -125,7 +125,7 @@ export async function updateSession(
   if (patch.cvState !== undefined) update.cv_state = patch.cvState
   if (patch.agentState !== undefined) update.agent_state = patch.agentState
   if (patch.generatedOutput !== undefined) update.generated_output = patch.generatedOutput
-  if (patch.atsScore !== undefined) update.ats_score = patch.atsScore
+  if (patch.internalHeuristicAtsScore !== undefined) update.ats_score = patch.internalHeuristicAtsScore
   if (patch.creditsUsed !== undefined) update.credits_used = patch.creditsUsed
   if (patch.messageCount !== undefined) update.message_count = patch.messageCount
   if (patch.creditConsumed !== undefined) update.credit_consumed = patch.creditConsumed
@@ -150,14 +150,17 @@ export async function applyToolPatch(session: Session, patch?: ToolPatch): Promi
         : undefined,
     generatedOutput:
       patch.generatedOutput !== undefined ? mergedSession.generatedOutput : undefined,
-    atsScore: patch.atsScore !== undefined ? mergedSession.atsScore : undefined,
+    internalHeuristicAtsScore:
+      patch.internalHeuristicAtsScore !== undefined
+        ? mergedSession.internalHeuristicAtsScore
+        : undefined,
   })
 
   session.phase = mergedSession.phase
   session.cvState = mergedSession.cvState
   session.agentState = mergedSession.agentState
   session.generatedOutput = mergedSession.generatedOutput
-  session.atsScore = mergedSession.atsScore
+  session.internalHeuristicAtsScore = mergedSession.internalHeuristicAtsScore
   session.updatedAt = mergedSession.updatedAt
 }
 
@@ -196,7 +199,7 @@ export async function applyToolPatchWithVersion(
     p_cv_state: mergedSession.cvState,
     p_agent_state: mergedSession.agentState,
     p_generated_output: mergedSession.generatedOutput,
-    p_ats_score: mergedSession.atsScore ?? null,
+    p_ats_score: mergedSession.internalHeuristicAtsScore ?? null,
     p_version_source: versionSource ?? null,
   })
 
@@ -210,6 +213,6 @@ export async function applyToolPatchWithVersion(
   session.cvState = mergedSession.cvState
   session.agentState = mergedSession.agentState
   session.generatedOutput = mergedSession.generatedOutput
-  session.atsScore = mergedSession.atsScore
+  session.internalHeuristicAtsScore = mergedSession.internalHeuristicAtsScore
   session.updatedAt = mergedSession.updatedAt
 }

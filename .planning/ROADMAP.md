@@ -334,3 +334,43 @@ Plans:
 
 Plans:
 - [x] 62-01-PLAN.md - Introduce a canonical ATS Readiness scoring module, separate raw vs displayed scores, enforce monotonic display policy with confidence and quality gates, migrate ATS enhancement UI/API surfaces, and add regression coverage
+
+### Phase 63: Hardening, cleanup, observability, and migration audit for canonical ATS Readiness scoring
+
+**Goal:** Eliminate residual ambiguity around ATS Readiness ownership by centralizing legacy-session fallback, product-surface score sourcing, observability, and migration-safe compatibility handling for the canonical ATS Readiness contract.
+**Requirements**: [ATS-READINESS-HARDEN-01, ATS-READINESS-OBS-01, ATS-READINESS-MIGRATION-01]
+**Depends on:** Phase 62
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 63-01-PLAN.md - Centralize ATS Readiness fallback resolution, add decision observability, deprecate remaining product-facing legacy score paths, and document/test legacy-session migration safety
+
+### Phase 64: Converter withheld_pending_quality em faixa estimada numerica no ATS Readiness Score (UI em pt-BR)
+
+**Goal:** Convert ATS enhancement results that previously surfaced as withheld/pending scores into short estimated numeric ranges so the main product flow always shows an exact score or a monotonic estimated range in pt-BR without reopening the canonical ATS Readiness architecture.
+**Requirements**: [ATS-READINESS-RANGE-01, ATS-READINESS-RANGE-OBS-01, ATS-READINESS-RANGE-TEST-01]
+**Depends on:** Phase 63
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 64-01-PLAN.md - Extend the canonical ATS Readiness contract with exact-vs-range display semantics, convert withheld outcomes into short numeric ranges, preserve observability, normalize pt-BR product copy, and add regression coverage for no-empty-score behavior
+
+### Phase 65: Versionamento explicito do contrato ATS Readiness e cleanup interno final
+
+**Goal:** Promote the ATS Readiness product contract to an explicit v2, normalize legacy readiness payloads into the v2 shape centrally, reduce ambiguous residual `atsScore` references, and align agent/streaming language with the current canonical readiness semantics.
+**Requirements**: [ATS-READINESS-V2-01, ATS-READINESS-V2-COMPAT-01, ATS-READINESS-V2-CLEANUP-01]
+**Depends on:** Phase 64
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 65-01-PLAN.md - Promote ATS Readiness to contract v2, normalize legacy contracts centrally, isolate raw atsScore as internal-only telemetry, align agent copy, and add compatibility regression coverage
+
+### Phase 66: Cleanup final do raw ATS interno e consolidacao definitiva de nomenclatura
+
+**Goal:** Reduce the remaining semantic ambiguity around legacy raw ATS diagnostics by renaming internal `atsScore` usage to explicit heuristic-diagnostic names, isolating compatibility adapters, and reinforcing the boundary between internal ATS telemetry and the ATS Readiness v2 product contract.
+**Requirements**: [ATS-RAW-CLEANUP-01, ATS-RAW-CLEANUP-COMPAT-01, ATS-RAW-CLEANUP-TEST-01]
+**Depends on:** Phase 65
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 66-01-PLAN.md - Rename internal raw ATS score seams to explicit heuristic-diagnostic names, keep legacy adapters compatibility-only, and add regression coverage so product paths stay on ATS Readiness v2

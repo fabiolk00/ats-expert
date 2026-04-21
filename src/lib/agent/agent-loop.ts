@@ -46,6 +46,7 @@ import { streamAssistantTurn } from '@/lib/agent/agent-streaming'
 import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
 import { dispatchToolWithContext, getToolDefinitionsForPhase } from '@/lib/agent/tools'
 import { calculateUsageCostCents, trackApiUsage } from '@/lib/agent/usage-tracker'
+import { resolveSessionAtsReadiness } from '@/lib/ats/scoring'
 import { applyToolPatchWithVersion, getMessages } from '@/lib/db/sessions'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import { deriveTargetResumeCvState } from '@/lib/resume-targets/create-target-resume'
@@ -115,6 +116,22 @@ type AnalysisPrimeResult = {
 type DeterministicFallback = {
   text: string
   kind: string
+}
+
+function buildCurrentReadinessText(session: Session): string | null {
+  const readiness = resolveSessionAtsReadiness({ session })
+  if (!readiness) {
+    return null
+  }
+
+  const label = readiness.display.formattedScorePtBr
+  if (!label) {
+    return null
+  }
+
+  return readiness.display.mode === 'exact'
+    ? `ATS Readiness Score atual: ${label}.`
+    : `ATS Readiness Score estimado atual: ${label}.`
 }
 
 function parseJsonObject(value: string): Record<string, unknown> | null {
@@ -648,7 +665,7 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
   const hasResumeContext = hasResumeContextForDeterministicAnalysis(session)
   const hasTargetJobContext = Boolean(session.agentState.targetJobDescription?.trim() || looksLikeJobDescription(userMessage))
   const hasStructuredTargetAnalysis = Boolean(
-    session.atsScore
+    session.internalHeuristicAtsScore
     || session.agentState.targetFitAssessment
     || session.agentState.gapAnalysis
   )
@@ -678,8 +695,9 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
 
     const parts = ['Recebi a vaga e ela já ficou salva como referência para o seu currículo.']
 
-    if (session.atsScore) {
-      parts.push(`Pontuacao ATS atual: ${session.atsScore.total}/100.`)
+    const readinessText = buildCurrentReadinessText(session)
+    if (readinessText) {
+      parts.push(readinessText)
     }
 
     if (session.agentState.targetFitAssessment) {
@@ -747,10 +765,13 @@ function buildDeterministicVacancyBootstrap(
     && targetPreparation.optimizedAtsTotal !== undefined
   ) {
     parts.push(
-      `Atualizei a versão de trabalho do seu currículo para essa vaga. ATS antes: ${targetPreparation.previousAtsTotal}/100. ATS da versão otimizada: ${targetPreparation.optimizedAtsTotal}/100.`,
+      `Atualizei a versão de trabalho do seu currículo para essa vaga. Diagnóstico heurístico ATS interno antes: ${targetPreparation.previousAtsTotal}/100. Diagnóstico heurístico interno da versão otimizada: ${targetPreparation.optimizedAtsTotal}/100.`,
     )
-  } else if (session.atsScore) {
-    parts.push(`Pontuacao ATS atual: ${session.atsScore.total}/100.`)
+  } else {
+    const readinessText = buildCurrentReadinessText(session)
+    if (readinessText) {
+      parts.push(readinessText)
+    }
   }
 
   if (session.agentState.targetFitAssessment) {
@@ -777,9 +798,9 @@ function buildDeterministicVacancyBootstrap(
     if (topSuggestion) {
       parts.push(`Melhor próximo ajuste ATS: ${normalizeTrailingSentence(topSuggestion)}.`)
     }
-  } else if (session.atsScore) {
-    const topIssue = session.atsScore.issues[0]?.message
-    const topSuggestion = session.atsScore.suggestions[0]
+  } else if (session.internalHeuristicAtsScore) {
+    const topIssue = session.internalHeuristicAtsScore.issues[0]?.message
+    const topSuggestion = session.internalHeuristicAtsScore.suggestions[0]
     const uniqueMessages = dedupeOrderedSentences([topIssue, topSuggestion])
 
     if (uniqueMessages[0]) {
@@ -868,7 +889,7 @@ function resolveDeterministicAssistantFallback(session: Session, userMessage: st
   const hasResumeContext = hasResumeContextForDeterministicAnalysis(session)
   const hasTargetJobContext = Boolean(session.agentState.targetJobDescription?.trim() || looksLikeJobDescription(userMessage))
   const hasStructuredTargetAnalysis = Boolean(
-    session.atsScore
+    session.internalHeuristicAtsScore
     || session.agentState.targetFitAssessment
     || session.agentState.gapAnalysis
   )
@@ -1094,7 +1115,7 @@ async function* primeAnalysisState(params: {
     ? params.userMessage.trim()
     : session.agentState.targetJobDescription?.trim()
 
-  if (!session.atsScore || latestMessageLooksLikeVacancy) {
+  if (!session.internalHeuristicAtsScore || latestMessageLooksLikeVacancy) {
     const scoreResult = yield* runDeterministicTool({
       session,
       toolName: 'score_ats',
@@ -1136,12 +1157,12 @@ async function* maybePrepareTargetResumeForDeterministicFlow(params: {
   signal?: AbortSignal
 }): AsyncGenerator<AgentLoopEvent, TargetPreparationResult> {
   const targetJobDescription = params.session.agentState.targetJobDescription?.trim()
-  const previousAtsTotal = params.session.atsScore?.total
+  const previousInternalHeuristicAtsTotal = params.session.internalHeuristicAtsScore?.total
 
   if (!targetJobDescription || !hasResumeContextForDeterministicAnalysis(params.session)) {
     return {
       applied: false,
-      previousAtsTotal,
+      previousAtsTotal: previousInternalHeuristicAtsTotal,
     }
   }
 
@@ -1156,7 +1177,7 @@ async function* maybePrepareTargetResumeForDeterministicFlow(params: {
   if (!derivationResult.success) {
     return {
       applied: false,
-      previousAtsTotal,
+      previousAtsTotal: previousInternalHeuristicAtsTotal,
     }
   }
 
@@ -1165,8 +1186,8 @@ async function* maybePrepareTargetResumeForDeterministicFlow(params: {
   if (JSON.stringify(derivedCvState) === JSON.stringify(params.session.cvState)) {
     return {
       applied: false,
-      previousAtsTotal,
-      optimizedAtsTotal: params.session.atsScore?.total,
+      previousAtsTotal: previousInternalHeuristicAtsTotal,
+      optimizedAtsTotal: params.session.internalHeuristicAtsScore?.total,
     }
   }
 
@@ -1218,11 +1239,11 @@ async function* maybePrepareTargetResumeForDeterministicFlow(params: {
     && typeof refreshedScoreOutput.result.total === 'number'
   )
     ? refreshedScoreOutput.result.total
-    : params.session.atsScore?.total
+    : params.session.internalHeuristicAtsScore?.total
 
   return {
     applied: true,
-    previousAtsTotal,
+    previousAtsTotal: previousInternalHeuristicAtsTotal,
     optimizedAtsTotal,
   }
 }
@@ -1232,7 +1253,6 @@ async function* handleConfirmedGeneration(params: {
   requestId: string
   signal?: AbortSignal
 }): AsyncGenerator<AgentLoopEvent, string> {
-  const previousAtsTotal = params.session.atsScore?.total
   const setPhaseResult = yield* runDeterministicTool({
     session: params.session,
     toolName: 'set_phase',
@@ -1359,11 +1379,19 @@ async function* handleConfirmedGeneration(params: {
       ? generationResult.output.warnings.filter((warning): warning is string => typeof warning === 'string' && warning.trim().length > 0)
       : []
 
-    const atsSummary = refreshedAtsTotal !== null
-      ? (previousAtsTotal !== undefined
-        ? `ATS Score antes: ${previousAtsTotal}/100. ATS agora: ${refreshedAtsTotal}/100.`
-        : `ATS atual estimado: ${refreshedAtsTotal}/100.`)
-      : null
+    const currentReadiness = resolveSessionAtsReadiness({ session: params.session })
+    const previousDisplayedReadiness = currentReadiness?.displayedReadinessScoreBefore
+    const atsSummary = currentReadiness
+      ? (currentReadiness.display.mode === 'exact'
+        ? (previousDisplayedReadiness !== undefined
+          ? `ATS Readiness Score antes: ${previousDisplayedReadiness}. ATS Readiness Score final: ${currentReadiness.display.formattedScorePtBr}.`
+          : `ATS Readiness Score final: ${currentReadiness.display.formattedScorePtBr}.`)
+        : (previousDisplayedReadiness !== undefined
+          ? `ATS Readiness Score antes: ${previousDisplayedReadiness}. Faixa estimada atual: ${currentReadiness.display.formattedScorePtBr}.`
+          : `ATS Readiness Score estimado atual: ${currentReadiness.display.formattedScorePtBr}.`))
+      : (refreshedAtsTotal !== null
+        ? `Diagnostico ATS interno atual: ${refreshedAtsTotal}.`
+        : null)
 
     if (generationWarnings.length > 0) {
       return [
@@ -1825,7 +1853,7 @@ export async function* runAgentLoop(
       const bootstrapCareerFitWarning = yield* maybeIssueCareerFitWarning({ session })
       const bootstrapAssistantText = bootstrapCareerFitWarning
         ?? buildDeterministicVacancyBootstrap(session, userMessage, targetPreparation)
-      const bootstrapFallbackKind = session.atsScore
+      const bootstrapFallbackKind = session.internalHeuristicAtsScore
         || session.agentState.targetFitAssessment
         || session.agentState.gapAnalysis
         ? 'analysis_structured_target_context'

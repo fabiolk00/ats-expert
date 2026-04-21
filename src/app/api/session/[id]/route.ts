@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
-  buildAtsReadinessContractForEnhancement,
-  buildBaselineAtsReadinessContract,
+  resolveSessionAtsReadiness,
 } from '@/lib/ats/scoring'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
@@ -28,21 +27,10 @@ export async function GET(
   }
 
   try {
-    const atsReadiness = session.agentState.atsReadiness
-      ?? (
-        session.agentState.workflowMode === 'ats_enhancement' && session.agentState.optimizedCvState
-          ? buildAtsReadinessContractForEnhancement({
-              originalCvState: session.cvState,
-              optimizedCvState: session.agentState.optimizedCvState,
-              rewriteValidation: session.agentState.rewriteValidation,
-              optimizationSummary: session.agentState.optimizationSummary,
-            })
-          : session.agentState.workflowMode === 'ats_enhancement'
-            ? buildBaselineAtsReadinessContract({
-                cvState: session.cvState,
-              })
-            : undefined
-      )
+    const atsReadiness = resolveSessionAtsReadiness({
+      session,
+      emitFallbackTelemetry: true,
+    })
 
     const targets = await getResumeTargetsForSession(session.id)
     const jobs = await listJobsForSession({
@@ -82,7 +70,8 @@ export async function GET(
         },
         generatedOutput: sanitizeGeneratedOutputForClient(session.generatedOutput),
         atsReadiness,
-        atsScore: session.atsScore,
+        // Deprecated raw/internal heuristic score retained for compatibility-only consumers.
+        atsScore: session.internalHeuristicAtsScore,
         messageCount: session.messageCount,
         creditConsumed: session.creditConsumed,
         createdAt: session.createdAt,

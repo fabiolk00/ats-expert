@@ -113,7 +113,7 @@ function buildSession(): Session {
       docxPath: 'resume.docx',
       pdfPath: 'resume.pdf',
     },
-    atsScore: {
+    internalHeuristicAtsScore: {
       total: 72,
       breakdown: {
         format: 15,

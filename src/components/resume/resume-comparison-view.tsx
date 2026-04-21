@@ -39,6 +39,21 @@ function hasArrayChanged<T>(original: T[], optimized: T[]): boolean {
   return JSON.stringify(original) !== JSON.stringify(optimized)
 }
 
+function getOptimizedScoreLabel(input: {
+  atsReadiness?: AtsReadinessScoreContract
+  optimizedScore?: number | null
+}): string {
+  if (input.atsReadiness?.display.formattedScorePtBr) {
+    return input.atsReadiness.display.formattedScorePtBr
+  }
+
+  if (input.optimizedScore === null || input.optimizedScore === undefined) {
+    return '89'
+  }
+
+  return String(input.optimizedScore)
+}
+
 function ChangeIndicator({ show }: { show: boolean }) {
   if (!show) return null
 
@@ -331,6 +346,10 @@ export function ResumeComparisonView({
     () => generationType === "JOB_TARGETING" ? "Currículo adaptado para a vaga" : "Currículo otimizado para ATS",
     [generationType],
   )
+  const optimizedScoreLabel = useMemo(
+    () => getOptimizedScoreLabel({ atsReadiness, optimizedScore }),
+    [atsReadiness, optimizedScore],
+  )
 
   const handleDownload = async () => {
     try {
@@ -454,7 +473,7 @@ export function ResumeComparisonView({
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] text-zinc-500 dark:text-zinc-400 sm:text-xs">{scoreLabel}:</span>
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600 dark:bg-red-900/30 dark:text-red-400 sm:text-xs">
-                  {(originalScore ?? 0)}%
+                  {originalScore ?? 0}
                 </span>
               </div>
             </div>
@@ -472,13 +491,18 @@ export function ResumeComparisonView({
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] text-zinc-500 dark:text-zinc-400 sm:text-xs">{scoreLabel}:</span>
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 sm:text-xs">
-                  {optimizedScore === null ? "Pendente" : `${optimizedScore ?? 0}%`}
+                  {optimizedScoreLabel}
                 </span>
+                {atsReadiness?.display ? (
+                  <span className="rounded-full border border-emerald-200 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-900/40 dark:text-emerald-300 sm:text-xs">
+                    {atsReadiness.display.badgeTextPtBr}
+                  </span>
+                ) : null}
               </div>
             </div>
-            {atsReadiness?.scoreStatus === "withheld_pending_quality" ? (
-              <p className="mb-3 text-xs text-amber-700 dark:text-amber-300 sm:text-sm">
-                Score final pendente de validação de qualidade.
+            {atsReadiness?.display ? (
+              <p className="mb-3 text-xs text-zinc-600 dark:text-zinc-300 sm:text-sm">
+                {atsReadiness.display.helperTextPtBr}
               </p>
             ) : null}
             <ResumeDocument

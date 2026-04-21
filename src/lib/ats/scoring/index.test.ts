@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { buildAtsReadinessContractForEnhancement, buildBaselineAtsReadinessContract } from './index'
 import { bandFromScore } from './display-score'
+import { ATS_READINESS_CONTRACT_VERSION } from './types'
 
 const BASE_CV = {
   fullName: 'Ana Silva',
@@ -24,13 +25,20 @@ const BASE_CV = {
 }
 
 describe('ATS readiness scoring contract', () => {
+  it('emits the ATS Readiness contract as v2', () => {
+    expect(ATS_READINESS_CONTRACT_VERSION).toBe(2)
+  })
+
   it('builds a baseline displayed score from the raw internal score', () => {
     const contract = buildBaselineAtsReadinessContract({ cvState: BASE_CV })
 
+    expect(contract.contractVersion).toBe(ATS_READINESS_CONTRACT_VERSION)
     expect(contract.rawInternalScoreBefore).toBeGreaterThanOrEqual(0)
     expect(contract.displayedReadinessScoreBefore).toBe(contract.displayedReadinessScoreCurrent)
     expect(contract.displayedReadinessScoreAfter).toBeNull()
     expect(contract.scoreStatus).toBe('final')
+    expect(contract.display.mode).toBe('exact')
+    expect(contract.display.formattedScorePtBr).toBe(String(contract.displayedReadinessScoreBefore))
   })
 
   it('keeps the raw internal score honest even when the displayed score is monotonic', () => {
@@ -75,9 +83,7 @@ describe('ATS readiness scoring contract', () => {
     })
 
     expect(contract.rawInternalScoreAfter).toBeLessThanOrEqual(contract.rawInternalScoreBefore)
-    if (contract.displayedReadinessScoreAfter !== null) {
-      expect(contract.displayedReadinessScoreAfter).toBeGreaterThanOrEqual(contract.displayedReadinessScoreBefore)
-    }
+    expect(contract.displayedReadinessScoreAfter).toBeGreaterThanOrEqual(contract.displayedReadinessScoreBefore)
   })
 
   it('forces a minimum displayed score of 89 and caps at 95 when gates pass', () => {
@@ -107,9 +113,10 @@ describe('ATS readiness scoring contract', () => {
     expect(contract.displayedReadinessScoreAfter).not.toBeNull()
     expect(contract.displayedReadinessScoreAfter!).toBeGreaterThanOrEqual(89)
     expect(contract.displayedReadinessScoreAfter!).toBeLessThanOrEqual(95)
+    expect(contract.display.mode).toBe('exact')
   })
 
-  it('withholds the optimized displayed score when quality gates fail', () => {
+  it('converts the old withheld path into an estimated numeric range when quality gates fail', () => {
     const contract = buildAtsReadinessContractForEnhancement({
       originalCvState: BASE_CV,
       optimizedCvState: {
@@ -127,8 +134,14 @@ describe('ATS readiness scoring contract', () => {
       },
     })
 
-    expect(contract.scoreStatus).toBe('withheld_pending_quality')
-    expect(contract.displayedReadinessScoreAfter).toBeNull()
+    expect(contract.scoreStatus).toBe('estimated_range')
+    expect(contract.display.mode).toBe('estimated_range')
+    expect(contract.display.exactScore).toBeNull()
+    expect(contract.display.estimatedRangeMin).toBeGreaterThanOrEqual(89)
+    expect(contract.display.estimatedRangeMax).toBeLessThanOrEqual(95)
+    expect((contract.display.estimatedRangeMax ?? 0) - (contract.display.estimatedRangeMin ?? 0)).toBeLessThanOrEqual(2)
+    expect(contract.display.formattedScorePtBr).toMatch(/^\d+(–\d+)?$/)
+    expect(contract.displayedReadinessScoreAfter).toBe(contract.display.estimatedRangeMin)
     expect(contract.withholdReasons.length).toBeGreaterThan(0)
   })
 
@@ -148,7 +161,7 @@ describe('ATS readiness scoring contract', () => {
     expect(contract.rawInternalConfidence).toBe('low')
   })
 
-  it('withholds optimized display when low-confidence input also regresses core internal signals', () => {
+  it('keeps monotonic estimated ranges when low-confidence input regresses core internal signals', () => {
     const contract = buildAtsReadinessContractForEnhancement({
       originalCvState: {
         ...BASE_CV,
@@ -179,7 +192,8 @@ describe('ATS readiness scoring contract', () => {
     })
 
     expect(contract.rawInternalConfidence).toBe('low')
-    expect(contract.scoreStatus).toBe('withheld_pending_quality')
+    expect(contract.scoreStatus).toBe('estimated_range')
+    expect(contract.display.estimatedRangeMin).toBeGreaterThanOrEqual(contract.displayedReadinessScoreBefore)
     expect(contract.withholdReasons).toContain('Low scoring confidence combined with contradictory internal ATS signals.')
   })
 

@@ -185,6 +185,7 @@ export type SessionWorkspace = {
     }
     generatedOutput: GeneratedOutput
     atsReadiness?: AtsReadinessScoreContract
+    // Legacy raw heuristic diagnostic field kept only for compatibility. Main product surfaces must read atsReadiness instead.
     atsScore?: ATSScoreResult
     messageCount: number
     creditConsumed: boolean
@@ -254,7 +255,7 @@ export type ResumeComparisonResponse = {
     label: string
   }
   optimizedScore: {
-    total: number | null
+    total: number
     label: string
   }
 }

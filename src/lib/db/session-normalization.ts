@@ -114,7 +114,7 @@ export function mapSessionRow(row: SessionRow): Session {
     cvState: cloneCvState(row.cv_state == null ? EMPTY_CV_STATE : CVStateSchema.parse(row.cv_state)),
     agentState: normalizeAgentState(row.agent_state),
     generatedOutput: normalizeGeneratedOutput(row.generated_output),
-    atsScore: row.ats_score ?? undefined,
+    internalHeuristicAtsScore: row.ats_score ?? undefined,
     creditsUsed: row.credits_used,
     messageCount: row.message_count ?? 0,
     creditConsumed: row.credit_consumed ?? false,
@@ -181,7 +181,7 @@ export function mergeToolPatch(session: Session, patch: ToolPatch): Session {
     cvState: nextCvState,
     agentState: nextAgentState,
     generatedOutput: nextGeneratedOutput,
-    atsScore: patch.atsScore ?? session.atsScore,
+    internalHeuristicAtsScore: patch.internalHeuristicAtsScore ?? session.internalHeuristicAtsScore,
     updatedAt: new Date(),
   }
 }

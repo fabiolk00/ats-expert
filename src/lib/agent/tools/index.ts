@@ -137,7 +137,7 @@ const TOOL_DEFINITIONS: OpenAITool[] = [
     type: 'function',
     function: {
       name: 'rewrite_section',
-      description: 'Rewrite a specific resume section to improve ATS score and impact.',
+      description: 'Rewrite a specific resume section to improve ATS readiness and impact.',
       parameters: {
         type: 'object',
         properties: {
@@ -340,7 +340,7 @@ export async function executeTool(
       return {
         output: { success: true, result },
         patch: {
-          atsScore: result,
+          internalHeuristicAtsScore: result,
           agentState: {
             ...(job_description
               ? {
@@ -567,7 +567,7 @@ async function dispatchToolInternal(
       touchedCvState: execution.patch?.cvState !== undefined,
       touchedAgentState: execution.patch?.agentState !== undefined,
       touchedGeneratedOutput: persistedGeneratedOutput,
-      touchedAtsScore: execution.patch?.atsScore !== undefined,
+      touchedInternalHeuristicAtsScore: execution.patch?.internalHeuristicAtsScore !== undefined,
       parseConfidenceScore: execution.patch?.agentState?.parseConfidenceScore,
       errorCode: outputFailure?.code,
       errorMessage: outputFailure?.error,

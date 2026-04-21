@@ -435,7 +435,7 @@ describe("ChatInterface", () => {
 
         return new Response(
           createSSEStream([
-            { type: "text", content: "Seu currículo ATS-otimizado em PDF está pronto. ATS Score antes: 47/100. ATS agora: 63/100. Confira o download e a pré-visualização acima." },
+            { type: "text", content: "Seu currículo ATS-otimizado em PDF está pronto. ATS Readiness Score antes: 47. ATS Readiness Score final: 63. Confira o download e a pré-visualização acima." },
             { type: "done", sessionId: "sess_confirm", phase: "generation", messageCount: 4 },
           ]),
           { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_confirm" } },
@@ -1247,7 +1247,52 @@ describe("ChatInterface", () => {
     await waitFor(() => {
       expect(screen.getByText(/Mensagem\s+3\s+de\s+30/i)).toBeInTheDocument()
       expect(screen.getByText(/Fase:\s+dialog/i)).toBeInTheDocument()
-      expect(screen.getByText(/ATS Readiness:\s+88/i)).toBeInTheDocument()
+      expect(screen.getByText(/ATS Readiness Score:\s+88/i)).toBeInTheDocument()
+    })
+  })
+
+  it("renders estimated ATS Readiness ranges in the header after session refetch", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        return new Response(
+          createSSEStream([
+            { type: "done", sessionId: "sess_range", phase: "dialog", messageCount: 1 },
+          ]),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        )
+      }
+
+      if (typeof url === "string" && url === "/api/session/sess_range") {
+        return new Response(
+          JSON.stringify({
+            session: {
+              phase: "dialog",
+              atsReadiness: {
+                displayedReadinessScoreCurrent: 89,
+                display: {
+                  formattedScorePtBr: "89–91",
+                },
+              },
+              messageCount: 3,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(<ChatInterface userName="Fabio" />)
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    submitComposer(textarea, "Mostre a faixa")
+
+    await waitFor(() => {
+      expect(screen.getByText(/ATS Readiness Score:\s+89–91/i)).toBeInTheDocument()
     })
   })
 

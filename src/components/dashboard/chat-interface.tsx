@@ -408,6 +408,7 @@ type SessionSnapshotResponse = {
   session?: {
     phase?: Phase
     atsReadiness?: AtsReadinessScoreContract
+    // Legacy raw heuristic diagnostic field; main product UI must read atsReadiness instead.
     atsScore?: {
       total?: number
     }
@@ -417,6 +418,13 @@ type SessionSnapshotResponse = {
 
 function getDisplayedReadinessScore(atsReadiness?: AtsReadinessScoreContract): number | undefined {
   return atsReadiness?.displayedReadinessScoreCurrent
+}
+
+function getDisplayedReadinessLabel(atsReadiness?: AtsReadinessScoreContract): string | undefined {
+  return atsReadiness?.display?.formattedScorePtBr
+    ?? (atsReadiness?.displayedReadinessScoreCurrent !== undefined
+      ? String(atsReadiness.displayedReadinessScoreCurrent)
+      : undefined)
 }
 
 function ChatWindowChrome() {
@@ -474,6 +482,7 @@ export function ChatInterface({
   const bottomRef = useRef<HTMLDivElement>(null)
   const isInputDisabled = disabled || isStreaming || sessionLimitReached || sessionExpired
   const displayedReadinessScore = getDisplayedReadinessScore(atsReadiness)
+  const displayedReadinessLabel = getDisplayedReadinessLabel(atsReadiness)
   const showGenerationApproval = phase === "confirm" || (phase === "dialog" && displayedReadinessScore !== undefined)
 
   const applySessionState = (nextSessionId: string | undefined): void => {
@@ -975,8 +984,8 @@ export function ChatInterface({
             </span>
             <div className="flex items-center gap-2 text-xs">
               {phase !== "intake" ? <span className="text-muted-foreground">Fase: {phase}</span> : null}
-              {displayedReadinessScore !== undefined ? (
-                <span className="text-muted-foreground">ATS Readiness: {displayedReadinessScore}</span>
+              {displayedReadinessLabel ? (
+                <span className="text-muted-foreground">ATS Readiness Score: {displayedReadinessLabel}</span>
               ) : null}
             </div>
           </div>

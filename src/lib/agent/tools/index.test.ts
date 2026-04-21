@@ -62,7 +62,8 @@ vi.mock('@/lib/db/sessions', () => ({
     agentState: patch.agentState ? { ...session.agentState, ...patch.agentState } : session.agentState,
     generatedOutput: patch.generatedOutput ? { ...session.generatedOutput, ...patch.generatedOutput } : session.generatedOutput,
     phase: patch.phase ?? session.phase,
-    atsScore: patch.atsScore ?? session.atsScore,
+    internalHeuristicAtsScore:
+      patch.internalHeuristicAtsScore ?? session.internalHeuristicAtsScore,
     updatedAt: session.updatedAt,
   })),
 }))
@@ -134,7 +135,7 @@ function buildSession(): Session {
     generatedOutput: {
       status: 'idle',
     },
-    atsScore: undefined,
+    internalHeuristicAtsScore: undefined,
     creditsUsed: 0,
     messageCount: 0,
     creditConsumed: false,
@@ -186,7 +187,7 @@ describe('agent tool dispatch', () => {
       session.cvState = mergedSession.cvState
       session.agentState = mergedSession.agentState
       session.generatedOutput = mergedSession.generatedOutput
-      session.atsScore = mergedSession.atsScore
+      session.internalHeuristicAtsScore = mergedSession.internalHeuristicAtsScore
     })
     vi.mocked(generateBillableResume).mockResolvedValue({
       output: {
@@ -291,7 +292,7 @@ describe('agent tool dispatch', () => {
     })
     expect(applyToolPatchWithVersion).toHaveBeenCalledTimes(1)
     expect(applyToolPatchWithVersion).toHaveBeenCalledWith(session, {
-      atsScore: atsResult,
+      internalHeuristicAtsScore: atsResult,
       agentState: {
         atsReadiness: expect.objectContaining({
           productLabel: 'ATS Readiness Score',

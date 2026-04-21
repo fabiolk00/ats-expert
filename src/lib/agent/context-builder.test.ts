@@ -12,11 +12,11 @@ import {
 import { CURRENT_SESSION_STATE_VERSION } from '@/lib/db/sessions'
 
 type SessionOverrides =
-  Omit<Partial<Session>, 'cvState' | 'agentState' | 'generatedOutput' | 'atsScore'> & {
+  Omit<Partial<Session>, 'cvState' | 'agentState' | 'generatedOutput' | 'internalHeuristicAtsScore'> & {
     cvState?: Partial<Session['cvState']>
     agentState?: Partial<Session['agentState']>
     generatedOutput?: Partial<Session['generatedOutput']>
-    atsScore?: Session['atsScore']
+    internalHeuristicAtsScore?: Session['internalHeuristicAtsScore']
   }
 
 function buildSession(overrides: SessionOverrides = {}): Session {
@@ -58,7 +58,7 @@ function buildSession(overrides: SessionOverrides = {}): Session {
     generatedOutput: {
       status: 'idle',
     },
-    atsScore: {
+    internalHeuristicAtsScore: {
       total: 80,
       breakdown: {
         format: 16,
@@ -92,9 +92,9 @@ function buildSession(overrides: SessionOverrides = {}): Session {
       ...session.generatedOutput,
       ...overrides.generatedOutput,
     },
-    atsScore: overrides.atsScore === undefined
-      ? session.atsScore
-      : overrides.atsScore,
+    internalHeuristicAtsScore: overrides.internalHeuristicAtsScore === undefined
+      ? session.internalHeuristicAtsScore
+      : overrides.internalHeuristicAtsScore,
   }
 }
 
@@ -197,7 +197,7 @@ describe('buildSystemPrompt', () => {
     expect(prompt.length).toBeLessThanOrEqual(AGENT_CONFIG.maxSystemPromptCharsByPhase.analysis)
     expect(prompt).toContain('## Current phase: ANALYSIS')
     expect(prompt).toContain('## Analysis Snapshot')
-    expect(prompt).toContain('ATS score: 80/100.')
+    expect(prompt).toContain('Internal heuristic ATS score: 80/100.')
     expect(prompt).toContain('Gap match: 76/100.')
     expect(prompt).toContain('Missing skills: PostgreSQL.')
     expect(prompt).toContain('## Profile Audit Snapshot')

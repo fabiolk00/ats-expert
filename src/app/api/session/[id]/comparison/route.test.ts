@@ -179,7 +179,7 @@ describe('session comparison route', () => {
     expect(body.optimizedScore.total).toBeGreaterThanOrEqual(89)
   })
 
-  it('withholds the optimized ATS Readiness score when quality gates fail', async () => {
+  it('returns an estimated ATS Readiness range when the optimized score cannot be stated exactly', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
     } as Awaited<ReturnType<typeof getCurrentAppUser>>)
@@ -244,14 +244,113 @@ describe('session comparison route', () => {
     )
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({
+    const body = await response.json()
+    expect(body).toMatchObject({
       atsReadiness: {
-        scoreStatus: 'withheld_pending_quality',
+        scoreStatus: 'estimated_range',
+        display: {
+          mode: 'estimated_range',
+          badgeTextPtBr: 'Estimado',
+        },
       },
       optimizedScore: {
-        total: null,
+        total: 89,
         label: 'ATS Readiness Score',
       },
     })
+    expect(body.atsReadiness.display.formattedScorePtBr).toBe('89–90')
+  })
+
+  it('derives canonical readiness for legacy ATS sessions instead of treating old raw atsScore as the final product score', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+    } as Awaited<ReturnType<typeof getCurrentAppUser>>)
+
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_legacy',
+      userId: 'usr_123',
+      cvState: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        summary: 'Resumo base com SQL e BI.',
+        experience: [{
+          title: 'Analista',
+          company: 'Acme',
+          startDate: '2022',
+          endDate: '2024',
+          bullets: ['Criei dashboards e reduzi o tempo de reporte em 20%.'],
+        }],
+        skills: ['SQL', 'Power BI', 'ETL'],
+        education: [{
+          degree: 'Bacharel em Sistemas',
+          institution: 'USP',
+          year: '2020',
+        }],
+        certifications: [],
+      },
+      agentState: {
+        workflowMode: 'ats_enhancement',
+        lastRewriteMode: 'ats_enhancement',
+        rewriteValidation: {
+          valid: true,
+          issues: [],
+        },
+        optimizationSummary: {
+          changedSections: ['summary', 'experience', 'skills'],
+          notes: ['Resumo e experiencia reforcados para ATS.'],
+          keywordCoverageImprovement: ['SQL'],
+        },
+        optimizedCvState: {
+          fullName: 'Ana Silva',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          summary: 'Resumo otimizado com maior clareza, SQL, BI e foco em indicadores para decisao executiva.',
+          experience: [{
+            title: 'Analista',
+            company: 'Acme',
+            startDate: '2022',
+            endDate: '2024',
+            bullets: ['Estruturei dashboards executivos e reduzi o tempo de reporte em 25%.'],
+          }],
+          skills: ['SQL', 'Power BI', 'ETL', 'Dashboards'],
+          education: [{
+            degree: 'Bacharel em Sistemas',
+            institution: 'USP',
+            year: '2020',
+          }],
+          certifications: [],
+        },
+      },
+      generatedOutput: {
+        status: 'ready',
+      },
+      atsScore: {
+        total: 11,
+        breakdown: {
+          format: 2,
+          structure: 2,
+          contact: 2,
+          keywords: 2,
+          impact: 3,
+        },
+        issues: [],
+        suggestions: [],
+      },
+    } as unknown as Awaited<ReturnType<typeof getSession>>)
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_legacy/comparison'),
+      { params: { id: 'sess_legacy' } },
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.atsReadiness).toMatchObject({
+      contractVersion: 2,
+      productLabel: 'ATS Readiness Score',
+    })
+    expect(body.originalScore.total).not.toBe(11)
+    expect(body.optimizedScore.total).toBeGreaterThanOrEqual(body.originalScore.total)
   })
 })

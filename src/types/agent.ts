@@ -74,6 +74,7 @@ export type AtsAnalysisIssue = {
 }
 
 export type AtsAnalysisResult = {
+  // Internal heuristic analyzer output only. This is not the ATS Readiness product score.
   overallScore: number
   structureScore: number
   clarityScore: number
@@ -259,8 +260,8 @@ export type Session = {
   cvState: CVState
   agentState: AgentState
   generatedOutput: GeneratedOutput
-  // Deprecated for main product UI: keep raw heuristic ATS score for internal diagnostics and compatibility.
-  atsScore?: ATSScoreResult
+  // Internal heuristic diagnostic only. Do not use as the ATS Readiness product score.
+  internalHeuristicAtsScore?: ATSScoreResult
   creditsUsed: number
   messageCount: number
   creditConsumed: boolean
@@ -278,7 +279,8 @@ export type ToolPatch = Partial<{
   cvState: Partial<CVState>
   agentState: AgentStatePatch
   generatedOutput: Partial<GeneratedOutput>
-  atsScore: ATSScoreResult
+  // Internal heuristic diagnostic only. Do not use as the ATS Readiness product score.
+  internalHeuristicAtsScore: ATSScoreResult
   atsReadiness: AtsReadinessScoreContract
 }>
 
@@ -520,6 +522,9 @@ export type AgentDoneChunk = {
   type: 'done'
   sessionId: string
   phase: Phase
+  // Internal heuristic diagnostic only. Product UI must prefer atsReadiness.
+  internalHeuristicAtsScore?: ATSScoreResult
+  // Deprecated compatibility field. Do not use as the ATS Readiness product score.
   atsScore?: ATSScoreResult
   atsReadiness?: AtsReadinessScoreContract
   messageCount?: number

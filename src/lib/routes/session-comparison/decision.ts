@@ -1,7 +1,8 @@
 import { scoreATS } from '@/lib/ats/score'
 import {
-  buildAtsReadinessContractForEnhancement,
+  resolveSessionAtsReadiness,
 } from '@/lib/ats/scoring'
+import { recordMetricCounter } from '@/lib/observability/metric-events'
 import {
   getPreviewLockSummary,
   sanitizeGeneratedCvStateForClient,
@@ -46,12 +47,10 @@ export async function decideSessionComparison(
 
   try {
     const atsReadiness = generationType === 'ATS_ENHANCEMENT'
-      ? buildAtsReadinessContractForEnhancement({
-          originalCvState: context.session.cvState,
+      ? resolveSessionAtsReadiness({
+          session: context.session,
           optimizedCvState,
-          rewriteValidation: context.session.agentState.rewriteValidation,
-          optimizationSummary: context.session.agentState.optimizationSummary,
-          previousContract: context.session.agentState.atsReadiness,
+          emitFallbackTelemetry: true,
         })
       : undefined
 
@@ -62,8 +61,16 @@ export async function decideSessionComparison(
       ? atsReadiness.displayedReadinessScoreBefore
       : scoreATS(originalResumeText, targetJobDescription).total
     const optimizedScore = generationType === 'ATS_ENHANCEMENT' && atsReadiness
-      ? atsReadiness.displayedReadinessScoreAfter
+      ? atsReadiness.displayedReadinessScoreAfter ?? atsReadiness.displayedReadinessScoreCurrent
       : scoreATS(optimizedResumeText, targetJobDescription).total
+
+    if (atsReadiness) {
+      recordMetricCounter('architecture.ats_readiness.comparison_rendered', {
+        contractVersion: atsReadiness.contractVersion,
+        scoreStatus: atsReadiness.scoreStatus,
+        confidence: atsReadiness.rawInternalConfidence,
+      })
+    }
 
     return {
       kind: 'success',
