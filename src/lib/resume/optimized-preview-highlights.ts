@@ -27,6 +27,7 @@ export type OptimizedPreviewHighlights = {
 export const SUMMARY_SEMANTIC_HIGHLIGHT_ENABLED = false
 export const MAX_HIGHLIGHTED_SPANS_PER_EXPERIENCE_BULLET = 1
 export const MAX_HIGHLIGHTED_BULLETS_PER_EXPERIENCE_ENTRY = 2
+const EXPERIENCE_HIGHLIGHT_SURFACING_DEBUG_FLAG = "__CURRIA_DEBUG_EXPERIENCE_HIGHLIGHT_SURFACING__"
 
 type HighlightDensityMode = "summary" | "experience" | "inline"
 
@@ -470,7 +471,12 @@ function tierForExperienceCategory(category: ExperienceHighlightCategory): "stro
     : "secondary"
 }
 
-const EXPERIENCE_HIGHLIGHT_CATEGORY_PRIORITY: Record<ExperienceHighlightCategory, number> = {
+/**
+ * Editorial same-entry category order for visible experience highlights.
+ * This directly controls which bullets win the limited visible slots under cap pressure,
+ * so changes here require explicit editorial review rather than casual sorting tweaks.
+ */
+export const EXPERIENCE_HIGHLIGHT_CATEGORY_PRIORITY: Record<ExperienceHighlightCategory, number> = {
   metric: 0,
   scope_scale: 1,
   contextual_stack: 2,
@@ -1572,11 +1578,65 @@ function getExperienceHighlightCategoryPriority(result: ExperienceBulletHighligh
     : Number.MAX_SAFE_INTEGER
 }
 
+function shouldTraceExperienceHighlightSurfacing(): boolean {
+  const debugGlobal = globalThis as typeof globalThis & {
+    [EXPERIENCE_HIGHLIGHT_SURFACING_DEBUG_FLAG]?: boolean
+  }
+
+  return process.env.NODE_ENV !== "production"
+    && debugGlobal[EXPERIENCE_HIGHLIGHT_SURFACING_DEBUG_FLAG] === true
+}
+
+function traceExperienceHighlightSurfacingDecision(
+  bulletResults: ExperienceBulletHighlightResult[],
+  selectedResults: ExperienceBulletHighlightResult[],
+  maxVisibleHighlights: number,
+): void {
+  if (!shouldTraceExperienceHighlightSurfacing()) {
+    return
+  }
+
+  const selectedBulletIndexes = new Set(selectedResults.map((result) => result.bulletIndex))
+  const surfacingEligibleResults = bulletResults.filter((result) => result.eligible && hasRenderedExperienceHighlight(result))
+  const suppressedBulletIndexes = surfacingEligibleResults
+    .map((result) => result.bulletIndex)
+    .filter((bulletIndex) => !selectedBulletIndexes.has(bulletIndex))
+
+  console.debug("[optimized-preview-highlights] experience-entry surfacing", {
+    maxVisibleHighlights,
+    eligibleBulletIndexes: surfacingEligibleResults.map((result) => result.bulletIndex),
+    selectedBulletIndexes: selectedResults.map((result) => result.bulletIndex),
+    suppressedBulletIndexes,
+    bullets: bulletResults.map((result) => {
+      const surfacingEligible = result.eligible && hasRenderedExperienceHighlight(result)
+      const selected = selectedBulletIndexes.has(result.bulletIndex)
+
+      return {
+        bulletIndex: result.bulletIndex,
+        surfacingEligible,
+        hasVisibleHighlightCandidate: result.hasVisibleHighlightCandidate,
+        renderable: result.renderable,
+        highlightTier: result.highlightTier,
+        highlightCategory: result.highlightCategory,
+        improvementScore: result.improvementScore,
+        winnerScore: result.winnerScore,
+        selected,
+        suppressed: surfacingEligible && !selected,
+      }
+    }),
+  })
+}
+
+/**
+ * Layer 3 entry-level surfacing policy.
+ * It consumes finalized bullet-level results plus an explicit per-entry cap because changing
+ * that cap changes which bullets remain visible under editorial slot pressure.
+ */
 export function selectVisibleExperienceHighlightsForEntry(
   bulletResults: ExperienceBulletHighlightResult[],
   maxVisibleHighlights = MAX_HIGHLIGHTED_BULLETS_PER_EXPERIENCE_ENTRY,
 ): ExperienceBulletHighlightResult[] {
-  return bulletResults
+  const selectedResults = bulletResults
     .filter((result) => result.eligible && hasRenderedExperienceHighlight(result))
     .sort((left, right) =>
       getExperienceHighlightTierPriority(left) - getExperienceHighlightTierPriority(right)
@@ -1586,6 +1646,10 @@ export function selectVisibleExperienceHighlightsForEntry(
       || left.bulletIndex - right.bulletIndex,
     )
     .slice(0, maxVisibleHighlights)
+
+  traceExperienceHighlightSurfacingDecision(bulletResults, selectedResults, maxVisibleHighlights)
+
+  return selectedResults
 }
 
 function findMatchingExperienceEntry(

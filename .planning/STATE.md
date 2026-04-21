@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 87
-current_phase_name: formalize experience-entry highlight surfacing policy as an explicit code layer
-current_plan: 01
-status: complete
-stopped_at: Completed 87-01-PLAN.md
-last_updated: "2026-04-21T23:07:12.271Z"
+current_phase: 88
+current_phase_name: harden experience-entry highlight surfacing with explicit policy constant, edge-case tests, and debug observability
+current_plan: 01 complete
+status: phase_complete
+stopped_at: Completed 88-01-PLAN.md
+last_updated: "2026-04-21T23:38:29.658Z"
 last_activity: 2026-04-21
 progress:
-  total_phases: 50
+  total_phases: 51
   completed_phases: 6
   total_plans: 6
   completed_plans: 6
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Experience highlight previews now formalize same-entry visible-slot selection with explicit editorial priority, keeping Tier 1 evidence ahead of Tier 2 without changing summary, ATS gates, or export behavior.
+**Current focus:** Experience highlight previews now harden the same-entry surfacing selector with explicit editorial policy constants, direct edge-case coverage, and debug-only traceability while preserving selector, ATS, and renderer behavior.
 
 ## Current Position
 
-Phase: 87 (formalize experience-entry highlight surfacing policy as an explicit code layer) - COMPLETE
+Phase: 88 (harden experience-entry highlight surfacing with explicit policy constant, edge-case tests, and debug observability) - COMPLETE
 Plan: 01 complete
-Current Phase: 87
-Current Phase Name: formalize experience-entry highlight surfacing policy as an explicit code layer
+Current Phase: 88
+Current Phase Name: harden experience-entry highlight surfacing with explicit policy constant, edge-case tests, and debug observability
 Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: Phase 87 complete
+Last Activity Description: Phase 88 complete
 
 Progress: [##########] 100%
 
@@ -44,7 +44,7 @@ Progress: [##########] 100%
 
 Baseline carried forward from earlier shipped milestones:
 
-- Total plans completed: 82
+- Total plans completed: 83
 - Milestones archived: 5
 
 ## Accumulated Context
@@ -125,7 +125,8 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 87]: Experience highlight surfacing now has an explicit same-entry Layer 3 selector that ranks finalized bullet results by editorial tier/category priority instead of raw improvement score alone.
 - [Phase 87]: Tier 1 same-entry evidence now consumes visible slots before Tier 2, while existing caps, zero-highlight safety, and renderer tier/category contracts remain unchanged.
 - Phase 87 completed: same-entry experience highlight surfacing is now an explicit Layer 3 selector with editorial Tier 1 dominance ahead of Tier 2.
-- Phase 88 added: Harden experience-entry highlight surfacing with explicit policy constant, edge-case tests, and debug observability.
+- Phase 87 completed: same-entry visible highlight selection now uses an explicit Layer 3 editorial selector with Tier 1 dominance and preserved caps/contracts.
+- Phase 88 completed: the same-entry surfacing selector now exposes explicit editorial policy constants, direct edge-case coverage, and debug-only decision traceability without reopening adjacent layers.
 
 ### Pending Todos
 

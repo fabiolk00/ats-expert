@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { CVState } from "@/types/cv"
 
@@ -9,6 +9,10 @@ import {
   normalizePreviewSummaryText,
   selectVisibleExperienceHighlightsForEntry,
 } from "./optimized-preview-highlights"
+
+const experienceHighlightSurfacingDebugGlobal = globalThis as typeof globalThis & {
+  __CURRIA_DEBUG_EXPERIENCE_HIGHLIGHT_SURFACING__?: boolean
+}
 
 function buildCvState(input: Partial<CVState>): CVState {
   return {
@@ -66,6 +70,12 @@ function buildExperienceBulletHighlightResult(
 
 describe("optimized preview highlights", () => {
   describe("experience-entry surfacing policy", () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+      vi.unstubAllEnvs()
+      delete experienceHighlightSurfacingDebugGlobal.__CURRIA_DEBUG_EXPERIENCE_HIGHLIGHT_SURFACING__
+    })
+
     it("prioritizes a Tier 1 metric bullet over a same-entry contextual stack bullet", () => {
       const selected = selectVisibleExperienceHighlightsForEntry([
         buildExperienceBulletHighlightResult({
@@ -147,6 +157,35 @@ describe("optimized preview highlights", () => {
       expect(selected[0]?.highlightCategory).toBe("contextual_stack")
     })
 
+    it("returns no surfaced highlights when an entry has no eligible visible bullets", () => {
+      const selected = selectVisibleExperienceHighlightsForEntry([
+        buildExperienceBulletHighlightResult({
+          bullet: "Atuei em rotinas recorrentes para o time.",
+          bulletIndex: 0,
+          eligible: false,
+          renderable: false,
+          hasVisibleHighlightCandidate: true,
+          highlightTier: "strong",
+          highlightCategory: "metric",
+          improvementScore: 5,
+          winnerScore: 4,
+        }),
+        buildExperienceBulletHighlightResult({
+          bullet: "Apoiei alinhamentos internos com stakeholders.",
+          bulletIndex: 1,
+          eligible: true,
+          renderable: false,
+          hasVisibleHighlightCandidate: false,
+          highlightTier: "secondary",
+          highlightCategory: "contextual_stack",
+          improvementScore: 3,
+          winnerScore: 0,
+        }),
+      ])
+
+      expect(selected).toHaveLength(0)
+    })
+
     it("does not force weak or non-renderable secondary bullets into empty capacity", () => {
       const selected = selectVisibleExperienceHighlightsForEntry([
         buildExperienceBulletHighlightResult({
@@ -165,19 +204,19 @@ describe("optimized preview highlights", () => {
       expect(selected).toHaveLength(0)
     })
 
-    it("breaks same-rank ties deterministically by stable bullet order after score parity", () => {
+    it("breaks same-rank ties deterministically by bulletIndex after category and score parity", () => {
       const selected = selectVisibleExperienceHighlightsForEntry([
         buildExperienceBulletHighlightResult({
-          bullet: "Reduzi o tempo de processamento em 18%.",
-          bulletIndex: 0,
+          bullet: "Reduzi o tempo de atendimento em 18%.",
+          bulletIndex: 1,
           highlightTier: "strong",
           highlightCategory: "metric",
           improvementScore: 6,
           winnerScore: 5,
         }),
         buildExperienceBulletHighlightResult({
-          bullet: "Reduzi o tempo de atendimento em 18%.",
-          bulletIndex: 1,
+          bullet: "Reduzi o tempo de processamento em 18%.",
+          bulletIndex: 0,
           highlightTier: "strong",
           highlightCategory: "metric",
           improvementScore: 6,
@@ -187,6 +226,143 @@ describe("optimized preview highlights", () => {
 
       expect(selected).toHaveLength(2)
       expect(selected.map((entry) => entry.bulletIndex)).toEqual([0, 1])
+    })
+
+    it("enforces the explicit entry cap after editorial ordering so lower-priority bullets cannot leak in", () => {
+      const selected = selectVisibleExperienceHighlightsForEntry([
+        buildExperienceBulletHighlightResult({
+          bullet: "Estruturei ETL, SQL e Power BI para governanca analitica.",
+          bulletIndex: 0,
+          highlightTier: "secondary",
+          highlightCategory: "contextual_stack",
+          improvementScore: 12,
+          winnerScore: 11,
+        }),
+        buildExperienceBulletHighlightResult({
+          bullet: "Reduzi o tempo de processamento em 32%.",
+          bulletIndex: 1,
+          highlightTier: "strong",
+          highlightCategory: "metric",
+          improvementScore: 8,
+          winnerScore: 7,
+        }),
+        buildExperienceBulletHighlightResult({
+          bullet: "Gerenciei carteira regional com mais de 120 contas ativas.",
+          bulletIndex: 2,
+          highlightTier: "strong",
+          highlightCategory: "scope_scale",
+          improvementScore: 7,
+          winnerScore: 6,
+        }),
+      ], 1)
+
+      expect(selected).toHaveLength(1)
+      expect(selected[0]?.highlightCategory).toBe("metric")
+      expect(selected[0]?.highlightTier).toBe("strong")
+    })
+
+    it("does not emit the debug trace without the opt-in flag or in production", () => {
+      const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {})
+      const results = [
+        buildExperienceBulletHighlightResult({
+          bullet: "Reduzi o tempo de processamento em 18%.",
+          bulletIndex: 0,
+          highlightTier: "strong",
+          highlightCategory: "metric",
+          improvementScore: 6,
+          winnerScore: 5,
+        }),
+      ]
+
+      vi.stubEnv("NODE_ENV", "test")
+      selectVisibleExperienceHighlightsForEntry(results, 1)
+      expect(debugSpy).not.toHaveBeenCalled()
+
+      experienceHighlightSurfacingDebugGlobal.__CURRIA_DEBUG_EXPERIENCE_HIGHLIGHT_SURFACING__ = true
+      vi.stubEnv("NODE_ENV", "production")
+      selectVisibleExperienceHighlightsForEntry(results, 1)
+      expect(debugSpy).not.toHaveBeenCalled()
+    })
+
+    it("emits a compact debug trace with selected and suppressed bullet summaries when enabled", () => {
+      vi.stubEnv("NODE_ENV", "test")
+      experienceHighlightSurfacingDebugGlobal.__CURRIA_DEBUG_EXPERIENCE_HIGHLIGHT_SURFACING__ = true
+
+      const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {})
+      selectVisibleExperienceHighlightsForEntry([
+        buildExperienceBulletHighlightResult({
+          bullet: "Reduzi o tempo de processamento em 32%.",
+          bulletIndex: 0,
+          highlightTier: "strong",
+          highlightCategory: "metric",
+          improvementScore: 9,
+          winnerScore: 8,
+        }),
+        buildExperienceBulletHighlightResult({
+          bullet: "Estruturei ETL, SQL e Power BI para governanca analitica.",
+          bulletIndex: 1,
+          highlightTier: "secondary",
+          highlightCategory: "contextual_stack",
+          improvementScore: 10,
+          winnerScore: 9,
+        }),
+        buildExperienceBulletHighlightResult({
+          bullet: "Atuei com apoio analitico recorrente.",
+          bulletIndex: 2,
+          eligible: false,
+          renderable: false,
+          hasVisibleHighlightCandidate: false,
+          highlightTier: "secondary",
+          highlightCategory: "anchored_outcome",
+          improvementScore: 2,
+          winnerScore: 0,
+        }),
+      ], 1)
+
+      expect(debugSpy).toHaveBeenCalledTimes(1)
+      expect(debugSpy).toHaveBeenCalledWith(
+        "[optimized-preview-highlights] experience-entry surfacing",
+        expect.objectContaining({
+          maxVisibleHighlights: 1,
+          eligibleBulletIndexes: [0, 1],
+          selectedBulletIndexes: [0],
+          suppressedBulletIndexes: [1],
+        }),
+      )
+
+      const payload = debugSpy.mock.calls[0]?.[1] as {
+        bullets: Array<Record<string, unknown>>
+      }
+
+      expect(payload.bullets).toEqual([
+        expect.objectContaining({
+          bulletIndex: 0,
+          surfacingEligible: true,
+          highlightTier: "strong",
+          highlightCategory: "metric",
+          improvementScore: 9,
+          winnerScore: 8,
+          selected: true,
+          suppressed: false,
+        }),
+        expect.objectContaining({
+          bulletIndex: 1,
+          surfacingEligible: true,
+          highlightTier: "secondary",
+          highlightCategory: "contextual_stack",
+          improvementScore: 10,
+          winnerScore: 9,
+          selected: false,
+          suppressed: true,
+        }),
+        expect.objectContaining({
+          bulletIndex: 2,
+          surfacingEligible: false,
+          selected: false,
+          suppressed: false,
+        }),
+      ])
+      expect(payload.bullets[0]).not.toHaveProperty("bullet")
     })
   })
 

@@ -161,9 +161,9 @@
 
 ### Experience Highlight Entry Surfacing Hardening
 
-- [ ] **EXP-HILITE-SURFACING-HARDEN-01**: The experience-entry editorial surfacing policy is externalized into a named exported constant with explicit intent comments, and cap ownership is explicit in the surfacing API or documented at the cap source.
-- [ ] **EXP-HILITE-SURFACING-HARDEN-TEST-01**: Direct Layer 3 tests cover no-eligible-highlight entries, deterministic same-category ties, and explicit cap enforcement after editorial selection.
-- [ ] **EXP-HILITE-SURFACING-HARDEN-OBS-01**: The surfacing layer exposes lightweight debug-only observability that explains eligible, selected, and suppressed bullets without affecting normal product behavior or production UX.
+- [x] **EXP-HILITE-SURFACING-HARDEN-01**: The experience-entry editorial surfacing policy is externalized into a named exported constant with explicit intent comments, and cap ownership is explicit in the surfacing API or documented at the cap source.
+- [x] **EXP-HILITE-SURFACING-HARDEN-TEST-01**: Direct Layer 3 tests cover no-eligible-highlight entries, deterministic same-category ties, and explicit cap enforcement after editorial selection.
+- [x] **EXP-HILITE-SURFACING-HARDEN-OBS-01**: The surfacing layer exposes lightweight debug-only observability that explains eligible, selected, and suppressed bullets without affecting normal product behavior or production UX.
 
 ## Future Requirements
 
@@ -286,9 +286,9 @@
 | EXP-HILITE-SURFACING-01 | Phase 87 | Complete |
 | EXP-HILITE-SURFACING-PRIORITY-01 | Phase 87 | Complete |
 | EXP-HILITE-SURFACING-TEST-01 | Phase 87 | Complete |
-| EXP-HILITE-SURFACING-HARDEN-01 | Phase 88 | Planned |
-| EXP-HILITE-SURFACING-HARDEN-TEST-01 | Phase 88 | Planned |
-| EXP-HILITE-SURFACING-HARDEN-OBS-01 | Phase 88 | Planned |
+| EXP-HILITE-SURFACING-HARDEN-01 | Phase 88 | Complete |
+| EXP-HILITE-SURFACING-HARDEN-TEST-01 | Phase 88 | Complete |
+| EXP-HILITE-SURFACING-HARDEN-OBS-01 | Phase 88 | Complete |
 
 **Coverage:**
 - v1.6 requirements: 80 total
