@@ -228,6 +228,29 @@ describe('rewriteSection', () => {
     })
   })
 
+  it('falls back to the current summary when label cleanup would otherwise empty the result', async () => {
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      rewritten_content: 'Resumo Profissional:',
+      section_data: 'Professional Summary:',
+      keywords_added: [],
+      changes_made: ['Resumo limpo'],
+    })))
+
+    const result = await rewriteSection({
+      section: 'summary',
+      current_content: 'Analytics Engineer com foco em SQL e Power BI.',
+      instructions: 'Rewrite summary',
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output).toEqual({
+      success: true,
+      rewritten_content: 'Analytics Engineer com foco em SQL e Power BI.',
+      section_data: 'Analytics Engineer com foco em SQL e Power BI.',
+      keywords_added: [],
+      changes_made: ['Resumo limpo'],
+    })
+  })
+
   it('parses summary rewrites wrapped in markdown fences', async () => {
     createCompletion.mockResolvedValue(buildOpenAIResponse(`\`\`\`json
 {

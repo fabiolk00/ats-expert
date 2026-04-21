@@ -336,7 +336,7 @@ function isAtsSummaryStructurallyNoisy(summary: string): boolean {
   const normalized = normalizeForVisibilityCheck(summary)
 
   if (!normalized) {
-    return false
+    return true
   }
 
   if (hasSummarySectionLabel(summary)) {
@@ -363,6 +363,10 @@ function isVisibleRewriteTooClose(
     case 'summary': {
       const currentSummary = normalizeForVisibilityCheck(currentCvState.summary)
       const nextSummary = normalizeForVisibilityCheck(nextSectionData as string)
+      if (currentSummary && !nextSummary) {
+        return true
+      }
+
       return Boolean(
         currentSummary
         && nextSummary

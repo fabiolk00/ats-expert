@@ -131,6 +131,15 @@ function sanitizeSummaryText(value: string): string {
   return deduped.join(' ').replace(/\s+/g, ' ').trim()
 }
 
+function sanitizeSummaryWithFallback(value: string, fallbackValue: string): string {
+  const sanitized = sanitizeSummaryText(value)
+  if (sanitized) {
+    return sanitized
+  }
+
+  return sanitizeSummaryText(fallbackValue)
+}
+
 function normalizeBullets(value: unknown): string[] {
   if (typeof value === 'string') {
     return value
@@ -438,7 +447,7 @@ function normalizeRewritePayload(
         record.section_data = normalizedSummary
       }
 
-      record.section_data = sanitizeSummaryText(record.section_data as string)
+      record.section_data = sanitizeSummaryWithFallback(record.section_data as string, currentContent)
     }
 
     if (typeof record.rewritten_content === 'string') {
@@ -447,7 +456,7 @@ function normalizeRewritePayload(
         record.rewritten_content = normalizedRewrittenContent
       }
 
-      record.rewritten_content = sanitizeSummaryText(record.rewritten_content as string)
+      record.rewritten_content = sanitizeSummaryWithFallback(record.rewritten_content as string, currentContent)
     }
   }
 
