@@ -435,16 +435,6 @@ export function ResumeComparisonView({
         </div>
       </header>
 
-      {optimizationNotes.length > 0 ? (
-        <div className="border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950 sm:px-6">
-          <div className="mx-auto max-w-7xl">
-            <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100 sm:text-sm">
-              {optimizationNotes[0]}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {previewLock?.locked ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30 sm:px-6">
           <div className="mx-auto max-w-7xl">
@@ -500,11 +490,6 @@ export function ResumeComparisonView({
                 ) : null}
               </div>
             </div>
-            {atsReadiness?.display ? (
-              <p className="mb-3 text-xs text-zinc-600 dark:text-zinc-300 sm:text-sm">
-                {atsReadiness.display.helperTextPtBr}
-              </p>
-            ) : null}
             <ResumeDocument
               cvState={currentOptimizedCvState}
               variant="optimized"

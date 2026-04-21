@@ -1,5 +1,6 @@
 import type { RewriteValidationResult, WorkflowMode, TargetingPlan } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
+import { findMetricImpactRegressions } from './metric-impact-guard'
 
 function normalize(value: string | undefined): string {
   return (value ?? '').trim().toLowerCase()
@@ -90,6 +91,22 @@ export function validateRewrite(
         section: 'experience',
       })
     }
+  }
+
+  const metricImpactRegressions = findMetricImpactRegressions(originalCvState, optimizedCvState)
+  if (metricImpactRegressions.length > 0) {
+    const topRegression = metricImpactRegressions[0]
+    const exampleMetric = topRegression.metricTokens[0]
+    const exampleScope = topRegression.scopeTerms[0]
+    const exampleEvidence = [exampleMetric, exampleScope].filter(Boolean).join(' / ')
+
+    issues.push({
+      severity: 'medium',
+      message: exampleEvidence
+        ? `A experiência otimizada removeu ou enfraqueceu uma métrica real de impacto (${exampleEvidence}) presente no currículo original.`
+        : 'A experiência otimizada removeu ou enfraqueceu métricas reais de impacto presentes no currículo original.',
+      section: 'experience',
+    })
   }
 
   const originalCertificationSet = new Set(

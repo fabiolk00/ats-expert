@@ -12,6 +12,7 @@ import { buildWorkflowContext } from '@/lib/agent/context/workflows/build-workfl
 import { buildRewritePlan } from '@/lib/agent/tools/build-rewrite-plan'
 import { formatResumeRewriteGuardrails } from '@/lib/agent/tools/resume-rewrite-guidelines'
 import { buildTargetingPlan } from '@/lib/agent/tools/build-targeting-plan'
+import { countPreservedMetricImpactBullets } from '@/lib/agent/tools/metric-impact-guard'
 import { rewriteSection } from '@/lib/agent/tools/rewrite-section'
 import type { AtsAnalysisResult, RewriteSectionInput, TargetingPlan } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
@@ -140,6 +141,7 @@ function buildSectionInstructions(
         'Rewrite only the professional summary.',
         'Use 4 to 6 concise lines that clarify professional positioning, seniority, core stack, domain context, and type of business impact.',
         'Preserve grounded technical scope, business context, and supported achievements that strengthen positioning; do not flatten the profile into generic claims.',
+        'If the original resume contains quantified impact, keep the number, scope, and business result visible whenever they are truthful and relevant.',
         'Avoid empty cliches and preserve factual truth.',
       ].join('\n\n')
     case 'experience':
@@ -148,6 +150,7 @@ function buildSectionInstructions(
         'Rewrite only the experience section.',
         'Preserve the same companies, titles, dates, and factual scope.',
         'Keep or clarify every grounded tool, system, responsibility, stakeholder scope, and metric already present in the original experience.',
+        'Treat quantified bullets as premium evidence. Do not replace percentages, efficiency gains, SLA improvements, savings, volumes, or regional impact with generic wording.',
         'Every bullet must start with a strong action verb in pt-BR and follow action + what was done + result, impact, or purpose when available.',
         'Do not merge, trim, or generalize bullets when that would remove relevant technical detail or business context.',
       ].join('\n\n')
@@ -217,6 +220,7 @@ function buildTargetJobSectionInstructions(
         'Rewrite only the experience section.',
         'Preserve companies, titles, dates, and factual scope.',
         'Keep or clarify every grounded tool, system, responsibility, stakeholder scope, and metric already present in the original experience.',
+        'Treat quantified bullets as premium evidence. Do not replace percentages, efficiency gains, SLA improvements, savings, volumes, or regional impact with generic wording.',
         'Every bullet must start with a strong action verb in pt-BR and follow action + what was done + result, impact, or purpose when available.',
         'Prioritize bullets that better match the target role and target keywords, but do not fabricate missing fit or compress away important context.',
       ].join('\n\n')
@@ -555,6 +559,11 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
       if (result.output.success) {
         notes.push(...result.output.changes_made)
       }
+    }
+
+    const preservedMetricImpactCount = countPreservedMetricImpactBullets(params.cvState, optimizedCvState)
+    if (preservedMetricImpactCount > 0) {
+      notes.push('Preservei métricas reais de impacto enquanto reforcei a aderência ATS.')
     }
 
     return {

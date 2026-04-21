@@ -562,6 +562,67 @@ describe('ATS enhancement reliability hardening', () => {
     expect(mockCreateCvVersion).not.toHaveBeenCalled()
   })
 
+  it('reverts generic ATS experience rewrites that drop a strong 15% LATAM quality metric', async () => {
+    const session = buildSession()
+    session.cvState.experience = [{
+      title: 'Senior Business Intelligence',
+      company: 'Grupo Positivo',
+      startDate: '2025',
+      endDate: 'present',
+      bullets: ['Aumentei em 15% os indicadores de qualidade de produção na LATAM com dashboards e governança analítica.'],
+    }]
+
+    const { validateRewrite: actualValidateRewrite } = await vi.importActual<typeof import('@/lib/agent/tools/validate-rewrite')>(
+      '@/lib/agent/tools/validate-rewrite',
+    )
+
+    mockAnalyzeAtsGeneral.mockResolvedValue({
+      success: true,
+      result: {
+        overallScore: 80,
+        structureScore: 82,
+        clarityScore: 78,
+        impactScore: 76,
+        keywordCoverageScore: 81,
+        atsReadabilityScore: 84,
+        issues: [],
+        recommendations: ['SQL', 'Power BI'],
+      },
+    })
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: section === 'experience'
+        ? {
+            success: true,
+            rewritten_content: 'Experiência reestruturada.',
+            section_data: [{
+              title: 'Senior Business Intelligence',
+              company: 'Grupo Positivo',
+              startDate: '2025',
+              endDate: 'present',
+              bullets: ['Atuei em dashboards estratégicos para qualidade e acompanhamento operacional.'],
+            }],
+            keywords_added: ['dashboards'],
+            changes_made: ['Bullets alinhados à vaga'],
+          }
+        : buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    mockValidateRewrite.mockImplementation(actualValidateRewrite)
+
+    const result = await runAtsEnhancementPipeline(session)
+
+    expect(result.success).toBe(true)
+    expect(session.agentState.optimizedCvState?.experience).toEqual(session.cvState.experience)
+    expect(session.agentState.optimizationSummary?.notes).toContain(
+      'Experiência revertida para a versão original após validação conservadora.',
+    )
+    expect(mockLogWarn).toHaveBeenCalledWith('agent.ats_enhancement.validation_recovered', expect.objectContaining({
+      workflowMode: 'ats_enhancement',
+      recoveryKind: 'smart_repair',
+    }))
+  })
+
   it('builds a full job_targeting rewrite with plan-driven keyword emphasis', async () => {
     mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
       output: buildSuccessfulRewriteOutput({

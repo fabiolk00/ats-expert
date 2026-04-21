@@ -117,4 +117,58 @@ describe('validateRewrite', () => {
 
     expect(result.issues.some((issue) => issue.message.includes('apagar gaps reais'))).toBe(false)
   })
+
+  it('passes when a strong quantified impact bullet is preserved substantively', () => {
+    const original = {
+      ...buildCvState(),
+      experience: [{
+        title: 'Analista de Dados',
+        company: 'Acme',
+        startDate: '2022',
+        endDate: '2024',
+        bullets: ['Aumentei em 15% os indicadores de qualidade de produção na LATAM com dashboards em Power BI.'],
+      }],
+    }
+
+    const optimized = {
+      ...original,
+      experience: [{
+        ...original.experience[0],
+        bullets: ['Liderei dashboards em Power BI, contribuindo para aumento de 15% nos indicadores de qualidade de produção na LATAM.'],
+      }],
+    }
+
+    const result = validateRewrite(original, optimized)
+
+    expect(result.issues.some((issue) => issue.message.includes('métrica real de impacto'))).toBe(false)
+  })
+
+  it('flags editorial regression when a strong metric disappears from experience', () => {
+    const original = {
+      ...buildCvState(),
+      experience: [{
+        title: 'Analista de Dados',
+        company: 'Acme',
+        startDate: '2022',
+        endDate: '2024',
+        bullets: ['Reduzi em 40% o tempo de processamento de relatórios críticos para a operação regional.'],
+      }],
+    }
+
+    const optimized = {
+      ...original,
+      experience: [{
+        ...original.experience[0],
+        bullets: ['Atuei em relatórios e rotinas analíticas para apoiar a operação regional.'],
+      }],
+    }
+
+    const result = validateRewrite(original, optimized)
+
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      severity: 'medium',
+      section: 'experience',
+      message: expect.stringContaining('métrica real de impacto'),
+    }))
+  })
 })

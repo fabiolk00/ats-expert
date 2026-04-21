@@ -272,6 +272,7 @@ function buildSectionPromptInstructions(section: RewriteSectionInput['section'])
     case 'experience':
       return [
         'Experiência: mantenha ferramentas, métricas, senioridade, escopo e contexto de negócio em cada bullet.',
+        'Experiência: preserve percentuais, reduções de tempo, economia, throughput, SLA, volumes e impacto regional/global sempre que forem reais.',
       ]
     case 'education':
       return [
@@ -297,6 +298,8 @@ REGRA DE OURO (nunca viole):
 Regras obrigatórias:
 - Preserve todos os detalhes técnicos, ferramentas específicas, responsabilidades, contexto de negócio, senioridade e conquistas.
 - Mantenha TODAS as métricas reais. Nunca omita, suavize ou generalize números.
+- Trate bullets com percentuais, ganhos, reduções, volumes, SLA, throughput, escopo regional/global e resultados mensuráveis como evidência premium.
+- Nunca troque um bullet quantificado por um bullet genérico. Se reescrever, preserve ou melhore o mesmo valor factual.
 - Não encurte, funda ou remova bullets/seções se isso causar perda de especificidade técnica, métrica, sinal de senioridade ou contexto relevante.
 - Se sua versão ficar menos detalhada, menos técnica ou menos impactante que o original, revise até ficar pelo menos tão forte quanto o original.
 - Use verbos de ação fortes no início de cada bullet (Desenvolvi, Otimizei, Liderei, Implementei, Gerenciei, etc.).

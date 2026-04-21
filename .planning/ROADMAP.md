@@ -384,3 +384,13 @@ Plans:
 
 Plans:
 - [x] 67-01-PLAN.md - Add compat-field telemetry, publish a short ATS Readiness boundary note, and cover the stabilization seam with regression tests
+
+### Phase 68: Hardening do rewrite ATS para preservar e promover metricas reais de impacto
+
+**Goal:** Prevent ATS enhancement rewrites from diluting strong quantified impact in the original resume by preserving premium metric bullets, detecting editorial regressions, and reinforcing rewrite prompts plus validation around factual measurable outcomes.
+**Requirements**: [ATS-METRIC-PRESERVE-01, ATS-METRIC-PRESERVE-GATE-01, ATS-METRIC-PRESERVE-TEST-01]
+**Depends on:** Phase 67
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 68-01-PLAN.md - Add premium metric-bullet detection, metric-regression validation, stronger rewrite guardrails, and regression coverage for quantified ATS rewrite preservation

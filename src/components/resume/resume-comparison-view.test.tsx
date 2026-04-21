@@ -184,7 +184,24 @@ describe('ResumeComparisonView', () => {
 
     expect(screen.getByText('89–91')).toBeInTheDocument()
     expect(screen.getByText('Estimado')).toBeInTheDocument()
-    expect(screen.getByText('Faixa estimada com base na otimização concluída.')).toBeInTheDocument()
+    expect(screen.queryByText('Faixa estimada com base na otimização concluída.')).not.toBeInTheDocument()
     expect(screen.queryByText('Pendente')).not.toBeInTheDocument()
+  })
+
+  it('does not render the optimization note banner in the comparison UI', () => {
+    render(
+      <ResumeComparisonView
+        originalCvState={buildCvState('Original summary')}
+        optimizedCvState={buildCvState('Optimized summary')}
+        generationType="ATS_ENHANCEMENT"
+        sessionId="sess_123"
+        optimizationNotes={['Ajustei o resumo para 5 linhas, dentro do limite solicitado.']}
+        onContinue={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.queryByText('Ajustei o resumo para 5 linhas, dentro do limite solicitado.'),
+    ).not.toBeInTheDocument()
   })
 })

@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 67
-current_phase_name: estabilizacao pos-refactor do ats readiness
+current_phase: 68
+current_phase_name: hardening do rewrite ats para preservar e promover metricas reais de impacto
 current_plan: 01
 status: complete
-stopped_at: Completed 67-01-PLAN.md
-last_updated: "2026-04-21T07:10:00.000Z"
+stopped_at: Completed 68-01-PLAN.md
+last_updated: "2026-04-21T08:35:00.000Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 23
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** ATS Readiness post-refactor stabilization now measures compatibility-field emission and ships a short boundary note so legacy sunset decisions can be based on telemetry instead of guesswork.
+**Current focus:** ATS enhancement rewrite now preserves high-value quantified impact more conservatively, with prompt guardrails and validation gates that prevent strong factual metrics from being flattened into generic bullets.
 
 ## Current Position
 
-Phase: 67 (estabilizacao pos-refactor do ats readiness) - COMPLETE
+Phase: 68 (hardening do rewrite ats para preservar e promover metricas reais de impacto) - COMPLETE
 Plan: 01 complete
-Current Phase: 67
-Current Phase Name: estabilizacao pos-refactor do ats readiness
+Current Phase: 68
+Current Phase Name: hardening do rewrite ats para preservar e promover metricas reais de impacto
 Current Plan: 01
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: ATS Readiness post-refactor stabilization now measures legacy compat-field emission, keeps sunset planning data-driven, and documents the final product-vs-diagnostic semantic boundary for future contributors
+Last Activity Description: ATS enhancement rewrite now treats quantified impact as premium evidence, detects editorial metric regression before persistence, and preserves real outcome bullets like the observed 15% LATAM case
 
 Progress: [##########] 100%
 
@@ -95,6 +95,8 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 66]: The semantic boundary is now explicit in types, context builders, agent persistence, and tests: raw ATS telemetry is diagnostic only, and ATS Readiness v2 remains the sole product-facing score contract.
 - [Phase 67]: Session-response and agent done-chunk compatibility aliases now emit explicit telemetry so legacy ATS score sunset decisions can be guided by real usage.
 - [Phase 67]: `docs/ats-readiness-product-vs-internal.md` now captures the final semantic boundary between ATS Readiness v2 and internal heuristic ATS diagnostics for onboarding and future cleanup work.
+- [Phase 68]: ATS rewrite prompts now treat quantified bullets as premium evidence and explicitly forbid replacing factual metric bullets with generic wording.
+- [Phase 68]: Validation now detects editorial metric regression when strong original impact bullets lose their numbers, scope, or substantive result in the optimized rewrite.
 - [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 
@@ -109,6 +111,6 @@ Baseline carried forward from earlier shipped milestones:
 
 ## Session Continuity
 
-Last session: 2026-04-21T07:10:00.000Z
-Stopped at: Completed 67-01-PLAN.md
+Last session: 2026-04-21T08:35:00.000Z
+Stopped at: Completed 68-01-PLAN.md
 Resume file: None

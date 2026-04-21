@@ -199,6 +199,9 @@
 | ATS-STABILIZE-OBS-01 | Phase 67 | Complete |
 | ATS-STABILIZE-DOC-01 | Phase 67 | Complete |
 | ATS-STABILIZE-TEST-01 | Phase 67 | Complete |
+| ATS-METRIC-PRESERVE-01 | Phase 68 | Complete |
+| ATS-METRIC-PRESERVE-GATE-01 | Phase 68 | Complete |
+| ATS-METRIC-PRESERVE-TEST-01 | Phase 68 | Complete |
 
 **Coverage:**
 - v1.6 requirements: 59 total
