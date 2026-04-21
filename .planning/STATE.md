@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 88
-current_phase_name: harden experience-entry highlight surfacing with explicit policy constant, edge-case tests, and debug observability
-current_plan: 01 complete
-status: phase_complete
-stopped_at: Completed 88-01-PLAN.md
+current_phase: 89
+current_phase_name: validate SSR safety of debug flag and constant coupling in experience-entry surfacing layer
+current_plan: Not started
+status: planning
+stopped_at: Starting Phase 89
 last_updated: "2026-04-21T23:38:29.658Z"
 last_activity: 2026-04-21
 progress:
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Experience highlight previews now harden the same-entry surfacing selector with explicit editorial policy constants, direct edge-case coverage, and debug-only traceability while preserving selector, ATS, and renderer behavior.
+**Current focus:** Experience highlight previews are in a confirmation-first safety pass to validate SSR/debug-flag assumptions and exported-policy test coupling after the Phase 88 Layer 3 hardening.
 
 ## Current Position
 
 Phase: 88 (harden experience-entry highlight surfacing with explicit policy constant, edge-case tests, and debug observability) - COMPLETE
 Plan: 01 complete
-Current Phase: 88
-Current Phase Name: harden experience-entry highlight surfacing with explicit policy constant, edge-case tests, and debug observability
-Current Plan: 01 complete
-Total Plans in Phase: 1
-Status: Phase complete - verified locally
+Current Phase: 89
+Current Phase Name: validate SSR safety of debug flag and constant coupling in experience-entry surfacing layer
+Current Plan: Not started
+Total Plans in Phase: 0
+Status: Planning
 Last activity: 2026-04-21
-Last Activity Description: Phase 88 complete
+Last Activity Description: Phase 89 initialized
 
 Progress: [##########] 100%
 
@@ -127,6 +127,7 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 87 completed: same-entry experience highlight surfacing is now an explicit Layer 3 selector with editorial Tier 1 dominance ahead of Tier 2.
 - Phase 87 completed: same-entry visible highlight selection now uses an explicit Layer 3 editorial selector with Tier 1 dominance and preserved caps/contracts.
 - Phase 88 completed: the same-entry surfacing selector now exposes explicit editorial policy constants, direct edge-case coverage, and debug-only decision traceability without reopening adjacent layers.
+- Phase 89 added: validate SSR/debug-flag execution assumptions and exported-policy test coupling around the same-entry surfacing layer before treating the hardening as fully settled.
 
 ### Pending Todos
 

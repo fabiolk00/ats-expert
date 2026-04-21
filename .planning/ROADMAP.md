@@ -604,3 +604,13 @@ Plans:
 
 Plans:
 - [x] 88-01-PLAN.md - Harden the same-entry Layer 3 selector with explicit policy constants, direct edge-case coverage, and debug-only surfacing observability (completed 2026-04-21)
+
+### Phase 89: Validate SSR safety of debug flag and constant coupling in experience-entry surfacing layer
+
+**Goal:** Validate the real execution context and test coupling around the Phase 88 same-entry surfacing hardening so SSR/debug-flag assumptions and exported-policy usage are explicit, safe, and regression-proof without changing editorial behavior.
+**Requirements**: [EXP-HILITE-SAFETY-SSR-01, EXP-HILITE-SAFETY-COUPLING-01, EXP-HILITE-SAFETY-VALIDATION-01]
+**Depends on:** Phase 88
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 89 to break down)
