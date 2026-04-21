@@ -41,6 +41,9 @@ jobs:
       - name: Database Conventions
         run: npm run audit:db-conventions
 
+      - name: Route Architecture Audit
+        run: npm run audit:route-architecture
+
       - name: Lint
         run: npm run lint
 

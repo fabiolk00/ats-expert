@@ -175,3 +175,81 @@ Plans:
 - [x] 45-01-PLAN.md — Freeze shared billing activity and anomaly contracts over the existing ledger and reservation audit trail
 - [x] 45-02-PLAN.md — Add authenticated export credit history to the existing settings surface
 - [x] 45-03-PLAN.md — Land anomaly alert hooks plus concurrency and staging proof for reservation-backed export billing
+
+### Phase 48: Route Policy Extraction and Decision Normalization
+
+**Goal:** Refactor the most semantically dense API routes so repeated product-policy logic moves out of route bodies into explicit context, policy, decision, and response modules without changing current business behavior.
+**Requirements**: [ROUTE-POLICY-01, ROUTE-POLICY-TEST-01, ROUTE-POLICY-DOC-01]
+**Depends on:** Phase 45
+**Plans:** 3 plans
+
+Plans:
+- [x] 48-01-PLAN.md — Extract session generate route context, policy gates, orchestration, and HTTP mapping into explicit route modules
+- [x] 48-02-PLAN.md — Normalize file access and smart-generation route decisions around preview lock, artifact access, and persisted generation outputs
+- [x] 48-03-PLAN.md — Thin versions and compare routes, add decision-module regression proof, and document route policy boundaries
+
+### Phase 49: Hardening The Route Decision Architecture
+
+**Goal:** Stabilize the new route decision architecture from Phase 48 so context, policy, decision, and response boundaries stay explicit under continued feature work without changing current product behavior.
+**Requirements**: [ROUTE-ARCH-01, ROUTE-ARCH-TEST-01, ROUTE-ARCH-GUARD-01]
+**Depends on:** Phase 48
+**Plans:** 2 plans
+
+**Success Criteria** (what must be TRUE):
+  1. Critical route layers have explicit, enforceable boundaries, and `response.ts` only maps normalized decisions instead of reinterpreting product semantics.
+  2. `context.ts` stays focused on typed request resolution, while the hottest route decision modules are either decomposed pragmatically or explicitly documented as monitored hotspots.
+  3. Precedence-sensitive route behavior is preserved through seam tests, review guardrails, and architecture docs without changing public route contracts.
+
+Plans:
+- [x] 49-01-PLAN.md — Freeze route-boundary docs, review guardrails, and mapper/precedence seam proof
+- [x] 49-02-PLAN.md — Refactor the remaining route hotspots while preserving generate, file-access, and smart-generation behavior
+
+### Phase 50: Hotspot Decomposition
+
+**Goal:** Decompose the last semantically dense route decision modules so `smart-generation` and `session-generate` stay orchestration-first without changing public route behavior.
+**Requirements**: [HOTSPOT-DEC-01]
+**Depends on:** Phase 49
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 50-01-PLAN.md — Refactor smart-generation and session-generate decision hotspots into route-specific helpers with explicit split thresholds
+
+### Phase 51: Invariant Enforcement
+
+**Goal:** Turn preview, signing, compare, and versions contracts into executable invariants with exhaustive decision-to-response mappings.
+**Requirements**: [ROUTE-INV-01]
+**Depends on:** Phase 50
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 51-01-PLAN.md — Add locked-preview, compare, versions, and decision exhaustiveness invariants across route seams
+
+### Phase 52: Architecture Governance Automation
+
+**Goal:** Enforce critical route architecture through repo-native automation, CI checks, and PR review prompts instead of manual review alone.
+**Requirements**: [ROUTE-GOV-01]
+**Depends on:** Phase 51
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 52-01-PLAN.md — Add route-architecture audit automation, CI enforcement, and critical-route PR checklist prompts
+
+### Phase 53: Operational Excellence
+
+**Goal:** Add architecture telemetry and operational drill guidance so locked-preview and artifact-access behavior stays observable in staging and production.
+**Requirements**: [ROUTE-OPS-01]
+**Depends on:** Phase 52
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 53-01-PLAN.md — Instrument architecture telemetry counters and document TTL review plus incident-drill operations
+
+### Phase 54: Architecture Proof Pack
+
+**Goal:** Ship a curated release-proof suite, architecture scorecard, and approved chokepoint map for the sensitive route flows.
+**Requirements**: [ROUTE-PROOF-01]
+**Depends on:** Phase 53
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 54-01-PLAN.md — Build the architecture proof pack command, scorecard, and approved chokepoints documentation

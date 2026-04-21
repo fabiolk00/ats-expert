@@ -49,6 +49,20 @@
 - [x] **BILL-ALERT-01**: Operators can detect actionable export billing anomalies such as stale `needs_reconciliation`, repeated finalize or release failures, and unusual reserved backlogs through repo-native metrics, thresholds, alert hooks, and documented commands.
 - [x] **BILL-CONC-01**: Automated and staging-friendly proof demonstrates that concurrent export retries do not create double holds or unsafe reconciliation loops, and that reservation or reconciliation states can be reproduced and diagnosed repeatably.
 
+### Route Decision Architecture Hardening
+
+- [x] **ROUTE-ARCH-01**: Critical route modules keep explicit context, policy, decision, and response boundaries so request resolution, policy gating, orchestration, and HTTP mapping do not collapse back into semantically mixed route code.
+- [x] **ROUTE-ARCH-TEST-01**: Mapper integrity, precedence-sensitive decisions, and artifact-lock invariants are covered by focused seam tests that prove public behavior stays unchanged while architectural boundaries remain enforced.
+- [x] **ROUTE-ARCH-GUARD-01**: Route architecture documentation, review checklists, and hotspot watchlists make the critical pattern enforceable for dense policy routes without expanding it into low-risk CRUD surfaces.
+
+### Route Architecture 10/10 Hardening
+
+- [x] **HOTSPOT-DEC-01**: The remaining route hotspots are decomposed into route-specific helpers so `smart-generation/decision.ts` and `session-generate/decision.ts` stay orchestration-first instead of becoming semantic sink modules.
+- [x] **ROUTE-INV-01**: Locked preview, locked compare, locked versions, and signed URL seams are enforced by executable invariants and exhaustive decision or response mappings.
+- [x] **ROUTE-GOV-01**: Critical route anti-patterns are blocked by repo-native automation, CI checks, and PR review prompts instead of depending only on reviewer memory.
+- [x] **ROUTE-OPS-01**: Architecture-specific telemetry and operational drill docs make locked preview, compare, versions, artifact availability, and replay-after-upgrade behavior observable and reviewable.
+- [x] **ROUTE-PROOF-01**: A curated architecture proof pack and scorecard prove the sensitive route and preview flows before release and keep approved chokepoints explicit.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -90,10 +104,18 @@
 | BILL-UX-01 | Phase 45 | Planned |
 | BILL-ALERT-01 | Phase 45 | Planned |
 | BILL-CONC-01 | Phase 45 | Planned |
+| ROUTE-ARCH-01 | Phase 49 | Complete |
+| ROUTE-ARCH-TEST-01 | Phase 49 | Complete |
+| ROUTE-ARCH-GUARD-01 | Phase 49 | Complete |
+| HOTSPOT-DEC-01 | Phase 50 | Complete |
+| ROUTE-INV-01 | Phase 51 | Complete |
+| ROUTE-GOV-01 | Phase 52 | Complete |
+| ROUTE-OPS-01 | Phase 53 | Complete |
+| ROUTE-PROOF-01 | Phase 54 | Complete |
 
 **Coverage:**
-- v1.6 requirements: 18 total
-- Mapped to phases: 18
+- v1.6 requirements: 26 total
+- Mapped to phases: 26
 - Unmapped: 0
 
 ---

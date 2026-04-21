@@ -311,6 +311,15 @@ async function resolveReplayPreviewAccess(input: {
   const persistedPreviewAccess = await resolvePersistedReplayPreviewAccess(input)
 
   if (persistedPreviewAccess) {
+    const billingInfo = await getUserBillingInfo(input.userId)
+    if (persistedPreviewAccess.locked && billingInfo?.plan && billingInfo.plan !== 'free') {
+      recordMetricCounter('architecture.smart_generation.replay_locked_after_upgrade', {
+        userId: input.userId,
+        sessionId: input.sessionId,
+        targetId: input.targetId,
+      })
+    }
+
     return persistedPreviewAccess
   }
 
