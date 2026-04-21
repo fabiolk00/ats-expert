@@ -6,7 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { DashboardWelcomeGuide } from "./welcome-guide"
 import {
+  DASHBOARD_WELCOME_GUIDE_CHAT_PATH,
   DASHBOARD_WELCOME_GUIDE_PROFILE_PATH,
+  DASHBOARD_WELCOME_GUIDE_SESSIONS_PATH,
   DASHBOARD_WELCOME_GUIDE_STORAGE_KEY,
   dashboardWelcomeGuideTargets,
   getDashboardGuideTargetProps,
@@ -40,11 +42,13 @@ vi.mock("@/context/sidebar-context", () => ({
 function TestTargets({
   showProfile = true,
   showNewConversation = true,
-  showAtsCta = true,
+  showChat = true,
+  showSessions = true,
 }: {
   showProfile?: boolean
   showNewConversation?: boolean
-  showAtsCta?: boolean
+  showChat?: boolean
+  showSessions?: boolean
 }) {
   return (
     <DashboardWelcomeGuide>
@@ -59,9 +63,14 @@ function TestTargets({
             Nova conversa
           </button>
         ) : null}
-        {showAtsCta ? (
-          <button type="button" {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.profileAtsCta)}>
-            Melhorar para ATS
+        {showChat ? (
+          <button type="button" {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.chatPanel)}>
+            Chat
+          </button>
+        ) : null}
+        {showSessions ? (
+          <button type="button" {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.sessionsNav)}>
+            Sessões
           </button>
         ) : null}
       </div>
@@ -85,9 +94,9 @@ describe("DashboardWelcomeGuide", () => {
   })
 
   it("redirects to Perfil before opening the first step when the user enters /dashboard", async () => {
-    mockPathname = "/dashboard"
+    mockPathname = DASHBOARD_WELCOME_GUIDE_CHAT_PATH
 
-    const { rerender } = render(<TestTargets showProfile={false} showNewConversation={false} showAtsCta={false} />)
+    const { rerender } = render(<TestTargets showProfile={false} showNewConversation={false} showChat={false} showSessions={false} />)
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith(DASHBOARD_WELCOME_GUIDE_PROFILE_PATH)
@@ -102,9 +111,9 @@ describe("DashboardWelcomeGuide", () => {
     expect(within(dialog).getByRole("heading", { name: "Seu perfil" })).toBeInTheDocument()
   })
 
-  it("opens on Perfil and advances through Nova conversa in the expected order", async () => {
+  it("opens on Perfil and advances through chat and sessions in the expected order", async () => {
     const user = userEvent.setup()
-    render(<TestTargets />)
+    const { rerender } = render(<TestTargets />)
 
     const initialDialog = await screen.findByRole("dialog")
     expect(within(initialDialog).getByRole("heading", { name: "Seu perfil" })).toBeInTheDocument()
@@ -123,12 +132,25 @@ describe("DashboardWelcomeGuide", () => {
     )
 
     await user.click(within(secondDialog).getByRole("button", { name: "Próximo" }))
+    mockPathname = DASHBOARD_WELCOME_GUIDE_CHAT_PATH
+    rerender(<TestTargets />)
 
-    const finalDialog = await screen.findByRole("dialog")
-    expect(within(finalDialog).getByRole("heading", { name: "Próximo passo recomendado" })).toBeInTheDocument()
+    const thirdDialog = await screen.findByRole("dialog")
+    expect(within(thirdDialog).getByRole("heading", { name: "Seu chat com a IA" })).toBeInTheDocument()
     expect(screen.getByTestId("dashboard-welcome-guide-spotlight")).toHaveAttribute(
       "data-target-id",
-      dashboardWelcomeGuideTargets.profileAtsCta,
+      dashboardWelcomeGuideTargets.chatPanel,
+    )
+
+    await user.click(within(thirdDialog).getByRole("button", { name: "Próximo" }))
+    mockPathname = DASHBOARD_WELCOME_GUIDE_SESSIONS_PATH
+    rerender(<TestTargets />)
+
+    const finalDialog = await screen.findByRole("dialog")
+    expect(within(finalDialog).getByRole("heading", { name: "Suas sessões" })).toBeInTheDocument()
+    expect(screen.getByTestId("dashboard-welcome-guide-spotlight")).toHaveAttribute(
+      "data-target-id",
+      dashboardWelcomeGuideTargets.sessionsNav,
     )
   })
 

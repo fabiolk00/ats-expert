@@ -7,7 +7,9 @@ import { usePathname, useRouter } from "next/navigation"
 import { useSidebarContext } from "@/context/sidebar-context"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
+  DASHBOARD_WELCOME_GUIDE_CHAT_PATH,
   DASHBOARD_WELCOME_GUIDE_PROFILE_PATH,
+  DASHBOARD_WELCOME_GUIDE_SESSIONS_PATH,
   DASHBOARD_WELCOME_GUIDE_STORAGE_KEY,
   DASHBOARD_WELCOME_GUIDE_TARGET_ATTR,
   dashboardWelcomeGuideSteps,
@@ -107,18 +109,21 @@ export function DashboardWelcomeGuide({ children }: { children: React.ReactNode 
       return
     }
 
-    const isGuidePath = pathname === "/dashboard" || pathname.startsWith(DASHBOARD_WELCOME_GUIDE_PROFILE_PATH)
+    const isGuidePath =
+      pathname === DASHBOARD_WELCOME_GUIDE_CHAT_PATH
+      || pathname.startsWith(DASHBOARD_WELCOME_GUIDE_PROFILE_PATH)
+      || pathname === DASHBOARD_WELCOME_GUIDE_SESSIONS_PATH
     if (!isGuidePath) {
       return
     }
 
-    if (pathname === "/dashboard") {
+    if (currentStepIndex === 0 && pathname === DASHBOARD_WELCOME_GUIDE_CHAT_PATH) {
       router.replace(DASHBOARD_WELCOME_GUIDE_PROFILE_PATH)
       return
     }
 
     setIsOpen(true)
-  }, [hasHydrated, pathname, router, shouldStart])
+  }, [currentStepIndex, hasHydrated, pathname, router, shouldStart])
 
   useEffect(() => {
     if (!isOpen) {
@@ -287,7 +292,7 @@ export function DashboardWelcomeGuide({ children }: { children: React.ReactNode 
               style={isMobile || !cardPosition ? undefined : cardPosition}
             >
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Welcome guide
+                BEM-VINDO TOUR
               </p>
               <h2
                 id="dashboard-welcome-guide-title"

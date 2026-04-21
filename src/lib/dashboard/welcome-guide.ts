@@ -1,11 +1,14 @@
 export const DASHBOARD_WELCOME_GUIDE_STORAGE_KEY = "curria:dashboard:welcome-guide:v1"
 export const DASHBOARD_WELCOME_GUIDE_TARGET_ATTR = "data-dashboard-guide-target"
 export const DASHBOARD_WELCOME_GUIDE_PROFILE_PATH = "/dashboard/resumes/new"
+export const DASHBOARD_WELCOME_GUIDE_CHAT_PATH = "/dashboard"
+export const DASHBOARD_WELCOME_GUIDE_SESSIONS_PATH = "/dashboard/sessions"
 
 export const dashboardWelcomeGuideTargets = {
   profileNav: "profile-nav",
   newConversation: "new-conversation",
-  profileAtsCta: "profile-ats-cta",
+  chatPanel: "chat-panel",
+  sessionsNav: "sessions-nav",
 } as const
 
 export type DashboardWelcomeGuideTargetId =
@@ -43,13 +46,23 @@ export const dashboardWelcomeGuideSteps: DashboardWelcomeGuideStepDefinition[] =
     requiresSidebar: true,
   },
   {
-    id: "profile-ats-cta",
-    title: "Próximo passo recomendado",
+    id: "chat",
+    title: "Seu chat com a IA",
     description:
-      "Com o perfil revisado, você já pode gerar sua primeira versão ATS ou adaptar o currículo para uma vaga específica.",
-    targetId: dashboardWelcomeGuideTargets.profileAtsCta,
-    path: DASHBOARD_WELCOME_GUIDE_PROFILE_PATH,
+      "É aqui que você conversa com a IA para analisar, otimizar e adaptar seu currículo conforme o objetivo da vaga.",
+    targetId: dashboardWelcomeGuideTargets.chatPanel,
+    path: DASHBOARD_WELCOME_GUIDE_CHAT_PATH,
     preferredSide: "left",
+  },
+  {
+    id: "sessions",
+    title: "Suas sessões",
+    description:
+      "Aqui ficam suas conversas anteriores para retomar versões, revisar o histórico e continuar de onde parou.",
+    targetId: dashboardWelcomeGuideTargets.sessionsNav,
+    path: DASHBOARD_WELCOME_GUIDE_SESSIONS_PATH,
+    preferredSide: "right",
+    requiresSidebar: true,
   },
 ]
 

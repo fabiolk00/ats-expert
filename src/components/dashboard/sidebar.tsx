@@ -366,7 +366,13 @@ function SidebarContent({
                 isOpen={isOpen}
                 isMobile={isMobile}
                 onNavigate={onCloseMobile}
-                guideTargetId={item.label === "Perfil" ? dashboardWelcomeGuideTargets.profileNav : undefined}
+                guideTargetId={
+                  item.label === "Perfil"
+                    ? dashboardWelcomeGuideTargets.profileNav
+                    : item.label === "Sessões"
+                      ? dashboardWelcomeGuideTargets.sessionsNav
+                      : undefined
+                }
               />
             ))}
           </nav>
