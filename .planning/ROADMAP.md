@@ -253,3 +253,14 @@ Plans:
 
 Plans:
 - [x] 54-01-PLAN.md — Build the architecture proof pack command, scorecard, and approved chokepoints documentation
+
+### Phase 55: Brownfield Route Consolidation And Repo Topology Alignment
+
+**Goal:** Consolidate the winning route architecture and reduce remaining brownfield ambiguity without changing product behavior.
+**Requirements**: [ROUTE-CONS-01, ROUTE-CONS-TEST-01, ROUTE-CONS-DOC-01]
+**Depends on:** Phase 54
+**Plans:** 2 plans
+
+Plans:
+- [ ] 55-01-PLAN.md — Canonicalize compare ownership and extract the brownfield comparison route into the route-layer pattern with regression proof
+- [ ] 55-02-PLAN.md — Refresh README, component-boundary guidance, and route governance artifacts for the consolidated topology
