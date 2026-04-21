@@ -24,6 +24,71 @@ describe('session comparison route', () => {
     vi.clearAllMocks()
   })
 
+  it('returns unauthorized when no app user is resolved', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue(null)
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_123/comparison'),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: 'Unauthorized' })
+  })
+
+  it('returns not found when the session is missing or belongs to another user', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+    } as Awaited<ReturnType<typeof getCurrentAppUser>>)
+    vi.mocked(getSession).mockResolvedValue(null)
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_123/comparison'),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'Not found' })
+  })
+
+  it('returns conflict when the session has no optimized resume', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+    } as Awaited<ReturnType<typeof getCurrentAppUser>>)
+
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_123',
+      userId: 'usr_123',
+      cvState: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        linkedin: 'https://linkedin.com/in/ana',
+        location: 'Sao Paulo',
+        summary: 'Resumo base.',
+        experience: [],
+        skills: ['SQL'],
+        education: [],
+        certifications: [],
+      },
+      agentState: {
+        workflowMode: 'ats_enhancement',
+        lastRewriteMode: 'ats_enhancement',
+      },
+      generatedOutput: {
+        status: 'idle',
+      },
+    } as unknown as Awaited<ReturnType<typeof getSession>>)
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_123/comparison'),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'No optimized resume found for this session.' })
+  })
+
   it('recomputes ATS scores for both original and optimized resumes on the dedicated compare route', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
@@ -234,5 +299,57 @@ describe('session comparison route', () => {
         requiresPaidRegeneration: true,
       },
     })
+  })
+
+  it('returns an internal error when scoring throws unexpectedly', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+    } as Awaited<ReturnType<typeof getCurrentAppUser>>)
+
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_123',
+      userId: 'usr_123',
+      cvState: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        linkedin: 'https://linkedin.com/in/ana',
+        location: 'Sao Paulo',
+        summary: 'Resumo base.',
+        experience: [],
+        skills: ['SQL'],
+        education: [],
+        certifications: [],
+      },
+      agentState: {
+        workflowMode: 'ats_enhancement',
+        lastRewriteMode: 'ats_enhancement',
+        optimizedCvState: {
+          fullName: 'Ana Silva',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          linkedin: 'https://linkedin.com/in/ana',
+          location: 'Sao Paulo',
+          summary: 'Resumo otimizado.',
+          experience: [],
+          skills: ['SQL', 'Python'],
+          education: [],
+          certifications: [],
+        },
+      },
+      generatedOutput: {
+        status: 'ready',
+      },
+    } as unknown as Awaited<ReturnType<typeof getSession>>)
+
+    vi.mocked(analyzeAtsGeneral).mockRejectedValue(new Error('boom'))
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_123/comparison'),
+      { params: { id: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'Internal server error' })
   })
 })
