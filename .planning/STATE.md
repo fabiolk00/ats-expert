@@ -105,6 +105,8 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 71]: Highlight rendering is preview-only: the original column stays clean, export/persistence remain untouched, and whole-line emphasis is reserved for materially improved premium bullets while minor wording/punctuation changes are ignored.
 - [Phase 72]: Export filenames are now built by one centralized helper that strips accents, removes invalid characters, collapses separators, and chooses between `Curriculo_{Nome}` and `Curriculo_{Nome}_{Vaga}` based on a reliable job-targeting signal.
 - [Phase 72]: The file-download route now returns canonical filename metadata so preview downloads and the documents panel use the same product filename instead of local hardcoded fallbacks.
+- [Phase 72.1]: PDF export now embeds the same Inter font family used by the in-product preview, so the exported resume no longer feels typographically disconnected from the product experience.
+- [Phase 72.1]: The PDF resume template remains ATS-safe and single-column, but now uses a calmer executive hierarchy with softer separators, stronger top-of-page hierarchy, and more breathable experience and skills spacing.
 - [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 
@@ -120,5 +122,5 @@ Baseline carried forward from earlier shipped milestones:
 ## Session Continuity
 
 Last session: 2026-04-21T09:00:00.000Z
-Stopped at: Completed 72-01-PLAN.md
+Stopped at: Completed 72.1-01-PLAN.md
 Resume file: None

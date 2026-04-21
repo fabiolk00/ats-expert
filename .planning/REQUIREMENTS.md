@@ -117,6 +117,12 @@
 - [x] **MANUAL-EDIT-EXPORT-01**: Preview and export stay aligned after manual resume edits by invalidating stale artifact metadata and regenerating the PDF from the same canonical edited source used by the preview flow.
 - [x] **MANUAL-EDIT-OBS-01**: Manual edit persistence and artifact invalidation emit structured lifecycle logs so future preview/export divergence can be diagnosed without logging resume content.
 
+### Premium ATS-Safe PDF Export Template
+
+- [x] **PDF-TEMPLATE-PREMIUM-01**: The PDF export template uses a more refined single-column hierarchy with improved top-of-page rhythm, section dividers, experience spacing, and skill-section organization without introducing ATS-risky layout constructs such as sidebars, columns, tables, or decorative boxes.
+- [x] **PDF-TEMPLATE-FONT-01**: The exported PDF reuses the same Inter font family used by the in-product preview so the document feels visually consistent with the product while remaining readable and text-selectable.
+- [x] **PDF-TEMPLATE-TEST-01**: Export regression tests continue to verify that the PDF keeps essential sections, content order, and artifact behavior intact after the visual template refinement.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -220,10 +226,13 @@
 | EXPORT-FILENAME-01 | Phase 72 | Complete |
 | EXPORT-FILENAME-CANON-01 | Phase 72 | Complete |
 | EXPORT-FILENAME-TEST-01 | Phase 72 | Complete |
+| PDF-TEMPLATE-PREMIUM-01 | Phase 72.1 | Complete |
+| PDF-TEMPLATE-FONT-01 | Phase 72.1 | Complete |
+| PDF-TEMPLATE-TEST-01 | Phase 72.1 | Complete |
 
 **Coverage:**
-- v1.6 requirements: 68 total
-- Mapped to phases: 68
+- v1.6 requirements: 71 total
+- Mapped to phases: 71
 - Unmapped: 0
 
 ---

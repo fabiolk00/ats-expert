@@ -1,4 +1,8 @@
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+
 import type { SupabaseClient } from '@supabase/supabase-js'
+import fontkit from '@pdf-lib/fontkit'
 import {
   BorderStyle,
   Document,
@@ -7,7 +11,7 @@ import {
   Paragraph,
   TextRun,
 } from 'docx'
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { PDFDocument, rgb } from 'pdf-lib'
 import { z } from 'zod'
 
 import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
@@ -152,8 +156,37 @@ const NON_BLOCKING_PLACEHOLDER_RULES: GenerationPlaceholderRule[] = [
   },
 ]
 
+const PREVIEW_FONT_REGULAR_PATH = path.join(
+  process.cwd(),
+  'public',
+  'fonts',
+  'inter-latin-400-normal.woff2',
+)
+const PREVIEW_FONT_SEMIBOLD_PATH = path.join(
+  process.cwd(),
+  'public',
+  'fonts',
+  'inter-latin-600-normal.woff2',
+)
+
+let previewPdfFontBytesPromise: Promise<{ regular: Uint8Array; semibold: Uint8Array }> | null = null
+
 function normalizeNullableString(value: unknown): string {
   return typeof value === 'string' ? value : ''
+}
+
+async function loadPreviewPdfFontBytes(): Promise<{ regular: Uint8Array; semibold: Uint8Array }> {
+  if (!previewPdfFontBytesPromise) {
+    previewPdfFontBytesPromise = Promise.all([
+      readFile(PREVIEW_FONT_REGULAR_PATH),
+      readFile(PREVIEW_FONT_SEMIBOLD_PATH),
+    ]).then(([regular, semibold]) => ({
+      regular: regular,
+      semibold: semibold,
+    }))
+  }
+
+  return previewPdfFontBytesPromise
 }
 
 function normalizeGenerationCvState(input: GenerateFileInput['cv_state']): CVState {
@@ -802,10 +835,28 @@ export async function generateDOCX(source: ResumeTemplateSource): Promise<Buffer
 async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
   const templateData = toTemplateData(source)
   const pdfDoc = await PDFDocument.create()
+  pdfDoc.registerFontkit(fontkit)
   let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
 
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+  const previewFontBytes = await loadPreviewPdfFontBytes()
+  const font = await pdfDoc.embedFont(previewFontBytes.regular)
+  const fontBold = await pdfDoc.embedFont(previewFontBytes.semibold)
+
+  const palette = {
+    text: rgb(0.09, 0.09, 0.11),
+    muted: rgb(0.34, 0.36, 0.4),
+    separator: rgb(0.85, 0.87, 0.9),
+    heading: rgb(0.18, 0.2, 0.24),
+  }
+
+  const typography = {
+    nameSize: 22,
+    sectionSize: 11,
+    bodySize: 10,
+    metaSize: 9.25,
+    experienceTitleSize: 11,
+    companySize: 10.1,
+  }
 
   let currentY = PAGE_HEIGHT - MARGIN
 
@@ -816,18 +867,19 @@ async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
     y: number,
     size: number,
     activeFont: typeof font,
-    color = rgb(0, 0, 0),
+    color = palette.text,
+    lineGap = 4,
   ): number {
     activePage.drawText(text, { x, y, size, font: activeFont, color })
-    return y - size - 4
+    return y - size - lineGap
   }
 
   function drawSeparator(activePage: typeof page, y: number): void {
     activePage.drawLine({
       start: { x: MARGIN, y },
       end: { x: PAGE_WIDTH - MARGIN, y },
-      thickness: 0.5,
-      color: rgb(0.82, 0.82, 0.82),
+      thickness: 0.8,
+      color: palette.separator,
     })
   }
 
@@ -856,15 +908,26 @@ async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
   }
 
   function drawSectionHeading(activePage: typeof page, title: string, y: number): number {
-    let nextY = y - 18
-    activePage.drawText(title.toUpperCase(), {
+    const headingText = title.toUpperCase()
+    const nextY = y - 16
+    const headingWidth = fontBold.widthOfTextAtSize(headingText, typography.sectionSize)
+
+    activePage.drawText(headingText, {
       x: MARGIN,
       y: nextY,
-      size: 14,
+      size: typography.sectionSize,
       font: fontBold,
-      color: rgb(0, 0, 0),
+      color: palette.heading,
     })
-    return nextY - 20
+
+    activePage.drawLine({
+      start: { x: MARGIN + headingWidth + 12, y: nextY + 4 },
+      end: { x: PAGE_WIDTH - MARGIN, y: nextY + 4 },
+      thickness: 0.8,
+      color: palette.separator,
+    })
+
+    return nextY - 16
   }
 
   function checkPageOverflow(y: number, minimumRemainingHeight = 80): typeof page {
@@ -876,80 +939,119 @@ async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
     return page
   }
 
-  function drawWrappedLines(lines: string[], indent = 0, color = rgb(0, 0, 0)): void {
+  function drawWrappedLines(lines: string[], indent = 0, color = palette.text, size = typography.bodySize, lineGap = 5): void {
     for (const line of lines) {
       page = checkPageOverflow(currentY, 40)
-      currentY = drawText(page, line, MARGIN + indent, currentY, 10, font, color)
+      currentY = drawText(page, line, MARGIN + indent, currentY, size, font, color, lineGap)
     }
   }
 
   function drawBulletParagraphs(lines: string[]): void {
     for (const bullet of lines) {
-      const bulletLines = wrapText(bullet, font, 10, USABLE_WIDTH - 16)
+      const bulletLines = wrapText(bullet, font, typography.bodySize, USABLE_WIDTH - 22)
 
       for (let lineIndex = 0; lineIndex < bulletLines.length; lineIndex++) {
         page = checkPageOverflow(currentY, 40)
         const prefix = lineIndex === 0 ? '- ' : '  '
-        currentY = drawText(page, `${prefix}${bulletLines[lineIndex]}`, MARGIN + 14, currentY, 10, font)
+        currentY = drawText(
+          page,
+          `${prefix}${bulletLines[lineIndex]}`,
+          MARGIN + 16,
+          currentY,
+          typography.bodySize,
+          font,
+          palette.text,
+          5,
+        )
       }
+
+      currentY -= 1
     }
   }
 
   const contactLines = buildContactLines(templateData)
   const skillLines = buildSkillGroupLines(templateData)
 
-  currentY = drawText(page, templateData.fullName, MARGIN, currentY, 18, fontBold)
+  currentY = drawText(page, templateData.fullName, MARGIN, currentY, typography.nameSize, fontBold, palette.text, 7)
 
   for (const line of contactLines) {
-    currentY = drawText(page, line, MARGIN, currentY, 10, font, rgb(0.35, 0.35, 0.35))
+    currentY = drawText(page, line, MARGIN, currentY, typography.metaSize, font, palette.muted, 4)
   }
 
-  currentY -= 8
+  currentY -= 6
 
   if (templateData.summary) {
     page = checkPageOverflow(currentY, 120)
     drawSeparator(page, currentY)
-    currentY -= 10
+    currentY -= 12
     currentY = drawSectionHeading(page, ATS_SECTION_HEADINGS.summary, currentY)
 
-    const summaryLines = wrapText(templateData.summary, font, 10, USABLE_WIDTH)
-    drawWrappedLines(summaryLines)
+    const summaryLines = wrapText(templateData.summary, font, typography.bodySize, USABLE_WIDTH)
+    drawWrappedLines(summaryLines, 0, palette.text, typography.bodySize, 5)
     currentY -= 10
   }
 
   if (skillLines.length > 0) {
     page = checkPageOverflow(currentY, 120)
     drawSeparator(page, currentY)
-    currentY -= 10
+    currentY -= 12
     currentY = drawSectionHeading(page, ATS_SECTION_HEADINGS.skills, currentY)
 
     for (const line of skillLines) {
-      const wrappedSkillLine = wrapText(line, font, 10, USABLE_WIDTH)
-      drawWrappedLines(wrappedSkillLine)
+      const wrappedSkillLine = wrapText(line, font, typography.bodySize, USABLE_WIDTH)
+      drawWrappedLines(wrappedSkillLine, 0, palette.text, typography.bodySize, 5)
+      currentY -= 3
     }
-    currentY -= 10
+    currentY -= 8
   }
 
   if (templateData.experiences.length > 0) {
     page = checkPageOverflow(currentY, 120)
     drawSeparator(page, currentY)
-    currentY -= 10
+    currentY -= 12
     currentY = drawSectionHeading(page, ATS_SECTION_HEADINGS.experience, currentY)
 
     for (let index = 0; index < templateData.experiences.length; index += 1) {
       const experience = templateData.experiences[index]
       page = checkPageOverflow(currentY, 120)
-      currentY = drawText(page, experience.title, MARGIN, currentY, 10, fontBold)
-      currentY = drawText(page, experience.company, MARGIN, currentY, 10, font)
-      currentY = drawText(page, formatExperienceMetadata(experience), MARGIN, currentY, 10, font, rgb(0.35, 0.35, 0.35))
-      currentY -= 2
+      currentY = drawText(
+        page,
+        experience.title,
+        MARGIN,
+        currentY,
+        typography.experienceTitleSize,
+        fontBold,
+        palette.text,
+        4,
+      )
+      currentY = drawText(
+        page,
+        experience.company,
+        MARGIN,
+        currentY,
+        typography.companySize,
+        font,
+        palette.heading,
+        3,
+      )
+      currentY = drawText(
+        page,
+        formatExperienceMetadata(experience),
+        MARGIN,
+        currentY,
+        typography.metaSize,
+        font,
+        palette.muted,
+        5,
+      )
+      currentY -= 3
 
       drawBulletParagraphs(experience.bullets.map((bullet) => bullet.text))
-      currentY -= 6
+      currentY -= 8
 
       if (index < templateData.experiences.length - 1) {
         page = checkPageOverflow(currentY, 60)
-        drawSeparator(page, currentY)
+        drawSeparator(page, currentY + 2)
         currentY -= 18
       }
     }
@@ -958,20 +1060,21 @@ async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
   if (templateData.education.length > 0) {
     page = checkPageOverflow(currentY, 120)
     drawSeparator(page, currentY)
-    currentY -= 10
+    currentY -= 12
     currentY = drawSectionHeading(page, ATS_SECTION_HEADINGS.education, currentY)
 
     for (const education of templateData.education) {
       page = checkPageOverflow(currentY, 80)
-      currentY = drawText(page, education.degree, MARGIN, currentY, 10, fontBold)
+      currentY = drawText(page, education.degree, MARGIN, currentY, typography.bodySize, fontBold, palette.text, 4)
       currentY = drawText(
         page,
         [education.institution, education.period].filter(Boolean).join(' - '),
         MARGIN,
         currentY,
-        10,
+        typography.metaSize,
         font,
-        rgb(0.35, 0.35, 0.35),
+        palette.muted,
+        6,
       )
     }
     currentY -= 10
@@ -980,12 +1083,12 @@ async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
   if (templateData.hasCertifications) {
     page = checkPageOverflow(currentY, 120)
     drawSeparator(page, currentY)
-    currentY -= 10
+    currentY -= 12
     currentY = drawSectionHeading(page, ATS_SECTION_HEADINGS.certifications, currentY)
 
     for (const certification of templateData.certifications) {
       page = checkPageOverflow(currentY, 60)
-      currentY = drawText(page, formatCertificationLine(certification), MARGIN, currentY, 10, font)
+      currentY = drawText(page, formatCertificationLine(certification), MARGIN, currentY, typography.bodySize, font, palette.text, 6)
     }
     currentY -= 10
   }
@@ -993,12 +1096,12 @@ async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
   if (templateData.hasLanguages) {
     page = checkPageOverflow(currentY, 120)
     drawSeparator(page, currentY)
-    currentY -= 10
+    currentY -= 12
     currentY = drawSectionHeading(page, ATS_SECTION_HEADINGS.languages, currentY)
 
     for (const language of templateData.languages) {
       page = checkPageOverflow(currentY, 60)
-      currentY = drawText(page, formatLanguageLine(language), MARGIN, currentY, 10, font)
+      currentY = drawText(page, formatLanguageLine(language), MARGIN, currentY, typography.bodySize, font, palette.text, 6)
     }
   }
 

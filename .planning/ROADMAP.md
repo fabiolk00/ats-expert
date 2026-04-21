@@ -434,3 +434,13 @@ Plans:
 
 Plans:
 - [x] 72-01-PLAN.md - Add centralized filename normalization/build helpers, expose canonical export filenames from the file access route, update preview/download consumers to use them, and cover ATS vs job-targeting naming regressions
+
+### Phase 72.1: Refinar o template de export em PDF para um layout mais premium e ATS-safe, usando a mesma fonte do preview (INSERTED)
+
+**Goal:** Refine the exported PDF resume template into a more premium, executive-looking layout while keeping the document single-column, ATS-safe, and visually consistent with the in-product preview by reusing the same Inter font family.
+**Requirements**: [PDF-TEMPLATE-PREMIUM-01, PDF-TEMPLATE-FONT-01, PDF-TEMPLATE-TEST-01]
+**Depends on:** Phase 72
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 72.1-01-PLAN.md - Embed the preview font in the PDF export, refine hierarchy/spacing in the single-column template, and update export tests so the PDF stays ATS-safe while looking more premium

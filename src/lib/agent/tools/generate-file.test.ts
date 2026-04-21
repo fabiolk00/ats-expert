@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import zlib from 'zlib'
 
 import type { CVState } from '@/types/cv'
 
@@ -48,41 +47,37 @@ function buildSupabase() {
   }
 }
 
-function extractInflatedPdfText(buffer: Buffer): string {
-  const pdfSource = buffer.toString('latin1')
-  const streamMarker = 'stream\n'
-  const endStreamMarker = '\nendstream'
-  const inflatedChunks: string[] = []
-  let searchIndex = 0
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer) })
+  const pdfDocument = await loadingTask.promise
+  const pages: string[] = []
 
-  while (searchIndex < pdfSource.length) {
-    const streamStart = pdfSource.indexOf(streamMarker, searchIndex)
-    if (streamStart === -1) {
-      break
+  try {
+    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+      const page = await pdfDocument.getPage(pageNumber)
+      const textContent = await page.getTextContent()
+      const pageText = textContent.items
+        .map((item) => ('str' in item ? item.str : ''))
+        .filter(Boolean)
+        .join(' ')
+
+      pages.push(pageText)
     }
-
-    const dataStart = streamStart + streamMarker.length
-    const streamEnd = pdfSource.indexOf(endStreamMarker, dataStart)
-    if (streamEnd === -1) {
-      break
-    }
-
-    const compressedChunk = buffer.subarray(dataStart, streamEnd)
-
-    try {
-      const inflatedChunk = zlib.inflateSync(compressedChunk).toString('latin1')
-      const decodedChunk = inflatedChunk.replace(/<([0-9A-Fa-f]+)>/g, (_, hex: string) =>
-        Buffer.from(hex, 'hex').toString('latin1'),
-      )
-      inflatedChunks.push(decodedChunk)
-    } catch {
-      // Ignore non-text streams and keep scanning the remaining PDF objects.
-    }
-
-    searchIndex = streamEnd + endStreamMarker.length
+  } finally {
+    await loadingTask.destroy()
   }
 
-  return inflatedChunks.join('\n')
+  return pages.join('\n')
+}
+
+function normalizeExtractedPdfText(text: string): string {
+  return text
+    .replace(/[°•·]/g, '-')
+    .replace(/\s+\|\s+/g, ' | ')
+    .replace(/\s+-\s+/g, ' - ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 describe('generateFile', () => {
@@ -138,7 +133,7 @@ describe('generateFile', () => {
     const uploadedPdfBuffer = upload.mock.calls[0]?.[2] as Buffer | undefined
     expect(uploadedPdfBuffer).toBeInstanceOf(Buffer)
 
-    const pdfText = extractInflatedPdfText(uploadedPdfBuffer as Buffer)
+    const pdfText = normalizeExtractedPdfText(await extractPdfText(uploadedPdfBuffer as Buffer))
 
     expect(pdfText).toContain('Ana Silva')
     expect(pdfText).toContain('Sao Paulo, Brasil')
