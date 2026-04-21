@@ -5,6 +5,7 @@ import { resolveSessionCompareContext } from '@/lib/routes/session-compare/conte
 import { decideSessionCompare } from '@/lib/routes/session-compare/decision'
 import { toSessionCompareResponse } from '@/lib/routes/session-compare/response'
 
+// Canonical compare seam: future compare semantics belong on POST /api/session/[id]/compare.
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } },

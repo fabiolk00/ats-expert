@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { analyzeAtsGeneral } from '@/lib/agent/tools/ats-analysis'
 import { scoreATS } from '@/lib/ats/score'
-import { getCurrentAppUser } from '@/lib/auth/app-user'
-import { getSession } from '@/lib/db/sessions'
 import {
   getPreviewLockSummary,
   sanitizeGeneratedCvStateForClient,
 } from '@/lib/generated-preview/locked-preview'
 import { buildResumeTextFromCvState } from '@/lib/profile/ats-enhancement'
+import { toNextJsonResponse } from '@/lib/routes/shared/response'
+import { resolveSessionComparisonContext } from '@/lib/routes/session-comparison/context'
 import type { ResumeComparisonResponse } from '@/types/dashboard'
 
 function resolveGenerationType(lastRewriteMode?: string): ResumeComparisonResponse['generationType'] {
@@ -19,20 +19,17 @@ function resolveScoreLabel(generationType: ResumeComparisonResponse['generationT
   return generationType === 'JOB_TARGETING' ? 'Aderência à vaga' : 'Score ATS'
 }
 
+// Compatibility-only dashboard surface: keep GET /api/session/[id]/comparison public without repointing consumers.
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } },
 ): Promise<NextResponse> {
-  const appUser = await getCurrentAppUser()
-  if (!appUser) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const contextResult = await resolveSessionComparisonContext(_req, params)
+  if (contextResult.kind === 'blocked') {
+    return toNextJsonResponse(contextResult.response)
   }
 
-  const session = await getSession(params.id, appUser.id)
-  if (!session) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
-
+  const { session } = contextResult.context
   const optimizedCvState = sanitizeGeneratedCvStateForClient(
     session.agentState.optimizedCvState,
     session.generatedOutput,
