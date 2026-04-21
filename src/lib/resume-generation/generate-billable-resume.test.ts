@@ -23,6 +23,7 @@ const {
   mockUpdateResumeGeneration,
   mockLogInfo,
   mockLogWarn,
+  PendingErrorClass,
 } = vi.hoisted(() => ({
   mockGenerateFile: vi.fn(),
   mockCreateSignedResumeArtifactUrls: vi.fn(),
@@ -43,6 +44,30 @@ const {
   mockUpdateResumeGeneration: vi.fn(),
   mockLogInfo: vi.fn(),
   mockLogWarn: vi.fn(),
+  PendingErrorClass: class PendingResumeGenerationPersistenceError extends Error {
+    readonly operation: 'create' | 'reuse'
+    readonly dbCode?: string
+    readonly dbDetails?: string
+    readonly dbHint?: string
+    readonly causeMessage?: string
+
+    constructor(input: {
+      message: string
+      operation: 'create' | 'reuse'
+      dbCode?: string
+      dbDetails?: string
+      dbHint?: string
+      cause?: unknown
+    }) {
+      super(input.message, input.cause ? { cause: input.cause } : undefined)
+      this.name = 'PendingResumeGenerationPersistenceError'
+      this.operation = input.operation
+      this.dbCode = input.dbCode
+      this.dbDetails = input.dbDetails
+      this.dbHint = input.dbHint
+      this.causeMessage = input.cause instanceof Error ? input.cause.message : undefined
+    }
+  },
 }))
 
 vi.mock('@/lib/agent/tools/generate-file', () => ({
@@ -70,6 +95,7 @@ vi.mock('@/lib/db/credit-reservations', () => ({
 }))
 
 vi.mock('@/lib/db/resume-generations', () => ({
+  PendingResumeGenerationPersistenceError: PendingErrorClass,
   createPendingResumeGeneration: mockCreatePendingResumeGeneration,
   getLatestCompletedResumeGenerationForScope: mockGetLatestCompletedResumeGenerationForScope,
   getResumeGenerationByIdempotencyKey: mockGetResumeGenerationByIdempotencyKey,
@@ -908,6 +934,93 @@ describe('generateBillableResume', () => {
     })
     expect(mockReserveCreditForGenerationIntent).not.toHaveBeenCalled()
     expect(mockGenerateFile).not.toHaveBeenCalled()
+  })
+
+  it('narrows create pending generation failures with raw persistence diagnostics', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockRejectedValue(new PendingErrorClass({
+      message: 'Failed to create resume generation: null value in column "session_id"',
+      operation: 'create',
+      dbCode: '23502',
+      dbDetails: 'Failing row contains null session_id',
+      dbHint: 'Check required fields',
+      cause: new Error('null value in column "session_id"'),
+    }))
+
+    await expect(generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+      latestVersionId: 'ver_rewrite',
+      sourceScope: 'optimized',
+    })).rejects.toMatchObject({
+      name: 'BillableResumeError',
+      code: 'GENERATE_RESUME_PENDING_GENERATION_CREATE_FAILED',
+      billableStage: 'create_pending_generation',
+      generationIntentKey: 'dup_key',
+    })
+
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'resume_generation.pending_generation.persistence_failed',
+      expect.objectContaining({
+        branch: 'create',
+        latestVersionId: 'ver_rewrite',
+        sourceScope: 'optimized',
+        dbCode: '23502',
+      }),
+    )
+  })
+
+  it('narrows reuse pending generation failures after duplicate idempotency handling', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockRejectedValue(new PendingErrorClass({
+      message: 'Failed to reuse the existing pending resume generation after duplicate idempotency detection.',
+      operation: 'reuse',
+      dbCode: '23505',
+      dbDetails: 'duplicate key value violates unique constraint',
+      cause: new Error('Failed to load resume generation by idempotency key: row not found'),
+    }))
+
+    await expect(generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+      latestVersionId: 'ver_rewrite',
+      sourceScope: 'optimized',
+    })).rejects.toMatchObject({
+      name: 'BillableResumeError',
+      code: 'GENERATE_RESUME_PENDING_GENERATION_CONSTRAINT_FAILED',
+      billableStage: 'reuse_pending_generation',
+      generationIntentKey: 'dup_key',
+    })
+
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'resume_generation.pending_generation.persistence_failed',
+      expect.objectContaining({
+        branch: 'reuse',
+        latestVersionId: 'ver_rewrite',
+        sourceScope: 'optimized',
+        dbCode: '23505',
+      }),
+    )
   })
 
   it('tags render exceptions with billable stage metadata instead of leaking an unlocalized throw', async () => {

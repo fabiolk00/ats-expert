@@ -1,6 +1,7 @@
 import { CVStateSchema } from '@/lib/cv/schema'
 import { createDatabaseId } from '@/lib/db/ids'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
+import { logWarn, serializeError } from '@/lib/observability/structured-log'
 import type { ResumeGeneration, ResumeGenerationType } from '@/types/agent'
 import type { CVState } from '@/types/cv'
 
@@ -25,6 +26,35 @@ type ResumeGenerationRow = {
 type PostgrestErrorLike = {
   code?: string
   message?: string
+  details?: string
+  hint?: string
+}
+
+export type PendingResumeGenerationOperation = 'create' | 'reuse'
+
+export class PendingResumeGenerationPersistenceError extends Error {
+  readonly operation: PendingResumeGenerationOperation
+  readonly dbCode?: string
+  readonly dbDetails?: string
+  readonly dbHint?: string
+  readonly causeMessage?: string
+
+  constructor(input: {
+    message: string
+    operation: PendingResumeGenerationOperation
+    cause?: unknown
+    dbCode?: string
+    dbDetails?: string
+    dbHint?: string
+  }) {
+    super(input.message, input.cause ? { cause: input.cause } : undefined)
+    this.name = 'PendingResumeGenerationPersistenceError'
+    this.operation = input.operation
+    this.dbCode = input.dbCode
+    this.dbDetails = input.dbDetails
+    this.dbHint = input.dbHint
+    this.causeMessage = input.cause instanceof Error ? input.cause.message : undefined
+  }
 }
 
 function mapResumeGenerationRow(row: ResumeGenerationRow): ResumeGeneration {
@@ -97,7 +127,14 @@ export async function createPendingResumeGeneration(input: {
   const { count, error: countError } = await versionQuery
 
   if (countError) {
-    throw new Error(`Failed to calculate resume generation version: ${countError.message}`)
+    throw new PendingResumeGenerationPersistenceError({
+      message: `Failed to calculate resume generation version: ${countError.message}`,
+      operation: 'create',
+      cause: countError,
+      dbCode: countError.code,
+      dbDetails: countError.details,
+      dbHint: countError.hint,
+    })
   }
 
   const { data, error } = await supabase
@@ -117,17 +154,46 @@ export async function createPendingResumeGeneration(input: {
     .single<ResumeGenerationRow>()
 
   if (error && input.idempotencyKey && isDuplicateIdempotencyError(error)) {
-    const existing = await getResumeGenerationByIdempotencyKey(input.userId, input.idempotencyKey)
-    if (existing) {
-      return {
-        generation: existing,
-        wasCreated: false,
+    try {
+      const existing = await getResumeGenerationByIdempotencyKey(input.userId, input.idempotencyKey)
+      if (existing) {
+        return {
+          generation: existing,
+          wasCreated: false,
+        }
       }
+    } catch (reuseError) {
+      throw new PendingResumeGenerationPersistenceError({
+        message: 'Failed to reuse the existing pending resume generation after duplicate idempotency detection.',
+        operation: 'reuse',
+        cause: reuseError,
+        dbCode: error.code,
+        dbDetails: error.details,
+        dbHint: error.hint,
+      })
     }
   }
 
   if (error || !data) {
-    throw new Error(`Failed to create resume generation: ${error?.message ?? 'Unknown error'}`)
+    logWarn('resume_generation.pending_generation.create_failed', {
+      userId: input.userId,
+      sessionId: input.sessionId,
+      targetId: input.resumeTargetId,
+      branch: 'create',
+      idempotencyKey: input.idempotencyKey,
+      dbCode: error?.code,
+      dbDetails: error?.details,
+      dbHint: error?.hint,
+      ...serializeError(error),
+    })
+    throw new PendingResumeGenerationPersistenceError({
+      message: `Failed to create resume generation: ${error?.message ?? 'Unknown error'}`,
+      operation: 'create',
+      cause: error,
+      dbCode: error?.code,
+      dbDetails: error?.details,
+      dbHint: error?.hint,
+    })
   }
 
   return {

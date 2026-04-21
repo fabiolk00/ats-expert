@@ -304,3 +304,13 @@ Plans:
 
 Plans:
 - [x] 59-01-PLAN.md - Add explicit billable-stage tracking, stage-aware error narrowing, tool-log propagation, metrics, and regression tests for post-preflight export failures
+
+### Phase 60: Pending Resume Generation Persistence Narrowing
+
+**Goal:** Identify and narrow the pending resume-generation persistence failure path so create vs reuse failures stop collapsing into one broad persistence error and become diagnosable from logs, metrics, and top-level tool failures.
+**Requirements**: [PENDING-PERSIST-01, PENDING-PERSIST-OBS-01, PENDING-PERSIST-TEST-01]
+**Depends on:** Phase 59
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 60-01-PLAN.md - Split create vs reuse pending-generation persistence, log raw DB failure details, add narrower failure codes, and cover the narrowed seam with regression tests

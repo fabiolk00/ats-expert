@@ -752,6 +752,8 @@ describe('agent tool dispatch', () => {
       targetId: undefined,
       idempotencyKey: undefined,
       templateTargetSource: session.agentState,
+      latestVersionId: 'ver_123',
+      sourceScope: 'optimized',
     })
     expect(execution.patch).toEqual({
       generatedOutput: {
@@ -861,6 +863,35 @@ describe('agent tool dispatch', () => {
     )
   })
 
+  it('preserves narrowed pending-generation persistence codes in top-level tool failure logs', async () => {
+    const session = buildSession()
+    const billableError = Object.assign(new Error('Failed to create resume generation: null session_id'), {
+      code: 'GENERATE_RESUME_PENDING_GENERATION_CREATE_FAILED',
+      billableStage: 'create_pending_generation',
+      generationIntentKey: 'dup_key',
+    })
+
+    vi.mocked(generateBillableResume).mockRejectedValue(billableError)
+
+    const rawResult = await dispatchTool('generate_file', {
+      cv_state: session.cvState,
+    }, session)
+
+    expect(JSON.parse(rawResult)).toEqual({
+      success: false,
+      code: 'GENERATE_RESUME_PENDING_GENERATION_CREATE_FAILED',
+      error: 'Tool execution failed.',
+    })
+    expect(logError).toHaveBeenCalledWith(
+      'agent.tool.failed',
+      expect.objectContaining({
+        billableStage: 'create_pending_generation',
+        generationIntentKey: 'dup_key',
+        errorCode: 'GENERATE_RESUME_PENDING_GENERATION_CREATE_FAILED',
+      }),
+    )
+  })
+
   it('generates files from the selected target derived cvState without overwriting the base resume', async () => {
     const session = buildSession()
     const originalCvState = structuredClone(session.cvState)
@@ -905,6 +936,8 @@ describe('agent tool dispatch', () => {
       targetId: 'target_123',
       idempotencyKey: undefined,
       templateTargetSource: 'AWS backend role',
+      latestVersionId: 'ver_123',
+      sourceScope: 'target',
     })
     expect(updateResumeTargetGeneratedOutput).toHaveBeenCalledWith(
       session.id,

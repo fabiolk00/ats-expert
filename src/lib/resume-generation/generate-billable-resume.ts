@@ -30,6 +30,7 @@ import {
   createPendingResumeGeneration,
   getLatestCompletedResumeGenerationForScope,
   getResumeGenerationByIdempotencyKey,
+  PendingResumeGenerationPersistenceError,
   updateResumeGeneration,
 } from '@/lib/db/resume-generations'
 import { getSession } from '@/lib/db/sessions'
@@ -55,7 +56,8 @@ export type BillableResumeStage =
   | 'lookup_completed_generation'
   | 'lookup_idempotent_generation'
   | 'lookup_latest_version'
-  | 'create_or_reuse_pending_generation'
+  | 'reuse_pending_generation'
+  | 'create_pending_generation'
   | 'reserve_credit'
   | 'render_artifact'
   | 'release_credit'
@@ -82,7 +84,8 @@ type BillableStageFailureMetric =
   | 'architecture.generate_resume.stage_failure.lookup_completed_generation'
   | 'architecture.generate_resume.stage_failure.lookup_idempotent_generation'
   | 'architecture.generate_resume.stage_failure.lookup_latest_version'
-  | 'architecture.generate_resume.stage_failure.create_or_reuse_pending_generation'
+  | 'architecture.generate_resume.stage_failure.reuse_pending_generation'
+  | 'architecture.generate_resume.stage_failure.create_pending_generation'
   | 'architecture.generate_resume.stage_failure.reserve_credit'
   | 'architecture.generate_resume.stage_failure.render_artifact'
   | 'architecture.generate_resume.stage_failure.finalize_credit'
@@ -120,7 +123,8 @@ const BILLABLE_STAGE_FAILURE_METRICS: Readonly<Record<BillableResumeStage, Billa
   lookup_completed_generation: 'architecture.generate_resume.stage_failure.lookup_completed_generation',
   lookup_idempotent_generation: 'architecture.generate_resume.stage_failure.lookup_idempotent_generation',
   lookup_latest_version: 'architecture.generate_resume.stage_failure.lookup_latest_version',
-  create_or_reuse_pending_generation: 'architecture.generate_resume.stage_failure.create_or_reuse_pending_generation',
+  reuse_pending_generation: 'architecture.generate_resume.stage_failure.reuse_pending_generation',
+  create_pending_generation: 'architecture.generate_resume.stage_failure.create_pending_generation',
   reserve_credit: 'architecture.generate_resume.stage_failure.reserve_credit',
   render_artifact: 'architecture.generate_resume.stage_failure.render_artifact',
   release_credit: 'architecture.generate_resume.stage_failure.release_credit',
@@ -229,6 +233,47 @@ function getBillableFailureReason(error: unknown): string {
   return String(error)
 }
 
+function resolvePendingGenerationFailureCode(
+  error: PendingResumeGenerationPersistenceError,
+): ToolErrorCode {
+  if (error.dbCode === '23505') {
+    return TOOL_ERROR_CODES.GENERATE_RESUME_PENDING_GENERATION_CONSTRAINT_FAILED
+  }
+
+  return error.operation === 'reuse'
+    ? TOOL_ERROR_CODES.GENERATE_RESUME_PENDING_GENERATION_REUSE_FAILED
+    : TOOL_ERROR_CODES.GENERATE_RESUME_PENDING_GENERATION_CREATE_FAILED
+}
+
+function logPendingGenerationPersistenceFailure(input: {
+  userId: string
+  sessionId: string
+  targetId?: string
+  generationIntentKey?: string
+  resumeGenerationId?: string
+  latestVersionId?: string
+  sourceScope?: string
+  branch: 'create' | 'reuse'
+  error: PendingResumeGenerationPersistenceError
+}): void {
+  logWarn('resume_generation.pending_generation.persistence_failed', {
+    sessionId: input.sessionId,
+    appUserId: input.userId,
+    targetId: input.targetId,
+    generationIntentKey: input.generationIntentKey,
+    resumeGenerationId: input.resumeGenerationId,
+    latestVersionId: input.latestVersionId,
+    sourceScope: input.sourceScope,
+    branch: input.branch,
+    errorName: input.error.name,
+    errorMessage: input.error.message,
+    errorCause: input.error.causeMessage,
+    dbCode: input.error.dbCode,
+    dbDetails: input.error.dbDetails,
+    dbHint: input.error.dbHint,
+  })
+}
+
 function recordBillableStageFailure(
   context: BillableStageContext,
   state: BillableStageState,
@@ -278,14 +323,16 @@ async function runBillableStage<T>(
       generationIntentKey: state.generationIntentKey,
       resumeGenerationId: state.resumeGenerationId,
     })
+    const effectiveStage = wrapped.billableStage ?? stage
+    state.currentStage = effectiveStage
 
     logWarn('resume_generation.stage.failed', {
-      ...buildBillableStageLogFields(context, state, stage),
+      ...buildBillableStageLogFields(context, state, effectiveStage),
       latencyMs: Date.now() - startedAt,
       failureCode: wrapped.code,
       ...serializeError(wrapped),
     })
-    recordBillableStageFailure(context, state, stage, wrapped.code)
+    recordBillableStageFailure(context, state, effectiveStage, wrapped.code)
 
     throw wrapped
   }
@@ -677,6 +724,8 @@ export async function generateBillableResume(input: {
   idempotencyKey?: string
   templateTargetSource?: Parameters<typeof generateFile>[4]
   resumePendingGeneration?: boolean
+  latestVersionId?: string
+  sourceScope?: string
 }): Promise<BillableGenerationResult> {
   const scope: ArtifactScope = input.targetId
     ? { type: 'target', targetId: input.targetId }
@@ -896,7 +945,7 @@ export async function generateBillableResume(input: {
     const pendingGeneration = await runBillableStage(
       stageContext,
       stageState,
-      'create_or_reuse_pending_generation',
+      'create_pending_generation',
       async () => {
         try {
           return await createPendingResumeGeneration({
@@ -921,12 +970,40 @@ export async function generateBillableResume(input: {
             return null
           }
 
+          if (error instanceof PendingResumeGenerationPersistenceError) {
+            const failureCode = resolvePendingGenerationFailureCode(error)
+            const billableStage = error.operation === 'reuse'
+              ? 'reuse_pending_generation'
+              : 'create_pending_generation'
+
+            logPendingGenerationPersistenceFailure({
+              userId: input.userId,
+              sessionId: input.sessionId,
+              targetId: input.targetId,
+              generationIntentKey: input.idempotencyKey,
+              resumeGenerationId: stageState.resumeGenerationId,
+              latestVersionId: input.latestVersionId,
+              sourceScope: input.sourceScope,
+              branch: error.operation,
+              error,
+            })
+
+            throw new BillableResumeError({
+              code: failureCode,
+              message: error.message,
+              billableStage,
+              generationIntentKey: input.idempotencyKey,
+              resumeGenerationId: stageState.resumeGenerationId,
+              cause: error,
+            })
+          }
+
           throw error
         }
       },
       {
-        failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
-        failureMessage: 'Failed to create or reuse a pending resume generation.',
+        failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PENDING_GENERATION_CREATE_FAILED,
+        failureMessage: 'Failed to create a pending resume generation.',
       },
     )
 
@@ -946,7 +1023,7 @@ export async function generateBillableResume(input: {
       recordBillableStageFailure(
         stageContext,
         stageState,
-        'create_or_reuse_pending_generation',
+        'create_pending_generation',
         TOOL_ERROR_CODES.GENERATE_RESUME_PENDING_GENERATION_MISSING,
       )
 

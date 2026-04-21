@@ -482,6 +482,8 @@ export async function executeTool(
         targetId: intake.context.targetId,
         idempotencyKey: intake.context.idempotencyKey,
         templateTargetSource: intake.context.templateTargetSource,
+        latestVersionId: intake.context.latestAllowedVersionId ?? undefined,
+        sourceScope: intake.context.sourceScope,
       })
 
     if (intake.context.targetId && result.generatedOutput) {

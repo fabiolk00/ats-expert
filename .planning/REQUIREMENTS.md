@@ -93,6 +93,12 @@
 - [x] **BILL-DIAG-OBS-01**: Billable export stage transitions and failures emit structured logs and stage-specific metrics that preserve `billableStage`, generation intent, and resume-generation context for diagnosis.
 - [x] **BILL-DIAG-TEST-01**: Regression coverage proves typed billable failure narrowing, stage-tagged thrown exceptions, and top-level tool-log propagation for downstream billable failures.
 
+### Pending Resume Generation Persistence Narrowing
+
+- [x] **PENDING-PERSIST-01**: Pending resume-generation persistence distinguishes create vs reuse failure branches and preserves raw persistence diagnostics instead of collapsing both paths into one generic persistence error.
+- [x] **PENDING-PERSIST-OBS-01**: Pending-generation persistence failures log branch, DB code/details, latest version, source scope, and generation intent context so ATS-without-target failures are diagnosable from runtime logs.
+- [x] **PENDING-PERSIST-TEST-01**: Regression coverage proves create-branch failure, reuse-branch failure, narrowed failure codes, and top-level tool-log propagation for pending-generation persistence problems.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -157,10 +163,13 @@
 | BILL-DIAG-01 | Phase 59 | Complete |
 | BILL-DIAG-OBS-01 | Phase 59 | Complete |
 | BILL-DIAG-TEST-01 | Phase 59 | Complete |
+| PENDING-PERSIST-01 | Phase 60 | Complete |
+| PENDING-PERSIST-OBS-01 | Phase 60 | Complete |
+| PENDING-PERSIST-TEST-01 | Phase 60 | Complete |
 
 **Coverage:**
-- v1.6 requirements: 41 total
-- Mapped to phases: 41
+- v1.6 requirements: 44 total
+- Mapped to phases: 44
 - Unmapped: 0
 
 ---

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createPendingResumeGeneration, updateResumeGeneration } from './resume-generations'
+import {
+  createPendingResumeGeneration,
+  PendingResumeGenerationPersistenceError,
+  updateResumeGeneration,
+} from './resume-generations'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 
 vi.mock('@/lib/db/supabase-admin', () => ({
@@ -171,5 +175,29 @@ describe('createPendingResumeGeneration', () => {
       id: 'gen_123',
       status: 'completed',
     })).rejects.toThrow()
+  })
+
+  it('surfaces reuse-specific persistence errors when duplicate idempotency fallback cannot reload the pending generation', async () => {
+    maybeSingle.mockRejectedValue(new Error('lookup failed after duplicate'))
+
+    await expect(createPendingResumeGeneration({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      type: 'ATS_ENHANCEMENT',
+      idempotencyKey: 'dup_key',
+      sourceCvSnapshot: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        summary: 'Backend engineer',
+        experience: [],
+        skills: ['TypeScript'],
+        education: [],
+      },
+    })).rejects.toMatchObject({
+      name: 'PendingResumeGenerationPersistenceError',
+      operation: 'reuse',
+      dbCode: '23505',
+    } satisfies Partial<PendingResumeGenerationPersistenceError>)
   })
 })
