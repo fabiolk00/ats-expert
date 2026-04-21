@@ -6,8 +6,8 @@ current_phase: 54
 current_phase_name: architecture proof pack
 current_plan: 01
 status: verifying
-stopped_at: Completed 55-01-PLAN.md
-last_updated: "2026-04-21T00:52:15.232Z"
+stopped_at: Completed 55-02-PLAN.md
+last_updated: "2026-04-21T00:56:28.283Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 17
@@ -70,6 +70,9 @@ Baseline carried forward from earlier shipped milestones:
 - Use a curated proof pack rather than the entire test suite as the release-facing architecture gate.
 - [Phase 55]: Keep POST /api/session/[id]/compare as the canonical compare seam; keep GET /api/session/[id]/comparison compatibility-only.
 - [Phase 55]: Preserve preview-lock sanitization in the comparison decision layer before resume text generation or scoring.
+- [Phase 55]: README stays onboarding-focused and links to architecture docs instead of restating them.
+- [Phase 55]: POST /api/session/[id]/compare is documented as canonical, while GET /api/session/[id]/comparison remains compatibility-only.
+- [Phase 55]: approved-chokepoints.md remains unchanged because session-comparison/decision.ts is not a new monitored chokepoint.
 
 ### Pending Todos
 
@@ -82,6 +85,6 @@ Baseline carried forward from earlier shipped milestones:
 
 ## Session Continuity
 
-Last session: 2026-04-21T00:52:15.228Z
-Stopped at: Completed 55-01-PLAN.md
+Last session: 2026-04-21T00:56:28.278Z
+Stopped at: Completed 55-02-PLAN.md
 Resume file: None

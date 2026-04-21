@@ -67,7 +67,7 @@
 
 - [x] **ROUTE-CONS-01**: Compare and comparison route ownership is explicit, the remaining dense brownfield compare surface follows the route-layer pattern, and future compare logic has one canonical architectural home.
 - [x] **ROUTE-CONS-TEST-01**: Regression coverage proves the migrated compare or comparison surface preserves public contract, preview-aware behavior, not-found handling, and compare semantics after the extraction.
-- [ ] **ROUTE-CONS-DOC-01**: README, route-topology docs, governance artifacts, and component-boundary guidance reflect the current repo topology and the compare versus comparison canonical decision.
+- [x] **ROUTE-CONS-DOC-01**: README, route-topology docs, governance artifacts, and component-boundary guidance reflect the current repo topology and the compare versus comparison canonical decision.
 
 ## Future Requirements
 
