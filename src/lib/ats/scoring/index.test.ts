@@ -120,7 +120,7 @@ describe('ATS readiness scoring contract', () => {
     const contract = buildAtsReadinessContractForEnhancement({
       originalCvState: {
         ...BASE_CV,
-        summary: 'Analista de dados com experiencia em SQL, apoio a relatorios, contato com areas internas e suporte geral a analises.',
+        summary: 'Analista de dados com experiência em SQL, apoio a relatorios, contato com areas internas e suporte geral a analises.',
       },
       optimizedCvState: {
         ...BASE_CV,

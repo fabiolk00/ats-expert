@@ -96,6 +96,10 @@ describe("optimized preview highlights", () => {
 
     expect(highlightedSegments.length).toBeLessThanOrEqual(1)
     expect(highlightedSegments.some((segment) => segment.text.includes("ETL, SQL e Power BI"))).toBe(true)
+    expect(highlightedSegments[0]?.evidenceCategory).toBe("contextual_stack")
+    expect(highlightedSegments[0]?.evidenceTier).toBe("secondary")
+    expect(result.highlightCategory).toBe("contextual_stack")
+    expect(result.highlightTier).toBe("secondary")
   })
 
   it("favors structural metric evidence over narrative phrasing when both are present", () => {
@@ -110,6 +114,10 @@ describe("optimized preview highlights", () => {
     expect(highlightedSegments).toHaveLength(1)
     expect(highlightedSegments[0]?.text).toContain("27%")
     expect(highlightedSegments[0]?.text).not.toContain("Melhorei a eficiencia")
+    expect(highlightedSegments[0]?.evidenceCategory).toBe("metric")
+    expect(highlightedSegments[0]?.evidenceTier).toBe("strong")
+    expect(result.highlightCategory).toBe("metric")
+    expect(result.highlightTier).toBe("strong")
   })
 
   it("prefers explicit scope or scale over generic leadership phrasing", () => {
@@ -185,6 +193,8 @@ describe("optimized preview highlights", () => {
     expect(
       result.experience[0]?.bullets[0]?.segments.some((segment) => segment.highlighted),
     ).toBe(false)
+    expect(result.experience[0]?.bullets[0]?.highlightCategory).toBeUndefined()
+    expect(result.experience[0]?.bullets[0]?.highlightTier).toBeUndefined()
   })
 
   it("recovers obvious contextual stack clusters when they are the strongest available evidence", () => {

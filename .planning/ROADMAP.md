@@ -574,3 +574,13 @@ Plans:
 
 Plans:
 - [x] 85-01-PLAN.md - Replace the summary-length gate with structural clarity checks, emit explicit ATS keyword visibility signals during ats_enhancement, keep the no-JD fallback as backup only, and add focused readiness/pipeline regressions
+
+### Phase 86: Introduce evidence-tiered presentation for experience highlights
+
+**Goal:** Preserve the stabilized experience selector while introducing visual evidence tiers so stronger ATS evidence keeps premium inline emphasis and contextual evidence stops looking editorially equivalent.
+**Requirements**: [EXP-TIER-RENDER-01, EXP-TIER-RENDER-02, EXP-TIER-RENDER-TEST-01]
+**Depends on:** Phase 85
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 86-01-PLAN.md - Carry winner category/tier through the preview contract, keep strong inline treatment for metric/scope evidence, render contextual evidence with secondary emphasis, and add focused motor/UI regressions without retuning the selector

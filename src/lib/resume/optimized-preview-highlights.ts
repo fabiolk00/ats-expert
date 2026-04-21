@@ -3,11 +3,15 @@ import type { CVState, ExperienceEntry } from "@/types/cv"
 export type HighlightSegment = {
   text: string
   highlighted: boolean
+  evidenceTier?: "strong" | "secondary"
+  evidenceCategory?: ExperienceHighlightCategory
 }
 
 export type HighlightedLine = {
   segments: HighlightSegment[]
   highlightWholeLine: boolean
+  highlightTier?: "strong" | "secondary"
+  highlightCategory?: ExperienceHighlightCategory
 }
 
 export type HighlightedExperienceEntry = {
@@ -45,8 +49,15 @@ type HighlightMatch = {
   end: number
 }
 
+export type ExperienceHighlightCategory =
+  | "metric"
+  | "scope_scale"
+  | "contextual_stack"
+  | "anchored_leadership"
+  | "anchored_outcome"
+
 type ExperienceHighlightCandidate = HighlightMatch & {
-  category: "metric" | "scope_scale" | "contextual_stack" | "anchored_leadership" | "anchored_outcome"
+  category: ExperienceHighlightCategory
   score: number
 }
 
@@ -397,7 +408,12 @@ function collapseSegments(segments: HighlightSegment[]): HighlightSegment[] {
 
   for (const segment of segments) {
     const previous = collapsed[collapsed.length - 1]
-    if (previous && previous.highlighted === segment.highlighted) {
+    if (
+      previous
+      && previous.highlighted === segment.highlighted
+      && previous.evidenceTier === segment.evidenceTier
+      && previous.evidenceCategory === segment.evidenceCategory
+    ) {
       previous.text += segment.text
       continue
     }
@@ -433,6 +449,12 @@ function isStructuralPhraseUnit(content: string): boolean {
 
 function createNonHighlightedLine(text: string): HighlightedLine {
   return { segments: [{ text, highlighted: false }], highlightWholeLine: false }
+}
+
+function tierForExperienceCategory(category: ExperienceHighlightCategory): "strong" | "secondary" {
+  return category === "metric" || category === "scope_scale"
+    ? "strong"
+    : "secondary"
 }
 
 function countTechTerms(text: string): number {
@@ -1061,11 +1083,17 @@ function buildExperienceHighlightLine(text: string, candidate: ExperienceHighlig
     return createNonHighlightedLine(text)
   }
 
+  const highlightTier = tierForExperienceCategory(candidate.category)
   const segments: HighlightSegment[] = []
   if (candidate.start > 0) {
     segments.push({ text: text.slice(0, candidate.start), highlighted: false })
   }
-  segments.push({ text: text.slice(candidate.start, candidate.end), highlighted: true })
+  segments.push({
+    text: text.slice(candidate.start, candidate.end),
+    highlighted: true,
+    evidenceTier: highlightTier,
+    evidenceCategory: candidate.category,
+  })
   if (candidate.end < text.length) {
     segments.push({ text: text.slice(candidate.end), highlighted: false })
   }
@@ -1073,6 +1101,8 @@ function buildExperienceHighlightLine(text: string, candidate: ExperienceHighlig
   return {
     segments: collapseSegments(segments),
     highlightWholeLine: false,
+    highlightTier,
+    highlightCategory: candidate.category,
   }
 }
 

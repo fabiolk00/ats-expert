@@ -321,6 +321,52 @@ describe('ResumeComparisonView', () => {
     const bulletHighlight = screen.getByTestId('optimized-bullet-highlight-0-0')
     expect(bulletHighlight.querySelectorAll('[data-highlighted="true"]').length).toBeLessThanOrEqual(1)
     expect(screen.getAllByText(/15%/)).toHaveLength(2)
+
+    const strongHighlight = bulletHighlight.querySelector('[data-highlighted="true"]')
+    expect(strongHighlight).toHaveAttribute('data-highlight-tier', 'strong')
+    expect(strongHighlight).toHaveAttribute('data-highlight-category', 'metric')
+  })
+
+  it('renders contextual stack evidence with secondary emphasis instead of the strong metric style', () => {
+    render(
+      <ResumeComparisonView
+        originalCvState={{
+          ...buildCvState('Atuei com relatorios internos e rotina de acompanhamento.'),
+          experience: [
+            {
+              title: 'Analista de BI',
+              company: 'Acme',
+              startDate: '01/2025',
+              endDate: '04/2026',
+              bullets: ['Atuei com relatorios internos e rotina de acompanhamento.'],
+            },
+          ],
+        }}
+        optimizedCvState={{
+          ...buildCvState('Atuei com relatorios internos e rotina de acompanhamento.'),
+          experience: [
+            {
+              title: 'Analista de BI',
+              company: 'Acme',
+              startDate: '01/2025',
+              endDate: '04/2026',
+              bullets: ['Estruturei ETL, SQL e Power BI para governanca analitica.'],
+            },
+          ],
+        }}
+        generationType="ATS_ENHANCEMENT"
+        sessionId="sess_123"
+        onContinue={vi.fn()}
+      />,
+    )
+
+    const bulletHighlight = screen.getByTestId('optimized-bullet-highlight-0-0')
+    const secondaryHighlight = bulletHighlight.querySelector('[data-highlighted="true"]')
+
+    expect(secondaryHighlight).toHaveAttribute('data-highlight-tier', 'secondary')
+    expect(secondaryHighlight).toHaveAttribute('data-highlight-category', 'contextual_stack')
+    expect(secondaryHighlight).toHaveClass('decoration-dotted')
+    expect(secondaryHighlight).not.toHaveClass('bg-emerald-100/65')
   })
 
   it('renders structured summary payloads as clean text without leaking serialized blobs', () => {

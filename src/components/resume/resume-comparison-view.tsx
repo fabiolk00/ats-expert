@@ -83,9 +83,14 @@ function HighlightText({
         <span
           key={`${segment.text}-${index}`}
           data-highlighted={enabled && segment.highlighted ? "true" : "false"}
+          data-highlight-tier={enabled && segment.highlighted ? (segment.evidenceTier ?? "strong") : "none"}
+          data-highlight-category={enabled && segment.highlighted ? (segment.evidenceCategory ?? "unknown") : "none"}
           className={cn(
-            enabled && segment.highlighted
+            enabled && segment.highlighted && segment.evidenceTier !== "secondary"
               ? "rounded-md bg-emerald-100/65 px-0.5 py-px text-emerald-950 shadow-[inset_0_0_0_1px_rgba(16,185,129,0.10)] dark:bg-emerald-500/12 dark:text-emerald-100"
+              : undefined,
+            enabled && segment.highlighted && segment.evidenceTier === "secondary"
+              ? "rounded-sm bg-emerald-50/45 px-0.5 py-px text-emerald-900/90 underline decoration-dotted decoration-emerald-500/60 decoration-2 underline-offset-2 dark:bg-emerald-500/5 dark:text-emerald-200 dark:decoration-emerald-400/55"
               : undefined,
           )}
         >
