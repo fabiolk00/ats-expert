@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
 
-import { TOOL_ERROR_CODES, toolFailure } from '@/lib/agent/tool-errors'
+import { TOOL_ERROR_CODES, type ToolErrorCode, toolFailure } from '@/lib/agent/tool-errors'
 import {
   createSignedResumeArtifactUrlsBestEffort,
   generateFile,
@@ -50,6 +50,20 @@ type ArtifactScope =
   | { type: 'session' }
   | { type: 'target'; targetId: string }
 
+export type BillableResumeStage =
+  | 'validate_cv_state'
+  | 'lookup_completed_generation'
+  | 'lookup_idempotent_generation'
+  | 'lookup_latest_version'
+  | 'create_or_reuse_pending_generation'
+  | 'reserve_credit'
+  | 'render_artifact'
+  | 'release_credit'
+  | 'finalize_credit'
+  | 'persist_completed_generation'
+  | 'persist_failed_generation'
+  | 'reconciliation_marking'
+
 type BillableGenerationResult = {
   output: GenerateFileOutput
   patch?: ToolPatch
@@ -64,7 +78,218 @@ type ResumeGenerationPersistenceResult = {
   resumeGenerationId?: string
 }
 
+type BillableStageFailureMetric =
+  | 'architecture.generate_resume.stage_failure.lookup_completed_generation'
+  | 'architecture.generate_resume.stage_failure.lookup_idempotent_generation'
+  | 'architecture.generate_resume.stage_failure.lookup_latest_version'
+  | 'architecture.generate_resume.stage_failure.create_or_reuse_pending_generation'
+  | 'architecture.generate_resume.stage_failure.reserve_credit'
+  | 'architecture.generate_resume.stage_failure.render_artifact'
+  | 'architecture.generate_resume.stage_failure.finalize_credit'
+  | 'architecture.generate_resume.stage_failure.release_credit'
+  | 'architecture.generate_resume.stage_failure.persist_completed_generation'
+  | 'architecture.generate_resume.stage_failure.persist_failed_generation'
+  | 'architecture.generate_resume.stage_failure.reconciliation_marking'
+
+type BillableStageState = {
+  currentStage: BillableResumeStage
+  generationIntentKey?: string
+  resumeGenerationId?: string
+}
+
+type BillableStageContext = {
+  userId: string
+  sessionId: string
+  targetId?: string
+  generationType: ResumeGenerationType
+}
+
+type BillableResumeErrorInput = {
+  code: ToolErrorCode
+  message: string
+  billableStage: BillableResumeStage
+  resumeGenerationId?: string
+  generationIntentKey?: string
+  cause?: unknown
+}
+
 export const BILLABLE_CV_VERSION_SOURCES = new Set(['rewrite', 'ats-enhancement', 'job-targeting', 'target-derived'])
+
+const BILLABLE_STAGE_FAILURE_METRICS: Readonly<Record<BillableResumeStage, BillableStageFailureMetric>> = {
+  validate_cv_state: 'architecture.generate_resume.stage_failure.lookup_latest_version',
+  lookup_completed_generation: 'architecture.generate_resume.stage_failure.lookup_completed_generation',
+  lookup_idempotent_generation: 'architecture.generate_resume.stage_failure.lookup_idempotent_generation',
+  lookup_latest_version: 'architecture.generate_resume.stage_failure.lookup_latest_version',
+  create_or_reuse_pending_generation: 'architecture.generate_resume.stage_failure.create_or_reuse_pending_generation',
+  reserve_credit: 'architecture.generate_resume.stage_failure.reserve_credit',
+  render_artifact: 'architecture.generate_resume.stage_failure.render_artifact',
+  release_credit: 'architecture.generate_resume.stage_failure.release_credit',
+  finalize_credit: 'architecture.generate_resume.stage_failure.finalize_credit',
+  persist_completed_generation: 'architecture.generate_resume.stage_failure.persist_completed_generation',
+  persist_failed_generation: 'architecture.generate_resume.stage_failure.persist_failed_generation',
+  reconciliation_marking: 'architecture.generate_resume.stage_failure.reconciliation_marking',
+}
+
+export class BillableResumeError extends Error {
+  readonly code: ToolErrorCode
+  readonly billableStage: BillableResumeStage
+  readonly resumeGenerationId?: string
+  readonly generationIntentKey?: string
+
+  constructor(input: BillableResumeErrorInput) {
+    super(input.message, input.cause ? { cause: input.cause } : undefined)
+    this.name = 'BillableResumeError'
+    this.code = input.code
+    this.billableStage = input.billableStage
+    this.resumeGenerationId = input.resumeGenerationId
+    this.generationIntentKey = input.generationIntentKey
+  }
+}
+
+export function getBillableResumeErrorMetadata(error: unknown): {
+  billableStage?: BillableResumeStage
+  resumeGenerationId?: string
+  generationIntentKey?: string
+} {
+  if (error instanceof BillableResumeError) {
+    return {
+      billableStage: error.billableStage,
+      resumeGenerationId: error.resumeGenerationId,
+      generationIntentKey: error.generationIntentKey,
+    }
+  }
+
+  if (typeof error !== 'object' || error === null) {
+    return {}
+  }
+
+  const candidate = error as {
+    billableStage?: unknown
+    resumeGenerationId?: unknown
+    generationIntentKey?: unknown
+  }
+
+  return {
+    billableStage: typeof candidate.billableStage === 'string'
+      ? candidate.billableStage as BillableResumeStage
+      : undefined,
+    resumeGenerationId: typeof candidate.resumeGenerationId === 'string'
+      ? candidate.resumeGenerationId
+      : undefined,
+    generationIntentKey: typeof candidate.generationIntentKey === 'string'
+      ? candidate.generationIntentKey
+      : undefined,
+  }
+}
+
+function buildBillableStageLogFields(
+  context: BillableStageContext,
+  state: BillableStageState,
+  stage: BillableResumeStage,
+): Record<string, string | undefined> {
+  return {
+    sessionId: context.sessionId,
+    appUserId: context.userId,
+    targetId: context.targetId,
+    generationType: context.generationType,
+    generationIntentKey: state.generationIntentKey,
+    resumeGenerationId: state.resumeGenerationId,
+    stage,
+  }
+}
+
+function wrapBillableResumeError(
+  error: unknown,
+  input: Omit<BillableResumeErrorInput, 'message'> & { message?: string },
+): BillableResumeError {
+  if (error instanceof BillableResumeError) {
+    return error
+  }
+
+  const fallbackMessage = error instanceof Error
+    ? error.message
+    : 'Billable resume generation failed.'
+
+  return new BillableResumeError({
+    ...input,
+    message: input.message ?? fallbackMessage,
+    cause: error,
+  })
+}
+
+function getBillableFailureReason(error: unknown): string {
+  if (error instanceof BillableResumeError && error.cause instanceof Error) {
+    return error.cause.message
+  }
+
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return String(error)
+}
+
+function recordBillableStageFailure(
+  context: BillableStageContext,
+  state: BillableStageState,
+  stage: BillableResumeStage,
+  failureCode: ToolErrorCode,
+): void {
+  recordMetricCounter(BILLABLE_STAGE_FAILURE_METRICS[stage], {
+    appUserId: context.userId,
+    sessionId: context.sessionId,
+    targetId: context.targetId,
+    generationType: context.generationType,
+    generationIntentKey: state.generationIntentKey,
+    resumeGenerationId: state.resumeGenerationId,
+    failureCode,
+  })
+}
+
+async function runBillableStage<T>(
+  context: BillableStageContext,
+  state: BillableStageState,
+  stage: BillableResumeStage,
+  run: () => Promise<T>,
+  options?: {
+    failureCode?: ToolErrorCode
+    failureMessage?: string
+  },
+): Promise<T> {
+  state.currentStage = stage
+  const startedAt = Date.now()
+
+  logInfo('resume_generation.stage.started', buildBillableStageLogFields(context, state, stage))
+
+  try {
+    const result = await run()
+
+    logInfo('resume_generation.stage.completed', {
+      ...buildBillableStageLogFields(context, state, stage),
+      latencyMs: Date.now() - startedAt,
+    })
+
+    return result
+  } catch (error) {
+    const wrapped = wrapBillableResumeError(error, {
+      code: options?.failureCode ?? TOOL_ERROR_CODES.INTERNAL_ERROR,
+      message: options?.failureMessage,
+      billableStage: stage,
+      generationIntentKey: state.generationIntentKey,
+      resumeGenerationId: state.resumeGenerationId,
+    })
+
+    logWarn('resume_generation.stage.failed', {
+      ...buildBillableStageLogFields(context, state, stage),
+      latencyMs: Date.now() - startedAt,
+      failureCode: wrapped.code,
+      ...serializeError(wrapped),
+    })
+    recordBillableStageFailure(context, state, stage, wrapped.code)
+
+    throw wrapped
+  }
+}
 
 function isMissingResumeGenerationSchemaError(error: unknown): boolean {
   const message = error instanceof Error ? error.message.toLowerCase() : ''
@@ -453,8 +678,34 @@ export async function generateBillableResume(input: {
   templateTargetSource?: Parameters<typeof generateFile>[4]
   resumePendingGeneration?: boolean
 }): Promise<BillableGenerationResult> {
+  const scope: ArtifactScope = input.targetId
+    ? { type: 'target', targetId: input.targetId }
+    : { type: 'session' }
+  const generationType = resolveGenerationType(scope)
+  const stageState: BillableStageState = {
+    currentStage: 'validate_cv_state',
+  }
+  const stageContext: BillableStageContext = {
+    userId: input.userId,
+    sessionId: input.sessionId,
+    targetId: input.targetId,
+    generationType,
+  }
+
+  logInfo('resume_generation.stage.started', buildBillableStageLogFields(stageContext, stageState, 'validate_cv_state'))
   const validation = validateGenerationCvState(input.sourceCvState)
   if (!validation.success) {
+    logWarn('resume_generation.stage.failed', {
+      ...buildBillableStageLogFields(stageContext, stageState, 'validate_cv_state'),
+      failureCode: TOOL_ERROR_CODES.VALIDATION_ERROR,
+      errorMessage: validation.errorMessage,
+    })
+    recordBillableStageFailure(
+      stageContext,
+      stageState,
+      'validate_cv_state',
+      TOOL_ERROR_CODES.VALIDATION_ERROR,
+    )
     return {
       output: toolFailure(
         TOOL_ERROR_CODES.VALIDATION_ERROR,
@@ -467,36 +718,45 @@ export async function generateBillableResume(input: {
       processingStage: 'validation_failed',
     }
   }
+  logInfo('resume_generation.stage.completed', buildBillableStageLogFields(stageContext, stageState, 'validate_cv_state'))
 
-  const scope: ArtifactScope = input.targetId
-    ? { type: 'target', targetId: input.targetId }
-    : { type: 'session' }
-  const generationType = resolveGenerationType(scope)
   let resumeGeneration: ResumeGeneration | undefined
   let latestCompletedGeneration: ResumeGeneration | null = null
   let resumeGenerationSchemaUnavailable = false
 
-  try {
-    latestCompletedGeneration = await getLatestCompletedResumeGenerationForScope({
-      userId: input.userId,
-      sessionId: input.sessionId,
-      resumeTargetId: input.targetId,
-      type: generationType,
-    })
-  } catch (error) {
-    if (isMissingResumeGenerationSchemaError(error)) {
-      logWarn('resume_generation.schema_unavailable', {
-        userId: input.userId,
-        sessionId: input.sessionId,
-        targetId: input.targetId,
-        stage: 'lookup_latest_completed',
-        ...serializeError(error),
-      })
-      resumeGenerationSchemaUnavailable = true
-    } else {
-      throw error
-    }
-  }
+  latestCompletedGeneration = await runBillableStage(
+    stageContext,
+    stageState,
+    'lookup_completed_generation',
+    async () => {
+      try {
+        return await getLatestCompletedResumeGenerationForScope({
+          userId: input.userId,
+          sessionId: input.sessionId,
+          resumeTargetId: input.targetId,
+          type: generationType,
+        })
+      } catch (error) {
+        if (isMissingResumeGenerationSchemaError(error)) {
+          logWarn('resume_generation.schema_unavailable', {
+            userId: input.userId,
+            sessionId: input.sessionId,
+            targetId: input.targetId,
+            stage: 'lookup_latest_completed',
+            ...serializeError(error),
+          })
+          resumeGenerationSchemaUnavailable = true
+          return null
+        }
+
+        throw error
+      }
+    },
+    {
+      failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+      failureMessage: 'Failed to look up the latest completed resume generation.',
+    },
+  )
 
   if (
     !resumeGenerationSchemaUnavailable
@@ -516,25 +776,35 @@ export async function generateBillableResume(input: {
   }
 
   if (input.idempotencyKey && !resumeGenerationSchemaUnavailable) {
-    let existing: ResumeGeneration | null = null
+    const existing = await runBillableStage(
+      stageContext,
+      stageState,
+      'lookup_idempotent_generation',
+      async () => {
+        try {
+          return await getResumeGenerationByIdempotencyKey(input.userId, input.idempotencyKey!)
+        } catch (error) {
+          if (isMissingResumeGenerationSchemaError(error)) {
+            logWarn('resume_generation.schema_unavailable', {
+              userId: input.userId,
+              sessionId: input.sessionId,
+              targetId: input.targetId,
+              stage: 'lookup_idempotency',
+              idempotencyKey: input.idempotencyKey,
+              ...serializeError(error),
+            })
+            resumeGenerationSchemaUnavailable = true
+            return null
+          }
 
-    try {
-      existing = await getResumeGenerationByIdempotencyKey(input.userId, input.idempotencyKey)
-    } catch (error) {
-      if (isMissingResumeGenerationSchemaError(error)) {
-        logWarn('resume_generation.schema_unavailable', {
-          userId: input.userId,
-          sessionId: input.sessionId,
-          targetId: input.targetId,
-          stage: 'lookup_idempotency',
-          idempotencyKey: input.idempotencyKey,
-          ...serializeError(error),
-        })
-        resumeGenerationSchemaUnavailable = true
-      } else {
-        throw error
-      }
-    }
+          throw error
+        }
+      },
+      {
+        failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+        failureMessage: 'Failed to look up the billable resume generation by idempotency key.',
+      },
+    )
 
     if (!resumeGenerationSchemaUnavailable && existing) {
       const replayResult = await buildReplayResultForViewer({
@@ -572,11 +842,27 @@ export async function generateBillableResume(input: {
     }
   }
 
-  const latestCvVersion = await getLatestCvVersionForScope(input.sessionId, input.targetId)
+  const latestCvVersion = await runBillableStage(
+    stageContext,
+    stageState,
+    'lookup_latest_version',
+    () => getLatestCvVersionForScope(input.sessionId, input.targetId),
+    {
+      failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+      failureMessage: 'Failed to look up the latest billable CV version.',
+    },
+  )
   if (!latestCvVersion || !BILLABLE_CV_VERSION_SOURCES.has(latestCvVersion.source)) {
+    recordBillableStageFailure(
+      stageContext,
+      stageState,
+      'lookup_latest_version',
+      TOOL_ERROR_CODES.GENERATE_RESUME_LATEST_VERSION_MISSING,
+    )
+
     return {
       output: toolFailure(
-        TOOL_ERROR_CODES.VALIDATION_ERROR,
+        TOOL_ERROR_CODES.GENERATE_RESUME_LATEST_VERSION_MISSING,
         'Gere uma nova versão otimizada pela IA antes de exportar este currículo.',
       ),
       processingStage: 'validation_failed',
@@ -607,32 +893,42 @@ export async function generateBillableResume(input: {
   }
 
   if (!resumeGeneration) {
-    let pendingGeneration: Awaited<ReturnType<typeof createPendingResumeGeneration>> | null = null
+    const pendingGeneration = await runBillableStage(
+      stageContext,
+      stageState,
+      'create_or_reuse_pending_generation',
+      async () => {
+        try {
+          return await createPendingResumeGeneration({
+            userId: input.userId,
+            sessionId: input.sessionId,
+            resumeTargetId: input.targetId,
+            type: generationType,
+            idempotencyKey: input.idempotencyKey,
+            sourceCvSnapshot: input.sourceCvState,
+          })
+        } catch (error) {
+          if (isMissingResumeGenerationSchemaError(error)) {
+            logWarn('resume_generation.schema_unavailable', {
+              userId: input.userId,
+              sessionId: input.sessionId,
+              targetId: input.targetId,
+              stage: 'create_pending',
+              idempotencyKey: input.idempotencyKey,
+              ...serializeError(error),
+            })
+            resumeGenerationSchemaUnavailable = true
+            return null
+          }
 
-    try {
-      pendingGeneration = await createPendingResumeGeneration({
-        userId: input.userId,
-        sessionId: input.sessionId,
-        resumeTargetId: input.targetId,
-        type: generationType,
-        idempotencyKey: input.idempotencyKey,
-        sourceCvSnapshot: input.sourceCvState,
-      })
-    } catch (error) {
-      if (isMissingResumeGenerationSchemaError(error)) {
-        logWarn('resume_generation.schema_unavailable', {
-          userId: input.userId,
-          sessionId: input.sessionId,
-          targetId: input.targetId,
-          stage: 'create_pending',
-          idempotencyKey: input.idempotencyKey,
-          ...serializeError(error),
-        })
-        resumeGenerationSchemaUnavailable = true
-      } else {
-        throw error
-      }
-    }
+          throw error
+        }
+      },
+      {
+        failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+        failureMessage: 'Failed to create or reuse a pending resume generation.',
+      },
+    )
 
     if (resumeGenerationSchemaUnavailable) {
       return generateWithoutResumeGenerationPersistence({
@@ -647,10 +943,28 @@ export async function generateBillableResume(input: {
     }
 
     if (!pendingGeneration) {
-      throw new Error('Pending generation was not created before continuing billable export flow.')
+      recordBillableStageFailure(
+        stageContext,
+        stageState,
+        'create_or_reuse_pending_generation',
+        TOOL_ERROR_CODES.GENERATE_RESUME_PENDING_GENERATION_MISSING,
+      )
+
+      return {
+        output: toolFailure(
+          TOOL_ERROR_CODES.GENERATE_RESUME_PENDING_GENERATION_MISSING,
+          'A geraÃ§Ã£o pendente esperada nÃ£o foi criada antes de continuar a exportaÃ§Ã£o.',
+        ),
+        generatedOutput: {
+          status: 'failed',
+          error: 'Pending generation was not created before continuing billable export flow.',
+        },
+        processingStage: 'validation_failed',
+      }
     }
 
     resumeGeneration = pendingGeneration.generation
+    stageState.resumeGenerationId = resumeGeneration.id
 
     if (!pendingGeneration.wasCreated && !input.resumePendingGeneration) {
       return buildPendingGenerationInProgressResult(resumeGeneration)
@@ -661,30 +975,41 @@ export async function generateBillableResume(input: {
     idempotencyKey: input.idempotencyKey,
     resumeGeneration,
   })
+  stageState.generationIntentKey = generationIntentKey
+  stageState.resumeGenerationId = resumeGeneration.id
 
-  const reservation = await withTimedOperation({
-    operation: 'reserveCreditForGenerationIntent',
-    generationIntentKey,
-    appUserId: input.userId,
-    run: () => reserveCreditForGenerationIntent({
-      userId: input.userId,
+  const reservation = await runBillableStage(
+    stageContext,
+    stageState,
+    'reserve_credit',
+    () => withTimedOperation({
+      operation: 'reserveCreditForGenerationIntent',
       generationIntentKey,
-      generationType,
-      sessionId: input.sessionId,
-      resumeTargetId: input.targetId,
-      resumeGenerationId: resumeGeneration.id,
-      metadata: {
+      appUserId: input.userId,
+      run: () => reserveCreditForGenerationIntent({
+        userId: input.userId,
+        generationIntentKey,
+        generationType,
         sessionId: input.sessionId,
-        targetId: input.targetId ?? null,
-        stage: 'reserve_credit',
-        resumePendingGeneration: input.resumePendingGeneration ?? false,
-      },
+        resumeTargetId: input.targetId,
+        resumeGenerationId: resumeGeneration.id,
+        metadata: {
+          sessionId: input.sessionId,
+          targetId: input.targetId ?? null,
+          stage: 'reserve_credit',
+          resumePendingGeneration: input.resumePendingGeneration ?? false,
+        },
+      }),
+      onFailure: (error) => ({
+        errorCategory: 'reserve_credit',
+        errorCode: error instanceof Error ? 'reserve_failed' : 'reserve_failed_unknown',
+      }),
     }),
-    onFailure: (error) => ({
-      errorCategory: 'reserve_credit',
-      errorCode: error instanceof Error ? 'reserve_failed' : 'reserve_failed_unknown',
-    }),
-  })
+    {
+      failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_RESERVATION_FAILED,
+      failureMessage: 'Failed to reserve credit before generating the billable resume.',
+    },
+  )
 
   logInfo('resume_generation.credit_reserved', {
     userId: input.userId,
@@ -706,15 +1031,24 @@ export async function generateBillableResume(input: {
     generationType,
   })
 
-  const generationResult = await generateFileWithTimeout({
-    userId: input.userId,
-    sessionId: input.sessionId,
-    scope,
-    sourceCvState: input.sourceCvState,
-    targetId: input.targetId,
-    templateTargetSource: input.templateTargetSource,
-    generationIntentKey,
-  })
+  const generationResult = await runBillableStage(
+    stageContext,
+    stageState,
+    'render_artifact',
+    () => generateFileWithTimeout({
+      userId: input.userId,
+      sessionId: input.sessionId,
+      scope,
+      sourceCvState: input.sourceCvState,
+      targetId: input.targetId,
+      templateTargetSource: input.templateTargetSource,
+      generationIntentKey,
+    }),
+    {
+      failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_RENDER_FAILED,
+      failureMessage: 'Failed while rendering the billable resume artifact.',
+    },
+  )
 
   if (!generationResult.output.success) {
     const generationFailureReason = generationResult.generatedOutput?.error ?? generationResult.output.error
@@ -733,26 +1067,35 @@ export async function generateBillableResume(input: {
     })
 
     try {
-      await withTimedOperation({
-        operation: 'releaseCreditReservation',
-        generationIntentKey,
-        appUserId: input.userId,
-        run: () => releaseCreditReservation({
-          userId: input.userId,
+      await runBillableStage(
+        stageContext,
+        stageState,
+        'release_credit',
+        () => withTimedOperation({
+          operation: 'releaseCreditReservation',
           generationIntentKey,
-          resumeGenerationId: resumeGeneration.id,
-          metadata: {
-            sessionId: input.sessionId,
-            targetId: input.targetId ?? null,
-            stage: 'release_credit',
-            reason: generationFailureReason,
-          },
+          appUserId: input.userId,
+          run: () => releaseCreditReservation({
+            userId: input.userId,
+            generationIntentKey,
+            resumeGenerationId: resumeGeneration.id,
+            metadata: {
+              sessionId: input.sessionId,
+              targetId: input.targetId ?? null,
+              stage: 'release_credit',
+              reason: generationFailureReason,
+            },
+          }),
+          onFailure: () => ({
+            errorCategory: 'release_credit',
+            errorCode: 'release_failed',
+          }),
         }),
-        onFailure: () => ({
-          errorCategory: 'release_credit',
-          errorCode: 'release_failed',
-        }),
-      })
+        {
+          failureCode: TOOL_ERROR_CODES.INTERNAL_ERROR,
+          failureMessage: 'Failed to release the reserved credit after render failure.',
+        },
+      )
       logInfo('resume_generation.credit_released', {
         userId: input.userId,
         sessionId: input.sessionId,
@@ -769,16 +1112,25 @@ export async function generateBillableResume(input: {
       })
     } catch (error) {
       try {
-        await markCreditReservationReconciliation({
-          reservationId: reservation.id,
-          status: 'needs_reconciliation',
-          reconciliationStatus: 'pending',
-          failureReason: error instanceof Error ? error.message : String(error),
-          metadata: {
-            source: 'render_failure_release',
-            generationIntentKey,
+        await runBillableStage(
+          stageContext,
+          stageState,
+          'reconciliation_marking',
+          () => markCreditReservationReconciliation({
+            reservationId: reservation.id,
+            status: 'needs_reconciliation',
+            reconciliationStatus: 'pending',
+            failureReason: getBillableFailureReason(error),
+            metadata: {
+              source: 'render_failure_release',
+              generationIntentKey,
+            },
+          }),
+          {
+            failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+            failureMessage: 'Failed to mark the reservation for manual reconciliation after release failure.',
           },
-        })
+        )
         recordMetricCounter('billing.reservations.needs_reconciliation', {
           appUserId: input.userId,
           generationIntentKey,
@@ -794,7 +1146,12 @@ export async function generateBillableResume(input: {
           resumeGenerationId: resumeGeneration.id,
           generationIntentKey,
           stage: 'release_credit',
-          ...serializeError(markerError),
+          errorName: markerError instanceof BillableResumeError && markerError.cause instanceof Error
+            ? markerError.cause.name
+            : markerError instanceof Error
+              ? markerError.name
+              : 'Error',
+          errorMessage: getBillableFailureReason(markerError),
         })
       }
       logGenerationStageWarning({
@@ -805,17 +1162,34 @@ export async function generateBillableResume(input: {
         resumeGenerationId: resumeGeneration.id,
         generationIntentKey,
         type: generationType,
-        error: error instanceof Error ? error.message : String(error),
+        error: getBillableFailureReason(error),
         code: generationResult.output.code,
         stage: 'release_credit',
       })
     }
 
-    await safeUpdateResumeGeneration({
+    stageState.currentStage = 'persist_failed_generation'
+    logInfo('resume_generation.stage.started', buildBillableStageLogFields(stageContext, stageState, 'persist_failed_generation'))
+    const failedPersistence = await safeUpdateResumeGeneration({
       id: resumeGeneration.id,
       status: 'failed',
       failureReason: generationFailureReason,
     })
+    if (failedPersistence) {
+      logInfo('resume_generation.stage.completed', buildBillableStageLogFields(stageContext, stageState, 'persist_failed_generation'))
+    } else {
+      logWarn('resume_generation.stage.failed', {
+        ...buildBillableStageLogFields(stageContext, stageState, 'persist_failed_generation'),
+        failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+        errorMessage: 'Failed to persist the failed resume generation.',
+      })
+      recordBillableStageFailure(
+        stageContext,
+        stageState,
+        'persist_failed_generation',
+        TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+      )
+    }
     recordMetricCounter('exports.failed', {
       appUserId: input.userId,
       generationIntentKey,
@@ -842,25 +1216,34 @@ export async function generateBillableResume(input: {
 
   let needsReconciliation = false
   try {
-    await withTimedOperation({
-      operation: 'finalizeCreditReservation',
-      generationIntentKey,
-      appUserId: input.userId,
-      run: () => finalizeCreditReservation({
-        userId: input.userId,
+    await runBillableStage(
+      stageContext,
+      stageState,
+      'finalize_credit',
+      () => withTimedOperation({
+        operation: 'finalizeCreditReservation',
         generationIntentKey,
-        resumeGenerationId: resumeGeneration.id,
-        metadata: {
-          sessionId: input.sessionId,
-          targetId: input.targetId ?? null,
-          stage: 'finalize_credit',
-        },
+        appUserId: input.userId,
+        run: () => finalizeCreditReservation({
+          userId: input.userId,
+          generationIntentKey,
+          resumeGenerationId: resumeGeneration.id,
+          metadata: {
+            sessionId: input.sessionId,
+            targetId: input.targetId ?? null,
+            stage: 'finalize_credit',
+          },
+        }),
+        onFailure: () => ({
+          errorCategory: 'finalize_credit',
+          errorCode: 'finalize_failed',
+        }),
       }),
-      onFailure: () => ({
-        errorCategory: 'finalize_credit',
-        errorCode: 'finalize_failed',
-      }),
-    })
+      {
+        failureCode: TOOL_ERROR_CODES.INTERNAL_ERROR,
+        failureMessage: 'Failed to finalize the reserved credit after artifact success.',
+      },
+    )
     logInfo('resume_generation.credit_finalized', {
       userId: input.userId,
       sessionId: input.sessionId,
@@ -878,16 +1261,25 @@ export async function generateBillableResume(input: {
   } catch (error) {
     needsReconciliation = true
     try {
-      await markCreditReservationReconciliation({
-        reservationId: reservation.id,
-        status: 'needs_reconciliation',
-        reconciliationStatus: 'pending',
-        failureReason: error instanceof Error ? error.message : String(error),
-        metadata: {
-          source: 'artifact_success_finalize',
-          generationIntentKey,
+      await runBillableStage(
+        stageContext,
+        stageState,
+        'reconciliation_marking',
+        () => markCreditReservationReconciliation({
+          reservationId: reservation.id,
+          status: 'needs_reconciliation',
+          reconciliationStatus: 'pending',
+          failureReason: getBillableFailureReason(error),
+          metadata: {
+            source: 'artifact_success_finalize',
+            generationIntentKey,
+          },
+        }),
+        {
+          failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+          failureMessage: 'Failed to mark the reservation for manual reconciliation after finalize failure.',
         },
-      })
+      )
       recordMetricCounter('billing.reservations.needs_reconciliation', {
         appUserId: input.userId,
         generationIntentKey,
@@ -903,7 +1295,12 @@ export async function generateBillableResume(input: {
         resumeGenerationId: resumeGeneration.id,
         generationIntentKey,
         stage: 'finalize_credit',
-        ...serializeError(markerError),
+        errorName: markerError instanceof BillableResumeError && markerError.cause instanceof Error
+          ? markerError.cause.name
+          : markerError instanceof Error
+            ? markerError.name
+            : 'Error',
+        errorMessage: getBillableFailureReason(markerError),
       })
     }
     logGenerationStageWarning({
@@ -914,17 +1311,39 @@ export async function generateBillableResume(input: {
       resumeGenerationId: resumeGeneration.id,
       generationIntentKey,
       type: generationType,
-      error: error instanceof Error ? error.message : String(error),
+      error: getBillableFailureReason(error),
       code: TOOL_ERROR_CODES.INTERNAL_ERROR,
       stage: 'finalize_credit',
     })
   }
 
-  const persistence = await completeResumeGenerationBestEffort({
-    resumeGeneration,
-    sourceCvState: input.sourceCvState,
-    generationResult,
-  })
+  const persistence = await runBillableStage(
+    stageContext,
+    stageState,
+    'persist_completed_generation',
+    () => completeResumeGenerationBestEffort({
+      resumeGeneration,
+      sourceCvState: input.sourceCvState,
+      generationResult,
+    }),
+    {
+      failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+      failureMessage: 'Failed to persist the completed resume generation.',
+    },
+  )
+  if (!persistence.resumeGenerationId) {
+    logWarn('resume_generation.stage.failed', {
+      ...buildBillableStageLogFields(stageContext, stageState, 'persist_completed_generation'),
+      failureCode: TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+      errorMessage: 'Completed artifact was returned, but resume generation persistence was unavailable.',
+    })
+    recordBillableStageFailure(
+      stageContext,
+      stageState,
+      'persist_completed_generation',
+      TOOL_ERROR_CODES.GENERATE_RESUME_PERSISTENCE_FAILED,
+    )
+  }
 
   recordMetricCounter('exports.completed', {
     appUserId: input.userId,

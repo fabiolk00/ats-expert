@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 58
-current_phase_name: ats enhancement generate file handoff hardening
+current_phase: 59
+current_phase_name: generate billable resume exception localization and typed failure narrowing
 current_plan: 01
 status: complete
-stopped_at: Completed 58-01-PLAN.md
-last_updated: "2026-04-21T02:05:00.000Z"
+stopped_at: Completed 59-01-PLAN.md
+last_updated: "2026-04-21T02:48:00.000Z"
 last_activity: 2026-04-21
 progress:
-  total_phases: 18
-  completed_phases: 8
-  total_plans: 8
-  completed_plans: 8
+  total_phases: 19
+  completed_phases: 9
+  total_plans: 9
+  completed_plans: 9
   percent: 100
 ---
 
@@ -28,15 +28,15 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Phase: 58 (ats enhancement generate file handoff hardening) - COMPLETE
+Phase: 59 (generate billable resume exception localization and typed failure narrowing) - COMPLETE
 Plan: 01 complete
-Current Phase: 58
-Current Phase Name: ats enhancement generate file handoff hardening
+Current Phase: 59
+Current Phase Name: generate billable resume exception localization and typed failure narrowing
 Current Plan: 01
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: The post-ATS generate_file handoff now has an explicit authoritative intake contract, typed precondition failures, and regression coverage across route, tool, and transverse preview-lock seams
+Last Activity Description: Downstream billable export failures now carry explicit billable-stage logs, stage-specific metrics, narrowed failure codes where safe, and top-level tool-failure metadata after preflight passes
 
 Progress: [##########] 100%
 
@@ -83,6 +83,8 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 58]: `generate_file` uses session-backed source resolution as the authoritative export source; payload `cv_state` is now validated for coherence instead of treated as an equal source of truth.
 - [Phase 58]: Smart-generation performs a post-persistence handoff preflight before dispatching `generate_file`.
 - [Phase 58]: Intake and handoff coherence problems surface as typed `PRECONDITION_FAILED` failures instead of opaque internal-error exceptions where possible.
+- [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
+- [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 
 ### Pending Todos
 
@@ -95,6 +97,6 @@ Baseline carried forward from earlier shipped milestones:
 
 ## Session Continuity
 
-Last session: 2026-04-21T02:05:00.000Z
-Stopped at: Completed 58-01-PLAN.md
+Last session: 2026-04-21T02:48:00.000Z
+Stopped at: Completed 59-01-PLAN.md
 Resume file: None

@@ -294,3 +294,13 @@ Plans:
 
 Plans:
 - [x] 58-01-PLAN.md - Harden the post-ATS generate_file handoff with an explicit intake contract, coherence preflight, typed failures, and seam regression coverage
+
+### Phase 59: Generate Billable Resume Exception Localization And Typed Failure Narrowing
+
+**Goal:** Localize post-preflight billable export failures to explicit downstream stages, narrow expected billable exceptions into typed failures where safe, and preserve stage metadata in logs and metrics without changing export or billing semantics.
+**Requirements**: [BILL-DIAG-01, BILL-DIAG-OBS-01, BILL-DIAG-TEST-01]
+**Depends on:** Phase 58
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 59-01-PLAN.md - Add explicit billable-stage tracking, stage-aware error narrowing, tool-log propagation, metrics, and regression tests for post-preflight export failures

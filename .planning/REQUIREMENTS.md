@@ -87,6 +87,12 @@
 - [x] **GEN-HANDOFF-ERR-01**: Post-persistence handoff and generate-file intake failures are surfaced as typed tool failures with route-visible HTTP semantics instead of opaque generic internal errors.
 - [x] **GEN-HANDOFF-TEST-01**: Regression tests cover payload/source mismatch, post-persistence handoff preflight, typed dispatch failure mapping, and preview-lock transverse compatibility for the hardened seam.
 
+### Billable Resume Failure Localization
+
+- [x] **BILL-DIAG-01**: Post-preflight failures inside `generateBillableResume(...)` are localized to explicit downstream billable stages and no longer collapse into an unqualified opaque exception path.
+- [x] **BILL-DIAG-OBS-01**: Billable export stage transitions and failures emit structured logs and stage-specific metrics that preserve `billableStage`, generation intent, and resume-generation context for diagnosis.
+- [x] **BILL-DIAG-TEST-01**: Regression coverage proves typed billable failure narrowing, stage-tagged thrown exceptions, and top-level tool-log propagation for downstream billable failures.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -148,10 +154,13 @@
 | GEN-HANDOFF-01 | Phase 58 | Complete |
 | GEN-HANDOFF-ERR-01 | Phase 58 | Complete |
 | GEN-HANDOFF-TEST-01 | Phase 58 | Complete |
+| BILL-DIAG-01 | Phase 59 | Complete |
+| BILL-DIAG-OBS-01 | Phase 59 | Complete |
+| BILL-DIAG-TEST-01 | Phase 59 | Complete |
 
 **Coverage:**
-- v1.6 requirements: 38 total
-- Mapped to phases: 38
+- v1.6 requirements: 41 total
+- Mapped to phases: 41
 - Unmapped: 0
 
 ---

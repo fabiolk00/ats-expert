@@ -12,7 +12,10 @@ import {
 import { isToolFailure, TOOL_ERROR_CODES, toolFailure, toolFailureFromUnknown } from '@/lib/agent/tool-errors'
 import { recordMetricCounter } from '@/lib/observability/metric-events'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
-import { generateBillableResume } from '@/lib/resume-generation/generate-billable-resume'
+import {
+  generateBillableResume,
+  getBillableResumeErrorMetadata,
+} from '@/lib/resume-generation/generate-billable-resume'
 import { createTargetResumeVariant } from '@/lib/resume-targets/create-target-resume'
 import { resolveEffectiveResumeSource } from '@/lib/jobs/source-of-truth'
 import type {
@@ -577,6 +580,7 @@ async function dispatchToolInternal(
     }
   } catch (err) {
     const failure = toolFailureFromUnknown(err, 'Tool execution failed.')
+    const billable = getBillableResumeErrorMetadata(err)
 
     logError('agent.tool.failed', {
       sessionId: session.id,
@@ -586,6 +590,9 @@ async function dispatchToolInternal(
       stateVersion: session.stateVersion,
       latencyMs: Date.now() - startedAt,
       success: false,
+      billableStage: billable.billableStage,
+      resumeGenerationId: billable.resumeGenerationId,
+      generationIntentKey: billable.generationIntentKey,
       ...serializeError(err),
       errorCode: failure.code,
       errorMessage: failure.error,

@@ -82,6 +82,17 @@ vi.mock('@/lib/resume-targets/create-target-resume', () => ({
 
 vi.mock('@/lib/resume-generation/generate-billable-resume', () => ({
   generateBillableResume: vi.fn(),
+  getBillableResumeErrorMetadata: vi.fn((error: unknown) => ({
+    billableStage: typeof (error as { billableStage?: unknown })?.billableStage === 'string'
+      ? (error as { billableStage: string }).billableStage
+      : undefined,
+    resumeGenerationId: typeof (error as { resumeGenerationId?: unknown })?.resumeGenerationId === 'string'
+      ? (error as { resumeGenerationId: string }).resumeGenerationId
+      : undefined,
+    generationIntentKey: typeof (error as { generationIntentKey?: unknown })?.generationIntentKey === 'string'
+      ? (error as { generationIntentKey: string }).generationIntentKey
+      : undefined,
+  })),
   BILLABLE_CV_VERSION_SOURCES: new Set(['rewrite', 'ats-enhancement', 'job-targeting', 'target-derived']),
 }))
 
@@ -813,6 +824,39 @@ describe('agent tool dispatch', () => {
         resolvedSourceScope: 'base',
         latestVersionFound: false,
         failureCode: 'GENERATE_FILE_LATEST_VERSION_MISSING',
+      }),
+    )
+  })
+
+  it('includes billable stage metadata when downstream billable generation throws unexpectedly', async () => {
+    const session = buildSession()
+    const billableError = Object.assign(new Error('Reservation RPC failed.'), {
+      code: 'GENERATE_RESUME_RESERVATION_FAILED',
+      billableStage: 'reserve_credit',
+      resumeGenerationId: 'gen_pending_123',
+      generationIntentKey: 'dup_key',
+    })
+
+    vi.mocked(generateBillableResume).mockRejectedValue(billableError)
+
+    const rawResult = await dispatchTool('generate_file', {
+      cv_state: session.cvState,
+    }, session)
+
+    expect(JSON.parse(rawResult)).toEqual({
+      success: false,
+      code: 'GENERATE_RESUME_RESERVATION_FAILED',
+      error: 'Tool execution failed.',
+    })
+    expect(logError).toHaveBeenCalledWith(
+      'agent.tool.failed',
+      expect.objectContaining({
+        toolName: 'generate_file',
+        billableStage: 'reserve_credit',
+        resumeGenerationId: 'gen_pending_123',
+        generationIntentKey: 'dup_key',
+        errorCode: 'GENERATE_RESUME_RESERVATION_FAILED',
+        errorMessage: 'Tool execution failed.',
       }),
     )
   })

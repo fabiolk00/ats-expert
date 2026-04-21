@@ -19,6 +19,17 @@ export type MetricCounterEventName =
   | 'architecture.generate_file.source_mismatch'
   | 'architecture.generate_file.precondition_failed'
   | 'architecture.generate_file.latest_version_missing'
+  | 'architecture.generate_resume.stage_failure.lookup_completed_generation'
+  | 'architecture.generate_resume.stage_failure.lookup_idempotent_generation'
+  | 'architecture.generate_resume.stage_failure.lookup_latest_version'
+  | 'architecture.generate_resume.stage_failure.create_or_reuse_pending_generation'
+  | 'architecture.generate_resume.stage_failure.reserve_credit'
+  | 'architecture.generate_resume.stage_failure.render_artifact'
+  | 'architecture.generate_resume.stage_failure.finalize_credit'
+  | 'architecture.generate_resume.stage_failure.release_credit'
+  | 'architecture.generate_resume.stage_failure.persist_completed_generation'
+  | 'architecture.generate_resume.stage_failure.persist_failed_generation'
+  | 'architecture.generate_resume.stage_failure.reconciliation_marking'
 
 export function recordMetricCounter(
   metric: MetricCounterEventName,

@@ -203,7 +203,7 @@ describe('generateBillableResume', () => {
 
     expect(result.output).toEqual({
       success: false,
-      code: 'VALIDATION_ERROR',
+      code: 'GENERATE_RESUME_LATEST_VERSION_MISSING',
       error: 'Gere uma nova versão otimizada pela IA antes de exportar este currículo.',
     })
     expect(mockCheckUserQuota).not.toHaveBeenCalled()
@@ -878,6 +878,117 @@ describe('generateBillableResume', () => {
         stage: 'finalize_credit',
         generationIntentKey: 'dup_key',
         resumeGenerationId: 'gen_pending_success',
+      }),
+    )
+  })
+
+  it('returns a typed failure when pending generation is unexpectedly missing after create-or-reuse step', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockResolvedValue(null)
+
+    const result = await generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+    })
+
+    expect(result.output).toEqual({
+      success: false,
+      code: 'GENERATE_RESUME_PENDING_GENERATION_MISSING',
+      error: 'A geraÃ§Ã£o pendente esperada nÃ£o foi criada antes de continuar a exportaÃ§Ã£o.',
+    })
+    expect(mockReserveCreditForGenerationIntent).not.toHaveBeenCalled()
+    expect(mockGenerateFile).not.toHaveBeenCalled()
+  })
+
+  it('tags render exceptions with billable stage metadata instead of leaking an unlocalized throw', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockResolvedValue({
+      generation: buildPendingGeneration(cvState, { id: 'gen_pending_render_throw' }),
+      wasCreated: true,
+    })
+    mockGenerateFile.mockRejectedValue(new Error('Renderer process crashed'))
+
+    await expect(generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+    })).rejects.toMatchObject({
+      name: 'BillableResumeError',
+      code: 'GENERATE_RESUME_RENDER_FAILED',
+      billableStage: 'render_artifact',
+      resumeGenerationId: 'gen_pending_render_throw',
+      generationIntentKey: 'dup_key',
+      message: 'Failed while rendering the billable resume artifact.',
+    })
+
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'resume_generation.stage.failed',
+      expect.objectContaining({
+        stage: 'render_artifact',
+        failureCode: 'GENERATE_RESUME_RENDER_FAILED',
+        generationIntentKey: 'dup_key',
+        resumeGenerationId: 'gen_pending_render_throw',
+      }),
+    )
+  })
+
+  it('tags reservation exceptions with billable stage metadata', async () => {
+    const cvState = buildCvState()
+    mockGetLatestCvVersionForScope.mockResolvedValue({
+      id: 'ver_rewrite',
+      sessionId: 'sess_123',
+      snapshot: cvState,
+      source: 'rewrite',
+      createdAt: new Date('2026-04-12T12:00:00.000Z'),
+    })
+    mockCheckUserQuota.mockResolvedValue(true)
+    mockCreatePendingResumeGeneration.mockResolvedValue({
+      generation: buildPendingGeneration(cvState, { id: 'gen_pending_reserve_throw' }),
+      wasCreated: true,
+    })
+    mockReserveCreditForGenerationIntent.mockRejectedValue(new Error('reservation rpc failed'))
+
+    await expect(generateBillableResume({
+      userId: 'usr_123',
+      sessionId: 'sess_123',
+      sourceCvState: cvState,
+      idempotencyKey: 'dup_key',
+    })).rejects.toMatchObject({
+      name: 'BillableResumeError',
+      code: 'GENERATE_RESUME_RESERVATION_FAILED',
+      billableStage: 'reserve_credit',
+      resumeGenerationId: 'gen_pending_reserve_throw',
+      generationIntentKey: 'dup_key',
+      message: 'Failed to reserve credit before generating the billable resume.',
+    })
+
+    expect(mockGenerateFile).not.toHaveBeenCalled()
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      'resume_generation.stage.failed',
+      expect.objectContaining({
+        stage: 'reserve_credit',
+        failureCode: 'GENERATE_RESUME_RESERVATION_FAILED',
+        generationIntentKey: 'dup_key',
+        resumeGenerationId: 'gen_pending_reserve_throw',
       }),
     )
   })
