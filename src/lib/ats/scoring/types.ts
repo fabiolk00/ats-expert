@@ -105,3 +105,29 @@ export type AtsReadinessDecisionLog = {
   withholdReasons: string[]
   qualityGates: AtsQualityGateResult
 }
+
+export type AtsSummaryRecoveryKind =
+  | 'smart_repair'
+  | 'conservative_fallback'
+  | 'original_cv_fallback'
+
+export type AtsSummaryClarityOutcomeLog = {
+  sessionId: string
+  userId?: string
+  contractVersion: typeof ATS_READINESS_CONTRACT_VERSION
+  workflowMode: Extract<WorkflowMode, 'ats_enhancement'>
+  evaluationStage: AtsReadinessEvaluationStage
+  scoreStatus: ScoreStatus
+  confidence: ScoreConfidence
+  estimatedRangeOutcome: boolean
+  usedExactScore: boolean
+  summaryValidationRecovered: boolean
+  summaryRecoveryKind: AtsSummaryRecoveryKind | null
+  summaryRecoveryWasSmartRepair: boolean
+  summaryWasTouchedByRewrite: boolean
+  gateImprovedSummaryClarity: boolean
+  summaryClarityGateFailed: boolean
+  summaryRepairThenClarityFail: boolean
+  withheldForSummaryClarity: boolean
+  withholdReasons: string[]
+}

@@ -174,8 +174,10 @@ export function resolveDisplayedReadinessScore(
 export { ATS_READINESS_CONTRACT_VERSION } from './types'
 export {
   buildAtsReadinessDecisionLog,
+  buildAtsSummaryClarityOutcomeLog,
   recordAtsReadinessCompatFieldEmission,
   recordAtsReadinessDecision,
+  recordAtsSummaryClarityOutcome,
   serializeWithholdReasons,
 } from './observability'
 export { normalizePersistedAtsReadiness, resolveDisplayedReadinessScoreForSession, resolveSessionAtsReadiness } from './session-readiness'

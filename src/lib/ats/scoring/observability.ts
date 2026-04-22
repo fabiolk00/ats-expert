@@ -1,8 +1,14 @@
 import { recordMetricCounter } from '@/lib/observability/metric-events'
 import { logInfo } from '@/lib/observability/structured-log'
 
+import { ATS_SUMMARY_CLARITY_WITHHOLD_REASON } from './quality-gates'
 import { ATS_READINESS_CONTRACT_VERSION } from './types'
-import type { AtsReadinessDecisionLog, AtsReadinessScoreContract } from './types'
+import type {
+  AtsReadinessDecisionLog,
+  AtsReadinessScoreContract,
+  AtsSummaryClarityOutcomeLog,
+  AtsSummaryRecoveryKind,
+} from './types'
 
 type AtsReadinessCompatSurface =
   | 'session_response'
@@ -59,6 +65,43 @@ export function buildAtsReadinessDecisionLog(contract: AtsReadinessScoreContract
     withheldConvertedToRange,
     withholdReasons: [...contract.withholdReasons],
     qualityGates: { ...contract.qualityGates },
+  }
+}
+
+export function buildAtsSummaryClarityOutcomeLog(input: {
+  sessionId: string
+  userId?: string
+  summaryRecoveryKind: AtsSummaryRecoveryKind | null
+  summaryWasTouchedByRewrite: boolean
+  contract: AtsReadinessScoreContract
+}): AtsSummaryClarityOutcomeLog {
+  const summaryValidationRecovered = input.summaryRecoveryKind !== null
+  const summaryRecoveryWasSmartRepair = input.summaryRecoveryKind === 'smart_repair'
+  const summaryClarityGateFailed = input.contract.qualityGates.improvedSummaryClarity === false
+  const withheldForSummaryClarity = input.contract.withholdReasons.includes(ATS_SUMMARY_CLARITY_WITHHOLD_REASON)
+
+  return {
+    sessionId: input.sessionId,
+    userId: input.userId,
+    contractVersion: ATS_READINESS_CONTRACT_VERSION,
+    workflowMode: input.contract.workflowMode,
+    evaluationStage: input.contract.evaluationStage,
+    scoreStatus: input.contract.scoreStatus,
+    confidence: input.contract.rawInternalConfidence,
+    estimatedRangeOutcome: input.contract.scoreStatus === 'estimated_range',
+    usedExactScore: input.contract.scoreStatus === 'final',
+    summaryValidationRecovered,
+    summaryRecoveryKind: input.summaryRecoveryKind,
+    summaryRecoveryWasSmartRepair,
+    summaryWasTouchedByRewrite: input.summaryWasTouchedByRewrite,
+    gateImprovedSummaryClarity: input.contract.qualityGates.improvedSummaryClarity,
+    summaryClarityGateFailed,
+    summaryRepairThenClarityFail:
+      summaryValidationRecovered
+      && summaryRecoveryWasSmartRepair
+      && summaryClarityGateFailed,
+    withheldForSummaryClarity,
+    withholdReasons: [...input.contract.withholdReasons],
   }
 }
 
@@ -140,6 +183,38 @@ export function recordAtsReadinessDecision(contract: AtsReadinessScoreContract):
       evaluationStage: decision.evaluationStage,
     })
   }
+}
+
+export function recordAtsSummaryClarityOutcome(input: {
+  sessionId: string
+  userId?: string
+  summaryRecoveryKind: AtsSummaryRecoveryKind | null
+  summaryWasTouchedByRewrite: boolean
+  contract: AtsReadinessScoreContract
+}): void {
+  const outcome = buildAtsSummaryClarityOutcomeLog(input)
+
+  logInfo('agent.ats_enhancement.summary_clarity_outcome', {
+    sessionId: outcome.sessionId,
+    userId: outcome.userId,
+    contractVersion: outcome.contractVersion,
+    workflowMode: outcome.workflowMode,
+    evaluationStage: outcome.evaluationStage,
+    scoreStatus: outcome.scoreStatus,
+    confidence: outcome.confidence,
+    estimatedRangeOutcome: outcome.estimatedRangeOutcome,
+    usedExactScore: outcome.usedExactScore,
+    summaryValidationRecovered: outcome.summaryValidationRecovered,
+    summaryRecoveryKind: outcome.summaryRecoveryKind,
+    summaryRecoveryWasSmartRepair: outcome.summaryRecoveryWasSmartRepair,
+    summaryWasTouchedByRewrite: outcome.summaryWasTouchedByRewrite,
+    gateImprovedSummaryClarity: outcome.gateImprovedSummaryClarity,
+    summaryClarityGateFailed: outcome.summaryClarityGateFailed,
+    summaryRepairThenClarityFail: outcome.summaryRepairThenClarityFail,
+    withheldForSummaryClarity: outcome.withheldForSummaryClarity,
+    withholdReasons: serializeWithholdReasons(outcome.withholdReasons),
+    withholdReasonCount: outcome.withholdReasons.length,
+  })
 }
 
 export function recordAtsReadinessCompatFieldEmission(input: {

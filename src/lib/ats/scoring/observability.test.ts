@@ -6,8 +6,10 @@ import { logInfo } from '@/lib/observability/structured-log'
 import { buildBaselineAtsReadinessContract, buildAtsReadinessContractForEnhancement } from './index'
 import {
   buildAtsReadinessDecisionLog,
+  buildAtsSummaryClarityOutcomeLog,
   recordAtsReadinessCompatFieldEmission,
   recordAtsReadinessDecision,
+  recordAtsSummaryClarityOutcome,
   serializeWithholdReasons,
 } from './observability'
 import { ATS_READINESS_CONTRACT_VERSION } from './types'
@@ -38,6 +40,55 @@ const BASE_CV = {
     institution: 'USP',
     year: '2020',
   }],
+}
+
+function buildHealthyEnhancementContract() {
+  return buildAtsReadinessContractForEnhancement({
+    originalCvState: {
+      ...BASE_CV,
+      summary: 'Analista de dados com experiencia em SQL, BI e apoio a decisoes de negocio.',
+    },
+    optimizedCvState: {
+      ...BASE_CV,
+      summary: 'Analista de dados com foco em SQL, Power BI e indicadores executivos para decisoes de negocio.',
+      experience: [{
+        ...BASE_CV.experience[0],
+        bullets: ['Implementei dashboards em Power BI e reduzi o tempo de reporte em 25%.'],
+      }],
+      skills: ['SQL', 'Power BI', 'Excel', 'ETL'],
+    },
+    rewriteValidation: {
+      valid: true,
+      issues: [],
+    },
+    optimizationSummary: {
+      changedSections: ['summary', 'experience', 'skills'],
+      notes: ['Resumo e stack ficaram mais claros.'],
+      keywordCoverageImprovement: ['SQL', 'Power BI', 'ETL'],
+    },
+  })
+}
+
+function buildSummaryClarityFailContract() {
+  return buildAtsReadinessContractForEnhancement({
+    originalCvState: {
+      ...BASE_CV,
+      summary: 'Analista de dados com foco em SQL e Power BI para analytics.',
+    },
+    optimizedCvState: {
+      ...BASE_CV,
+      summary: 'Resumo Profissional: Analista de dados com foco em SQL e Power BI para analytics.',
+    },
+    rewriteValidation: {
+      valid: true,
+      issues: [],
+    },
+    optimizationSummary: {
+      changedSections: ['summary'],
+      notes: ['Resumo alterado superficialmente.'],
+      keywordCoverageImprovement: ['SQL'],
+    },
+  })
 }
 
 describe('ATS readiness observability', () => {
@@ -127,6 +178,142 @@ describe('ATS readiness observability', () => {
     expect(recordMetricCounter).toHaveBeenCalledWith('architecture.ats_readiness.finalized', expect.objectContaining({
       contractVersion: ATS_READINESS_CONTRACT_VERSION,
     }))
+  })
+
+  it('builds a healthy summary clarity outcome payload without recovery', () => {
+    const outcome = buildAtsSummaryClarityOutcomeLog({
+      sessionId: 'sess_healthy',
+      userId: 'usr_healthy',
+      summaryRecoveryKind: null,
+      summaryWasTouchedByRewrite: true,
+      contract: buildHealthyEnhancementContract(),
+    })
+
+    expect(outcome).toMatchObject({
+      sessionId: 'sess_healthy',
+      userId: 'usr_healthy',
+      contractVersion: ATS_READINESS_CONTRACT_VERSION,
+      workflowMode: 'ats_enhancement',
+      scoreStatus: 'final',
+      estimatedRangeOutcome: false,
+      usedExactScore: true,
+      summaryValidationRecovered: false,
+      summaryRecoveryKind: null,
+      summaryRecoveryWasSmartRepair: false,
+      summaryWasTouchedByRewrite: true,
+      gateImprovedSummaryClarity: true,
+      summaryClarityGateFailed: false,
+      summaryRepairThenClarityFail: false,
+      withheldForSummaryClarity: false,
+    })
+  })
+
+  it('marks smart-repair summary recovery that still passes clarity', () => {
+    const outcome = buildAtsSummaryClarityOutcomeLog({
+      sessionId: 'sess_recovered_pass',
+      summaryRecoveryKind: 'smart_repair',
+      summaryWasTouchedByRewrite: true,
+      contract: buildHealthyEnhancementContract(),
+    })
+
+    expect(outcome.summaryValidationRecovered).toBe(true)
+    expect(outcome.summaryRecoveryWasSmartRepair).toBe(true)
+    expect(outcome.summaryClarityGateFailed).toBe(false)
+    expect(outcome.summaryRepairThenClarityFail).toBe(false)
+    expect(outcome.estimatedRangeOutcome).toBe(false)
+  })
+
+  it('marks smart-repair summary recovery that still fails clarity and falls back to estimated range', () => {
+    const outcome = buildAtsSummaryClarityOutcomeLog({
+      sessionId: 'sess_recovered_fail',
+      summaryRecoveryKind: 'smart_repair',
+      summaryWasTouchedByRewrite: true,
+      contract: buildSummaryClarityFailContract(),
+    })
+
+    expect(outcome.summaryValidationRecovered).toBe(true)
+    expect(outcome.summaryRecoveryWasSmartRepair).toBe(true)
+    expect(outcome.summaryClarityGateFailed).toBe(true)
+    expect(outcome.summaryRepairThenClarityFail).toBe(true)
+    expect(outcome.withheldForSummaryClarity).toBe(true)
+    expect(outcome.estimatedRangeOutcome).toBe(true)
+    expect(outcome.usedExactScore).toBe(false)
+  })
+
+  it('keeps summary recovery false when clarity fails without a summary recovery path', () => {
+    const outcome = buildAtsSummaryClarityOutcomeLog({
+      sessionId: 'sess_fail_no_recovery',
+      summaryRecoveryKind: null,
+      summaryWasTouchedByRewrite: true,
+      contract: buildSummaryClarityFailContract(),
+    })
+
+    expect(outcome.summaryValidationRecovered).toBe(false)
+    expect(outcome.summaryClarityGateFailed).toBe(true)
+    expect(outcome.summaryRepairThenClarityFail).toBe(false)
+    expect(outcome.estimatedRangeOutcome).toBe(true)
+  })
+
+  it('does not incorrectly mark non-summary recoveries as summary recovery', () => {
+    const outcome = buildAtsSummaryClarityOutcomeLog({
+      sessionId: 'sess_non_summary',
+      summaryRecoveryKind: null,
+      summaryWasTouchedByRewrite: false,
+      contract: buildHealthyEnhancementContract(),
+    })
+
+    expect(outcome.summaryValidationRecovered).toBe(false)
+    expect(outcome.summaryRecoveryKind).toBeNull()
+    expect(outcome.summaryRecoveryWasSmartRepair).toBe(false)
+    expect(outcome.summaryWasTouchedByRewrite).toBe(false)
+  })
+
+  it('keeps smart-repair-specific failure false for non-smart-repair summary recoveries', () => {
+    const outcome = buildAtsSummaryClarityOutcomeLog({
+      sessionId: 'sess_conservative',
+      summaryRecoveryKind: 'conservative_fallback',
+      summaryWasTouchedByRewrite: true,
+      contract: buildSummaryClarityFailContract(),
+    })
+
+    expect(outcome.summaryValidationRecovered).toBe(true)
+    expect(outcome.summaryRecoveryWasSmartRepair).toBe(false)
+    expect(outcome.summaryClarityGateFailed).toBe(true)
+    expect(outcome.summaryRepairThenClarityFail).toBe(false)
+  })
+
+  it('records the summary clarity outcome event with stable explicit fields', () => {
+    vi.mocked(logInfo).mockClear()
+
+    recordAtsSummaryClarityOutcome({
+      sessionId: 'sess_logged',
+      userId: 'usr_logged',
+      summaryRecoveryKind: 'smart_repair',
+      summaryWasTouchedByRewrite: true,
+      contract: buildSummaryClarityFailContract(),
+    })
+
+    expect(logInfo).toHaveBeenCalledWith(
+      'agent.ats_enhancement.summary_clarity_outcome',
+      expect.objectContaining({
+        sessionId: 'sess_logged',
+        userId: 'usr_logged',
+        contractVersion: ATS_READINESS_CONTRACT_VERSION,
+        workflowMode: 'ats_enhancement',
+        scoreStatus: 'estimated_range',
+        estimatedRangeOutcome: true,
+        usedExactScore: false,
+        summaryValidationRecovered: true,
+        summaryRecoveryKind: 'smart_repair',
+        summaryRecoveryWasSmartRepair: true,
+        gateImprovedSummaryClarity: false,
+        summaryClarityGateFailed: true,
+        summaryRepairThenClarityFail: true,
+        withheldForSummaryClarity: true,
+        withholdReasons: expect.any(String),
+        withholdReasonCount: expect.any(Number),
+      }),
+    )
   })
 
   it('records compatibility-field emission for legacy atsScore seams', () => {

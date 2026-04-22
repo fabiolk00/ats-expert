@@ -4,6 +4,9 @@ import type { CVState } from '@/types/cv'
 import type { AtsQualityGateResult } from './types'
 import type { RawAtsScoreSnapshot } from './raw-score'
 
+export const ATS_SUMMARY_CLARITY_WITHHOLD_REASON =
+  'Summary clarity did not improve enough to justify a final readiness score.'
+
 type OptimizationSummary = {
   changedSections: Array<'summary' | 'experience' | 'skills' | 'education' | 'certifications'>
   notes: string[]
@@ -183,7 +186,7 @@ export function buildWithholdReasons(input: {
   }
 
   if (!input.qualityGates.improvedSummaryClarity) {
-    reasons.push('Summary clarity did not improve enough to justify a final readiness score.')
+    reasons.push(ATS_SUMMARY_CLARITY_WITHHOLD_REASON)
   }
 
   if (!input.qualityGates.improvedKeywordVisibility) {

@@ -660,6 +660,20 @@ describe('ATS enhancement reliability hardening', () => {
       recoveryPath: 'none',
     }))
     expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.started', expect.any(Object))
+    const summaryOutcomeCalls = mockLogInfo.mock.calls.filter(([event]) => event === 'agent.ats_enhancement.summary_clarity_outcome')
+    expect(summaryOutcomeCalls).toHaveLength(1)
+    expect(summaryOutcomeCalls[0]?.[1]).toMatchObject({
+      sessionId: session.id,
+      userId: session.userId,
+      workflowMode: 'ats_enhancement',
+      summaryValidationRecovered: false,
+      summaryRecoveryKind: null,
+      summaryRecoveryWasSmartRepair: false,
+      summaryClarityGateFailed: false,
+      summaryRepairThenClarityFail: false,
+      estimatedRangeOutcome: expect.any(Boolean),
+      usedExactScore: expect.any(Boolean),
+    })
     expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.completed', expect.objectContaining({
       workflowMode: 'ats_enhancement',
       success: true,
@@ -733,6 +747,19 @@ describe('ATS enhancement reliability hardening', () => {
       recoveryKind: 'smart_repair',
     }))
     expect(mockRecordRecoveryPathSelected).not.toHaveBeenCalled()
+    const summaryOutcomeCalls = mockLogInfo.mock.calls.filter(([event]) => event === 'agent.ats_enhancement.summary_clarity_outcome')
+    expect(summaryOutcomeCalls).toHaveLength(1)
+    expect(summaryOutcomeCalls[0]?.[1]).toMatchObject({
+      sessionId: session.id,
+      userId: session.userId,
+      workflowMode: 'ats_enhancement',
+      summaryValidationRecovered: true,
+      summaryRecoveryKind: 'smart_repair',
+      summaryRecoveryWasSmartRepair: true,
+      summaryWasTouchedByRewrite: true,
+      estimatedRangeOutcome: expect.any(Boolean),
+      usedExactScore: expect.any(Boolean),
+    })
     expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.completed', expect.objectContaining({
       workflowMode: 'ats_enhancement',
       success: true,
@@ -740,6 +767,74 @@ describe('ATS enhancement reliability hardening', () => {
       recoveredIssueCount: 2,
       recoveredIssueSections: 'skills, summary',
     }))
+  })
+
+  it('emits a strict smart-repair-then-clarity-fail summary outcome only after final score fields are known', async () => {
+    const session = buildSession()
+
+    mockAnalyzeAtsGeneral.mockResolvedValue({
+      success: true,
+      result: {
+        overallScore: 80,
+        structureScore: 82,
+        clarityScore: 78,
+        impactScore: 76,
+        keywordCoverageScore: 81,
+        atsReadabilityScore: 84,
+        issues: [],
+        recommendations: ['SQL', 'Power BI'],
+      },
+    })
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: section === 'summary'
+        ? {
+            success: true,
+            rewritten_content: 'Resumo Profissional: Analista de dados com foco em SQL e Power BI para analytics.',
+            section_data: 'Resumo Profissional: Analista de dados com foco em SQL e Power BI para analytics.',
+            keywords_added: ['SQL'],
+            changes_made: ['Resumo alterado'],
+          }
+        : buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    mockValidateRewrite
+      .mockReturnValueOnce({
+        valid: false,
+        issues: [{
+          severity: 'medium',
+          message: 'O resumo otimizado ainda exige reparo factual antes da validação final.',
+          section: 'summary',
+        }],
+      })
+      .mockReturnValueOnce({
+        valid: true,
+        issues: [],
+      })
+
+    const result = await runAtsEnhancementPipeline(session)
+
+    expect(result.success).toBe(true)
+    const summaryOutcomeCalls = mockLogInfo.mock.calls.filter(([event]) => event === 'agent.ats_enhancement.summary_clarity_outcome')
+    expect(summaryOutcomeCalls).toHaveLength(1)
+    expect(summaryOutcomeCalls[0]?.[1]).toMatchObject({
+      sessionId: session.id,
+      userId: session.userId,
+      workflowMode: 'ats_enhancement',
+      scoreStatus: 'estimated_range',
+      confidence: expect.any(String),
+      summaryValidationRecovered: true,
+      summaryRecoveryKind: 'smart_repair',
+      summaryRecoveryWasSmartRepair: true,
+      gateImprovedSummaryClarity: false,
+      summaryClarityGateFailed: true,
+      summaryRepairThenClarityFail: true,
+      withheldForSummaryClarity: true,
+      estimatedRangeOutcome: true,
+      usedExactScore: false,
+      withholdReasons: expect.any(String),
+      withholdReasonCount: expect.any(Number),
+    })
   })
 
   it('preserves the previous valid optimizedCvState when ATS validation still fails after recovery attempts', async () => {

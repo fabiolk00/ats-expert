@@ -11,10 +11,11 @@ import {
 import { compareMetricImpactPreservation, summarizePremiumMetricBullets } from '@/lib/agent/tools/metric-impact-guard'
 import { rewriteResumeFull } from '@/lib/agent/tools/rewrite-resume-full'
 import { validateRewrite } from '@/lib/agent/tools/validate-rewrite'
-import { buildAtsReadinessContractForEnhancement } from '@/lib/ats/scoring'
+import { buildAtsReadinessContractForEnhancement, recordAtsSummaryClarityOutcome } from '@/lib/ats/scoring'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import type { Session } from '@/types/agent'
 import type { CVState } from '@/types/cv'
+import type { AtsSummaryRecoveryKind } from '@/lib/ats/scoring/types'
 
 function buildWorkflowRun(
   session: Session,
@@ -390,6 +391,7 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
   let finalValidation = validation
   let finalOptimizationSummary = rewriteResult.summary
   let editorialRecoveryPath: 'none' | 'smart_repair' | 'conservative_fallback' | 'revert' = 'none'
+  let validationRecoveryKind: AtsSummaryRecoveryKind | null = null
 
   recordMetricRegressionDetected({
     workflowMode: 'ats_enhancement',
@@ -427,6 +429,7 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
         originalIssueCount: validation.issues.length,
         originalIssueSections: validationIssueSections.join(', ') || undefined,
       })
+      validationRecoveryKind = 'smart_repair'
       if (initialEditorialMetrics.regressionCount > 0) {
         editorialRecoveryPath = 'smart_repair'
         recordRecoveryPathSelected({
@@ -468,6 +471,7 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
           originalIssueCount: validation.issues.length,
           originalIssueSections: validationIssueSections.join(', ') || undefined,
         })
+        validationRecoveryKind = 'conservative_fallback'
         if (initialEditorialMetrics.regressionCount > 0) {
           editorialRecoveryPath = 'conservative_fallback'
           recordRecoveryPathSelected({
@@ -499,6 +503,7 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
           originalIssueCount: validation.issues.length,
           originalIssueSections: validationIssueSections.join(', ') || undefined,
         })
+        validationRecoveryKind = 'original_cv_fallback'
         if (initialEditorialMetrics.regressionCount > 0) {
           editorialRecoveryPath = 'revert'
           recordRecoveryPathSelected({
@@ -523,17 +528,32 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
     ...finalEditorialMetrics,
   })
 
+  const atsReadiness = buildAtsReadinessContractForEnhancement({
+    originalCvState: session.cvState,
+    optimizedCvState: finalOptimizedCvState,
+    rewriteValidation: finalValidation,
+    optimizationSummary: finalOptimizationSummary,
+    previousContract: session.agentState.atsReadiness,
+  })
+  const summaryHadValidationIssue = validation.issues.some((issue) => issue.section === 'summary')
+  const summaryRecoveryKind = !validation.valid && finalValidation.valid && summaryHadValidationIssue
+    ? validationRecoveryKind
+    : null
+  const summaryWasTouchedByRewrite = finalOptimizationSummary?.changedSections.includes('summary') ?? false
+
+  recordAtsSummaryClarityOutcome({
+    sessionId: session.id,
+    userId: session.userId,
+    summaryRecoveryKind,
+    summaryWasTouchedByRewrite,
+    contract: atsReadiness,
+  })
+
   const nextAgentState: Session['agentState'] = {
     ...session.agentState,
     workflowMode: 'ats_enhancement',
     atsAnalysis,
-    atsReadiness: buildAtsReadinessContractForEnhancement({
-      originalCvState: session.cvState,
-      optimizedCvState: finalOptimizedCvState,
-      rewriteValidation: finalValidation,
-      optimizationSummary: finalOptimizationSummary,
-      previousContract: session.agentState.atsReadiness,
-    }),
+    atsReadiness,
     rewriteStatus: finalValidation.valid ? 'completed' : 'failed',
     optimizedCvState: finalValidation.valid ? finalOptimizedCvState : previousOptimizedCvState,
     optimizedAt: finalValidation.valid ? optimizedAt : previousOptimizedAt,
