@@ -313,10 +313,16 @@
 | EXP-HILITE-EVIDENCE-01 | Phase 92 | Complete |
 | EXP-HILITE-EVIDENCE-ELIGIBILITY-01 | Phase 92 | Complete |
 | EXP-HILITE-EVIDENCE-TEST-01 | Phase 92 | Complete |
+| ATS-SUMMARY-EDITORIAL-01 | Phase 93 | Complete |
+| ATS-SUMMARY-DENSITY-01 | Phase 93 | Complete |
+| ATS-SUMMARY-EDITORIAL-TEST-01 | Phase 93 | Complete |
+| EXP-HILITE-STACK-CONTEXT-01 | Phase 94 | Complete |
+| EXP-HILITE-STACK-COMPETE-01 | Phase 94 | Complete |
+| EXP-HILITE-STACK-TEST-01 | Phase 94 | Complete |
 
 **Coverage:**
-- v1.6 requirements: 92 total
-- Mapped to phases: 92
+- v1.6 requirements: 98 total
+- Mapped to phases: 98
 - Unmapped: 0
 
 ---

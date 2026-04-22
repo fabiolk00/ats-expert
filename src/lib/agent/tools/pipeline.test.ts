@@ -404,6 +404,135 @@ describe('ATS enhancement reliability hardening', () => {
     expect(result.diagnostics?.retriedSections).toContain('summary')
   })
 
+  it('forces an assertive second pass when the ATS summary repeats the same domain and experience idea with weak first-line positioning', async () => {
+    const cvState = buildCvState()
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => {
+      if (section === 'summary') {
+        const summaryCalls = mockRewriteSection.mock.calls.filter(([input]: [{ section: string }]) => input.section === 'summary').length
+
+        return {
+          output: {
+            success: true,
+            rewritten_content: summaryCalls === 1
+              ? 'Profissional com mais de 8 anos em Business Intelligence. Experiencia em consultoria de Business Intelligence, desenvolvimento de Business Intelligence e atuacao em projetos corporativos.'
+              : 'Especialista em Business Intelligence e engenharia de dados com foco em SQL, Power BI e governanca analitica. Atua em ambientes corporativos com traducao de indicadores em decisoes de negocio.',
+            section_data: summaryCalls === 1
+              ? 'Profissional com mais de 8 anos em Business Intelligence. Experiencia em consultoria de Business Intelligence, desenvolvimento de Business Intelligence e atuacao em projetos corporativos.'
+              : 'Especialista em Business Intelligence e engenharia de dados com foco em SQL, Power BI e governanca analitica. Atua em ambientes corporativos com traducao de indicadores em decisoes de negocio.',
+            keywords_added: ['SQL', 'Power BI'],
+            changes_made: ['Resumo endurecido editorialmente'],
+          },
+        }
+      }
+
+      return {
+        output: buildSuccessfulRewriteOutput(cvState, section),
+      }
+    })
+
+    const result = await rewriteResumeFull({
+      mode: 'ats_enhancement',
+      cvState,
+      atsAnalysis: {
+        overallScore: 78,
+        structureScore: 80,
+        clarityScore: 77,
+        impactScore: 74,
+        keywordCoverageScore: 79,
+        atsReadabilityScore: 82,
+        issues: [],
+        recommendations: ['Clareza', 'Power BI', 'SQL'],
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_ats_123',
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.optimizedCvState?.summary).toBe(
+      'Especialista em Business Intelligence e engenharia de dados com foco em SQL, Power BI e governanca analitica. Atua em ambientes corporativos com traducao de indicadores em decisoes de negocio.',
+    )
+    expect(result.diagnostics?.sectionAttempts.summary).toBe(2)
+    expect(result.diagnostics?.retriedSections).toContain('summary')
+  })
+
+  it('keeps a dense two-sentence ATS summary when the second sentence adds new stack and impact context', async () => {
+    const cvState = buildCvState()
+    const denseSummary = 'Especialista em Business Intelligence e engenharia de dados com foco em SQL, Power BI e automacao analitica. Atua em ambientes corporativos com dashboards executivos, ETL e traducao de indicadores em decisoes de negocio.'
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: section === 'summary'
+        ? {
+            success: true,
+            rewritten_content: denseSummary,
+            section_data: denseSummary,
+            keywords_added: ['SQL', 'Power BI', 'ETL'],
+            changes_made: ['Resumo denso e consolidado'],
+          }
+        : buildSuccessfulRewriteOutput(cvState, section),
+    }))
+
+    const result = await rewriteResumeFull({
+      mode: 'ats_enhancement',
+      cvState,
+      atsAnalysis: {
+        overallScore: 78,
+        structureScore: 80,
+        clarityScore: 77,
+        impactScore: 74,
+        keywordCoverageScore: 79,
+        atsReadabilityScore: 82,
+        issues: [],
+        recommendations: ['Clareza', 'Power BI', 'SQL'],
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_ats_123',
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.optimizedCvState?.summary).toBe(denseSummary)
+    expect(result.diagnostics?.sectionAttempts.summary).toBe(1)
+    expect(result.diagnostics?.retriedSections).not.toContain('summary')
+  })
+
+  it('keeps an additive ATS summary even when the main domain appears in both sentences', async () => {
+    const cvState = buildCvState()
+    const summary = 'Especialista em engenharia de dados com foco em SQL, Power BI e automacao analitica. Atua em engenharia de dados para governanca, dashboards executivos e decisoes de negocio.'
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: section === 'summary'
+        ? {
+            success: true,
+            rewritten_content: summary,
+            section_data: summary,
+            keywords_added: ['SQL', 'Power BI'],
+            changes_made: ['Resumo denso e aditivo'],
+          }
+        : buildSuccessfulRewriteOutput(cvState, section),
+    }))
+
+    const result = await rewriteResumeFull({
+      mode: 'ats_enhancement',
+      cvState,
+      atsAnalysis: {
+        overallScore: 78,
+        structureScore: 80,
+        clarityScore: 77,
+        impactScore: 74,
+        keywordCoverageScore: 79,
+        atsReadabilityScore: 82,
+        issues: [],
+        recommendations: ['Clareza', 'Power BI', 'SQL'],
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_ats_123',
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.optimizedCvState?.summary).toBe(summary)
+    expect(result.diagnostics?.sectionAttempts.summary).toBe(1)
+  })
+
   it('Contract 7: no-target ATS summary cannot contain internal section labels', async () => {
     const cvState = buildCvState()
 
@@ -540,7 +669,9 @@ describe('ATS enhancement reliability hardening', () => {
 
     expect(summaryCall?.instructions).toContain('Apply every resume rewrite guardrail rigorously before making any improvement.')
     expect(summaryCall?.instructions).toContain('Sua missão principal é melhorar o currículo SEM NUNCA piorá-lo')
-    expect(summaryCall?.instructions).toContain('Use 4 to 6 concise lines')
+    expect(summaryCall?.instructions).toContain('Use 1 strong opening sentence plus 1 optional complementary sentence')
+    expect(summaryCall?.instructions).toContain('The first sentence must lead with professional identity, seniority, and main functional focus')
+    expect(summaryCall?.instructions).toContain('Do not repeat the same domain, role family, or experience idea across consecutive sentences')
     expect(summaryCall?.instructions).toContain('do not flatten the profile into generic claims')
     expect(experienceCall?.instructions).toContain('Prefira clareza com densidade a brevidade excessiva.')
     expect(experienceCall?.instructions).toContain('Every bullet must start with a strong action verb in pt-BR')
@@ -1035,6 +1166,64 @@ describe('ATS enhancement reliability hardening', () => {
       changedSections: ['summary', 'experience', 'skills', 'education', 'certifications'],
       keywordCoverageImprovement: ['SQL', 'BigQuery'],
     })
+  })
+
+  it('does not apply the ATS-only summary noise gate to job_targeting summaries', async () => {
+    const targetedSummary = [
+      'Analytics Engineer com foco em SQL, Power BI e BigQuery.',
+      'Experiencia em dashboards, automacao analitica e traducao para negocio.',
+      'Atuacao com prioridades alinhadas a analytics engineering.',
+    ].join(' ')
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: section === 'summary'
+        ? {
+            success: true,
+            rewritten_content: targetedSummary,
+            section_data: targetedSummary,
+            keywords_added: ['SQL', 'BigQuery'],
+            changes_made: ['Resumo targetizado'],
+          }
+        : buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    const result = await rewriteResumeFull({
+      mode: 'job_targeting',
+      cvState: buildCvState(),
+      targetJobDescription: [
+        'Cargo: Analytics Engineer',
+        'Responsabilidades: construir modelos, dashboards e analises em BigQuery.',
+        'Requisitos: SQL, BigQuery, comunicacao com negocio.',
+      ].join('\n'),
+      gapAnalysis: {
+        matchScore: 68,
+        missingSkills: ['BigQuery'],
+        weakAreas: ['summary'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiÃªncia.'],
+      },
+      targetingPlan: {
+        targetRole: 'Analytics Engineer',
+        targetRoleConfidence: 'high',
+        focusKeywords: ['sql', 'bigquery'],
+        mustEmphasize: ['SQL', 'BigQuery'],
+        shouldDeemphasize: ['ETL'],
+        missingButCannotInvent: ['BigQuery'],
+        sectionStrategy: {
+          summary: ['Aproxime o posicionamento do cargo alvo sem afirmar dominio inexistente.'],
+          experience: ['Priorize contexto analitico e stack relevante.'],
+          skills: ['Reordene por aderencia a vaga.'],
+          education: ['Mantenha factual.'],
+          certifications: ['Destaque somente o que ajuda na vaga.'],
+        },
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_job_123',
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.optimizedCvState?.summary).toBe(targetedSummary)
+    expect(result.diagnostics?.sectionAttempts.summary).toBe(1)
+    expect(result.diagnostics?.retriedSections).not.toContain('summary')
   })
 
   it('persists a completed job_targeting rewrite and logs target-role workflow completion', async () => {

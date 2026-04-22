@@ -416,11 +416,21 @@ describe("optimized preview highlights", () => {
     it("still allows strong textual improvements to qualify even when evidence score stays low", () => {
       const result = evaluateExperienceBulletImprovement(
         "Apoiei rotinas internas do time.",
-        "Estruturei ETL, SQL e Power BI para governanca analitica.",
+        "Coordenei a frente analitica regional para stakeholders do negocio.",
       )
 
       expect(result.evidenceScore).toBeLessThan(EXPERIENCE_BULLET_EVIDENCE_THRESHOLD)
       expect(result.improvementScore).toBeGreaterThanOrEqual(EXPERIENCE_BULLET_IMPROVEMENT_THRESHOLD)
+      expect(result.eligible).toBe(true)
+    })
+
+    it("keeps preserved core contextual stack bullets eligible even when improvement delta is zero", () => {
+      const bullet = "Desenvolvi pipelines ETL completos no Azure Databricks com PySpark para governanca analitica."
+
+      const result = evaluateExperienceBulletImprovement(bullet, bullet)
+
+      expect(result.improvementScore).toBe(0)
+      expect(result.evidenceScore).toBeGreaterThanOrEqual(EXPERIENCE_BULLET_EVIDENCE_THRESHOLD)
       expect(result.eligible).toBe(true)
     })
 
@@ -442,6 +452,16 @@ describe("optimized preview highlights", () => {
 
       expect(result.evidenceScore).toBe(0)
       expect(result.improvementScore).toBeGreaterThanOrEqual(EXPERIENCE_BULLET_IMPROVEMENT_THRESHOLD)
+      expect(result.eligible).toBe(false)
+    })
+
+    it("keeps terse stack-only execution bullets below the evidence path", () => {
+      const result = evaluateExperienceBulletImprovement(
+        "Apoiei o time em demandas recorrentes.",
+        "Desenvolvi ETL e SQL.",
+      )
+
+      expect(result.evidenceScore).toBe(0)
       expect(result.eligible).toBe(false)
     })
   })
@@ -618,17 +638,32 @@ describe("optimized preview highlights", () => {
     expect(result.experience[0]?.bullets[0]?.highlightTier).toBeUndefined()
   })
 
-  it("recovers obvious contextual stack clusters when they are the strongest available evidence", () => {
+  it("prefers core contextual stack evidence over a weaker generic scope-scale span inside the same bullet", () => {
     const result = buildRelevantHighlightLine(
-      "Criei relatorios para acompanhamento operacional.",
-      "Utilizando dbt, SQL e Power BI para governanca analitica recorrente.",
+      "Apoiei rotinas internas do time.",
+      "Desenvolvi pipelines ETL completos no Azure Databricks com PySpark para grandes volumes de dados.",
       "experience",
     )
 
-    const highlightedSegments = result.segments.filter((segment) => segment.highlighted)
+    const highlightedSegment = result.segments.find((segment) => segment.highlighted)
 
-    expect(highlightedSegments).toHaveLength(1)
-    expect(highlightedSegments[0]?.text).toContain("dbt, SQL e Power BI")
+    expect(highlightedSegment).toBeDefined()
+    expect(highlightedSegment?.text).toContain("pipelines")
+    expect(highlightedSegment?.text).toContain("Azure Databricks")
+    expect(result.highlightCategory).toBe("contextual_stack")
+    expect(result.highlightTier).toBe("secondary")
+  })
+
+  it("does not render stack-only spans when execution wording lacks concrete delivery context", () => {
+    const result = buildRelevantHighlightLine(
+      "Apoiei o time em demandas recorrentes.",
+      "Implementei SQL, ETL e Power BI.",
+      "experience",
+    )
+
+    expect(result.segments.some((segment) => segment.highlighted)).toBe(false)
+    expect(result.highlightCategory).toBeUndefined()
+    expect(result.highlightTier).toBeUndefined()
   })
 
   it("trims weak trailing connectors from rendered experience spans", () => {
@@ -959,5 +994,45 @@ describe("optimized preview highlights", () => {
     expect(bullets[0]?.segments.some((segment) => segment.highlighted)).toBe(false)
     expect(bullets[1]?.segments.some((segment) => segment.highlighted)).toBe(true)
     expect(bullets[1]?.highlightCategory).toBe("metric")
+  })
+
+  it("surfaces preserved core contextual stack bullets when the competing scope-scale bullet is too generic to stay eligible", () => {
+    const original = buildCvState({
+      experience: [
+        {
+          title: "Senior Data Engineer",
+          company: "Acme",
+          location: "Curitiba",
+          startDate: "01/2024",
+          endDate: "04/2026",
+          bullets: [
+            "Desenvolvi pipelines ETL completos no Azure Databricks com PySpark para governanca analitica.",
+            "Gerenciei grandes volumes de dados para a operacao.",
+          ],
+        },
+      ],
+    })
+    const optimized = buildCvState({
+      experience: [
+        {
+          title: "Senior Data Engineer",
+          company: "Acme",
+          location: "Curitiba",
+          startDate: "01/2024",
+          endDate: "04/2026",
+          bullets: [
+            "Desenvolvi pipelines ETL completos no Azure Databricks com PySpark para governanca analitica.",
+            "Gerenciei grandes volumes de dados para a operacao.",
+          ],
+        },
+      ],
+    })
+
+    const result = buildOptimizedPreviewHighlights(original, optimized)
+    const bullets = result.experience[0]?.bullets ?? []
+
+    expect(bullets[0]?.segments.some((segment) => segment.highlighted)).toBe(true)
+    expect(bullets[0]?.highlightCategory).toBe("contextual_stack")
+    expect(bullets[1]?.segments.some((segment) => segment.highlighted)).toBe(false)
   })
 })

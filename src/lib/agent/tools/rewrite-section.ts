@@ -117,18 +117,32 @@ function sanitizeSummaryText(value: string): string {
   }
 
   const seen = new Set<string>()
-  const deduped = sentences.filter((sentence) => {
+  const deduped = sentences.reduce<Array<{ original: string; normalized: string }>>((acc, sentence) => {
     const normalized = normalizeSummaryComparisonText(sentence)
 
     if (!normalized || seen.has(normalized)) {
-      return false
+      return acc
+    }
+
+    const overlappingIndex = acc.findIndex((entry) =>
+      normalized.startsWith(entry.normalized) || entry.normalized.startsWith(normalized),
+    )
+
+    if (overlappingIndex >= 0) {
+      const existing = acc[overlappingIndex]
+      acc[overlappingIndex] = normalized.length >= existing.normalized.length
+        ? { original: sentence, normalized }
+        : existing
+      seen.add(normalized)
+      return acc
     }
 
     seen.add(normalized)
-    return true
-  })
+    acc.push({ original: sentence, normalized })
+    return acc
+  }, [])
 
-  return deduped.join(' ').replace(/\s+/g, ' ').trim()
+  return deduped.map((entry) => entry.original).join(' ').replace(/\s+/g, ' ').trim()
 }
 
 function sanitizeSummaryWithFallback(value: string, fallbackValue: string): string {

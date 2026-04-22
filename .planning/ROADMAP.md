@@ -644,3 +644,23 @@ Plans:
 
 Plans:
 - [x] 92-01-PLAN.md - Add explicit Layer 1 evidence scoring and independent eligibility thresholds while preserving Layer 2/Layer 3 ownership (completed 2026-04-21)
+
+### Phase 93: Summary editorial hardening: reduce repetition and increase information density in ATS enhancement preview
+
+**Goal:** Harden the ATS enhancement summary rewrite so optimized summaries become less repetitive, more information-dense, and more strongly positioned in the opening line without changing ATS gates, scoring policy, or export behavior.
+**Requirements**: [ATS-SUMMARY-EDITORIAL-01, ATS-SUMMARY-DENSITY-01, ATS-SUMMARY-EDITORIAL-TEST-01]
+**Depends on:** Phase 92
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 93-01-PLAN.md - Harden summary anti-repetition, information density, and first-line positioning while preserving ATS pipeline safety (completed 2026-04-22)
+
+### Phase 94: Promote core contextual stack evidence in preview highlights without reopening Phase 92
+
+**Goal:** Promote strong contextual stack evidence in preview highlights so real execution-centric stack bullets can compete better without weakening preserved metrics or changing Layer 3 editorial policy.
+**Requirements**: [EXP-HILITE-STACK-CONTEXT-01, EXP-HILITE-STACK-COMPETE-01, EXP-HILITE-STACK-TEST-01]
+**Depends on:** Phase 93
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 94-01-PLAN.md - Promote core contextual stack evidence while preserving metric dominance, Layer 3 policy, and stack-only suppression (completed 2026-04-22)

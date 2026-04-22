@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 92
-current_phase_name: layer 1 evidence scoring make preserved strong metrics eligible for highlight
+current_phase: 94
+current_phase_name: promote core contextual stack evidence in preview highlights without reopening phase 92
 current_plan: 01 complete
 status: phase_complete
-stopped_at: Completed 92-01-PLAN.md
-last_updated: "2026-04-22T01:02:56.809Z"
-last_activity: 2026-04-21
+stopped_at: Completed 94-01-PLAN.md
+last_updated: "2026-04-22T09:52:30.000Z"
+last_activity: 2026-04-22
 progress:
-  total_phases: 55
-  completed_phases: 9
-  total_plans: 9
-  completed_plans: 9
+  total_phases: 57
+  completed_phases: 11
+  total_plans: 11
+  completed_plans: 11
   percent: 100
 ---
 
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Preserved strong ATS evidence now stays highlight-eligible even when rewrite delta is minimal, while superficial stack-only bullets remain suppressed and Layer 3 surfacing policy stays unchanged.
+**Current focus:** ATS summary rewrites are now denser and less repetitive, and preview highlights better surface execution-backed contextual stack evidence without weakening preserved metrics or changing Layer 3 ordering.
 
 ## Current Position
 
-Phase: 92 (layer 1 evidence scoring make preserved strong metrics eligible for highlight) - COMPLETE
+Phase: 94 (promote core contextual stack evidence in preview highlights without reopening phase 92) - COMPLETE
 Plan: 01 complete
-Current Phase: 92
-Current Phase Name: layer 1 evidence scoring make preserved strong metrics eligible for highlight
+Current Phase: 94
+Current Phase Name: promote core contextual stack evidence in preview highlights without reopening phase 92
 Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
-Last activity: 2026-04-21
-Last Activity Description: Phase 92 complete
+Last activity: 2026-04-22
+Last Activity Description: Phases 93 and 94 complete
 
 Progress: [##########] 100%
 
@@ -51,6 +51,10 @@ Baseline carried forward from earlier shipped milestones:
 
 ### Roadmap Evolution
 
+- Phase 93 added: Summary editorial hardening to reduce repetition and increase information density in ATS enhancement preview.
+- Phase 94 added: Promote core contextual stack evidence in preview highlights without reopening Phase 92.
+- Phase 93 completed: ATS enhancement summaries now enforce stronger first-line positioning, anti-repetition, and additive second-sentence density without changing ATS scoring or export behavior.
+- Phase 94 completed: execution-backed contextual stack evidence now surfaces more competitively in preview highlights while stack-only mentions stay suppressed and preserved metrics remain dominant.
 - v1.6 remained focused on async runtime hardening first, then route-architecture hardening for sensitive surfaces.
 - Phase 48 extracted explicit route context, policy, decision, and response seams.
 - Phase 49 hardened those seams with boundary docs, seam tests, and hotspot guardrails.
@@ -136,6 +140,8 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 91 completed: ATS enhancement warning-level logs now align only to the confirmed smart-repair-then-clarity-fail path, while healthy validation recovery emits informational progress only.
 - Phase 92 added: optimized-preview highlight eligibility will stop penalizing preserved strong metrics just because original-vs-optimized diff is small.
 - Phase 92 completed: Layer 1 now exposes explicit evidence and improvement signals, preserved metric bullets remain eligible with zero diff, and superficial stack-only bullets stay suppressed.
+- Phase 93 completed: summary editorial hardening stays ATS-only, and the post-review fix keeps the new anti-repetition gate from leaking into `job_targeting` or rejecting additive repeated-domain summaries.
+- Phase 94 completed: contextual stack promotion now scores against the rendered refined span, keeps terse stack-only rewrites below the evidence path, and preserves Phase 92 metric precedence.
 
 ### Pending Todos
 
@@ -148,6 +154,6 @@ Baseline carried forward from earlier shipped milestones:
 
 ## Session Continuity
 
-Last session: 2026-04-22T01:02:56.809Z
-Stopped at: Completed 92-01-PLAN.md
+Last session: 2026-04-22T09:52:30.000Z
+Stopped at: Completed 94-01-PLAN.md
 Resume file: None

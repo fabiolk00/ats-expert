@@ -32,7 +32,8 @@ export const EXPERIENCE_BULLET_IMPROVEMENT_THRESHOLD = 5
  * The evidence score intentionally reuses the editorial candidate scale:
  * - strong quantified metric evidence lands around 100+
  * - strong scope/scale evidence lands around 90+
- * - contextual stack evidence typically lands below 80
+ * - core contextual stack evidence can land around 95+
+ * - generic contextual stack evidence typically lands below 80
  */
 export const EXPERIENCE_BULLET_EVIDENCE_THRESHOLD = 90
 const EXPERIENCE_HIGHLIGHT_SURFACING_DEBUG_FLAG = "__CURRIA_DEBUG_EXPERIENCE_HIGHLIGHT_SURFACING__"
@@ -499,10 +500,45 @@ function countTechTerms(text: string): number {
   return ATS_TECH_TERMS.filter((term) => normalized.includes(term)).length
 }
 
+type ContextualStackEvidenceKind = "technology_only" | "contextual_stack" | "core_contextual_stack"
+
+function hasStrongExecutionVerb(text: string): boolean {
+  const normalized = normalizeText(text)
+  return /\b(desenvolv\w*|implement\w*|projet\w*|model\w*|integr\w*|estrutur\w*|otimiz\w*|constru\w*|automatiz\w*|orquestr\w*|migrei|evolu\w*)\b/.test(normalized)
+}
+
+function hasConcreteDeliveryContext(text: string): boolean {
+  const normalized = normalizeText(text)
+  return /\b(pipeline\w*|flux\w*|sistema\w*|process\w*|integrac\w*|ingest\w*|arquitet\w*|orquestr\w*|governan\w*|lakehouse|warehouse|dataset\w*|modelo\w*|camada\w*|job\w*|transformac\w*|indicador\w*)\b/.test(normalized)
+}
+
+function classifyContextualStackEvidence(
+  text: string,
+  optimized: string,
+  techTermCount: number,
+): ContextualStackEvidenceKind {
+  if (techTermCount < 2) {
+    return "technology_only"
+  }
+
+  const executionContext = hasStrongExecutionVerb(text) || hasStrongExecutionVerb(optimized)
+  const deliveryContext = hasConcreteDeliveryContext(text) || hasConcreteDeliveryContext(optimized)
+
+  if (executionContext && deliveryContext) {
+    return "core_contextual_stack"
+  }
+
+  if (deliveryContext) {
+    return "contextual_stack"
+  }
+
+  return "technology_only"
+}
+
 function isMeaningfulExperienceContext(text: string): boolean {
   const normalized = normalizeText(text)
   return /\d/.test(normalized)
-    || /\b(latam|global|regional|volume|volumes|fontes|bases|supply chain|crm|sharepoint|apis?|bigquery|databricks|pyspark|governanca|analitica|dados)\b/i.test(normalized)
+    || /\b(latam|global|regional|volume|volumes|fontes|bases|supply chain|crm|sharepoint|apis?|governanca|analitica|pipeline\w*|etl|elt|flux\w*|sistema\w*|process\w*|dashboard\w*|integrac\w*|ingest\w*|arquitet\w*|orquestr\w*|lakehouse|warehouse|dataset\w*|modelo\w*)\b/i.test(normalized)
 }
 
 function isLowValueGenericSpan(text: string): boolean {
@@ -539,6 +575,114 @@ function extractContextualStackCore(text: string): string {
   )
 
   return trimWeakTrailingConnectors(match?.[0] ?? withoutLead)
+}
+
+function completeContextualStackSpan(
+  optimized: string,
+  start: number,
+  end: number,
+): HighlightMatch {
+  const current = optimized.slice(start, end).trim()
+  const before = optimized.slice(Math.max(0, start - 96), start)
+  const after = optimized.slice(end, Math.min(optimized.length, end + 48))
+
+  const deliveryLeadMatch = before.match(
+    /((?:pipeline\w*|flux\w*|sistema\w*|process\w*|integrac\w*|ingest\w*|arquitet\w*|orquestr\w*|governan\w*|lakehouse|warehouse|dataset\w*|modelo\w*|camada\w*|job\w*|transformac\w*|indicador\w*)(?:\s+[^\s,.;:]+){0,2})\s+(no|na|com|em)\s*$/iu,
+  )
+  const executionLeadMatch = before.match(
+    /((?:desenvolv\w*|implement\w*|projet\w*|model\w*|integr\w*|estrutur\w*|otimiz\w*|constru\w*|automatiz\w*|orquestr\w*|migrei|evolu\w*)(?:\s+[^\s,.;:]+){0,4})\s*$/iu,
+  )
+  const technologyTailMatch = after.match(/^\s+((?:com|e)\s+[^\s,.;:]+(?:\s+[^\s,.;:]+){0,3})/iu)
+  const contextTailMatch = after.match(
+    /^\s+((?:para|em|com)\s+(?:governan\w*|process\w*|integrac\w*|ingest\w*|arquitet\w*|lakehouse|warehouse|dataset\w*|modelo\w*|camada\w*|job\w*|transformac\w*|indicador\w*)(?:\s+[^\s,.;:]+){0,2})/iu,
+  )
+
+  const candidates: HighlightMatch[] = [
+    { text: current, start, end: start + current.length },
+  ]
+
+  if (deliveryLeadMatch?.[1] && deliveryLeadMatch?.[2]) {
+    const expanded = `${deliveryLeadMatch[1]} ${deliveryLeadMatch[2]} ${current}`.trim()
+    const expandedStart = start - (`${deliveryLeadMatch[1]} ${deliveryLeadMatch[2]} `.length)
+    candidates.push({
+      text: expanded,
+      start: expandedStart,
+      end: expandedStart + expanded.length,
+    })
+  }
+
+  if (executionLeadMatch?.[1]) {
+    const expanded = `${executionLeadMatch[1]} ${current}`.trim()
+    const expandedStart = start - (`${executionLeadMatch[1]} `.length)
+    candidates.push({
+      text: expanded,
+      start: expandedStart,
+      end: expandedStart + expanded.length,
+    })
+  }
+
+  const best = candidates
+    .map((candidate) => {
+      const wordCount = getWordCount(candidate.text)
+      const techTermCount = countTechTerms(candidate.text)
+      const contextualEvidence = classifyContextualStackEvidence(candidate.text, candidate.text, techTermCount)
+      const evidenceRank = contextualEvidence === "core_contextual_stack"
+        ? 2
+        : contextualEvidence === "contextual_stack"
+        ? 1
+        : 0
+
+      return {
+        ...candidate,
+        wordCount,
+        evidenceRank,
+        hasExecutionVerb: hasStrongExecutionVerb(candidate.text),
+        hasDeliveryContext: hasConcreteDeliveryContext(candidate.text),
+      }
+    })
+    .filter((candidate) =>
+      candidate.wordCount > 0
+      && candidate.wordCount <= 9
+      && candidate.text.length <= 72,
+    )
+    .sort((left, right) =>
+      right.evidenceRank - left.evidenceRank
+      || Number(right.hasDeliveryContext) - Number(left.hasDeliveryContext)
+      || Number(right.hasExecutionVerb) - Number(left.hasExecutionVerb)
+      || right.wordCount - left.wordCount
+      || right.text.length - left.text.length
+      || left.start - right.start,
+    )[0]
+
+  if (!best) {
+    return { text: current, start, end: start + current.length }
+  }
+
+  let nextText = best.text
+  let nextStart = best.start
+  let nextEnd = best.end
+
+  if (technologyTailMatch?.[1] && countTechTerms(technologyTailMatch[1]) >= 1) {
+    const expanded = `${nextText} ${technologyTailMatch[1]}`.trim()
+    if (getWordCount(expanded) <= 9 && expanded.length <= 72) {
+      nextText = expanded
+      nextEnd = nextStart + expanded.length
+    }
+  }
+
+  if (contextTailMatch?.[1]) {
+    const expanded = `${nextText} ${contextTailMatch[1]}`.trim()
+    if (getWordCount(expanded) <= 9 && expanded.length <= 72) {
+      nextText = expanded
+      nextEnd = nextStart + expanded.length
+    }
+  }
+
+  return {
+    text: trimWeakTrailingConnectors(nextText),
+    start: nextStart,
+    end: nextStart + trimWeakTrailingConnectors(nextText).length,
+  }
 }
 
 function appendFollowingWords(
@@ -863,13 +1007,10 @@ function expandIncompleteEvidenceSpan(
   let nextText = optimized.slice(nextStart, nextEnd).trim()
 
   if (category === "contextual_stack") {
-    const core = extractContextualStackCore(nextText)
-    const offset = nextText.toLowerCase().indexOf(core.toLowerCase())
-    if (core && offset >= 0) {
-      nextStart += offset
-      nextEnd = nextStart + core.length
-      nextText = core
-    }
+    const completed = completeContextualStackSpan(optimized, nextStart, nextEnd)
+    nextStart = completed.start
+    nextEnd = completed.end
+    nextText = completed.text
   }
 
   if (category === "metric") {
@@ -927,17 +1068,25 @@ function buildExperienceCandidate(
   const hasLeadership = /\b(lider\w*|coordenei|gerenciei|supervisionei|owner|responsavel)\b/.test(normalized)
   const hasOutcome = /\b(reduz|aument|elev|melhor|otimiz|aceler|ampli|expand|contribu)\w*/.test(normalized)
   const hasMethodology = /\b(scrum|agile|kanban|lean|itil|okrs?|iso|six sigma|framework|metodologia|certifica\w*)\b/.test(normalized)
-  const meaningfulContext = isMeaningfulExperienceContext(text) || isMeaningfulExperienceContext(optimized)
+  const meaningfulContext = isMeaningfulExperienceContext(text)
+  const contextualStackEvidence = classifyContextualStackEvidence(text, text, techTermCount)
+  const hasCoreContextualStack = contextualStackEvidence === "core_contextual_stack"
+  const hasContextualStack = contextualStackEvidence !== "technology_only"
+  const hasExecutionVerb = hasStrongExecutionVerb(text)
+  const hasDeliveryContext = hasConcreteDeliveryContext(text)
 
   if (!text || match.start < 0 || match.end <= match.start) {
     return null
   }
 
-  if (!normalized || isLowValueGenericSpan(text) || wordCount > 7 || text.length > 52) {
+  const maxWordCount = category === "contextual_stack" ? 9 : 7
+  const maxTextLength = category === "contextual_stack" ? 72 : 52
+
+  if (!normalized || isLowValueGenericSpan(text) || wordCount > maxWordCount || text.length > maxTextLength) {
     return null
   }
 
-  if (category === "contextual_stack" && (techTermCount < 2 || (!meaningfulContext && !hasMethodology))) {
+  if (category === "contextual_stack" && (!hasContextualStack && !hasMethodology)) {
     return null
   }
 
@@ -955,7 +1104,7 @@ function buildExperienceCandidate(
       score += 100
       break
     case "scope_scale":
-      score += 80
+      score += 74
       break
     case "contextual_stack":
       score += 60
@@ -974,6 +1123,9 @@ function buildExperienceCandidate(
   if (techTermCount >= 2) score += 6
   if (hasMethodology) score += 4
   if (meaningfulContext) score += 3
+  if (hasDeliveryContext) score += 8
+  if (hasExecutionVerb) score += 7
+  if (hasCoreContextualStack) score += 16
   if (wordCount <= 4) score += 2
   if (match.start < 10 && category !== "metric" && category !== "scope_scale") score -= 3
 
@@ -1093,12 +1245,14 @@ function collectExperienceHighlightCandidates(original: string, optimized: strin
       const hasScope = /\b(latam|global|regional)\b/.test(normalized)
       const hasScale = /\b(grandes volumes de dados|mais de|m[uú]ltiplas?)\b/.test(normalized)
       const hasOutcome = /\b(reduz|aument|elev|melhor|otimiz|aceler|contribu)\w*/.test(normalized)
-      const meaningfulContext = isMeaningfulExperienceContext(candidate.text) || isMeaningfulExperienceContext(optimized)
+      const meaningfulContext = isMeaningfulExperienceContext(candidate.text)
+      const contextualStackEvidence = classifyContextualStackEvidence(candidate.text, candidate.text, techTermCount)
+      const hasCoreContextualStack = contextualStackEvidence === "core_contextual_stack"
       const category: ExperienceHighlightCandidate["category"] = hasMetric
         ? "metric"
         : hasScope || hasScale
         ? "scope_scale"
-        : techTermCount >= 2
+        : contextualStackEvidence !== "technology_only"
         ? "contextual_stack"
         : hasOutcome
         ? "anchored_outcome"
@@ -1110,6 +1264,8 @@ function collectExperienceHighlightCandidates(original: string, optimized: strin
       if (hasScale) score += 2
       if (hasOutcome) score += 2
       if (techTermCount >= 2) score += 3
+      if (contextualStackEvidence === "contextual_stack") score += 2
+      if (hasCoreContextualStack) score += 5
       if (techTermCount >= 2 && meaningfulContext) score += 2
       if (meaningfulContext) score += 2
       if (techTermCount === 1 && meaningfulContext) score += 2

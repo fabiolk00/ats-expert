@@ -228,6 +228,29 @@ describe('rewriteSection', () => {
     })
   })
 
+  it('keeps the more informative summary sentence when two sentences share the same leading clause', async () => {
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      rewritten_content: 'Resumo Profissional: Analytics Engineer com foco em SQL e Power BI. Analytics Engineer com foco em SQL e Power BI para governanca analitica e decisoes executivas.',
+      section_data: 'Professional Summary: Analytics Engineer com foco em SQL e Power BI. Analytics Engineer com foco em SQL e Power BI para governanca analitica e decisoes executivas.',
+      keywords_added: ['SQL', 'Power BI'],
+      changes_made: ['Resumo consolidado'],
+    })))
+
+    const result = await rewriteSection({
+      section: 'summary',
+      current_content: 'Resumo original',
+      instructions: 'Rewrite summary',
+    }, 'usr_123', 'sess_123')
+
+    expect(result.output).toEqual({
+      success: true,
+      rewritten_content: 'Analytics Engineer com foco em SQL e Power BI para governanca analitica e decisoes executivas.',
+      section_data: 'Analytics Engineer com foco em SQL e Power BI para governanca analitica e decisoes executivas.',
+      keywords_added: ['SQL', 'Power BI'],
+      changes_made: ['Resumo consolidado'],
+    })
+  })
+
   it('falls back to the current summary when label cleanup would otherwise empty the result', async () => {
     createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       rewritten_content: 'Resumo Profissional:',

@@ -184,10 +184,13 @@ function buildSectionInstructions(
       return [
         ...shared,
         'Rewrite only the professional summary.',
-        'Use 4 to 6 concise lines that clarify professional positioning, seniority, core stack, domain context, and type of business impact.',
+        'Use 1 strong opening sentence plus 1 optional complementary sentence. Keep the final summary to at most 2 sentences, even if line breaks are used.',
+        'The first sentence must lead with professional identity, seniority, and main functional focus instead of generic setup phrasing.',
         'Do not include internal section labels such as "Resumo Profissional:" or "Professional Summary:" inside the summary text.',
-        'Keep an executive tone: concise, specific, and free of keyword stuffing or repeated role/domain phrases.',
+        'Keep an executive tone: concise, specific, high-density, and free of keyword stuffing or repeated role/domain phrases.',
+        'Do not repeat the same domain, role family, or experience idea across consecutive sentences unless the second sentence adds materially new information.',
         'Preserve grounded technical scope, business context, and supported achievements that strengthen positioning; do not flatten the profile into generic claims.',
+        'Use the second sentence only to add useful stack, scope, environment, or impact context that the first sentence does not already cover.',
         'If the original resume contains quantified impact, keep the number, scope, and business result visible whenever they are truthful and relevant.',
         'Avoid empty cliches and preserve factual truth.',
       ].join('\n\n')
@@ -363,6 +366,13 @@ function countSummaryWords(summary: string): number {
     .length
 }
 
+function splitSummarySentences(summary: string): string[] {
+  return summary
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+}
+
 function countRepeatedSummaryPhrases(summary: string): number {
   const phrases = summary
     .split(/[.!?;]+|,(?=\s+[A-ZÀ-Ý])/u)
@@ -377,8 +387,80 @@ function countRepeatedSummaryPhrases(summary: string): number {
   return Array.from(counts.values()).filter((count) => count > 1).length
 }
 
+function countSummaryPatternHits(summary: string, pattern: RegExp): number {
+  return Array.from(normalizeForVisibilityCheck(summary).matchAll(pattern)).length
+}
+
+function hasWeakSummaryOpening(summary: string): boolean {
+  return /^(?:profissional\s+com\b|atuacao\s+em\b|experiencia\s+em\b)/i.test(
+    normalizeForVisibilityCheck(summary),
+  )
+}
+
+function mentionsPrimarySummaryDomain(summary: string): boolean {
+  return /\b(business intelligence|engenharia de dados|analytics engineer|analista de dados)\b/.test(
+    normalizeForVisibilityCheck(summary),
+  )
+}
+
+function hasRepeatedSummaryDomainPhrasing(summary: string): boolean {
+  const sentences = splitSummarySentences(summary)
+  if (sentences.length < 2) {
+    return false
+  }
+
+  for (let index = 0; index < sentences.length - 1; index += 1) {
+    const current = sentences[index] ?? ''
+    const next = sentences[index + 1] ?? ''
+    const currentNormalized = normalizeForVisibilityCheck(current)
+    const nextNormalized = normalizeForVisibilityCheck(next)
+
+    if (!mentionsPrimarySummaryDomain(current) || !mentionsPrimarySummaryDomain(next)) {
+      continue
+    }
+
+    if (
+      currentNormalized === nextNormalized
+      || currentNormalized.startsWith(nextNormalized)
+      || nextNormalized.startsWith(currentNormalized)
+      || calculateTokenSimilarity(currentNormalized, nextNormalized) >= 0.7
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function hasNonAdditiveSummarySentences(summary: string): boolean {
+  const sentences = splitSummarySentences(summary)
+  if (sentences.length < 2) {
+    return false
+  }
+
+  for (let index = 0; index < sentences.length - 1; index += 1) {
+    const current = normalizeForVisibilityCheck(sentences[index] ?? '')
+    const next = normalizeForVisibilityCheck(sentences[index + 1] ?? '')
+
+    if (!current || !next) {
+      continue
+    }
+
+    if (current === next || current.startsWith(next) || next.startsWith(current)) {
+      return true
+    }
+
+    if (calculateTokenSimilarity(current, next) >= 0.7) {
+      return true
+    }
+  }
+
+  return false
+}
+
 function isAtsSummaryStructurallyNoisy(summary: string): boolean {
   const normalized = normalizeForVisibilityCheck(summary)
+  const sentences = splitSummarySentences(summary)
 
   if (!normalized) {
     return true
@@ -392,7 +474,23 @@ function isAtsSummaryStructurallyNoisy(summary: string): boolean {
     return true
   }
 
+  if (sentences.length > 2) {
+    return true
+  }
+
   if (countRepeatedSummaryPhrases(summary) > 0) {
+    return true
+  }
+
+  if (hasWeakSummaryOpening(summary)) {
+    return true
+  }
+
+  if (hasRepeatedSummaryDomainPhrasing(summary)) {
+    return true
+  }
+
+  if (hasNonAdditiveSummarySentences(summary)) {
     return true
   }
 
@@ -400,6 +498,7 @@ function isAtsSummaryStructurallyNoisy(summary: string): boolean {
 }
 
 function isVisibleRewriteTooClose(
+  mode: "ats_enhancement" | "job_targeting",
   section: RewriteSectionName,
   currentCvState: CVState,
   nextSectionData: unknown,
@@ -417,7 +516,7 @@ function isVisibleRewriteTooClose(
         && nextSummary
         && (
           currentSummary === nextSummary
-          || isAtsSummaryStructurallyNoisy(nextSectionData as string)
+          || (mode === 'ats_enhancement' && isAtsSummaryStructurallyNoisy(nextSectionData as string))
           || calculateTokenSimilarity(currentSummary, nextSummary) >= 0.88
         ),
       )
@@ -446,7 +545,7 @@ function isVisibleRewriteTooClose(
 function buildAssertiveRewriteInstructions(section: RewriteSectionName): string {
   switch (section) {
     case 'summary':
-      return 'The previous rewrite stayed too close to the original wording or still feels noisy. Rewrite the summary again with clearly different sentence structure, stronger positioning, tighter executive language, no internal section labels, and no repetitive role/domain phrasing while preserving the exact facts.'
+      return 'The previous rewrite stayed too close to the original wording or still feels noisy. Rewrite the summary again with a stronger opening sentence, at most one additive follow-up sentence, tighter executive language, no internal section labels, and no repetitive role/domain phrasing while preserving the exact facts.'
     case 'experience':
       return 'The previous rewrite stayed too close to the original wording. Rewrite every bullet more assertively with stronger action verbs and clearer business context while preserving the exact facts and dates.'
     case 'skills':
@@ -599,7 +698,7 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
 
       if (
         ['summary', 'experience', 'skills'].includes(section)
-        && isVisibleRewriteTooClose(section, optimizedCvState, sectionData)
+        && isVisibleRewriteTooClose(params.mode, section, optimizedCvState, sectionData)
       ) {
         if (!retriedSections.includes(section)) {
           retriedSections.push(section)
