@@ -221,6 +221,91 @@ describe('detectCvHighlights', () => {
     }))
   })
 
+  it.each([
+    ['action_impact', 'action_result'],
+    ['optimization_impact', 'business_impact'],
+    ['role_and_experience', 'ats_strength'],
+    ['measurable_result', 'metric_impact'],
+    ['measurable_impact', 'metric_impact'],
+  ] as const)('normalizes alias reason %s to %s', async (rawReason, normalizedReason) => {
+    const cvState = buildCvState()
+    const items = flattenCvStateForHighlight(cvState)
+    const itemId = createExperienceBulletHighlightItemId(
+      cvState.experience[0],
+      cvState.experience[0].bullets[0],
+    )
+
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      items: [
+        {
+          itemId,
+          ranges: [{ start: 0, end: 18, reason: rawReason }],
+        },
+      ],
+    })))
+
+    await expect(detectCvHighlights(items)).resolves.toEqual([
+      {
+        itemId,
+        section: 'experience',
+        ranges: [{ start: 0, end: 18, reason: normalizedReason }],
+      },
+    ])
+
+    expect(mockLogWarn).not.toHaveBeenCalled()
+    expect(mockRecordMetricCounter).not.toHaveBeenCalled()
+  })
+
+  it('preserves valid enum reasons unchanged', async () => {
+    const cvState = buildCvState()
+    const items = flattenCvStateForHighlight(cvState)
+    const itemId = createExperienceBulletHighlightItemId(
+      cvState.experience[0],
+      cvState.experience[0].bullets[0],
+    )
+
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      items: [
+        {
+          itemId,
+          ranges: [{ start: 0, end: 18, reason: 'metric_impact' }],
+        },
+      ],
+    })))
+
+    await expect(detectCvHighlights(items)).resolves.toEqual([
+      {
+        itemId,
+        section: 'experience',
+        ranges: [{ start: 0, end: 18, reason: 'metric_impact' }],
+      },
+    ])
+  })
+
+  it('keeps unknown reason labels fail-closed and observable', async () => {
+    const cvState = buildCvState()
+    const itemId = createExperienceBulletHighlightItemId(
+      cvState.experience[0],
+      cvState.experience[0].bullets[0],
+    )
+
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      items: [
+        {
+          itemId,
+          ranges: [{ start: 0, end: 18, reason: 'custom_reason' }],
+        },
+      ],
+    })))
+
+    await expect(detectCvHighlights(flattenCvStateForHighlight(cvState))).resolves.toEqual([])
+
+    expect(mockLogWarn).toHaveBeenCalledWith('agent.highlight_detection.invalid_payload', expect.objectContaining({
+      parseFailureReason: 'invalid_shape_ranges',
+      payloadShapeDetails: expect.stringContaining('"reasonValue":"custom_reason"'),
+    }))
+  })
+
   it('treats a valid empty payload as a normal no-highlight result without warning', async () => {
     createCompletion.mockResolvedValue(buildOpenAIResponse('{"items":[]}'))
 

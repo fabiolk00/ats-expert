@@ -11,6 +11,7 @@ import {
   type CvHighlightState,
   type CvHighlightDetectionResult,
   type CvHighlightInputItem,
+  type CvHighlightReason,
   type CvResolvedHighlight,
   flattenCvStateForHighlight,
   validateAndResolveHighlights,
@@ -41,6 +42,21 @@ const cvHighlightDetectionEnvelopeSchema = z.object({
 }).strict()
 
 const MAX_INVALID_HIGHLIGHT_PAYLOAD_SAMPLE_LENGTH = 400
+const ALLOWED_HIGHLIGHT_REASONS: CvHighlightReason[] = [
+  'metric_impact',
+  'business_impact',
+  'action_result',
+  'ats_strength',
+  'tool_context',
+]
+
+const HIGHLIGHT_REASON_ALIASES: Record<string, CvHighlightReason> = {
+  action_impact: 'action_result',
+  optimization_impact: 'business_impact',
+  role_and_experience: 'ats_strength',
+  measurable_result: 'metric_impact',
+  measurable_impact: 'metric_impact',
+}
 
 type InvalidHighlightPayloadReason =
   | 'invalid_json'
@@ -84,6 +100,15 @@ function buildHighlightSystemPrompt(): string {
     'Use "ranges" as an array of objects with exactly: start, end, reason.',
     'Do not create unnecessary overlaps.',
     'If an item has no meaningful highlight, omit it from the response.',
+    'The reason value must be exactly one of these five labels:',
+    '- metric_impact',
+    '- business_impact',
+    '- action_result',
+    '- ats_strength',
+    '- tool_context',
+    'Do not invent synonyms or alternate reason labels.',
+    'Do not use labels such as action_impact, optimization_impact, role_and_experience, or measurable_result.',
+    'If unsure, map to the closest allowed reason from the five-label list above.',
     'Respond with {"items":[{"itemId":"...","ranges":[{"start":0,"end":10,"reason":"ats_strength"}]}]}.',
   ].join('\n')
 }
@@ -109,6 +134,23 @@ function truncateInvalidPayloadSample(rawText: string): string {
   }
 
   return `${trimmed.slice(0, MAX_INVALID_HIGHLIGHT_PAYLOAD_SAMPLE_LENGTH)}...`
+}
+
+function normalizeHighlightReason(rawReason: unknown): CvHighlightReason | null {
+  if (typeof rawReason !== 'string') {
+    return null
+  }
+
+  const trimmedReason = rawReason.trim()
+  if (!trimmedReason) {
+    return null
+  }
+
+  if (ALLOWED_HIGHLIGHT_REASONS.includes(trimmedReason as CvHighlightReason)) {
+    return trimmedReason as CvHighlightReason
+  }
+
+  return HIGHLIGHT_REASON_ALIASES[trimmedReason] ?? null
 }
 
 function classifyNonJsonHighlightPayload(rawText: string): InvalidHighlightPayloadReason | null {
@@ -142,11 +184,6 @@ function parseHighlightPayload(rawText: string): ParsedHighlightPayloadResult {
 
   try {
     const parsed = JSON.parse(rawText.trim())
-    const result = cvHighlightDetectionEnvelopeSchema.safeParse(parsed)
-    if (result.success) {
-      return { kind: 'valid', value: result.data }
-    }
-
     if (!isPlainObject(parsed)) {
       return {
         kind: 'invalid_payload',
@@ -205,14 +242,18 @@ function parseHighlightPayload(rawText: string): ParsedHighlightPayloadResult {
         }
       }
 
+      const normalizedRanges = []
       for (let rangeIndex = 0; rangeIndex < item.ranges.length; rangeIndex += 1) {
         const range = item.ranges[rangeIndex]
+        const normalizedReason = isPlainObject(range)
+          ? normalizeHighlightReason(range.reason)
+          : null
         if (
           !isPlainObject(range)
           || !hasExactKeys(range, ['start', 'end', 'reason'])
           || !Number.isInteger(range.start)
           || !Number.isInteger(range.end)
-          || !['metric_impact', 'business_impact', 'action_result', 'ats_strength', 'tool_context'].includes(String(range.reason))
+          || normalizedReason === null
         ) {
           return {
             kind: 'invalid_payload',
@@ -221,10 +262,27 @@ function parseHighlightPayload(rawText: string): ParsedHighlightPayloadResult {
               itemIndex,
               rangeIndex,
               rangeKeys: isPlainObject(range) ? Object.keys(range) : undefined,
+              reasonValue: isPlainObject(range) ? range.reason : undefined,
             },
           }
         }
+
+        normalizedRanges.push({
+          start: range.start,
+          end: range.end,
+          reason: normalizedReason,
+        })
       }
+
+      parsed.items[itemIndex] = {
+        itemId: item.itemId,
+        ranges: normalizedRanges,
+      }
+    }
+
+    const result = cvHighlightDetectionEnvelopeSchema.safeParse(parsed)
+    if (result.success) {
+      return { kind: 'valid', value: result.data }
     }
 
     return {
