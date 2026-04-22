@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { recordMetricCounter } from '@/lib/observability/metric-events'
-import { logInfo } from '@/lib/observability/structured-log'
+import { logInfo, logWarn } from '@/lib/observability/structured-log'
 
 import { buildBaselineAtsReadinessContract, buildAtsReadinessContractForEnhancement } from './index'
 import {
@@ -16,6 +16,7 @@ import { ATS_READINESS_CONTRACT_VERSION } from './types'
 
 vi.mock('@/lib/observability/structured-log', () => ({
   logInfo: vi.fn(),
+  logWarn: vi.fn(),
 }))
 
 vi.mock('@/lib/observability/metric-events', () => ({
@@ -284,6 +285,7 @@ describe('ATS readiness observability', () => {
 
   it('records the summary clarity outcome event with stable explicit fields', () => {
     vi.mocked(logInfo).mockClear()
+    vi.mocked(logWarn).mockClear()
 
     recordAtsSummaryClarityOutcome({
       sessionId: 'sess_logged',
@@ -293,7 +295,7 @@ describe('ATS readiness observability', () => {
       contract: buildSummaryClarityFailContract(),
     })
 
-    expect(logInfo).toHaveBeenCalledWith(
+    expect(logWarn).toHaveBeenCalledWith(
       'agent.ats_enhancement.summary_clarity_outcome',
       expect.objectContaining({
         sessionId: 'sess_logged',
@@ -313,6 +315,39 @@ describe('ATS readiness observability', () => {
         withholdReasons: expect.any(String),
         withholdReasonCount: expect.any(Number),
       }),
+    )
+    expect(logInfo).not.toHaveBeenCalledWith(
+      'agent.ats_enhancement.summary_clarity_outcome',
+      expect.any(Object),
+    )
+  })
+
+  it('records the summary clarity outcome at info for healthy and non-problematic paths', () => {
+    vi.mocked(logInfo).mockClear()
+    vi.mocked(logWarn).mockClear()
+
+    recordAtsSummaryClarityOutcome({
+      sessionId: 'sess_info',
+      userId: 'usr_info',
+      summaryRecoveryKind: 'conservative_fallback',
+      summaryWasTouchedByRewrite: true,
+      contract: buildHealthyEnhancementContract(),
+    })
+
+    expect(logInfo).toHaveBeenCalledWith(
+      'agent.ats_enhancement.summary_clarity_outcome',
+      expect.objectContaining({
+        sessionId: 'sess_info',
+        userId: 'usr_info',
+        summaryValidationRecovered: true,
+        summaryRecoveryKind: 'conservative_fallback',
+        summaryRecoveryWasSmartRepair: false,
+        summaryRepairThenClarityFail: false,
+      }),
+    )
+    expect(logWarn).not.toHaveBeenCalledWith(
+      'agent.ats_enhancement.summary_clarity_outcome',
+      expect.any(Object),
     )
   })
 

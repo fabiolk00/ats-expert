@@ -420,7 +420,7 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
         keywordCoverageImprovement: rewriteResult.summary?.keywordCoverageImprovement,
       }
 
-      logWarn('agent.ats_enhancement.validation_recovered', {
+      logInfo('agent.ats_enhancement.validation_recovered', {
         workflowMode: 'ats_enhancement',
         sessionId: session.id,
         userId: session.userId,
@@ -462,7 +462,7 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
           keywordCoverageImprovement: rewriteResult.summary?.keywordCoverageImprovement,
         }
 
-        logWarn('agent.ats_enhancement.validation_recovered', {
+        logInfo('agent.ats_enhancement.validation_recovered', {
           workflowMode: 'ats_enhancement',
           sessionId: session.id,
           userId: session.userId,
@@ -494,7 +494,7 @@ export async function runAtsEnhancementPipeline(session: Session): Promise<{
           keywordCoverageImprovement: rewriteResult.summary?.keywordCoverageImprovement,
         }
 
-        logWarn('agent.ats_enhancement.validation_recovered', {
+        logInfo('agent.ats_enhancement.validation_recovered', {
           workflowMode: 'ats_enhancement',
           sessionId: session.id,
           userId: session.userId,

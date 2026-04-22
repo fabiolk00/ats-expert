@@ -1,5 +1,5 @@
 import { recordMetricCounter } from '@/lib/observability/metric-events'
-import { logInfo } from '@/lib/observability/structured-log'
+import { logInfo, logWarn } from '@/lib/observability/structured-log'
 
 import { ATS_SUMMARY_CLARITY_WITHHOLD_REASON } from './quality-gates'
 import { ATS_READINESS_CONTRACT_VERSION } from './types'
@@ -193,8 +193,9 @@ export function recordAtsSummaryClarityOutcome(input: {
   contract: AtsReadinessScoreContract
 }): void {
   const outcome = buildAtsSummaryClarityOutcomeLog(input)
+  const logEvent = outcome.summaryRepairThenClarityFail ? logWarn : logInfo
 
-  logInfo('agent.ats_enhancement.summary_clarity_outcome', {
+  logEvent('agent.ats_enhancement.summary_clarity_outcome', {
     sessionId: outcome.sessionId,
     userId: outcome.userId,
     contractVersion: outcome.contractVersion,

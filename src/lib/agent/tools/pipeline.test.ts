@@ -742,7 +742,7 @@ describe('ATS enhancement reliability hardening', () => {
       currentStage: 'persist_version',
     })
     expect(mockCreateCvVersion).toHaveBeenCalledTimes(1)
-    expect(mockLogWarn).toHaveBeenCalledWith('agent.ats_enhancement.validation_recovered', expect.objectContaining({
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.validation_recovered', expect.objectContaining({
       workflowMode: 'ats_enhancement',
       recoveryKind: 'smart_repair',
     }))
@@ -815,7 +815,7 @@ describe('ATS enhancement reliability hardening', () => {
     const result = await runAtsEnhancementPipeline(session)
 
     expect(result.success).toBe(true)
-    const summaryOutcomeCalls = mockLogInfo.mock.calls.filter(([event]) => event === 'agent.ats_enhancement.summary_clarity_outcome')
+    const summaryOutcomeCalls = mockLogWarn.mock.calls.filter(([event]) => event === 'agent.ats_enhancement.summary_clarity_outcome')
     expect(summaryOutcomeCalls).toHaveLength(1)
     expect(summaryOutcomeCalls[0]?.[1]).toMatchObject({
       sessionId: session.id,
@@ -981,7 +981,7 @@ describe('ATS enhancement reliability hardening', () => {
     expect(session.agentState.optimizationSummary?.notes).toContain(
       'Experiência revertida para a versão original após validação conservadora.',
     )
-    expect(mockLogWarn).toHaveBeenCalledWith('agent.ats_enhancement.validation_recovered', expect.objectContaining({
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.ats_enhancement.validation_recovered', expect.objectContaining({
       workflowMode: 'ats_enhancement',
       recoveryKind: 'smart_repair',
     }))
