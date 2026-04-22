@@ -614,3 +614,13 @@ Plans:
 
 Plans:
 - [x] 89-01-PLAN.md - Validate the mixed render-context debug semantics and audit exported-policy constant usage in tests without changing Layer 3 behavior (completed 2026-04-21)
+
+### Phase 90: Instrument and aggregate summary-clarity recovery paths that fall back to estimated_range
+
+**Goal:** Make the ATS enhancement summary recovery path explicitly measurable by emitting one self-contained session-level observability event that ties summary recovery semantics to the final score outcome, especially when summary clarity still fails and the product falls back to `estimated_range`.
+**Requirements**: [ATS-SUMMARY-CLARITY-OBS-01, ATS-SUMMARY-CLARITY-CONVERGENCE-01, ATS-SUMMARY-CLARITY-TEST-01]
+**Depends on:** Phase 89
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 90-01-PLAN.md - Emit a session-level ATS summary clarity outcome event at the latest safe convergence point, with explicit booleans and focused observability tests (completed 2026-04-21)

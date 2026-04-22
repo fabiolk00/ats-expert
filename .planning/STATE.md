@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 89
-current_phase_name: validate SSR safety of debug flag and constant coupling in experience-entry surfacing layer
-current_plan: 01 complete
-status: phase_complete
-stopped_at: Completed 89-01-PLAN.md
-last_updated: "2026-04-21T23:53:30.841Z"
+current_phase: 90
+current_phase_name: instrument and aggregate summary-clarity recovery paths that fall back to estimated_range
+current_plan: 01 in progress
+status: planning
+stopped_at: Drafted Phase 90 research and plan
+last_updated: "2026-04-21T21:25:00.000Z"
 last_activity: 2026-04-21
 progress:
-  total_phases: 52
+  total_phases: 53
   completed_phases: 6
-  total_plans: 6
+  total_plans: 7
   completed_plans: 6
-  percent: 100
+  percent: 86
 ---
 
 # Project State
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** Experience highlight preview surfacing now has documented mixed-context debug semantics and a clean exported-policy coupling audit after the Phase 89 safety validation pass.
+**Current focus:** ATS enhancement observability is being extended so summary recovery paths that still fail the clarity gate can be measured directly against final `estimated_range` outcomes without reconstructing the session timeline by hand.
 
 ## Current Position
 
-Phase: 89 (validate SSR safety of debug flag and constant coupling in experience-entry surfacing layer) - COMPLETE
-Plan: 01 complete
-Current Phase: 89
-Current Phase Name: validate SSR safety of debug flag and constant coupling in experience-entry surfacing layer
-Current Plan: 01 complete
+Phase: 90 (instrument and aggregate summary-clarity recovery paths that fall back to estimated_range) - IN PROGRESS
+Plan: 01 in progress
+Current Phase: 90
+Current Phase Name: instrument and aggregate summary-clarity recovery paths that fall back to estimated_range
+Current Plan: 01 in progress
 Total Plans in Phase: 1
-Status: Phase complete - verified locally
+Status: Planning and execution in progress
 Last activity: 2026-04-21
-Last Activity Description: Phase 89 complete
+Last Activity Description: Phase 90 research and plan drafted
 
 Progress: [##########] 100%
 
@@ -128,6 +128,7 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 87 completed: same-entry visible highlight selection now uses an explicit Layer 3 editorial selector with Tier 1 dominance and preserved caps/contracts.
 - Phase 88 completed: the same-entry surfacing selector now exposes explicit editorial policy constants, direct edge-case coverage, and debug-only decision traceability without reopening adjacent layers.
 - Phase 89 completed: the same-entry surfacing trace now documents mixed-context runtime-local debug semantics, and the exported policy constant is confirmed uncoupled from tests as a fixture.
+- Phase 90 added: ATS enhancement observability will now close the loop between summary recovery semantics, summary clarity gates, and final `estimated_range` versus exact-score outcomes.
 
 ### Pending Todos
 
