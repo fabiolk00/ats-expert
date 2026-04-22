@@ -298,9 +298,9 @@
 | EXP-HILITE-SAFETY-SSR-01 | Phase 89 | Complete |
 | EXP-HILITE-SAFETY-COUPLING-01 | Phase 89 | Complete |
 | EXP-HILITE-SAFETY-VALIDATION-01 | Phase 89 | Complete |
-| ATS-SUMMARY-CLARITY-OBS-01 | Phase 90 | Planned |
-| ATS-SUMMARY-CLARITY-CONVERGENCE-01 | Phase 90 | Planned |
-| ATS-SUMMARY-CLARITY-TEST-01 | Phase 90 | Planned |
+| ATS-SUMMARY-CLARITY-OBS-01 | Phase 90 | Complete |
+| ATS-SUMMARY-CLARITY-CONVERGENCE-01 | Phase 90 | Complete |
+| ATS-SUMMARY-CLARITY-TEST-01 | Phase 90 | Complete |
 
 **Coverage:**
 - v1.6 requirements: 86 total
