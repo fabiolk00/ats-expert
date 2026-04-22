@@ -624,3 +624,13 @@ Plans:
 
 Plans:
 - [x] 90-01-PLAN.md - Emit a session-level ATS summary clarity outcome event at the latest safe convergence point, with explicit booleans and focused observability tests (completed 2026-04-21)
+
+### Phase 91: Fix validation_recovered log level and surface warn signal at summary_clarity_outcome
+
+**Goal:** Correct the ATS enhancement log semantics so healthy recoveries stop emitting `warn`, while the confirmed problematic smart-repair-to-clarity-fail path surfaces as the only `warn` signal through `summary_clarity_outcome`.
+**Requirements**: [ATS-SUMMARY-LOGLEVEL-01, ATS-SUMMARY-WARN-SIGNAL-01, ATS-SUMMARY-LOGLEVEL-TEST-01]
+**Depends on:** Phase 90
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 91-01-PLAN.md - Reclassify ATS summary recovery log levels so `validation_recovered` is informational and only the confirmed `summaryRepairThenClarityFail` path emits `warn` (completed 2026-04-21)

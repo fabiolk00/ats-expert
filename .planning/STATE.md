@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 90
-current_phase_name: instrument and aggregate summary-clarity recovery paths that fall back to estimated_range
-current_plan: 01 complete
-status: phase_complete
-stopped_at: Completed 90-01-PLAN.md
-last_updated: "2026-04-22T00:26:00.000Z"
+current_phase: 91
+current_phase_name: fix validation_recovered log level and surface warn signal at summary_clarity_outcome
+current_plan: 01 in progress
+status: planning
+stopped_at: Drafted Phase 91 research and plan
+last_updated: "2026-04-21T21:45:00.000Z"
 last_activity: 2026-04-21
 progress:
-  total_phases: 53
+  total_phases: 54
   completed_phases: 7
-  total_plans: 7
+  total_plans: 8
   completed_plans: 7
-  percent: 100
+  percent: 88
 ---
 
 # Project State
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** ATS enhancement observability now exposes a direct session-level signal for summary recovery paths that still fail the clarity gate and fall back to `estimated_range`, without changing summary or ATS decision behavior.
+**Current focus:** ATS enhancement observability is being corrected so `warn` means a confirmed problematic summary-recovery outcome, not a healthy recovery that happened before final gate evaluation.
 
 ## Current Position
 
-Phase: 90 (instrument and aggregate summary-clarity recovery paths that fall back to estimated_range) - COMPLETE
-Plan: 01 complete
-Current Phase: 90
-Current Phase Name: instrument and aggregate summary-clarity recovery paths that fall back to estimated_range
-Current Plan: 01 complete
+Phase: 91 (fix validation_recovered log level and surface warn signal at summary_clarity_outcome) - IN PROGRESS
+Plan: 01 in progress
+Current Phase: 91
+Current Phase Name: fix validation_recovered log level and surface warn signal at summary_clarity_outcome
+Current Plan: 01 in progress
 Total Plans in Phase: 1
-Status: Phase complete - verified locally
+Status: Planning and execution in progress
 Last activity: 2026-04-21
-Last Activity Description: Phase 90 complete
+Last Activity Description: Phase 91 research and plan drafted
 
 Progress: [##########] 100%
 
@@ -130,6 +130,7 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 89 completed: the same-entry surfacing trace now documents mixed-context runtime-local debug semantics, and the exported policy constant is confirmed uncoupled from tests as a fixture.
 - Phase 90 added: ATS enhancement observability will now close the loop between summary recovery semantics, summary clarity gates, and final `estimated_range` versus exact-score outcomes.
 - Phase 90 completed: ATS enhancement sessions now emit one self-contained summary clarity outcome event tying summary recovery semantics directly to final `estimated_range` or exact-score outcomes.
+- Phase 91 added: ATS enhancement log semantics will stop treating healthy validation recovery as a warning and will reserve `warn` for the confirmed smart-repair-then-clarity-fail path.
 
 ### Pending Todos
 

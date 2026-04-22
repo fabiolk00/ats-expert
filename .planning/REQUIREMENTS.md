@@ -301,10 +301,13 @@
 | ATS-SUMMARY-CLARITY-OBS-01 | Phase 90 | Complete |
 | ATS-SUMMARY-CLARITY-CONVERGENCE-01 | Phase 90 | Complete |
 | ATS-SUMMARY-CLARITY-TEST-01 | Phase 90 | Complete |
+| ATS-SUMMARY-LOGLEVEL-01 | Phase 91 | Planned |
+| ATS-SUMMARY-WARN-SIGNAL-01 | Phase 91 | Planned |
+| ATS-SUMMARY-LOGLEVEL-TEST-01 | Phase 91 | Planned |
 
 **Coverage:**
-- v1.6 requirements: 86 total
-- Mapped to phases: 86
+- v1.6 requirements: 89 total
+- Mapped to phases: 89
 - Unmapped: 0
 
 ---
