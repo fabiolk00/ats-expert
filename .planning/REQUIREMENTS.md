@@ -301,9 +301,9 @@
 | ATS-SUMMARY-CLARITY-OBS-01 | Phase 90 | Complete |
 | ATS-SUMMARY-CLARITY-CONVERGENCE-01 | Phase 90 | Complete |
 | ATS-SUMMARY-CLARITY-TEST-01 | Phase 90 | Complete |
-| ATS-SUMMARY-LOGLEVEL-01 | Phase 91 | Planned |
-| ATS-SUMMARY-WARN-SIGNAL-01 | Phase 91 | Planned |
-| ATS-SUMMARY-LOGLEVEL-TEST-01 | Phase 91 | Planned |
+| ATS-SUMMARY-LOGLEVEL-01 | Phase 91 | Complete |
+| ATS-SUMMARY-WARN-SIGNAL-01 | Phase 91 | Complete |
+| ATS-SUMMARY-LOGLEVEL-TEST-01 | Phase 91 | Complete |
 
 **Coverage:**
 - v1.6 requirements: 89 total
