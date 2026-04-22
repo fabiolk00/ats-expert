@@ -27,6 +27,14 @@ export type OptimizedPreviewHighlights = {
 export const SUMMARY_SEMANTIC_HIGHLIGHT_ENABLED = false
 export const MAX_HIGHLIGHTED_SPANS_PER_EXPERIENCE_BULLET = 1
 export const MAX_HIGHLIGHTED_BULLETS_PER_EXPERIENCE_ENTRY = 2
+export const EXPERIENCE_BULLET_IMPROVEMENT_THRESHOLD = 5
+/**
+ * The evidence score intentionally reuses the editorial candidate scale:
+ * - strong quantified metric evidence lands around 100+
+ * - strong scope/scale evidence lands around 90+
+ * - contextual stack evidence typically lands below 80
+ */
+export const EXPERIENCE_BULLET_EVIDENCE_THRESHOLD = 90
 const EXPERIENCE_HIGHLIGHT_SURFACING_DEBUG_FLAG = "__CURRIA_DEBUG_EXPERIENCE_HIGHLIGHT_SURFACING__"
 
 type HighlightDensityMode = "summary" | "experience" | "inline"
@@ -62,9 +70,10 @@ type ExperienceHighlightCandidate = HighlightMatch & {
   score: number
 }
 
-type ExperienceBulletImprovement = {
+export type ExperienceBulletImprovement = {
   eligible: boolean
-  score: number
+  improvementScore: number
+  evidenceScore: number
 }
 
 export type ExperienceBulletHighlightResult = {
@@ -74,6 +83,7 @@ export type ExperienceBulletHighlightResult = {
   eligible: boolean
   hasVisibleHighlightCandidate: boolean
   renderable: boolean
+  evidenceScore: number
   improvementScore: number
   winnerScore: number
   highlightTier?: "strong" | "secondary"
@@ -1040,6 +1050,17 @@ function collectRankedExperienceHighlightCandidates(optimized: string): Experien
   return deduped
 }
 
+function getBestExperienceHighlightCandidate(optimized: string): ExperienceHighlightCandidate | null {
+  /**
+   * Phase 92 intentionally reuses the canonical optimized-bullet candidate extractor here so
+   * Layer 1 evidence eligibility and rendered preview evidence stay anchored to the same pattern
+   * vocabulary. This is acceptable for now, but it is still a coupling point: changes to candidate
+   * extraction or candidate base scoring can shift Layer 1 evidence calibration and should revisit
+   * `EXPERIENCE_BULLET_EVIDENCE_THRESHOLD` at the same time.
+   */
+  return collectRankedExperienceHighlightCandidates(optimized)[0] ?? null
+}
+
 function collectExperienceHighlightCandidates(original: string, optimized: string): ExperienceHighlightCandidate[] {
   const originalNormalized = normalizeText(original)
 
@@ -1133,37 +1154,58 @@ function buildExperienceHighlightLine(text: string, candidate: ExperienceHighlig
   }
 }
 
-function evaluateExperienceBulletImprovement(
+export function evaluateExperienceBulletImprovement(
   original: string,
   optimized: string,
 ): ExperienceBulletImprovement {
   if (!optimized.trim()) {
-    return { eligible: false, score: 0 }
+    return { eligible: false, improvementScore: 0, evidenceScore: 0 }
   }
 
-  if (original.trim() && isMinorFormattingOnlyChange(original, optimized)) {
-    return { eligible: false, score: 0 }
+  const bestCandidate = getBestExperienceHighlightCandidate(optimized)
+  const evidenceScore = bestCandidate?.score ?? 0
+  const formattingOnlyChange = original.trim() && isMinorFormattingOnlyChange(original, optimized)
+  const diffSignals = formattingOnlyChange
+    ? {
+        score: 0,
+        addedRelevantCount: 0,
+        significantWordCount: 0,
+        hasMetric: false,
+        hasScope: false,
+        hasSeniority: false,
+        hasStrongVerb: false,
+        technologyOnly: false,
+      }
+    : scorePhraseUnit(optimized, buildTokenCounts(original))
+
+  let improvementScore = 0
+  if (!formattingOnlyChange) {
+    const originalSimilarity = original.trim() ? calculateTextSimilarity(original, optimized) : 0
+
+    improvementScore = diffSignals.score
+    if (!original.trim()) improvementScore += 2
+    if (originalSimilarity < 0.75) improvementScore += 2
+    else if (originalSimilarity < 0.9) improvementScore += 1
   }
 
-  const originalSimilarity = original.trim() ? calculateTextSimilarity(original, optimized) : 0
-  const diffSignals = scorePhraseUnit(optimized, buildTokenCounts(original))
-  const renderCandidate = collectRankedExperienceHighlightCandidates(optimized)[0] ?? null
-
-  let score = diffSignals.score
-  if (!original.trim()) score += 2
-  if (originalSimilarity < 0.75) score += 2
-  else if (originalSimilarity < 0.9) score += 1
-
-  const eligible = renderCandidate !== null
+  const qualifiesByImprovement = evidenceScore > 0
+    && improvementScore >= EXPERIENCE_BULLET_IMPROVEMENT_THRESHOLD
+    && !diffSignals.technologyOnly
     && (
-      score >= 5
-      || diffSignals.hasMetric
+      diffSignals.hasMetric
       || diffSignals.hasScope
+      || diffSignals.hasSeniority
+      || diffSignals.hasStrongVerb
+      || diffSignals.significantWordCount >= 4
     )
+
+  const eligible = evidenceScore >= EXPERIENCE_BULLET_EVIDENCE_THRESHOLD
+    || qualifiesByImprovement
 
   return {
     eligible,
-    score: eligible ? score : 0,
+    improvementScore,
+    evidenceScore,
   }
 }
 
@@ -1472,7 +1514,7 @@ export function buildRelevantHighlightLine(
   }
 
   if (mode === "experience") {
-    const bestCandidate = collectRankedExperienceHighlightCandidates(optimized)[0] ?? null
+    const bestCandidate = getBestExperienceHighlightCandidate(optimized)
     return buildExperienceHighlightLine(optimized, bestCandidate)
   }
 
@@ -1533,7 +1575,7 @@ function buildBulletHighlight(
   const originalBullets = originalEntry?.bullets ?? []
   const closestOriginalBullet = findClosestOriginalBullet(originalBullets, optimizedBullet) ?? ""
   const improvement = evaluateExperienceBulletImprovement(closestOriginalBullet, optimizedBullet)
-  const bestCandidate = collectRankedExperienceHighlightCandidates(optimizedBullet)[0] ?? null
+  const bestCandidate = getBestExperienceHighlightCandidate(optimizedBullet)
   const canRenderHighlight = improvement.eligible && bestCandidate !== null
   const highlightTier = bestCandidate ? tierForExperienceCategory(bestCandidate.category) : undefined
 
@@ -1546,7 +1588,8 @@ function buildBulletHighlight(
     eligible: improvement.eligible,
     hasVisibleHighlightCandidate: bestCandidate !== null,
     renderable: canRenderHighlight,
-    improvementScore: improvement.score,
+    evidenceScore: improvement.evidenceScore,
+    improvementScore: improvement.improvementScore,
     winnerScore: bestCandidate?.score ?? 0,
     highlightTier,
     highlightCategory: bestCandidate?.category,
@@ -1631,6 +1674,7 @@ function traceExperienceHighlightSurfacingDecision(
         renderable: result.renderable,
         highlightTier: result.highlightTier,
         highlightCategory: result.highlightCategory,
+        evidenceScore: result.evidenceScore,
         improvementScore: result.improvementScore,
         winnerScore: result.winnerScore,
         selected,

@@ -634,3 +634,13 @@ Plans:
 
 Plans:
 - [x] 91-01-PLAN.md - Reclassify ATS summary recovery log levels so `validation_recovered` is informational and only the confirmed `summaryRepairThenClarityFail` path emits `warn` (completed 2026-04-21)
+
+### Phase 92: Layer 1 evidence scoring: make preserved strong metrics eligible for highlight
+
+**Goal:** Make Layer 1 highlight eligibility depend on editorial evidence strength in the optimized bullet, so preserved strong metrics remain eligible even when original-vs-optimized improvement delta is small.
+**Requirements**: [EXP-HILITE-EVIDENCE-01, EXP-HILITE-EVIDENCE-ELIGIBILITY-01, EXP-HILITE-EVIDENCE-TEST-01]
+**Depends on:** Phase 91
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 92-01-PLAN.md - Add explicit Layer 1 evidence scoring and independent eligibility thresholds while preserving Layer 2/Layer 3 ownership (completed 2026-04-21)

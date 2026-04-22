@@ -171,6 +171,12 @@
 - [x] **EXP-HILITE-SAFETY-COUPLING-01**: Tests and shared test helpers are audited for fixture coupling to `EXPERIENCE_HIGHLIGHT_CATEGORY_PRIORITY`, and any constant-internals assertions are replaced with observable-behavior assertions.
 - [x] **EXP-HILITE-SAFETY-VALIDATION-01**: The phase produces a validation note confirming whether the debug flag is server-only/test-only or mixed-context, whether any coupling was found, and whether the correct outcome was targeted fixes or validation-only with no editorial behavior changes.
 
+### Experience Highlight Layer 1 Evidence Scoring
+
+- [x] **EXP-HILITE-EVIDENCE-01**: `evaluateExperienceBulletImprovement(...)` returns a numeric `evidenceScore` derived from the optimized bullet itself, so preserved strong metrics, quantified scope, and measurable outcomes stay editorially visible even when the rewrite delta is small.
+- [x] **EXP-HILITE-EVIDENCE-ELIGIBILITY-01**: Experience-bullet highlight eligibility now uses two independent paths, `evidenceScore >= EVIDENCE_THRESHOLD || improvementScore >= IMPROVEMENT_THRESHOLD`, while Layer 1 continues returning signals only and does not take same-entry ranking decisions away from Layer 2 or Layer 3.
+- [x] **EXP-HILITE-EVIDENCE-TEST-01**: Regression coverage proves preserved metrics become eligible again, new metrics stay eligible, weak stack-only bullets do not gain false eligibility, and same-entry editorial surfacing still favors Tier 1 metric evidence over scope/scale under cap pressure.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -304,10 +310,13 @@
 | ATS-SUMMARY-LOGLEVEL-01 | Phase 91 | Complete |
 | ATS-SUMMARY-WARN-SIGNAL-01 | Phase 91 | Complete |
 | ATS-SUMMARY-LOGLEVEL-TEST-01 | Phase 91 | Complete |
+| EXP-HILITE-EVIDENCE-01 | Phase 92 | Complete |
+| EXP-HILITE-EVIDENCE-ELIGIBILITY-01 | Phase 92 | Complete |
+| EXP-HILITE-EVIDENCE-TEST-01 | Phase 92 | Complete |
 
 **Coverage:**
-- v1.6 requirements: 89 total
-- Mapped to phases: 89
+- v1.6 requirements: 92 total
+- Mapped to phases: 92
 - Unmapped: 0
 
 ---

@@ -3,9 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import type { CVState } from "@/types/cv"
 
 import {
+  EXPERIENCE_BULLET_EVIDENCE_THRESHOLD,
+  EXPERIENCE_BULLET_IMPROVEMENT_THRESHOLD,
   type ExperienceBulletHighlightResult,
   buildOptimizedPreviewHighlights,
   buildRelevantHighlightLine,
+  evaluateExperienceBulletImprovement,
   normalizePreviewSummaryText,
   selectVisibleExperienceHighlightsForEntry,
 } from "./optimized-preview-highlights"
@@ -61,6 +64,7 @@ function buildExperienceBulletHighlightResult(
     eligible: overrides.eligible ?? true,
     hasVisibleHighlightCandidate: overrides.hasVisibleHighlightCandidate ?? renderable,
     renderable,
+    evidenceScore: overrides.evidenceScore ?? overrides.winnerScore ?? 0,
     improvementScore: overrides.improvementScore ?? 0,
     winnerScore: overrides.winnerScore ?? 0,
     highlightTier: renderable ? highlightTier : overrides.highlightTier,
@@ -363,6 +367,82 @@ describe("optimized preview highlights", () => {
         }),
       ])
       expect(payload.bullets[0]).not.toHaveProperty("bullet")
+    })
+  })
+
+  describe("evaluateExperienceBulletImprovement", () => {
+    it("keeps preserved explicit metrics eligible even when improvement delta is zero", () => {
+      const bullet = "Reduzi o tempo de processamento em 40% com dashboards executivos."
+
+      const result = evaluateExperienceBulletImprovement(bullet, bullet)
+
+      expect(result.improvementScore).toBe(0)
+      expect(result.evidenceScore).toBeGreaterThanOrEqual(EXPERIENCE_BULLET_EVIDENCE_THRESHOLD)
+      expect(result.eligible).toBe(true)
+    })
+
+    it("keeps preserved percentage outcomes above the evidence threshold for the motivating 15% case", () => {
+      const bullet = "Aumentei em 15% a qualidade das entregas analiticas."
+
+      const result = evaluateExperienceBulletImprovement(bullet, bullet)
+
+      expect(result.improvementScore).toBe(0)
+      expect(result.evidenceScore).toBeGreaterThanOrEqual(EXPERIENCE_BULLET_EVIDENCE_THRESHOLD)
+      expect(result.eligible).toBe(true)
+    })
+
+    it("keeps newly added metrics eligible through both evidence and improvement", () => {
+      const result = evaluateExperienceBulletImprovement(
+        "Criei dashboards para o time comercial.",
+        "Reduzi em 15% o tempo de fechamento com dashboards para o time comercial.",
+      )
+
+      expect(result.improvementScore).toBeGreaterThanOrEqual(EXPERIENCE_BULLET_IMPROVEMENT_THRESHOLD)
+      expect(result.evidenceScore).toBeGreaterThanOrEqual(EXPERIENCE_BULLET_EVIDENCE_THRESHOLD)
+      expect(result.eligible).toBe(true)
+    })
+
+    it("keeps weak bullets without evidence or meaningful improvement ineligible", () => {
+      const result = evaluateExperienceBulletImprovement(
+        "Atuei com rotinas internas do time.",
+        "Atuei com rotinas internas do time.",
+      )
+
+      expect(result.improvementScore).toBe(0)
+      expect(result.evidenceScore).toBe(0)
+      expect(result.eligible).toBe(false)
+    })
+
+    it("still allows strong textual improvements to qualify even when evidence score stays low", () => {
+      const result = evaluateExperienceBulletImprovement(
+        "Apoiei rotinas internas do time.",
+        "Estruturei ETL, SQL e Power BI para governanca analitica.",
+      )
+
+      expect(result.evidenceScore).toBeLessThan(EXPERIENCE_BULLET_EVIDENCE_THRESHOLD)
+      expect(result.improvementScore).toBeGreaterThanOrEqual(EXPERIENCE_BULLET_IMPROVEMENT_THRESHOLD)
+      expect(result.eligible).toBe(true)
+    })
+
+    it("does not let superficial stack mentions open evidence-based eligibility", () => {
+      const result = evaluateExperienceBulletImprovement(
+        "Atuei com suporte a area.",
+        "Atuei com suporte a area usando SQL e Python.",
+      )
+
+      expect(result.evidenceScore).toBeLessThan(EXPERIENCE_BULLET_EVIDENCE_THRESHOLD)
+      expect(result.eligible).toBe(false)
+    })
+
+    it("does not let strong-verb stack-only rewrites qualify without measurable anchors", () => {
+      const result = evaluateExperienceBulletImprovement(
+        "Apoiei o time em demandas recorrentes.",
+        "Implementei SQL e Python para o time.",
+      )
+
+      expect(result.evidenceScore).toBe(0)
+      expect(result.improvementScore).toBeGreaterThanOrEqual(EXPERIENCE_BULLET_IMPROVEMENT_THRESHOLD)
+      expect(result.eligible).toBe(false)
     })
   })
 
@@ -794,5 +874,90 @@ describe("optimized preview highlights", () => {
     expect(bullets[1]?.highlightCategory).toBe("metric")
     expect(bullets[2]?.highlightTier).toBe("strong")
     expect(bullets[2]?.highlightCategory).toBe("scope_scale")
+  })
+
+  it("surfaces preserved metric bullets ahead of same-entry scope-scale candidates under the cap", () => {
+    const original = buildCvState({
+      experience: [
+        {
+          title: "Senior Business Intelligence",
+          company: "CNH",
+          location: "Curitiba",
+          startDate: "01/2025",
+          endDate: "04/2026",
+          bullets: [
+            "Reduzi o tempo de processamento em 40% com dashboards executivos.",
+            "Aumentei em 15% a qualidade das entregas analiticas.",
+            "Atuei com relatorios da area.",
+          ],
+        },
+      ],
+    })
+    const optimized = buildCvState({
+      experience: [
+        {
+          title: "Senior Business Intelligence",
+          company: "CNH",
+          location: "Curitiba",
+          startDate: "01/2025",
+          endDate: "04/2026",
+          bullets: [
+            "Reduzi o tempo de processamento em 40% com dashboards executivos.",
+            "Aumentei em 15% a qualidade das entregas analiticas.",
+            "Gerenciei grandes volumes de dados de forma estruturada para multiplas operacoes.",
+          ],
+        },
+      ],
+    })
+
+    const result = buildOptimizedPreviewHighlights(original, optimized)
+    const bullets = result.experience[0]?.bullets ?? []
+
+    expect(bullets[0]?.segments.some((segment) => segment.highlighted)).toBe(true)
+    expect(bullets[0]?.highlightCategory).toBe("metric")
+    expect(bullets[0]?.highlightTier).toBe("strong")
+    expect(bullets[1]?.segments.some((segment) => segment.highlighted)).toBe(true)
+    expect(bullets[1]?.highlightCategory).toBe("metric")
+    expect(bullets[2]?.segments.some((segment) => segment.highlighted)).toBe(false)
+  })
+
+  it("keeps superficial stack bullets suppressed in the real preview pipeline", () => {
+    const original = buildCvState({
+      experience: [
+        {
+          title: "Analista de BI",
+          company: "Acme",
+          location: "Curitiba",
+          startDate: "01/2024",
+          endDate: "04/2026",
+          bullets: [
+            "Atuei com suporte a area.",
+            "Apoiei demandas recorrentes do time.",
+          ],
+        },
+      ],
+    })
+    const optimized = buildCvState({
+      experience: [
+        {
+          title: "Analista de BI",
+          company: "Acme",
+          location: "Curitiba",
+          startDate: "01/2024",
+          endDate: "04/2026",
+          bullets: [
+            "Atuei com suporte a area usando SQL e Python.",
+            "Reduzi em 22% o tempo de atendimento do time.",
+          ],
+        },
+      ],
+    })
+
+    const result = buildOptimizedPreviewHighlights(original, optimized)
+    const bullets = result.experience[0]?.bullets ?? []
+
+    expect(bullets[0]?.segments.some((segment) => segment.highlighted)).toBe(false)
+    expect(bullets[1]?.segments.some((segment) => segment.highlighted)).toBe(true)
+    expect(bullets[1]?.highlightCategory).toBe("metric")
   })
 })

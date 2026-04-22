@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 91
-current_phase_name: fix validation_recovered log level and surface warn signal at summary_clarity_outcome
+current_phase: 92
+current_phase_name: layer 1 evidence scoring make preserved strong metrics eligible for highlight
 current_plan: 01 complete
 status: phase_complete
-stopped_at: Completed 91-01-PLAN.md
-last_updated: "2026-04-22T00:50:00.000Z"
+stopped_at: Completed 92-01-PLAN.md
+last_updated: "2026-04-22T01:02:56.809Z"
 last_activity: 2026-04-21
 progress:
-  total_phases: 54
-  completed_phases: 8
-  total_plans: 8
-  completed_plans: 8
+  total_phases: 55
+  completed_phases: 9
+  total_plans: 9
+  completed_plans: 9
   percent: 100
 ---
 
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** ATS enhancement warning-level observability now distinguishes the confirmed problematic summary recovery path from healthy recoveries, so warning-filtered monitoring is meaningfully actionable again.
+**Current focus:** Preserved strong ATS evidence now stays highlight-eligible even when rewrite delta is minimal, while superficial stack-only bullets remain suppressed and Layer 3 surfacing policy stays unchanged.
 
 ## Current Position
 
-Phase: 91 (fix validation_recovered log level and surface warn signal at summary_clarity_outcome) - COMPLETE
+Phase: 92 (layer 1 evidence scoring make preserved strong metrics eligible for highlight) - COMPLETE
 Plan: 01 complete
-Current Phase: 91
-Current Phase Name: fix validation_recovered log level and surface warn signal at summary_clarity_outcome
+Current Phase: 92
+Current Phase Name: layer 1 evidence scoring make preserved strong metrics eligible for highlight
 Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-21
-Last Activity Description: Phase 91 complete
+Last Activity Description: Phase 92 complete
 
 Progress: [##########] 100%
 
@@ -114,6 +114,8 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase 75]: The Phase 74 policy is no longer treated as implicitly safe: preserved stale artifacts now carry explicit `staleArtifact` metadata through file-access responses, preview surfaces, and tests so “saved but PDF still old” is visible instead of silent.
 - [Phase 75]: The current policy is accepted only in adjusted form: keeping the old PDF available during a same-scope active export is defensible as long as the product surfaces clearly mark that artifact as stale and awaiting resynchronization.
 - [Phase 76]: `Estimado` ATS Readiness states now use a shared badge component with an embedded help affordance, so the explanation of the estimated range stays consistent anywhere that badge is rendered.
+- [Phase 92]: Layer 1 highlight eligibility now treats optimized-bullet evidence as independent from diff improvement, using explicit `evidenceScore` and `improvementScore` thresholds.
+- [Phase 92]: Layer 3 editorial ordering remains unchanged; no combined ranking score was introduced, and stack-only mentions do not cross the evidence path.
 - [Phase 59]: The remaining opaque post-preflight failure path is now localized inside `generateBillableResume(...)` with explicit billable stages, stage-aware logs, and stage-failure metrics.
 - [Phase 59]: Known billable state failures such as missing latest version, missing pending generation, reservation failures, render throws, and persistence failures now preserve stable typed codes or stage-tagged exceptions instead of collapsing into an unqualified opaque throw.
 - Phase 78 added: Per-request Prisma query counting with N+1 threshold detection
@@ -132,6 +134,8 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 90 completed: ATS enhancement sessions now emit one self-contained summary clarity outcome event tying summary recovery semantics directly to final `estimated_range` or exact-score outcomes.
 - Phase 91 added: ATS enhancement log semantics will stop treating healthy validation recovery as a warning and will reserve `warn` for the confirmed smart-repair-then-clarity-fail path.
 - Phase 91 completed: ATS enhancement warning-level logs now align only to the confirmed smart-repair-then-clarity-fail path, while healthy validation recovery emits informational progress only.
+- Phase 92 added: optimized-preview highlight eligibility will stop penalizing preserved strong metrics just because original-vs-optimized diff is small.
+- Phase 92 completed: Layer 1 now exposes explicit evidence and improvement signals, preserved metric bullets remain eligible with zero diff, and superficial stack-only bullets stay suppressed.
 
 ### Pending Todos
 
@@ -144,6 +148,6 @@ Baseline carried forward from earlier shipped milestones:
 
 ## Session Continuity
 
-Last session: 2026-04-21T09:00:00.000Z
-Stopped at: Completed 77-01-PLAN.md
+Last session: 2026-04-22T01:02:56.809Z
+Stopped at: Completed 92-01-PLAN.md
 Resume file: None
