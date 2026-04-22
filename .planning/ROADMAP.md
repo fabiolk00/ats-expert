@@ -664,3 +664,17 @@ Plans:
 
 Plans:
 - [x] 94-01-PLAN.md - Promote core contextual stack evidence while preserving metric dominance, Layer 3 policy, and stack-only suppression (completed 2026-04-22)
+
+### Phase 95: Replace deterministic preview highlights with persisted single-call LLM highlight artifacts
+
+**Goal:** Persist one-shot LLM-generated highlight artifacts separately from `optimizedCvState` so ATS enhancement and job-targeting previews render validated item-local highlights without deterministic client heuristics or legacy metric-preservation preview state.
+**Requirements**: [P95-HILITE-ARTIFACT-01, P95-HILITE-PIPELINE-01, P95-HILITE-RENDER-TEST-01]
+**Depends on:** Phase 94
+**Success Criteria** (what must be TRUE):
+  1. ATS enhancement and job-targeting persist a separate `highlightState` artifact for the finalized optimized resume, and exactly one detector call is made per successful rewrite payload.
+  2. Invalid highlight ranges fail closed locally, rollback/reset flows restore or clear `highlightState` with `optimizedCvState`, and locked previews do not leak highlight metadata.
+  3. Session/comparison responses and the resume comparison renderer consume persisted highlights directly, while the deterministic preview helper and legacy metric-preservation preview code are removed with regression proof.
+**Plans:** 1 plan
+
+Plans:
+- [ ] 95-01-PLAN.md — Add persisted highlight contracts, single-call detector lifecycle, thin route serialization, renderer migration, and legacy preview cleanup
