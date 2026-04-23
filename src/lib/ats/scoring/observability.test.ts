@@ -47,7 +47,7 @@ function buildHealthyEnhancementContract() {
   return buildAtsReadinessContractForEnhancement({
     originalCvState: {
       ...BASE_CV,
-      summary: 'Analista de dados com experiencia em SQL, BI e apoio a decisoes de negocio.',
+      summary: 'Analista de dados com experiência em SQL, BI e apoio a decisoes de negocio.',
     },
     optimizedCvState: {
       ...BASE_CV,

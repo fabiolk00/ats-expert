@@ -36,6 +36,7 @@ type ProfileResponse = {
     extractedAt: string
     linkedinUrl: string | null
   } | null
+  dashboardWelcomeGuideSeen?: boolean
 }
 
 type ApiMockOptions = {
@@ -190,6 +191,7 @@ export async function installCoreFunnelApiMocks(
       extractedAt: '2026-04-10T11:00:00.000Z',
       linkedinUrl: workspace.session.cvState.linkedin ?? null,
     },
+    dashboardWelcomeGuideSeen: true,
   }
   const streamChunks = options.streamChunks ?? [
     { type: 'sessionCreated', sessionId },
@@ -219,6 +221,7 @@ export async function installCoreFunnelApiMocks(
           extractedAt: profile.profile?.extractedAt ?? '2026-04-10T11:00:00.000Z',
           linkedinUrl: body.linkedin ?? null,
         },
+        dashboardWelcomeGuideSeen: profile.dashboardWelcomeGuideSeen ?? true,
       }
       await jsonResponse(route, {
         profile: profile.profile,

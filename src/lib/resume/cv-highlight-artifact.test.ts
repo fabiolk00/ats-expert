@@ -109,14 +109,14 @@ describe('candidate scoring closure refinement', () => {
   })
 
   it('trim-left removes a weak generic lead when a stronger later metric nucleus exists', () => {
-    const text = 'Otimizei pipelines com salting e repartitioning, reduzindo em ate 40% o tempo de processamento.'
+    const text = 'Otimizei pipelines com salting e repartitioning, reduzindo em até 40% o tempo de processamento.'
     const range = normalizeHighlightSpanBoundaries(
       text,
-      buildRange(text, 'Otimizei pipelines com salting e repartitioning, reduzindo em ate 40%', 'metric_impact'),
+      buildRange(text, 'Otimizei pipelines com salting e repartitioning, reduzindo em até 40%', 'metric_impact'),
     )
 
     expect(range).not.toBeNull()
-    expect(text.slice(range!.start, range!.end)).toBe('reduzindo em ate 40% o tempo de processamento')
+    expect(text.slice(range!.start, range!.end)).toBe('reduzindo em até 40% o tempo de processamento')
   })
 
   it('keeps a full migration unit when it is already a complete high-value phrase', () => {
