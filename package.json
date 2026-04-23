@@ -10,7 +10,7 @@
     "lint:next": "next lint",
     "lint:types": "eslint --cache --max-warnings=0 --ext .ts,.tsx src/app/api/e2e src/app/api/cron src/lib/auth src/lib/openai src/lib/db/supabase-admin.ts src/lib/asaas/client.ts",
     "lint:types:fix": "eslint --cache --fix --max-warnings=0 --ext .ts,.tsx src/app/api/e2e src/app/api/cron src/lib/auth src/lib/openai src/lib/db/supabase-admin.ts src/lib/asaas/client.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.typecheck.json",
     "format:check": "prettier --check --ignore-unknown README.md docs/INDEX.md docs/session-persistence-boundaries.md docs/developer-rules/*.md docs/operations/*.md .github/workflows/**/*.yml package.json .eslintrc.json .prettierrc.json tsconfig.eslint.json",
     "format:write": "prettier --write --ignore-unknown README.md docs/INDEX.md docs/session-persistence-boundaries.md docs/developer-rules/*.md docs/operations/*.md .github/workflows/**/*.yml package.json .eslintrc.json .prettierrc.json tsconfig.eslint.json",
     "hygiene:inventory": "ts-prune && depcheck --config .depcheckrc.json && madge --orphans --extensions ts,tsx --ts-config ./tsconfig.json src",

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { zodResponseFormat } from 'openai/helpers/zod'
 
 import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
@@ -27,10 +28,21 @@ const cvHighlightReasonSchema = z.enum([
 ])
 
 const cvHighlightDetectionRangeSchema = z.object({
-  start: z.number().int(),
-  end: z.number().int(),
+  fragment: z.string().min(1),
+  start: z.number().int().optional(),
+  end: z.number().int().optional(),
   reason: cvHighlightReasonSchema,
-}).strict()
+}).strict().superRefine((value, context) => {
+  const hasStart = typeof value.start === 'number'
+  const hasEnd = typeof value.end === 'number'
+
+  if (hasStart !== hasEnd) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'start and end must be provided together.',
+    })
+  }
+})
 
 const cvHighlightDetectionItemSchema = z.object({
   itemId: z.string().min(1),
@@ -39,6 +51,32 @@ const cvHighlightDetectionItemSchema = z.object({
 
 const cvHighlightDetectionEnvelopeSchema = z.object({
   items: z.array(cvHighlightDetectionItemSchema),
+}).strict()
+
+const cvHighlightStructuredRangeSchema = z.object({
+  fragment: z.string().min(1),
+  start: z.number().int().nullable(),
+  end: z.number().int().nullable(),
+  reason: cvHighlightReasonSchema,
+}).strict().superRefine((value, context) => {
+  const hasNumericOffsets = typeof value.start === 'number' && typeof value.end === 'number'
+  const hasNullOffsets = value.start === null && value.end === null
+
+  if (!hasNumericOffsets && !hasNullOffsets) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'start and end must both be integers or both be null.',
+    })
+  }
+})
+
+const cvHighlightStructuredItemSchema = z.object({
+  itemId: z.string().min(1),
+  ranges: z.array(cvHighlightStructuredRangeSchema),
+}).strict()
+
+const cvHighlightStructuredEnvelopeSchema = z.object({
+  items: z.array(cvHighlightStructuredItemSchema),
 }).strict()
 
 const MAX_INVALID_HIGHLIGHT_PAYLOAD_SAMPLE_LENGTH = 400
@@ -80,15 +118,15 @@ type ParsedHighlightPayloadResult =
 function buildHighlightSystemPrompt(): string {
   return [
     'You detect strong inline highlight spans for a rewritten resume preview.',
-    'Return only structured JSON.',
-    'Return a single JSON object with exactly one top-level key: "items".',
-    'Do not include markdown fences.',
-    'Do not include explanatory prose before or after the JSON.',
-    'Do not wrap the payload in "data", "result", "response", or any other extra object.',
+    'Return only structured JSON that matches the provided schema.',
     '',
     'Never invent itemId values.',
-    'Never return ranges outside the item text.',
-    'Use "ranges" as an array of objects with exactly: start, end, reason.',
+    'Each highlight must copy the exact fragment text from the item text into the "fragment" field.',
+    'Do not paraphrase, translate, normalize accents, or change punctuation inside the fragment.',
+    'Use "ranges" as an array of objects with: fragment, reason, start, and end.',
+    'Prefer getting the fragment text exactly right over guessing numeric offsets.',
+    'When you are not highly confident in numeric offsets, set "start": null and "end": null.',
+    'Include numeric start/end only when you are highly confident they match the exact fragment.',
     'Do not create unnecessary overlaps.',
     'If an item has no meaningful highlight, omit it from the response.',
     '',
@@ -110,9 +148,10 @@ function buildHighlightSystemPrompt(): string {
     'Do not highlight entire bullets unless the whole bullet is a compact measurable outcome.',
     'Do not highlight nearly the entire summary.',
     'Avoid highlighting more than one compact fragment when one is enough.',
-    'The range must start and end on a complete semantic unit.',
+    'The fragment must start and end on a complete semantic unit.',
     'A slightly longer natural phrase is better than a machine-cut fragment.',
     'Never return an isolated number or percentage without its immediate measured context when that context exists in the same bullet.',
+    'When a measurable or business-significant phrase needs one immediate complement to feel complete, include that complement in the fragment.',
     '',
     'Most important editorial rule:',
     'Do NOT default to the beginning of the sentence.',
@@ -154,16 +193,16 @@ function buildHighlightSystemPrompt(): string {
     '',
     'Negative example:',
     'Bullet: "Otimizei pipelines com salting e repartitioning, reduzindo em até 40% o tempo de processamento."',
-    'Invalid range: starts at "Otimizei" and ends at "40%".',
-    'Valid range: "reduzindo em até 40% o tempo de processamento".',
+    'Invalid fragment: "Otimizei pipelines com salting e repartitioning, reduzindo em ate 40%".',
+    'Valid fragment: "reduzindo em ate 40% o tempo de processamento".',
     'Valid alternative when still compact and natural: the full measurable semantic unit.',
     '',
     'Negative example:',
     'Bullet: "Liderei a migracao de mais de 30 aplicacoes Qlik Sense para Qlik Cloud."',
-    'Invalid range: "mais de 30".',
-    'Valid range: the complete migration phrase with volume plus source and destination.',
+    'Invalid fragment: "mais de 30".',
+    'Valid fragment: the complete migration phrase with volume plus source and destination.',
     '',
-    'Respond with {"items":[{"itemId":"...","ranges":[{"start":0,"end":10,"reason":"ats_strength"}]}]}.',
+    'Respond with {"items":[{"itemId":"...","ranges":[{"fragment":"reduced processing time by 40%","reason":"metric_impact","start":null,"end":null}]}]}.',
   ].join('\n')
 }
 
@@ -179,6 +218,14 @@ function hasExactKeys(
   const sortedExpectedKeys = [...expectedKeys].sort()
   return actualKeys.length === sortedExpectedKeys.length
     && actualKeys.every((key, index) => key === sortedExpectedKeys[index])
+}
+
+function hasOnlyAllowedKeys(
+  value: Record<string, unknown>,
+  allowedKeys: string[],
+): boolean {
+  const allowedKeySet = new Set(allowedKeys)
+  return Object.keys(value).every((key) => allowedKeySet.has(key))
 }
 
 function truncateInvalidPayloadSample(rawText: string): string {
@@ -289,6 +336,27 @@ function normalizeHighlightReason(rawReason: unknown): CvHighlightReason | null 
   return HIGHLIGHT_REASON_ALIASES[trimmedReason] ?? null
 }
 
+function classifyOffsetPair(
+  range: Record<string, unknown>,
+): 'missing' | 'null' | 'number' | 'invalid' {
+  const hasStartKey = Object.prototype.hasOwnProperty.call(range, 'start')
+  const hasEndKey = Object.prototype.hasOwnProperty.call(range, 'end')
+
+  if (!hasStartKey && !hasEndKey) {
+    return 'missing'
+  }
+
+  if (range.start === null && range.end === null) {
+    return 'null'
+  }
+
+  if (Number.isInteger(range.start) && Number.isInteger(range.end)) {
+    return 'number'
+  }
+
+  return 'invalid'
+}
+
 function classifyNonJsonHighlightPayload(rawText: string): InvalidHighlightPayloadReason | null {
   const trimmed = rawText.trim()
   if (!trimmed) {
@@ -384,11 +452,15 @@ function parseHighlightPayload(rawText: string): ParsedHighlightPayloadResult {
         const normalizedReason = isPlainObject(range)
           ? normalizeHighlightReason(range.reason)
           : null
+        const offsetPairKind = isPlainObject(range)
+          ? classifyOffsetPair(range)
+          : 'invalid'
         if (
           !isPlainObject(range)
-          || !hasExactKeys(range, ['start', 'end', 'reason'])
-          || !Number.isInteger(range.start)
-          || !Number.isInteger(range.end)
+          || !hasOnlyAllowedKeys(range, ['fragment', 'start', 'end', 'reason'])
+          || typeof range.fragment !== 'string'
+          || range.fragment.trim().length === 0
+          || offsetPairKind === 'invalid'
           || normalizedReason === null
         ) {
           return {
@@ -404,8 +476,13 @@ function parseHighlightPayload(rawText: string): ParsedHighlightPayloadResult {
         }
 
         normalizedRanges.push({
-          start: range.start,
-          end: range.end,
+          fragment: range.fragment,
+          ...(offsetPairKind === 'number'
+            ? {
+                start: range.start,
+                end: range.end,
+              }
+            : {}),
           reason: normalizedReason,
         })
       }
@@ -463,7 +540,10 @@ export async function detectCvHighlights(
         model: MODEL_CONFIG.structuredModel,
         max_completion_tokens: AGENT_CONFIG.rewriterMaxTokens,
         temperature: 0,
-        response_format: { type: 'json_object' },
+        response_format: zodResponseFormat(
+          cvHighlightStructuredEnvelopeSchema,
+          'cv_highlight_detection',
+        ),
         messages: [
           {
             role: 'system',

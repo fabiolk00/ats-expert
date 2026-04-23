@@ -58,6 +58,23 @@ function buildOpenAIResponse(text: string) {
   }
 }
 
+function buildResolvedRange(
+  text: string,
+  fragment: string,
+  reason: 'metric_impact' | 'business_impact' | 'action_result' | 'ats_strength' | 'tool_context',
+) {
+  const start = text.indexOf(fragment)
+  if (start === -1) {
+    throw new Error(`Fragment not found in text: ${fragment}`)
+  }
+
+  return {
+    start,
+    end: start + fragment.length,
+    reason,
+  }
+}
+
 function buildCvState(): CVState {
   return {
     fullName: 'Fabio Silva',
@@ -93,7 +110,7 @@ describe('detectCvHighlights', () => {
       items: [
         {
           itemId: 'summary_0',
-          ranges: [{ start: 0, end: 16, reason: 'ats_strength' }],
+          ranges: [{ fragment: 'Senior BI engineer', reason: 'ats_strength' }],
         },
       ],
     })))
@@ -104,6 +121,7 @@ describe('detectCvHighlights', () => {
     expect(JSON.parse(createCompletion.mock.calls[0][0].messages[1].content as string)).toEqual({
       items,
     })
+    expect(createCompletion.mock.calls[0][0].response_format.type).toBe('json_schema')
     expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_detection.started', expect.objectContaining({
       itemCount: items.length,
       stage: 'highlight_detection',
@@ -121,8 +139,9 @@ describe('detectCvHighlights', () => {
 
     const systemPrompt = createCompletion.mock.calls[0]?.[0].messages[0].content as string
 
-    expect(systemPrompt).toContain('The range must start and end on a complete semantic unit.')
+    expect(systemPrompt).toContain('The fragment must start and end on a complete semantic unit.')
     expect(systemPrompt).toContain('Never return an isolated number or percentage without its immediate measured context')
+    expect(systemPrompt).toContain('Each highlight must copy the exact fragment text')
     expect(systemPrompt).toContain('A slightly longer natural phrase is better than a machine-cut fragment.')
     expect(systemPrompt).toContain('Otimizei pipelines com salting e repartitioning')
     expect(systemPrompt).toContain('Liderei a migracao de mais de 30 aplicacoes Qlik Sense para Qlik Cloud')
@@ -141,16 +160,13 @@ describe('detectCvHighlights', () => {
       section: 'experience' as const,
       text,
     }]
-    const modelRange = {
-      start: 0,
-      end: text.length - 1,
-      reason: 'metric_impact' as const,
-    }
+    const fragment = 'Reduced costs by 40%'
+    const modelRange = buildResolvedRange(text, fragment, 'metric_impact')
 
     createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       items: [{
         itemId: 'exp_test_item',
-        ranges: [modelRange],
+        ranges: [{ fragment, reason: 'metric_impact' }],
       }],
     })))
 
@@ -163,26 +179,25 @@ describe('detectCvHighlights', () => {
     }])
   })
 
-  it('drops invalid item ids and invalid ranges without throwing', async () => {
+  it('drops invalid item ids while preserving valid fragment matches', async () => {
     const items = flattenCvStateForHighlight(buildCvState())
+    const text = buildCvState().experience[0].bullets[0]
     const itemId = createExperienceBulletHighlightItemId(
       buildCvState().experience[0],
-      buildCvState().experience[0].bullets[0],
+      text,
     )
+    const expectedRange = buildResolvedRange(text, 'Reduced processing time by 40%', 'metric_impact')
 
     createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       items: [
         {
           itemId: 'missing',
-          ranges: [{ start: 0, end: 16, reason: 'ats_strength' }],
+          ranges: [{ fragment: 'Senior BI engineer', reason: 'ats_strength' }],
         },
         {
           itemId,
           ranges: [
-            { start: -1, end: 5, reason: 'metric_impact' },
-            { start: 0, end: 10, reason: 'metric_impact' },
-            { start: 5, end: 15, reason: 'tool_context' },
-            { start: 1000, end: 1200, reason: 'tool_context' },
+            { fragment: 'Reduced processing time by 40%', reason: 'metric_impact' },
           ],
         },
       ],
@@ -192,7 +207,7 @@ describe('detectCvHighlights', () => {
       {
         itemId,
         section: 'experience',
-        ranges: [{ start: 0, end: 18, reason: 'metric_impact' }],
+        ranges: [expectedRange],
       },
     ])
   })
@@ -284,7 +299,7 @@ describe('detectCvHighlights', () => {
       items: [
         {
           itemId,
-          ranges: [{ startOffset: 0, end: 10, reason: 'ats_strength' }],
+          ranges: [{ fragment: 'Reduced processing time by 40%', startOffset: 0, end: 10, reason: 'ats_strength' }],
         },
       ],
     })))
@@ -306,16 +321,18 @@ describe('detectCvHighlights', () => {
   ] as const)('normalizes alias reason %s to %s', async (rawReason, normalizedReason) => {
     const cvState = buildCvState()
     const items = flattenCvStateForHighlight(cvState)
+    const text = cvState.experience[0].bullets[0]
+    const fragment = 'Reduced processing time by 40%'
     const itemId = createExperienceBulletHighlightItemId(
       cvState.experience[0],
-      cvState.experience[0].bullets[0],
+      text,
     )
 
     createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       items: [
         {
           itemId,
-          ranges: [{ start: 0, end: 18, reason: rawReason }],
+          ranges: [{ fragment, reason: rawReason }],
         },
       ],
     })))
@@ -324,7 +341,7 @@ describe('detectCvHighlights', () => {
       {
         itemId,
         section: 'experience',
-        ranges: [{ start: 0, end: 18, reason: normalizedReason }],
+        ranges: [buildResolvedRange(text, fragment, normalizedReason)],
       },
     ])
 
@@ -339,16 +356,18 @@ describe('detectCvHighlights', () => {
   it('preserves valid enum reasons unchanged', async () => {
     const cvState = buildCvState()
     const items = flattenCvStateForHighlight(cvState)
+    const text = cvState.experience[0].bullets[0]
+    const fragment = 'Reduced processing time by 40%'
     const itemId = createExperienceBulletHighlightItemId(
       cvState.experience[0],
-      cvState.experience[0].bullets[0],
+      text,
     )
 
     createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
       items: [
         {
           itemId,
-          ranges: [{ start: 0, end: 18, reason: 'metric_impact' }],
+          ranges: [{ fragment, reason: 'metric_impact' }],
         },
       ],
     })))
@@ -357,7 +376,7 @@ describe('detectCvHighlights', () => {
       {
         itemId,
         section: 'experience',
-        ranges: [{ start: 0, end: 18, reason: 'metric_impact' }],
+        ranges: [buildResolvedRange(text, fragment, 'metric_impact')],
       },
     ])
   })
@@ -373,7 +392,7 @@ describe('detectCvHighlights', () => {
       items: [
         {
           itemId,
-          ranges: [{ start: 0, end: 18, reason: 'custom_reason' }],
+          ranges: [{ fragment: 'Reduced processing time by 40%', reason: 'custom_reason' }],
         },
       ],
     })))
@@ -410,7 +429,7 @@ describe('detectCvHighlights', () => {
       items: [
         {
           itemId: 'missing_item',
-          ranges: [{ start: 0, end: 12, reason: 'ats_strength' }],
+          ranges: [{ fragment: 'Senior BI engineer', reason: 'ats_strength' }],
         },
       ],
     })))

@@ -1,4 +1,4 @@
-// Full test gate for this module and its Phase 97 hardening:
+﻿// Full test gate for this module and its Phase 97 hardening:
 //
 // npx vitest run \
 //   src/lib/agent/tools/detect-cv-highlights.test.ts \
@@ -40,6 +40,88 @@ function buildRange(
     reason,
   }
 }
+
+describe('validateAndResolveHighlights - hybrid text anchoring', () => {
+  it('resolves an exact fragment match into the persisted numeric range', () => {
+    const text = 'Reduced processing time by 40% with Azure Databricks for nightly enterprise batch workloads.'
+    const items = [{ itemId: 'exp_exact', section: 'experience' as const, text }]
+    const fragment = 'Reduced processing time by 40%'
+
+    const resolved = validateAndResolveHighlights(items, [{
+      itemId: 'exp_exact',
+      ranges: [{
+        fragment,
+        reason: 'metric_impact' as const,
+      }],
+    }])
+
+    expect(resolved).toEqual([{
+      itemId: 'exp_exact',
+      section: 'experience',
+      ranges: [buildRange(text, fragment, 'metric_impact')],
+    }])
+  })
+
+  it('resolves a unique whitespace-normalized fragment safely back to the original text with pt-BR accents', () => {
+    const text = 'Otimizei pipelines, reduzindo em at\u00E9 40%\n  o tempo de processamento. Tambem apoiei governanca de dados e observabilidade operacional.'
+    const items = [{ itemId: 'exp_whitespace_safe', section: 'experience' as const, text }]
+    const fragment = 'reduzindo em at\u00E9 40% o tempo de processamento'
+
+    const resolved = validateAndResolveHighlights(items, [{
+      itemId: 'exp_whitespace_safe',
+      ranges: [{
+        fragment,
+        reason: 'metric_impact' as const,
+      }],
+    }])
+
+    const ranges = resolved.find((entry) => entry.itemId === 'exp_whitespace_safe')?.ranges ?? []
+    expect(ranges).toHaveLength(1)
+    expect(text.slice(ranges[0]!.start, ranges[0]!.end)).toBe('reduzindo em at\u00E9 40%\n  o tempo de processamento')
+  })
+
+  it('falls back to numeric offsets when the fragment is ambiguous inside the bullet', () => {
+    const text = 'Power BI dashboards for finance and Power BI dashboards for operations.'
+    const secondStart = text.lastIndexOf('Power BI dashboards')
+    const secondEnd = secondStart + 'Power BI dashboards'.length
+    const items = [{ itemId: 'exp_duplicate', section: 'experience' as const, text }]
+
+    const resolved = validateAndResolveHighlights(items, [{
+      itemId: 'exp_duplicate',
+      ranges: [{
+        fragment: 'Power BI dashboards',
+        start: secondStart,
+        end: secondEnd,
+        reason: 'tool_context' as const,
+      }],
+    }])
+
+    expect(resolved).toEqual([{
+      itemId: 'exp_duplicate',
+      section: 'experience',
+      ranges: [{
+        start: secondStart,
+        end: secondEnd,
+        reason: 'tool_context',
+      }],
+    }])
+  })
+
+  it('fails closed when neither fragment resolution nor numeric fallback is trustworthy', () => {
+    const text = 'Power BI dashboards for finance and Power BI dashboards for operations.'
+    const items = [{ itemId: 'exp_ambiguous', section: 'experience' as const, text }]
+
+    const resolved = validateAndResolveHighlights(items, [{
+      itemId: 'exp_ambiguous',
+      ranges: [{
+        fragment: 'Power BI dashboards',
+        reason: 'tool_context' as const,
+      }],
+    }])
+
+    expect(resolved).toEqual([])
+  })
+})
 
 describe('candidate scoring closure refinement', () => {
   it('prefers the metric closure instead of dying before the percentage', () => {
@@ -109,14 +191,14 @@ describe('candidate scoring closure refinement', () => {
   })
 
   it('trim-left removes a weak generic lead when a stronger later metric nucleus exists', () => {
-    const text = 'Otimizei pipelines com salting e repartitioning, reduzindo em até 40% o tempo de processamento.'
+    const text = 'Otimizei pipelines com salting e repartitioning, reduzindo em atÃ© 40% o tempo de processamento.'
     const range = normalizeHighlightSpanBoundaries(
       text,
-      buildRange(text, 'Otimizei pipelines com salting e repartitioning, reduzindo em até 40%', 'metric_impact'),
+      buildRange(text, 'Otimizei pipelines com salting e repartitioning, reduzindo em atÃ© 40%', 'metric_impact'),
     )
 
     expect(range).not.toBeNull()
-    expect(text.slice(range!.start, range!.end)).toBe('reduzindo em até 40% o tempo de processamento')
+    expect(text.slice(range!.start, range!.end)).toBe('reduzindo em atÃ© 40% o tempo de processamento')
   })
 
   it('keeps a full migration unit when it is already a complete high-value phrase', () => {
@@ -223,7 +305,7 @@ describe('candidate scoring closure refinement', () => {
   })
 })
 
-describe('HIGHLIGHT_EDITORIAL_REENTRY_SEARCH_PATTERN — boundary guards', () => {
+describe('HIGHLIGHT_EDITORIAL_REENTRY_SEARCH_PATTERN â€” boundary guards', () => {
   it('finds reentry at the start of a gerund verb in continuous text', () => {
     const text = 'Otimizei fluxos internos reduzindo em 40% o tempo de processamento'
     const range = buildRange(text, 'Otimizei fluxos internos reduzindo em 40% o tempo de processamento', 'metric_impact')
@@ -238,7 +320,7 @@ describe('HIGHLIGHT_EDITORIAL_REENTRY_SEARCH_PATTERN — boundary guards', () =>
   })
 
   it('does not match a reentry verb preceded immediately by an accented letter', () => {
-    const text = 'Atuei nos processos çreduzindo desperdício operacional'
+    const text = 'Atuei nos processos Ã§reduzindo desperdÃ­cio operacional'
     const candidate = buildPatternTrimLeftCandidate(
       text,
       { start: 0, end: text.length, reason: 'metric_impact' },
@@ -325,7 +407,7 @@ describe('trim-left proximity guard', () => {
   })
 })
 
-describe('choosePreferredHighlightCandidate — interaction with prior expansions', () => {
+describe('choosePreferredHighlightCandidate â€” interaction with prior expansions', () => {
   it('does not trim a correctly expanded comma continuation when the lead verb is weak', () => {
     const text = 'Built BI dashboards, executive reporting.'
     const inputRange = buildRange(text, 'Built BI dashboards', 'business_impact')
@@ -393,7 +475,7 @@ describe('choosePreferredHighlightCandidate — interaction with prior expansion
   })
 })
 
-describe('normalizeHighlightSpanBoundaries — regression fixtures', () => {
+describe('normalizeHighlightSpanBoundaries â€” regression fixtures', () => {
   it('pipe-stack bullet is not expanded by candidate arbitration', () => {
     const text = 'Python | SQL | dbt | Airflow'
     const range = normalizeHighlightSpanBoundaries(
@@ -473,7 +555,7 @@ describe('normalizeHighlightSpanBoundaries — regression fixtures', () => {
   })
 })
 
-describe('validateAndResolveHighlights — editorial correction fixtures', () => {
+describe('validateAndResolveHighlights â€” editorial correction fixtures', () => {
   it('extends a range that dies before the metric unit when the context follows immediately', () => {
     const text = 'Reduced costs by 40%.'
     const items = [{ itemId: 'exp_item', section: 'experience' as const, text }]

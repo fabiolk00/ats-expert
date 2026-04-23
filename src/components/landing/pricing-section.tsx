@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Check, Gift, ShieldCheck } from "lucide-react"
 
+import PricingComparisonTable from "@/components/landing/pricing-comparison-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,7 +33,9 @@ const plans = [
 export default function PricingSection() {
   return (
     <section id="pricing" className="bg-background py-24">
-      <div className="container mx-auto px-4">
+      <PricingComparisonTable />
+
+      <div className="container mx-auto mt-24 px-4">
         <div className="mb-16 text-center">
           <h2 className="mb-4 text-3xl font-bold text-balance md:text-4xl">
             Preços simples para melhorar seu currículo

@@ -162,7 +162,7 @@ Additional resume persistence rules:
 - The first analysis turn can summarize an ATS score and move the session forward without exposing bootstrap tool noise to the user.
 - `/api/session/[id]/versions` returns immutable history for the owning app user.
 - `/api/session/[id]/targets` lists or creates target-specific variants for the owning app user.
-- `/login` and `/signup` redirect authenticated visitors away from auth pages and resume safe requested destinations when Clerk reports `session_exists`.
+- `/entrar` and `/criar-conta` redirect authenticated visitors away from auth pages and resume safe requested destinations when Clerk reports `session_exists`.
 - The dashboard sidebar shows the current plan label and a dynamic credit denominator derived from billing metadata, while runtime enforcement still reads `credit_accounts`.
 
 ### Agent Runtime Parity

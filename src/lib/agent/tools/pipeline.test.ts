@@ -1558,6 +1558,7 @@ describe('ATS enhancement reliability hardening', () => {
           {
             itemId: expectedItemId,
             ranges: [{
+              fragment: bulletText,
               start: 0,
               end: bulletText.indexOf('40%') + 3,
               reason: 'metric_impact',

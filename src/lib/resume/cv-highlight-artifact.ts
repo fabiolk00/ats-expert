@@ -95,6 +95,13 @@ export type CvHighlightRange = {
   reason: CvHighlightReason
 }
 
+export type CvHighlightDetectionRange = {
+  fragment?: string | null
+  start?: number | null
+  end?: number | null
+  reason: CvHighlightReason
+}
+
 export type CvResolvedHighlight = {
   itemId: string
   section: 'summary' | 'experience'
@@ -110,11 +117,7 @@ export type CvHighlightState = {
 
 export type CvHighlightDetectionResult = Array<{
   itemId: string
-  ranges: Array<{
-    start: number
-    end: number
-    reason: CvHighlightReason
-  }>
+  ranges: CvHighlightDetectionRange[]
 }>
 
 export type CvHighlightTextSegment = {
@@ -137,9 +140,42 @@ const cvHighlightRangeSchema = z.object({
   reason: cvHighlightReasonSchema,
 })
 
+const cvHighlightDetectionRangeSchema = z.object({
+  fragment: z.string().min(1).optional().nullable(),
+  start: z.number().int().optional().nullable(),
+  end: z.number().int().optional().nullable(),
+  reason: cvHighlightReasonSchema,
+}).superRefine((value, context) => {
+  const hasFragment = typeof value.fragment === 'string' && value.fragment.trim().length > 0
+  const hasStart = typeof value.start === 'number'
+  const hasEnd = typeof value.end === 'number'
+  const hasNullOffsets = value.start === null && value.end === null
+
+  if (!hasFragment && !(hasStart && hasEnd)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Each detection range needs a fragment or numeric offsets.',
+    })
+  }
+
+  if (
+    !hasNullOffsets
+    && (
+      hasStart !== hasEnd
+      || value.start === null
+      || value.end === null
+    )
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'start and end must be provided together.',
+    })
+  }
+})
+
 const cvHighlightDetectionItemSchema = z.object({
   itemId: z.string().min(1),
-  ranges: z.array(cvHighlightRangeSchema),
+  ranges: z.array(cvHighlightDetectionRangeSchema),
 })
 
 const cvHighlightDetectionObjectSchema = z.object({
@@ -269,6 +305,107 @@ function parseRawHighlightDetection(
   }
 
   return []
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function findExactFragmentMatchOffsets(
+  text: string,
+  fragment: string,
+): Array<{ start: number; end: number }> {
+  const matches: Array<{ start: number; end: number }> = []
+  let cursor = 0
+
+  while (cursor <= text.length - fragment.length) {
+    const start = text.indexOf(fragment, cursor)
+    if (start === -1) {
+      break
+    }
+
+    matches.push({
+      start,
+      end: start + fragment.length,
+    })
+    cursor = start + 1
+  }
+
+  return matches
+}
+
+function findWhitespaceNormalizedFragmentMatchOffsets(
+  text: string,
+  fragment: string,
+): Array<{ start: number; end: number }> {
+  const tokens = fragment.trim().split(/\s+/u).filter(Boolean)
+  if (tokens.length === 0) {
+    return []
+  }
+
+  const pattern = new RegExp(tokens.map((token) => escapeRegExp(token)).join('\\s+'), 'gu')
+  const normalizedFragment = tokens.join(' ')
+  const matches: Array<{ start: number; end: number }> = []
+  let match: RegExpExecArray | null
+
+  while ((match = pattern.exec(text)) !== null) {
+    const matchedText = match[0]
+    if (matchedText.trim().replace(/\s+/gu, ' ') !== normalizedFragment) {
+      continue
+    }
+
+    matches.push({
+      start: match.index,
+      end: match.index + matchedText.length,
+    })
+
+    if (matchedText.length === 0) {
+      pattern.lastIndex += 1
+    }
+  }
+
+  return matches
+}
+
+function resolveTextAnchoredHighlightRange(
+  text: string,
+  candidate: CvHighlightDetectionRange,
+): CvHighlightRange | null {
+  const fragment = candidate.fragment?.trim()
+
+  if (fragment) {
+    const exactMatches = findExactFragmentMatchOffsets(text, fragment)
+    if (exactMatches.length === 1) {
+      return {
+        start: exactMatches[0].start,
+        end: exactMatches[0].end,
+        reason: candidate.reason,
+      }
+    }
+
+    const normalizedMatches = findWhitespaceNormalizedFragmentMatchOffsets(text, fragment)
+    if (normalizedMatches.length === 1) {
+      return {
+        start: normalizedMatches[0].start,
+        end: normalizedMatches[0].end,
+        reason: candidate.reason,
+      }
+    }
+  }
+
+  const fallbackStart = candidate.start
+  const fallbackEnd = candidate.end
+  if (Number.isInteger(fallbackStart) && Number.isInteger(fallbackEnd)) {
+    const resolvedStart = fallbackStart as number
+    const resolvedEnd = fallbackEnd as number
+    return {
+      start: resolvedStart,
+      end: resolvedEnd,
+      reason: candidate.reason,
+    }
+  }
+
+  return null
 }
 
 function isSafeNonOverlappingRange(
@@ -1363,7 +1500,7 @@ export function validateAndResolveHighlights(
 
   const itemMap = new Map(items.map((item) => [item.itemId, item]))
   const detectionItems = parseRawHighlightDetection(raw)
-  const rangesByItemId = new Map<string, CvHighlightRange[]>()
+  const rangesByItemId = new Map<string, CvHighlightDetectionRange[]>()
   const resolved: CvResolvedHighlight[] = []
 
   detectionItems.forEach((candidate) => {
@@ -1382,7 +1519,11 @@ export function validateAndResolveHighlights(
       return
     }
 
-    const normalizedRanges = normalizeHighlightRangesForSegmentation(item.text, candidateRanges)
+    const resolvedCandidateRanges = candidateRanges
+      .map((candidateRange) => resolveTextAnchoredHighlightRange(item.text, candidateRange))
+      .filter((range): range is CvHighlightRange => range !== null)
+
+    const normalizedRanges = normalizeHighlightRangesForSegmentation(item.text, resolvedCandidateRanges)
     const validRanges = normalizedRanges.reduce<CvHighlightRange[]>((acc, range) => {
       const previousRange = acc[acc.length - 1]
 

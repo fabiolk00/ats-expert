@@ -40,8 +40,8 @@ CurrIA is migrating its public and authenticated UI to the imported Figma design
 | Resume library alias | `/resumes` | Complete | Redirects to `/dashboard/resumes` |
 | Settings | `/settings` | In progress | New authenticated page added, still open for final polish |
 | Login | `/login` | In progress | Modernized layout active |
-| Signup | `/signup` | In progress | Modernized layout active |
-| Pricing | `/pricing` | In progress | Modernized layout active |
+| Signup | `/criar-conta` | In progress | Modernized layout active |
+| Pricing | `/precos` | In progress | Modernized layout active |
 
 ## Component Mapping
 

@@ -88,7 +88,7 @@ This means unused credits from the previous month are not carried over to the ne
 
 - If you start from pricing or checkout while logged out, CurrIA preserves the requested safe destination through `redirect_to`.
 - If Clerk finishes verification and the session already exists, CurrIA resumes the requested path instead of showing a raw `Session already exists` blocker.
-- Authenticated visitors who open `/login` or `/signup` are redirected back to the requested safe path automatically.
+- Authenticated visitors who open `/entrar` or `/criar-conta` are redirected back to the requested safe path automatically.
 
 ## What Happens to Your Data
 

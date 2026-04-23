@@ -698,3 +698,13 @@ Plans:
 
 Plans:
 - [ ] 97-01-PLAN.md — Harden prompt-first highlight selection, add minimal deterministic resolver only if residual gaps remain, and prove shared persisted-highlight seams stay unchanged
+
+### Phase 98: Resolve CV highlight truncation with hybrid text-anchored detector contract
+
+**Goal:** Replace fragile numeric-only highlight offsets with fragment-first structured detection and deterministic local text anchoring while keeping persisted highlight state unchanged.
+**Requirements**: [CV-HILITE-TEXT-ANCHOR-01, CV-HILITE-STRUCTURED-OUTPUT-01, CV-HILITE-SHARED-REGRESSION-01]
+**Depends on:** Phase 97
+**Plans:** 1 plan
+
+Plans:
+- [ ] 98-01-PLAN.md - Return exact highlight fragments plus nullable fallback offsets, resolve fragment -> range locally, and prove shared persisted-highlight seams stay unchanged
