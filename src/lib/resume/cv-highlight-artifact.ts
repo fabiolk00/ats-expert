@@ -8,16 +8,8 @@ const SUMMARY_MAX_HIGHLIGHT_COVERAGE = 0.4
 const EXPERIENCE_MAX_HIGHLIGHT_COVERAGE = 0.55
 const COMPACT_EXPERIENCE_HIGHLIGHT_MAX_LENGTH = 90
 const HIGHLIGHT_STACK_SEPARATOR_CHAR = '|'
-const HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS = 96
-const HIGHLIGHT_MAX_CONTINUATION_WORDS = 12
-const HIGHLIGHT_MAX_CANDIDATE_ENDS = 12
-const HIGHLIGHT_MAX_CANDIDATE_STARTS = 8
-
-function adaptiveCoverageThreshold(textLength: number): number {
-  if (textLength < 60) return 0.75
-  if (textLength < 100) return 0.68
-  return EXPERIENCE_MAX_HIGHLIGHT_COVERAGE
-}
+const HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS = 72
+const HIGHLIGHT_MAX_CONTINUATION_WORDS = 10
 
 const HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS = new Set([
   ',',
@@ -31,6 +23,19 @@ const HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS = new Set([
   '/',
   '\\',
   HIGHLIGHT_STACK_SEPARATOR_CHAR,
+  '-',
+  '–',
+  '—',
+])
+
+const HIGHLIGHT_BRIDGEABLE_BOUNDARY_CHARS = new Set([
+  ',',
+  ':',
+  ';',
+  '(',
+  '[',
+  '/',
+  '\\',
   '-',
   '–',
   '—',
@@ -57,32 +62,12 @@ const HIGHLIGHT_INLINE_COMPOSITE_CHARS = new Set([
   '—',
 ])
 
-const HIGHLIGHT_STRONG_CLAUSE_START_PATTERN =
-  /^(?:and|but|while|however|whereas|mas|por(?:e|é)m|enquanto|because|porque)\b/i
-
-const HIGHLIGHT_VERB_HINT_PATTERN =
-  /\b(?:led|built|created|designed|developed|implemented|managed|reduced|increased|improved|optimized|automated|scaled|delivered|owned|migrated|supported|analyzed|organized|reinforced|maintained|provided|served|coordinated|generated|boosted|cut|saved|grew|elevated|expanded|accelerated|defined|projetei|atendi|atuei|organizei|reforcei|mantive|prestei|coordenei|garanti|contribui|suportei|aumentei|reduzi|melhorei|otimizei|automatizei|liderei|criei|desenvolvi|implementei|gerenciei|entreguei|migrei|apoiei|analisei|gerei|ampliei|acelerei|expandi|elevei|defini)\b/i
-
-const HIGHLIGHT_SEMANTIC_DESCRIPTOR_HINT_PATTERN =
-  /\b(?:focused|specialized|oriented|dedicated|responsible|experienced|especializado|focado|orientado|dedicado|responsavel|responsável|experiente)\b/i
-
-const HIGHLIGHT_FALLBACK_ACTION_VERB_PATTERN =
-  /\b(?:led|built|created|designed|developed|implemented|managed|reduced|increased|improved|optimized|automated|scaled|delivered|owned|migrated|supported|analyzed|organized|reinforced|maintained|provided|served|coordinated|generated|boosted|cut|saved|grew|elevated|expanded|accelerated|defined|projetei|atendi|atuei|organizei|reforcei|mantive|prestei|coordenei|garanti|contribui|suportei|aumentei|reduzi|melhorei|otimizei|automatizei|liderei|criei|desenvolvi|implementei|gerenciei|entreguei|migrei|apoiei|analisei|gerei|ampliei|acelerei|expandi|elevei|defini)\b/i
-
-const HIGHLIGHT_SCALE_COMPLEXITY_PATTERN =
-  /\b(?:large-scale|high-volume|scalable|scalability|grandes volumes|alto volume|escal[aá]vel|escala|processamento escal[aá]vel|data modeling|modelagem de dados|arquitetura|architecture|governan[cç]a|governance|performance|latency|throughput|reliability|stability|estabilidade|produção|producao)\b/i
-
-const HIGHLIGHT_BUSINESS_IMPACT_PATTERN =
-  /\b(?:reduced|increased|improved|optimized|saved|generated|boosted|cut|grew|reduzi|aumentei|melhorei|otimizei|gerei|economia|saving|savings|impact|resultado|outcome|eficiência|eficiencia)\b/i
-
-const HIGHLIGHT_METRIC_PATTERN =
-  /\b(?:\d+(?:[.,]\d+)?%|\$\s?\d|\d+\s?(?:x|k|m|b|mil|milh(?:ão|ao|ões|oes))|\bzero downtime\b|\b0 downtime\b|\bmais de \d+\b|\bmore than \d+\b)\b/i
-
-const HIGHLIGHT_TOOL_CONTEXT_PATTERN =
-  /\b(?:azure databricks|databricks|pyspark|spark|python|sql|power bi|qlik|bigquery|gcp|etl|api|apis|sharepoint|dynamics crm|rest)\b/i
-
-const HIGHLIGHT_WEAK_GENERIC_LEAD_PATTERN =
-  /^(?:led|built|created|developed|implemented|desenvolvi|liderei|criei|implementei|atuei)\b/i
+const HIGHLIGHT_STRONG_CLAUSE_START_PATTERN = /^(?:and|but|while|however|whereas|mas|por(?:e|é)m|enquanto|because|porque)\b/i
+const HIGHLIGHT_VERB_HINT_PATTERN = /\b(?:led|built|created|designed|developed|implemented|managed|reduced|increased|improved|optimized|automated|scaled|delivered|owned|migrated|supported|analyzed|organized|reinforced|maintained|provided|served|coordinated|atendi|atuei|organizei|reforcei|mantive|prestei|coordenei|garanti|contribui|suportei|aumentei|reduzi|melhorei|otimizei|automatizei|liderei|criei|desenvolvi|implementei|gerenciei|entreguei|migrei|apoiei|analisei)\b/i
+const HIGHLIGHT_GERUND_CONTINUATION_PATTERN = /^(?:contributing|reinforcing|ensuring|supporting|maintaining|reducing|increasing|driving|improving|enabling|closing|strengthening|contribuindo|reforcando|reforçando|garantindo|apoiando|mantendo|reduzindo|aumentando|impulsionando|melhorando|viabilizando|fortalecendo)\b/i
+const HIGHLIGHT_COORDINATED_CONTINUATION_PATTERN = /^(?:and|e)\s+(?:with|for|in|on|during|com|para|em|no|na|nos|nas|ao|aos|a|à|support|supporting|apoio|apoiando|atendimento|rotinas|processo|processos|disponibilidade|estabilidade|satisfacao|satisfação)\b/i
+const HIGHLIGHT_DIRECT_CLOSURE_PREPOSITION_PATTERN = /^(?:during|in|on|to|com|para|em|no|na|nos|nas|durante|ao|aos|a|à|as|às)\b/i
+const HIGHLIGHT_SEMANTIC_DESCRIPTOR_HINT_PATTERN = /\b(?:focused|specialized|oriented|dedicated|responsible|experienced|especializado|focado|orientado|dedicado|responsavel|responsável|experiente)\b/i
 
 export type CvHighlightInputItem = {
   itemId: string
@@ -116,7 +101,6 @@ export type CvHighlightState = {
   version: typeof CV_HIGHLIGHT_ARTIFACT_VERSION
   resolvedHighlights: CvResolvedHighlight[]
   generatedAt: string
-  cvStateFingerprint?: string
 }
 
 export type CvHighlightDetectionResult = Array<{
@@ -168,7 +152,6 @@ const cvHighlightStateSchema = z.object({
   version: z.literal(CV_HIGHLIGHT_ARTIFACT_VERSION),
   resolvedHighlights: z.array(cvResolvedHighlightSchema),
   generatedAt: z.string().min(1),
-  cvStateFingerprint: z.string().optional(),
 })
 
 export function createSummaryHighlightItemId(): string {
@@ -234,32 +217,6 @@ export function buildExperienceBulletHighlightItemIds(
   })
 }
 
-export function computeCvStateFingerprint(cvState: CVState): string {
-  const seed = [
-    canonicalizeHighlightIdentityText(cvState.summary),
-    ...cvState.experience.flatMap((exp) => [
-      canonicalizeHighlightIdentityText(exp.title),
-      canonicalizeHighlightIdentityText(exp.company),
-      canonicalizeHighlightIdentityText(exp.startDate),
-      canonicalizeHighlightIdentityText(exp.endDate),
-      ...exp.bullets.map((b) => canonicalizeHighlightIdentityText(b)),
-    ]),
-  ].join('|||')
-
-  return hashHighlightIdentity(seed)
-}
-
-export function highlightStateMatchesCvState(
-  highlightState: CvHighlightState,
-  cvState: CVState,
-): boolean {
-  if (!highlightState.cvStateFingerprint) {
-    return false
-  }
-
-  return highlightState.cvStateFingerprint === computeCvStateFingerprint(cvState)
-}
-
 export function flattenCvStateForHighlight(cvState: CVState): CvHighlightInputItem[] {
   const items: CvHighlightInputItem[] = []
 
@@ -276,7 +233,9 @@ export function flattenCvStateForHighlight(cvState: CVState): CvHighlightInputIt
 
     experience.bullets.forEach((bullet, bulletIndex) => {
       const itemId = itemIds[bulletIndex]
-      if (!itemId) return
+      if (!itemId) {
+        return
+      }
 
       items.push({
         itemId,
@@ -291,12 +250,18 @@ export function flattenCvStateForHighlight(cvState: CVState): CvHighlightInputIt
   return items
 }
 
-function parseRawHighlightDetection(raw: unknown): CvHighlightDetectionResult {
+function parseRawHighlightDetection(
+  raw: unknown,
+): CvHighlightDetectionResult {
   const objectResult = cvHighlightDetectionObjectSchema.safeParse(raw)
-  if (objectResult.success) return objectResult.data.items
+  if (objectResult.success) {
+    return objectResult.data.items
+  }
 
   const arrayResult = z.array(cvHighlightDetectionItemSchema).safeParse(raw)
-  if (arrayResult.success) return arrayResult.data
+  if (arrayResult.success) {
+    return arrayResult.data
+  }
 
   return []
 }
@@ -306,9 +271,18 @@ function isSafeNonOverlappingRange(
   itemText: string,
   previousAcceptedRange?: CvHighlightRange,
 ): boolean {
-  if (!Number.isInteger(range.start) || !Number.isInteger(range.end)) return false
-  if (range.start < 0 || range.end <= range.start || range.end > itemText.length) return false
-  if (previousAcceptedRange && range.start < previousAcceptedRange.end) return false
+  if (!Number.isInteger(range.start) || !Number.isInteger(range.end)) {
+    return false
+  }
+
+  if (range.start < 0 || range.end <= range.start || range.end > itemText.length) {
+    return false
+  }
+
+  if (previousAcceptedRange && range.start < previousAcceptedRange.end) {
+    return false
+  }
+
   return true
 }
 
@@ -316,13 +290,21 @@ function clampHighlightRange(
   textLength: number,
   range: CvHighlightRange,
 ): CvHighlightRange | null {
-  if (!Number.isInteger(range.start) || !Number.isInteger(range.end)) return null
+  if (!Number.isInteger(range.start) || !Number.isInteger(range.end)) {
+    return null
+  }
 
   const start = Math.max(0, Math.min(textLength, range.start))
   const end = Math.max(0, Math.min(textLength, range.end))
-  if (end <= start) return null
+  if (end <= start) {
+    return null
+  }
 
-  return { start, end, reason: range.reason }
+  return {
+    start,
+    end,
+    reason: range.reason,
+  }
 }
 
 function isWhitespaceLike(char: string | undefined): boolean {
@@ -341,6 +323,117 @@ function hasMeaningfulHighlightContent(value: string): boolean {
   return /[\p{L}\p{N}]/u.test(value) || /\$\s*\d/u.test(value)
 }
 
+function isInlineDecimalOrAbbreviationBoundary(
+  text: string,
+  index: number,
+): boolean {
+  return text[index] === '.'
+    && isWordLikeChar(text[index - 1])
+    && isWordLikeChar(text[index + 1])
+}
+
+function startsWithAttachedContinuation(value: string): boolean {
+  const trimmed = normalizeLeadingContinuationText(value)
+  if (!trimmed) {
+    return false
+  }
+
+  return HIGHLIGHT_GERUND_CONTINUATION_PATTERN.test(trimmed)
+    || HIGHLIGHT_COORDINATED_CONTINUATION_PATTERN.test(trimmed)
+}
+
+function isLikelyNounPhraseContinuation(value: string): boolean {
+  const trimmed = normalizeLeadingContinuationText(value)
+  if (!trimmed) {
+    return false
+  }
+
+  return countHighlightWords(trimmed) <= 4
+    && !HIGHLIGHT_VERB_HINT_PATTERN.test(trimmed)
+    && !HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(trimmed)
+}
+
+function normalizeLeadingContinuationText(value: string): string {
+  let cursor = 0
+
+  while (
+    cursor < value.length
+    && (
+      isWhitespaceLike(value[cursor])
+      || HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS.has(value[cursor]!)
+    )
+  ) {
+    cursor += 1
+  }
+
+  return value.slice(cursor).trim()
+}
+
+function hasActionOrMetricLead(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return false
+  }
+
+  return HIGHLIGHT_VERB_HINT_PATTERN.test(trimmed) || /[$\d%]/u.test(trimmed)
+}
+
+function hasSemanticClosureLead(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return false
+  }
+
+  return hasActionOrMetricLead(trimmed) || HIGHLIGHT_SEMANTIC_DESCRIPTOR_HINT_PATTERN.test(trimmed)
+}
+
+function isLikelyTightPrepositionalClosure(value: string): boolean {
+  const normalized = normalizeLeadingContinuationText(value)
+  if (!normalized || !HIGHLIGHT_DIRECT_CLOSURE_PREPOSITION_PATTERN.test(normalized)) {
+    return false
+  }
+
+  if (countHighlightWords(normalized) > 5) {
+    return false
+  }
+
+  const [, ...tailWords] = normalized.split(/\s+/u)
+  const tail = tailWords.join(' ')
+  if (!tail) {
+    return false
+  }
+
+  return !/\b(?:with|for|by|via|through|across|toward|towards|between|among|com|para|durante|during|em|no|na|nos|nas)\b/i.test(tail)
+}
+
+function isLikelyTightSemanticComplementClosure(
+  value: string,
+): boolean {
+  const normalized = normalizeLeadingContinuationText(value)
+  if (!normalized) {
+    return false
+  }
+
+  if (countHighlightWords(normalized) > 6) {
+    return false
+  }
+
+  if (HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(normalized)) {
+    return false
+  }
+
+  if (HIGHLIGHT_VERB_HINT_PATTERN.test(normalized)) {
+    return false
+  }
+
+  if (/^(?:for|with|by|via|through|across)\b/i.test(normalized)) {
+    return false
+  }
+
+  return /^(?:para|com|no|na|nos|nas|ao|aos|a|à|em|focused on|specialized in|oriented to|dedicated to|responsible for)\b/i.test(normalized)
+    || isLikelyNounPhraseContinuation(normalized)
+}
+
 function trimHighlightEdgeNoiseBounds(
   text: string,
   start: number,
@@ -353,7 +446,13 @@ function trimHighlightEdgeNoiseBounds(
     nextStart < nextEnd
     && (
       isWhitespaceLike(text[nextStart])
-      || HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS.has(text[nextStart]!)
+      || (
+        HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS.has(text[nextStart]!)
+        && !(
+          (text[nextStart] === '(' && text.slice(nextStart + 1, nextEnd).includes(')'))
+          || (text[nextStart] === '[' && text.slice(nextStart + 1, nextEnd).includes(']'))
+        )
+      )
     )
   ) {
     nextStart += 1
@@ -363,13 +462,22 @@ function trimHighlightEdgeNoiseBounds(
     nextEnd > nextStart
     && (
       isWhitespaceLike(text[nextEnd - 1])
-      || HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS.has(text[nextEnd - 1]!)
+      || (
+        HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS.has(text[nextEnd - 1]!)
+        && !(
+          (text[nextEnd - 1] === ')' && text.slice(nextStart, nextEnd - 1).includes('('))
+          || (text[nextEnd - 1] === ']' && text.slice(nextStart, nextEnd - 1).includes('['))
+        )
+      )
     )
   ) {
     nextEnd -= 1
   }
 
-  if (nextEnd <= nextStart) return null
+  if (nextEnd <= nextStart) {
+    return null
+  }
+
   return { start: nextStart, end: nextEnd }
 }
 
@@ -385,7 +493,10 @@ function normalizeRangeToWordBoundaries(
     && isWordLikeChar(text[start - 1])
     && (
       isWordLikeChar(text[start])
-      || (HIGHLIGHT_INLINE_COMPOSITE_CHARS.has(text[start]!) && isWordLikeChar(text[start + 1]))
+      || (
+        HIGHLIGHT_INLINE_COMPOSITE_CHARS.has(text[start]!)
+        && isWordLikeChar(text[start + 1])
+      )
     )
   ) {
     start -= 1
@@ -394,12 +505,19 @@ function normalizeRangeToWordBoundaries(
   while (
     end < text.length
     && isWordLikeChar(text[end])
-    && (isWordLikeChar(text[end - 1]) || HIGHLIGHT_INLINE_COMPOSITE_CHARS.has(text[end - 1]!))
+    && (
+      isWordLikeChar(text[end - 1])
+      || HIGHLIGHT_INLINE_COMPOSITE_CHARS.has(text[end - 1]!)
+    )
   ) {
     end += 1
   }
 
-  return { start, end, reason: range.reason }
+  return {
+    start,
+    end,
+    reason: range.reason,
+  }
 }
 
 function expandRangeLeftForCurrencyPrefix(
@@ -408,11 +526,19 @@ function expandRangeLeftForCurrencyPrefix(
 ): CvHighlightRange {
   let start = range.start
 
-  if (start > 0 && text[start - 1] === '$' && isWordLikeChar(text[start])) {
+  if (
+    start > 0
+    && text[start - 1] === '$'
+    && isWordLikeChar(text[start])
+  ) {
     start -= 1
   }
 
-  return { start, end: range.end, reason: range.reason }
+  return {
+    start,
+    end: range.end,
+    reason: range.reason,
+  }
 }
 
 function expandRangeAcrossInlineCompositeTerms(
@@ -429,7 +555,9 @@ function expandRangeAcrossInlineCompositeTerms(
     && isWordLikeChar(text[start])
   ) {
     start -= 1
-    while (start > 0 && isWordLikeChar(text[start - 1])) start -= 1
+    while (start > 0 && isWordLikeChar(text[start - 1])) {
+      start -= 1
+    }
   }
 
   while (
@@ -439,174 +567,262 @@ function expandRangeAcrossInlineCompositeTerms(
     && isWordLikeChar(text[end + 1])
   ) {
     end += 1
-    while (end < text.length && isWordLikeChar(text[end])) end += 1
+    while (end < text.length && isWordLikeChar(text[end])) {
+      end += 1
+    }
   }
 
-  if (end < text.length && text[end] === '%' && isWordLikeChar(text[end - 1])) {
+  if (
+    end < text.length
+    && text[end] === '%'
+    && isWordLikeChar(text[end - 1])
+  ) {
     end += 1
   }
 
-  return { start, end, reason: range.reason }
-}
-
-function collectTokenStarts(text: string): number[] {
-  const starts: number[] = []
-  let inToken = false
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index]
-    const wordLike = isWordLikeChar(char)
-    if (wordLike && !inToken) {
-      starts.push(index)
-      inToken = true
-    } else if (!wordLike) {
-      inToken = false
-    }
+  return {
+    start,
+    end,
+    reason: range.reason,
   }
-
-  return starts
 }
 
-function collectTokenEnds(text: string): number[] {
-  const ends: number[] = []
-  let inToken = false
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index]
-    const wordLike = isWordLikeChar(char)
-
-    if (wordLike) {
-      inToken = true
-      continue
-    }
-
-    if (inToken) {
-      ends.push(index)
-      inToken = false
-    }
-  }
-
-  if (inToken) ends.push(text.length)
-
-  return ends
-}
-
-function scoreFragment(fragment: string, reason: CvHighlightReason): number {
-  const trimmed = fragment.trim()
-  if (!trimmed) return Number.NEGATIVE_INFINITY
-
-  let score = 0
-
-  if (HIGHLIGHT_METRIC_PATTERN.test(trimmed)) score += 40
-  if (HIGHLIGHT_SCALE_COMPLEXITY_PATTERN.test(trimmed)) score += 28
-  if (HIGHLIGHT_BUSINESS_IMPACT_PATTERN.test(trimmed)) score += 20
-  if (HIGHLIGHT_TOOL_CONTEXT_PATTERN.test(trimmed)) score += 6
-  if (HIGHLIGHT_VERB_HINT_PATTERN.test(trimmed)) score += 8
-  if (HIGHLIGHT_SEMANTIC_DESCRIPTOR_HINT_PATTERN.test(trimmed)) score += 6
-
-  if (reason === 'metric_impact') score += 8
-  if (reason === 'business_impact') score += 6
-
-  if (HIGHLIGHT_WEAK_GENERIC_LEAD_PATTERN.test(trimmed)) score -= 10
-  if (countHighlightWords(trimmed) <= 2) score -= 12
-  if (countHighlightWords(trimmed) >= 18) score -= 12
-
-  return score
-}
-
-function buildCandidateRanges(text: string, range: CvHighlightRange): CvHighlightRange[] {
-  const tokenStarts = collectTokenStarts(text)
-  const tokenEnds = collectTokenEnds(text)
-
-  const candidateStarts = tokenStarts
-    .filter((start) => start >= range.start && start <= Math.min(range.end + 40, text.length))
-    .slice(0, HIGHLIGHT_MAX_CANDIDATE_STARTS)
-
-  const candidateEnds = tokenEnds
-    .filter((end) => end >= Math.max(range.end, range.start + 1) && end <= Math.min(range.end + HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS, text.length))
-    .slice(0, HIGHLIGHT_MAX_CANDIDATE_ENDS)
-
-  const candidates: CvHighlightRange[] = [range]
-
-  for (const start of candidateStarts) {
-    for (const end of candidateEnds) {
-      if (end <= start) continue
-
-      const trimmed = trimHighlightEdgeNoiseBounds(text, start, end)
-      if (!trimmed) continue
-
-      candidates.push({
-        start: trimmed.start,
-        end: trimmed.end,
-        reason: range.reason,
-      })
-    }
-  }
-
-  return candidates
-}
-
-function preferCandidate(
-  left: CvHighlightRange,
-  right: CvHighlightRange,
+function readShortContinuationEnd(
   text: string,
-): boolean {
-  const leftFragment = text.slice(left.start, left.end)
-  const rightFragment = text.slice(right.start, right.end)
+  start: number,
+): number | null {
+  let cursor = start
 
-  const leftScore = scoreFragment(leftFragment, left.reason)
-  const rightScore = scoreFragment(rightFragment, right.reason)
+  while (
+    cursor < text.length
+    && cursor - start <= HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS
+  ) {
+    const char = text[cursor]
+    if (
+      char === HIGHLIGHT_STACK_SEPARATOR_CHAR
+      || (
+        /[.!?]/u.test(char)
+        && !isInlineDecimalOrAbbreviationBoundary(text, cursor)
+      )
+    ) {
+      break
+    }
 
-  if (leftScore !== rightScore) return leftScore > rightScore
+    if (
+      cursor > start
+      && (
+        char === ','
+        || char === ':'
+        || char === ';'
+        || char === '('
+        || char === '['
+      )
+    ) {
+      break
+    }
 
-  const leftLength = left.end - left.start
-  const rightLength = right.end - right.start
+    cursor += 1
+  }
 
-  if (leftLength !== rightLength) return leftLength < rightLength
-  if (left.start !== right.start) return left.start > right.start
+  while (cursor > start && isWhitespaceLike(text[cursor - 1])) {
+    cursor -= 1
+  }
 
-  return left.end < right.end
+  if (cursor <= start) {
+    return null
+  }
+
+  return cursor
 }
 
-function chooseBestSemanticCandidate(
+function shouldExpandAcrossBoundary(
+  separatorChar: string,
+  continuationText: string,
+): boolean {
+  const trimmed = continuationText.trim()
+  const normalized = normalizeLeadingContinuationText(continuationText)
+  const attachedContinuation = startsWithAttachedContinuation(normalized)
+  if (!trimmed || !hasMeaningfulHighlightContent(trimmed)) {
+    return false
+  }
+
+  if (trimmed.length > HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS) {
+    return false
+  }
+
+  if (
+    countHighlightWords(normalized || trimmed)
+    > (attachedContinuation ? HIGHLIGHT_MAX_CONTINUATION_WORDS + 4 : HIGHLIGHT_MAX_CONTINUATION_WORDS)
+  ) {
+    return false
+  }
+
+  if (HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(normalized || trimmed)) {
+    return false
+  }
+
+  if (separatorChar === ':' || separatorChar === ';') {
+    return /^[$\d\p{Lu}]/u.test(normalized || trimmed)
+  }
+
+  if (separatorChar === ',') {
+    return attachedContinuation
+      || isLikelyNounPhraseContinuation(normalized)
+      || /^[$\d]/u.test(normalized || trimmed)
+  }
+
+  return true
+}
+
+function shouldPreferPhraseClosure(
+  text: string,
+  range: CvHighlightRange,
+  candidateEnd: number,
+): boolean {
+  if (candidateEnd <= range.end) {
+    return false
+  }
+
+  const addition = text.slice(range.end, candidateEnd).trim()
+  const normalizedAddition = normalizeLeadingContinuationText(addition)
+  const currentFragment = text.slice(range.start, range.end).trim()
+  if (!addition || !hasMeaningfulHighlightContent(addition)) {
+    return false
+  }
+
+  if (addition.length > HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS) {
+    return false
+  }
+
+  if (
+    countHighlightWords(normalizedAddition || addition)
+    > (startsWithAttachedContinuation(normalizedAddition) ? HIGHLIGHT_MAX_CONTINUATION_WORDS + 2 : HIGHLIGHT_MAX_CONTINUATION_WORDS)
+  ) {
+    return false
+  }
+
+  if (HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(normalizedAddition || addition)) {
+    return false
+  }
+
+  if (/^(?:for|with|by|via|through|across)\b/i.test(normalizedAddition)) {
+    return false
+  }
+
+  const attachedContinuation = HIGHLIGHT_GERUND_CONTINUATION_PATTERN.test(normalizedAddition)
+    || HIGHLIGHT_COORDINATED_CONTINUATION_PATTERN.test(normalizedAddition)
+
+  const nounPhraseClosure = isLikelyNounPhraseContinuation(normalizedAddition)
+    && (
+      /[$\d%]/u.test(currentFragment)
+      || hasSemanticClosureLead(currentFragment)
+    )
+
+  const prepositionalClosure = isLikelyTightPrepositionalClosure(normalizedAddition)
+    && hasSemanticClosureLead(currentFragment)
+
+  const semanticComplementClosure = isLikelyTightSemanticComplementClosure(normalizedAddition)
+    && hasSemanticClosureLead(currentFragment)
+
+  if (!attachedContinuation && !nounPhraseClosure && !prepositionalClosure && !semanticComplementClosure) {
+    return false
+  }
+
+  const mergedText = text.slice(range.start, candidateEnd).trim()
+  if (mergedText.includes(HIGHLIGHT_STACK_SEPARATOR_CHAR)) {
+    return false
+  }
+
+  return mergedText.length <= HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS * 2
+    && countHighlightWords(mergedText) <= HIGHLIGHT_MAX_CONTINUATION_WORDS + 5
+}
+
+function expandRangeRightAcrossSeparator(
   text: string,
   range: CvHighlightRange,
 ): CvHighlightRange {
-  const candidates = buildCandidateRanges(text, range)
-    .map((candidate) => normalizeRangeToWordBoundaries(text, candidate))
-    .map((candidate) => expandRangeLeftForCurrencyPrefix(text, candidate))
-    .map((candidate) => expandRangeAcrossInlineCompositeTerms(text, candidate))
-    .filter((candidate) => candidate.end > candidate.start)
-    .filter((candidate, index, list) => {
-      return list.findIndex((other) =>
-        other.start === candidate.start
-        && other.end === candidate.end
-        && other.reason === candidate.reason) === index
-    })
-
-  let best = range
-
-  for (const candidate of candidates) {
-    const fragment = text.slice(candidate.start, candidate.end)
-    if (!hasMeaningfulHighlightContent(fragment)) continue
-
-    if (preferCandidate(candidate, best, text)) {
-      best = candidate
-    }
+  let separatorIndex = range.end
+  while (separatorIndex < text.length && isWhitespaceLike(text[separatorIndex])) {
+    separatorIndex += 1
   }
 
-  return best
+  const separatorChar = text[separatorIndex]
+  if (!separatorChar || !HIGHLIGHT_BRIDGEABLE_BOUNDARY_CHARS.has(separatorChar)) {
+    return range
+  }
+
+  let continuationStart = separatorIndex + 1
+  while (continuationStart < text.length && isWhitespaceLike(text[continuationStart])) {
+    continuationStart += 1
+  }
+
+  const continuationEnd = readShortContinuationEnd(text, continuationStart)
+  if (continuationEnd === null) {
+    return range
+  }
+
+  const continuationText = text.slice(continuationStart, continuationEnd)
+  if (!shouldExpandAcrossBoundary(separatorChar, continuationText)) {
+    return range
+  }
+
+  return {
+    start: range.start,
+    end: continuationEnd,
+    reason: range.reason,
+  }
+}
+
+function expandRangeRightForPhraseClosure(
+  text: string,
+  range: CvHighlightRange,
+): CvHighlightRange {
+  let continuationStart = range.end
+  while (continuationStart < text.length && isWhitespaceLike(text[continuationStart])) {
+    continuationStart += 1
+  }
+
+  if (continuationStart >= text.length) {
+    return range
+  }
+
+  const continuationEnd = readShortContinuationEnd(text, continuationStart)
+  if (continuationEnd === null) {
+    return range
+  }
+
+  if (!shouldPreferPhraseClosure(text, range, continuationEnd)) {
+    return range
+  }
+
+  return {
+    start: range.start,
+    end: continuationEnd,
+    reason: range.reason,
+  }
 }
 
 function isLikelyPipeStackText(text: string): boolean {
   const pipeCount = text.split(HIGHLIGHT_STACK_SEPARATOR_CHAR).length - 1
-  if (pipeCount < 2) return false
+  if (pipeCount < 2) {
+    return false
+  }
+
   return !HIGHLIGHT_VERB_HINT_PATTERN.test(text)
 }
 
-function isWeakPipeSegment(itemText: string, fragment: string): boolean {
-  if (!isLikelyPipeStackText(itemText)) return false
-  if (/\d|\$|%/u.test(fragment) || HIGHLIGHT_VERB_HINT_PATTERN.test(fragment)) return false
+function isWeakPipeSegment(
+  itemText: string,
+  fragment: string,
+): boolean {
+  if (!isLikelyPipeStackText(itemText)) {
+    return false
+  }
+
+  if (/\d|\$|%/u.test(fragment) || HIGHLIGHT_VERB_HINT_PATTERN.test(fragment)) {
+    return false
+  }
+
   return countHighlightWords(fragment) <= 2
 }
 
@@ -615,41 +831,67 @@ function constrainRangeToPipeSegment(
   range: CvHighlightRange,
 ): CvHighlightRange | null {
   const fragment = text.slice(range.start, range.end)
-
   if (!fragment.includes(HIGHLIGHT_STACK_SEPARATOR_CHAR)) {
-    if (isWeakPipeSegment(text, fragment.trim())) return null
+    if (isWeakPipeSegment(text, fragment.trim())) {
+      return null
+    }
+
     return range
   }
 
-  const segments = fragment
-    .split(HIGHLIGHT_STACK_SEPARATOR_CHAR)
-    .map((segment) => segment.trim())
-    .filter(Boolean)
+  let bestBounds: { start: number; end: number } | null = null
+  let cursor = range.start
 
-  if (segments.length === 0) return null
-
-  let bestSegment = segments[0]
-  let bestScore = scoreFragment(bestSegment, range.reason)
-
-  for (const segment of segments.slice(1)) {
-    const score = scoreFragment(segment, range.reason)
-    if (score > bestScore) {
-      bestSegment = segment
-      bestScore = score
+  while (cursor < range.end) {
+    while (
+      cursor < range.end
+      && (
+        text[cursor] === HIGHLIGHT_STACK_SEPARATOR_CHAR
+        || isWhitespaceLike(text[cursor])
+      )
+    ) {
+      cursor += 1
     }
+
+    if (cursor >= range.end) {
+      break
+    }
+
+    let segmentEnd = cursor
+    while (
+      segmentEnd < range.end
+      && text[segmentEnd] !== HIGHLIGHT_STACK_SEPARATOR_CHAR
+    ) {
+      segmentEnd += 1
+    }
+
+    const trimmedBounds = trimHighlightEdgeNoiseBounds(text, cursor, segmentEnd)
+    if (trimmedBounds) {
+      if (
+        !bestBounds
+        || trimmedBounds.end - trimmedBounds.start > bestBounds.end - bestBounds.start
+      ) {
+        bestBounds = trimmedBounds
+      }
+    }
+
+    cursor = segmentEnd + 1
   }
 
-  const start = text.indexOf(bestSegment, range.start)
-  if (start < 0) return null
+  if (!bestBounds) {
+    return null
+  }
 
-  const constrained = {
-    start,
-    end: start + bestSegment.length,
+  const bestFragment = text.slice(bestBounds.start, bestBounds.end).trim()
+  if (!bestFragment || isWeakPipeSegment(text, bestFragment)) {
+    return null
+  }
+
+  return {
+    start: bestBounds.start,
+    end: bestBounds.end,
     reason: range.reason,
   }
-
-  if (isWeakPipeSegment(text, bestSegment)) return null
-  return constrained
 }
 
 function shouldMergeAcrossIgnorableGap(
@@ -657,23 +899,29 @@ function shouldMergeAcrossIgnorableGap(
   previousRange: CvHighlightRange,
   nextRange: CvHighlightRange,
 ): boolean {
-  if (previousRange.reason !== nextRange.reason) return false
+  if (previousRange.reason !== nextRange.reason) {
+    return false
+  }
 
   const gapText = text.slice(previousRange.end, nextRange.start)
-  if (!gapText) return false
+  if (!gapText) {
+    return false
+  }
 
-  if (
-    [...gapText].some(
-      (char) => !isWhitespaceLike(char) && !HIGHLIGHT_MERGEABLE_GAP_CHARS.has(char),
-    )
-  ) {
+  if ([...gapText].some((char) => (
+    !isWhitespaceLike(char)
+    && !HIGHLIGHT_MERGEABLE_GAP_CHARS.has(char)
+  ))) {
     return false
   }
 
   const mergedText = text.slice(previousRange.start, nextRange.end).trim()
-  if (mergedText.includes(HIGHLIGHT_STACK_SEPARATOR_CHAR)) return false
+  if (mergedText.includes(HIGHLIGHT_STACK_SEPARATOR_CHAR)) {
+    return false
+  }
 
-  return countHighlightWords(mergedText) <= HIGHLIGHT_MAX_CONTINUATION_WORDS + 4
+  return countHighlightWords(mergedText) <= HIGHLIGHT_MAX_CONTINUATION_WORDS + 3
+    && mergedText.length <= HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS * 2
 }
 
 export function normalizeHighlightSpanBoundaries(
@@ -681,14 +929,18 @@ export function normalizeHighlightSpanBoundaries(
   range: CvHighlightRange,
 ): CvHighlightRange | null {
   let normalizedRange = clampHighlightRange(text.length, range)
-  if (!normalizedRange) return null
+  if (!normalizedRange) {
+    return null
+  }
 
   const trimmedInitialBounds = trimHighlightEdgeNoiseBounds(
     text,
     normalizedRange.start,
     normalizedRange.end,
   )
-  if (!trimmedInitialBounds) return null
+  if (!trimmedInitialBounds) {
+    return null
+  }
 
   normalizedRange = {
     start: trimmedInitialBounds.start,
@@ -699,12 +951,18 @@ export function normalizeHighlightSpanBoundaries(
   normalizedRange = normalizeRangeToWordBoundaries(text, normalizedRange)
   normalizedRange = expandRangeLeftForCurrencyPrefix(text, normalizedRange)
   normalizedRange = expandRangeAcrossInlineCompositeTerms(text, normalizedRange)
-
-  normalizedRange = chooseBestSemanticCandidate(text, normalizedRange)
+  normalizedRange = expandRangeRightAcrossSeparator(text, normalizedRange)
+  normalizedRange = expandRangeRightForPhraseClosure(text, normalizedRange)
+  normalizedRange = normalizeRangeToWordBoundaries(text, normalizedRange)
+  normalizedRange = expandRangeLeftForCurrencyPrefix(text, normalizedRange)
+  normalizedRange = expandRangeAcrossInlineCompositeTerms(text, normalizedRange)
 
   if (text.includes(HIGHLIGHT_STACK_SEPARATOR_CHAR)) {
     const constrainedRange = constrainRangeToPipeSegment(text, normalizedRange)
-    if (!constrainedRange) return null
+    if (!constrainedRange) {
+      return null
+    }
+
     normalizedRange = constrainedRange
   }
 
@@ -713,9 +971,11 @@ export function normalizeHighlightSpanBoundaries(
     normalizedRange.start,
     normalizedRange.end,
   )
-  if (!trimmedFinalBounds) return null
+  if (!trimmedFinalBounds) {
+    return null
+  }
 
-  const finalRange: CvHighlightRange = {
+  const finalRange = {
     start: trimmedFinalBounds.start,
     end: trimmedFinalBounds.end,
     reason: normalizedRange.reason,
@@ -742,7 +1002,6 @@ export function normalizeHighlightRangesForSegmentation(
 
   return sortedRanges.reduce<CvHighlightRange[]>((acc, range) => {
     const previousRange = acc[acc.length - 1]
-
     if (!previousRange) {
       acc.push(range)
       return acc
@@ -757,20 +1016,12 @@ export function normalizeHighlightRangesForSegmentation(
     }
 
     if (range.start < previousRange.end) {
-      if (preferCandidate(range, previousRange, text)) {
-        acc[acc.length - 1] = range
-      }
+      previousRange.end = Math.max(previousRange.end, range.end)
       return acc
     }
 
     if (shouldMergeAcrossIgnorableGap(text, previousRange, range)) {
-      const merged: CvHighlightRange = {
-        start: previousRange.start,
-        end: range.end,
-        reason: previousRange.reason,
-      }
-
-      acc[acc.length - 1] = preferCandidate(merged, previousRange, text) ? merged : previousRange
+      previousRange.end = range.end
       return acc
     }
 
@@ -780,14 +1031,11 @@ export function normalizeHighlightRangesForSegmentation(
 }
 
 function isCompactMeasurableExperienceHighlight(text: string): boolean {
-  if (text.trim().length > COMPACT_EXPERIENCE_HIGHLIGHT_MAX_LENGTH) return false
+  if (text.trim().length > COMPACT_EXPERIENCE_HIGHLIGHT_MAX_LENGTH) {
+    return false
+  }
 
-  return (
-    /\d/.test(text)
-    && /\b(reduced|increased|improved|grew|cut|saved|boosted|generated|delivered|optimized|accelerated|elevated|expanded|aumentei|reduzi|elevei|melhorei|otimizei|ampliei|gerei|entreguei|acelerei|expandi)\b/i.test(
-      text,
-    )
-  )
+  return /\d/.test(text) && /\b(reduced|increased|improved|grew|cut|saved|boosted|generated|delivered|optimized|accelerated|elevated|expanded|aumentei|reduzi|elevei|melhorei|otimizei|ampliei|gerei|entreguei|acelerei|expandi)\b/i.test(text)
 }
 
 export function isEditoriallyAcceptableHighlightRange(
@@ -797,74 +1045,27 @@ export function isEditoriallyAcceptableHighlightRange(
 ): boolean {
   const textLength = Math.max(text.trim().length, 1)
   const coverage = (range.end - range.start) / textLength
-  const fragment = text.slice(range.start, range.end)
 
   if (section === 'summary') {
     return coverage <= SUMMARY_MAX_HIGHLIGHT_COVERAGE
   }
 
-  const ceiling = adaptiveCoverageThreshold(textLength)
-
-  if (scoreFragment(fragment, range.reason) >= 36) {
-    return coverage <= Math.max(ceiling, 0.82)
+  if (coverage <= EXPERIENCE_MAX_HIGHLIGHT_COVERAGE) {
+    return true
   }
 
-  if (coverage <= ceiling) return true
-
-  return (
-    range.start === 0
+  return range.start === 0
     && range.end === text.length
     && isCompactMeasurableExperienceHighlight(text)
-  )
-}
-
-function buildFallbackHighlightRange(text: string): CvHighlightRange | null {
-  const verbMatch = HIGHLIGHT_FALLBACK_ACTION_VERB_PATTERN.exec(text)
-  if (!verbMatch) return null
-
-  const metricMatch = HIGHLIGHT_METRIC_PATTERN.exec(text)
-  const scaleMatch = HIGHLIGHT_SCALE_COMPLEXITY_PATTERN.exec(text)
-
-  const anchor = metricMatch ?? scaleMatch ?? verbMatch
-  const candidate: CvHighlightRange = {
-    start: anchor.index,
-    end: Math.min(text.length, anchor.index + anchor[0].length + 36),
-    reason: metricMatch ? 'metric_impact' : 'ats_strength',
-  }
-
-  return normalizeHighlightSpanBoundaries(text, candidate)
-}
-
-function applyFallbackHighlightsForUnmarkedItems(
-  items: CvHighlightInputItem[],
-  resolvedHighlights: CvResolvedHighlight[],
-): CvResolvedHighlight[] {
-  const highlightedIds = new Set(resolvedHighlights.map((h) => h.itemId))
-  const supplementary: CvResolvedHighlight[] = []
-
-  for (const item of items) {
-    if (item.section !== 'experience') continue
-    if (highlightedIds.has(item.itemId)) continue
-
-    const fallbackRange = buildFallbackHighlightRange(item.text)
-    if (!fallbackRange) continue
-    if (!isEditoriallyAcceptableHighlightRange(item.text, fallbackRange, 'experience')) continue
-
-    supplementary.push({
-      itemId: item.itemId,
-      section: 'experience',
-      ranges: [fallbackRange],
-    })
-  }
-
-  return [...resolvedHighlights, ...supplementary]
 }
 
 export function validateAndResolveHighlights(
   items: CvHighlightInputItem[],
   raw: unknown,
 ): CvResolvedHighlight[] {
-  if (items.length === 0) return []
+  if (items.length === 0) {
+    return []
+  }
 
   const itemMap = new Map(items.map((item) => [item.itemId, item]))
   const detectionItems = parseRawHighlightDetection(raw)
@@ -872,7 +1073,10 @@ export function validateAndResolveHighlights(
   const resolved: CvResolvedHighlight[] = []
 
   detectionItems.forEach((candidate) => {
-    if (!itemMap.has(candidate.itemId) || !Array.isArray(candidate.ranges)) return
+    if (!itemMap.has(candidate.itemId) || !Array.isArray(candidate.ranges)) {
+      return
+    }
+
     const existingRanges = rangesByItemId.get(candidate.itemId) ?? []
     existingRanges.push(...candidate.ranges)
     rangesByItemId.set(candidate.itemId, existingRanges)
@@ -880,32 +1084,52 @@ export function validateAndResolveHighlights(
 
   rangesByItemId.forEach((candidateRanges, itemId) => {
     const item = itemMap.get(itemId)
-    if (!item) return
+    if (!item) {
+      return
+    }
 
     const normalizedRanges = normalizeHighlightRangesForSegmentation(item.text, candidateRanges)
     const validRanges = normalizedRanges.reduce<CvHighlightRange[]>((acc, range) => {
       const previousRange = acc[acc.length - 1]
 
-      if (!isSafeNonOverlappingRange(range, item.text, previousRange)) return acc
-      if (!isEditoriallyAcceptableHighlightRange(item.text, range, item.section)) return acc
+      if (!isSafeNonOverlappingRange(range, item.text, previousRange)) {
+        return acc
+      }
 
-      acc.push({ start: range.start, end: range.end, reason: range.reason })
+      if (!isEditoriallyAcceptableHighlightRange(item.text, range, item.section)) {
+        return acc
+      }
+
+      acc.push({
+        start: range.start,
+        end: range.end,
+        reason: range.reason,
+      })
+
       return acc
     }, [])
 
-    if (validRanges.length === 0) return
+    if (validRanges.length === 0) {
+      return
+    }
 
-    resolved.push({ itemId, section: item.section, ranges: validRanges })
+    resolved.push({
+      itemId,
+      section: item.section,
+      ranges: validRanges,
+    })
   })
 
-  return applyFallbackHighlightsForUnmarkedItems(items, resolved)
+  return resolved
 }
 
 export function getHighlightRangesForItem(
   resolvedHighlights: CvResolvedHighlight[] | undefined,
   itemId: string,
 ): CvHighlightRange[] {
-  if (!resolvedHighlights) return []
+  if (!resolvedHighlights) {
+    return []
+  }
 
   return resolvedHighlights
     .filter((highlight) => highlight.itemId === itemId)
@@ -928,7 +1152,10 @@ export function segmentTextByHighlightRanges(
 
   normalizedRanges.forEach((range) => {
     if (cursor < range.start) {
-      segments.push({ text: text.slice(cursor, range.start), highlighted: false })
+      segments.push({
+        text: text.slice(cursor, range.start),
+        highlighted: false,
+      })
     }
 
     segments.push({
@@ -940,7 +1167,10 @@ export function segmentTextByHighlightRanges(
   })
 
   if (cursor < text.length) {
-    segments.push({ text: text.slice(cursor), highlighted: false })
+    segments.push({
+      text: text.slice(cursor),
+      highlighted: false,
+    })
   }
 
   return segments
