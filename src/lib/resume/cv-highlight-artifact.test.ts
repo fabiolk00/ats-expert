@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildExperienceBulletHighlightItemIds,
+  computeCvStateFingerprint,
   CV_HIGHLIGHT_ARTIFACT_VERSION,
   createExperienceBulletHighlightItemId,
   createSummaryHighlightItemId,
   flattenCvStateForHighlight,
   getHighlightRangesForItem,
+  highlightStateMatchesCvState,
   isEditoriallyAcceptableHighlightRange,
   normalizeCvHighlightState,
   normalizeHighlightRangesForSegmentation,
@@ -16,6 +18,10 @@ import {
 } from './cv-highlight-artifact'
 import type { CVState } from '@/types/cv'
 import type { CvHighlightReason } from './cv-highlight-artifact'
+
+// ---------------------------------------------------------------------------
+// Builders
+// ---------------------------------------------------------------------------
 
 function buildCvState(overrides: Partial<CVState> = {}): CVState {
   return {
@@ -58,6 +64,10 @@ function buildRange(
     reason,
   }
 }
+
+// ---------------------------------------------------------------------------
+// Core flatten / id helpers
+// ---------------------------------------------------------------------------
 
 describe('cv highlight artifact helpers', () => {
   it('emits summary_0 when summary is present', () => {
@@ -269,33 +279,6 @@ describe('cv highlight artifact helpers', () => {
     expect(buildExperienceBulletHighlightItemIds(experience)[0]).not.toBe(buildExperienceBulletHighlightItemIds(experience)[1])
   })
 
-  it('rejects summary and long bullet ranges that exceed editorial coverage thresholds', () => {
-    const summary = 'Senior data engineer focused on BI modernization and executive reporting across LATAM.'
-    const longBullet = 'Led Azure Databricks pipelines that reduced processing time by 40% with governance, orchestration, and stakeholder reporting.'
-
-    expect(isEditoriallyAcceptableHighlightRange(summary, {
-      start: 0,
-      end: Math.floor(summary.length * 0.75),
-      reason: 'ats_strength',
-    }, 'summary')).toBe(false)
-
-    expect(isEditoriallyAcceptableHighlightRange(longBullet, {
-      start: 0,
-      end: longBullet.length,
-      reason: 'metric_impact',
-    }, 'experience')).toBe(false)
-  })
-
-  it('allows compact measurable full-bullet highlights only for short experience bullets', () => {
-    const compactBullet = 'Reduced costs 40% in LATAM.'
-
-    expect(isEditoriallyAcceptableHighlightRange(compactBullet, {
-      start: 0,
-      end: compactBullet.length,
-      reason: 'metric_impact',
-    }, 'experience')).toBe(true)
-  })
-
   it('returns matching ranges for an item or an empty array', () => {
     const resolved = [
       {
@@ -339,6 +322,10 @@ describe('cv highlight artifact helpers', () => {
       generatedAt: '2026-04-22T12:00:00.000Z',
     })).toBeUndefined()
   })
+
+  // -------------------------------------------------------------------------
+  // Span boundary normalization — pre-existing cases
+  // -------------------------------------------------------------------------
 
   it('extends slash-separated technical phrases to a complete local term', () => {
     const text = 'Improved CI/CD reliability for weekly releases.'
@@ -626,5 +613,451 @@ describe('cv highlight artifact helpers', () => {
     expect(text.slice(range!.start, range!.end)).toBe(
       'Atuei com foco em Business Intelligence para o projeto Intelbras',
     )
+  })
+
+  // -------------------------------------------------------------------------
+  // CHANGE #1 — multi-step stabilising expansion loop
+  // -------------------------------------------------------------------------
+
+  describe('CHANGE #1 — stabilising expansion loop', () => {
+    it('closes a span that requires two consecutive separator steps to reach the metric', () => {
+      // First step: expands across the comma after "latency".
+      // Second step: expands across the whitespace before "40%".
+      // Without the loop, the second step would not run.
+      const text = 'Reduced latency, by 40%, contributing to SLA compliance.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Reduced latency', 'metric_impact'),
+      )
+
+      expect(range).not.toBeNull()
+      // The span must at least absorb the metric; the gerund tail is optional.
+      expect(text.slice(range!.start, range!.end)).toContain('40%')
+    })
+
+    it('does not keep expanding after the semantic unit is closed', () => {
+      // The loop must stabilise — it should not keep pulling in unrelated content.
+      const text = 'Improved pipeline throughput by 3x. Migrated legacy workloads to GCP.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Improved pipeline throughput by 3x', 'metric_impact'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe('Improved pipeline throughput by 3x')
+    })
+
+    it('absorbs a separator followed by a gerund in a single stabilised pass', () => {
+      const text = 'Scaled Databricks clusters, reducing monthly spend by 30%.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Scaled Databricks clusters', 'action_result'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe(
+        'Scaled Databricks clusters, reducing monthly spend by 30%',
+      )
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // CHANGE #2 — parenthetical metric absorption
+  // -------------------------------------------------------------------------
+
+  describe('CHANGE #2 — parenthetical metric absorption', () => {
+    it('absorbs a matched parenthetical annotation with a metric inside', () => {
+      const text = 'Reduced latency (by 40%) in production systems.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Reduced latency', 'metric_impact'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe('Reduced latency (by 40%)')
+    })
+
+    it('absorbs a matched parenthetical annotation with a multiplier metric', () => {
+      const text = 'Improved throughput (3x faster) with zero downtime.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Improved throughput', 'metric_impact'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe('Improved throughput (3x faster)')
+    })
+
+    it('does not absorb an unmatched opening parenthesis', () => {
+      // No closing ')' within the look-ahead window — should stop before '('.
+      const text = 'Built pipelines (without corresponding closure for this test case because the text is deliberately truncated here and goes beyond the boundary limit.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Built pipelines', 'action_result'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).not.toContain('(')
+    })
+
+    it('absorbs tool context inside parentheses when the fragment is a tool name', () => {
+      const text = 'Automated ingestion workflows (Azure Data Factory, Databricks).'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Automated ingestion workflows', 'tool_context'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe(
+        'Automated ingestion workflows (Azure Data Factory, Databricks)',
+      )
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // CHANGE #3 — conditional blocking of metric prepositions by/for/with
+  // -------------------------------------------------------------------------
+
+  describe('CHANGE #3 — metric preposition closure', () => {
+    it('extends "reduced X by N%" to absorb the metric complement when the fragment has a verb lead', () => {
+      const text = 'Reduced processing time by 40%.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Reduced processing time', 'metric_impact'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe('Reduced processing time by 40%')
+    })
+
+    it('extends "built X for N clients" to absorb the quantified object complement', () => {
+      const text = 'Built data pipelines for 3 enterprise clients.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Built data pipelines', 'action_result'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe('Built data pipelines for 3 enterprise clients')
+    })
+
+    it('extends "delivered X with zero Y" when the complement is compact and metric-adjacent', () => {
+      const text = 'Delivered migrations with zero downtime.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Delivered migrations', 'action_result'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe('Delivered migrations with zero downtime')
+    })
+
+    it('still blocks "by/for/with" when the current fragment has no semantic closure lead', () => {
+      // The fragment "dashboards" alone has no verb or metric — the preposition
+      // continuation should not be absorbed.
+      const text = 'Dashboards for 5 regional directors.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Dashboards', 'tool_context'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe('Dashboards')
+    })
+
+    it('does not extend into a long non-metric "for" tail even with a verb lead', () => {
+      // "for the operations team across all LATAM regions" is too long (> 10 words)
+      const text = 'Built reporting infrastructure for the operations team across all LATAM regions.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Built reporting infrastructure', 'action_result'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe('Built reporting infrastructure')
+    })
+
+    it('extends a Portuguese metric complement with "em" when the fragment has a verb lead', () => {
+      const text = 'Reduzi o tempo de processamento em 40%.'
+      const range = normalizeHighlightSpanBoundaries(
+        text,
+        buildRange(text, 'Reduzi o tempo de processamento', 'metric_impact'),
+      )
+
+      expect(range).not.toBeNull()
+      expect(text.slice(range!.start, range!.end)).toBe('Reduzi o tempo de processamento em 40%')
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // CHANGE #4 — CVState fingerprinting
+  // -------------------------------------------------------------------------
+
+  describe('CHANGE #4 — CVState fingerprinting', () => {
+    it('produces the same fingerprint for two structurally identical states', () => {
+      const stateA = buildCvState()
+      const stateB = buildCvState()
+
+      expect(computeCvStateFingerprint(stateA)).toBe(computeCvStateFingerprint(stateB))
+    })
+
+    it('produces a different fingerprint when bullet text changes', () => {
+      const base = buildCvState()
+      const modified = buildCvState({
+        experience: [{
+          ...base.experience[0],
+          bullets: [
+            'Led Azure Databricks pipelines that reduced processing time by 55%.',
+            '',
+            'Built executive dashboards for regional stakeholders.',
+          ],
+        }],
+      })
+
+      expect(computeCvStateFingerprint(base)).not.toBe(computeCvStateFingerprint(modified))
+    })
+
+    it('produces a different fingerprint when summary changes', () => {
+      const base = buildCvState()
+      const modified = buildCvState({ summary: 'Different summary content here.' })
+
+      expect(computeCvStateFingerprint(base)).not.toBe(computeCvStateFingerprint(modified))
+    })
+
+    it('highlightStateMatchesCvState returns true when the fingerprint matches', () => {
+      const cvState = buildCvState()
+      const fingerprint = computeCvStateFingerprint(cvState)
+
+      const highlightState = {
+        source: 'rewritten_cv_state' as const,
+        version: CV_HIGHLIGHT_ARTIFACT_VERSION,
+        generatedAt: '2026-04-22T12:00:00.000Z',
+        resolvedHighlights: [],
+        cvStateFingerprint: fingerprint,
+      }
+
+      expect(highlightStateMatchesCvState(highlightState, cvState)).toBe(true)
+    })
+
+    it('highlightStateMatchesCvState returns false when the fingerprint does not match', () => {
+      const cvState = buildCvState()
+      const differentState = buildCvState({ summary: 'Completely different summary.' })
+      const fingerprint = computeCvStateFingerprint(differentState)
+
+      const highlightState = {
+        source: 'rewritten_cv_state' as const,
+        version: CV_HIGHLIGHT_ARTIFACT_VERSION,
+        generatedAt: '2026-04-22T12:00:00.000Z',
+        resolvedHighlights: [],
+        cvStateFingerprint: fingerprint,
+      }
+
+      expect(highlightStateMatchesCvState(highlightState, cvState)).toBe(false)
+    })
+
+    it('highlightStateMatchesCvState returns false when no fingerprint is stored', () => {
+      const cvState = buildCvState()
+
+      const highlightState = {
+        source: 'rewritten_cv_state' as const,
+        version: CV_HIGHLIGHT_ARTIFACT_VERSION,
+        generatedAt: '2026-04-22T12:00:00.000Z',
+        resolvedHighlights: [],
+      }
+
+      expect(highlightStateMatchesCvState(highlightState, cvState)).toBe(false)
+    })
+
+    it('fingerprint is accent-insensitive and whitespace-normalised', () => {
+      const withAccents = buildCvState({ summary: 'Engenheiro sênior focado em BI.' })
+      const withoutAccents = buildCvState({ summary: 'Engenheiro senior focado em BI.' })
+
+      // After NFD + diacritic strip they canonicalize identically.
+      expect(computeCvStateFingerprint(withAccents)).toBe(computeCvStateFingerprint(withoutAccents))
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // CHANGE #5 — adaptive coverage threshold
+  // -------------------------------------------------------------------------
+
+  describe('CHANGE #5 — adaptive coverage threshold', () => {
+    it('accepts a short bullet (< 60 chars) highlight that covers up to 75 %', () => {
+      const bullet = 'Reduced costs 40% in LATAM.'
+      // Full-bullet highlight — length === text length → 100 % coverage but allowed
+      // via the compact measurable path. Test an explicit 73 % case instead.
+      const text = 'Reduced costs by 40%.'
+      const coverageEnd = Math.floor(text.length * 0.73)
+
+      expect(isEditoriallyAcceptableHighlightRange(
+        text,
+        { start: 0, end: coverageEnd, reason: 'metric_impact' },
+        'experience',
+      )).toBe(true)
+    })
+
+    it('rejects a short bullet highlight that exceeds the 75 % ceiling', () => {
+      const text = 'Reduced costs by 40%.'
+      const coverageEnd = Math.floor(text.length * 0.82)
+
+      expect(isEditoriallyAcceptableHighlightRange(
+        text,
+        { start: 0, end: coverageEnd, reason: 'metric_impact' },
+        'experience',
+      )).toBe(false)
+    })
+
+    it('accepts a medium bullet (60-99 chars) highlight up to 65 %', () => {
+      const text = 'Led migration of 12 Qlik dashboards to Qlik Cloud with zero downtime.'
+      // text.length === 70, 65 % ≈ 45
+      const coverageEnd = Math.floor(text.length * 0.63)
+
+      expect(isEditoriallyAcceptableHighlightRange(
+        text,
+        { start: 0, end: coverageEnd, reason: 'action_result' },
+        'experience',
+      )).toBe(true)
+    })
+
+    it('rejects a medium bullet highlight that exceeds the 65 % ceiling', () => {
+      const text = 'Led migration of 12 Qlik dashboards to Qlik Cloud with zero downtime.'
+      const coverageEnd = Math.floor(text.length * 0.70)
+
+      expect(isEditoriallyAcceptableHighlightRange(
+        text,
+        { start: 0, end: coverageEnd, reason: 'action_result' },
+        'experience',
+      )).toBe(false)
+    })
+
+    it('long bullet (>= 100 chars) still uses the original 55 % ceiling', () => {
+      const longBullet = 'Led Azure Databricks pipelines that reduced processing time by 40% with governance, orchestration, and stakeholder reporting.'
+
+      expect(isEditoriallyAcceptableHighlightRange(
+        longBullet,
+        { start: 0, end: longBullet.length, reason: 'metric_impact' },
+        'experience',
+      )).toBe(false)
+
+      const acceptableEnd = Math.floor(longBullet.length * 0.54)
+
+      expect(isEditoriallyAcceptableHighlightRange(
+        longBullet,
+        { start: 0, end: acceptableEnd, reason: 'metric_impact' },
+        'experience',
+      )).toBe(true)
+    })
+
+    it('rejects summary highlights above 40 % regardless of bullet length logic', () => {
+      const summary = 'Senior data engineer focused on BI modernization and executive reporting across LATAM.'
+
+      expect(isEditoriallyAcceptableHighlightRange(
+        summary,
+        { start: 0, end: Math.floor(summary.length * 0.75), reason: 'ats_strength' },
+        'summary',
+      )).toBe(false)
+    })
+
+    it('allows compact measurable full-bullet highlights for short experience bullets', () => {
+      const compactBullet = 'Reduced costs 40% in LATAM.'
+
+      expect(isEditoriallyAcceptableHighlightRange(
+        compactBullet,
+        { start: 0, end: compactBullet.length, reason: 'metric_impact' },
+        'experience',
+      )).toBe(true)
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // CHANGE #6 — local fallback for strong bullets with no model ranges
+  // -------------------------------------------------------------------------
+
+  describe('CHANGE #6 — local fallback highlight for unmarked measurable bullets', () => {
+    it('synthesises a span when the model returns no ranges for a compact measurable bullet', () => {
+      const text = 'Reduced pipeline cost by 35%.'
+      const items = [{
+        itemId: 'exp_fallback_test',
+        section: 'experience' as const,
+        text,
+      }]
+
+      const result = validateAndResolveHighlights(items, [])
+
+      expect(result).toHaveLength(1)
+      expect(result[0].itemId).toBe('exp_fallback_test')
+      expect(result[0].ranges).toHaveLength(1)
+      expect(result[0].ranges[0].reason).toBe('metric_impact')
+      // Span must contain both the verb and the metric.
+      const span = text.slice(result[0].ranges[0].start, result[0].ranges[0].end)
+      expect(span).toContain('Reduced')
+      expect(span).toContain('35%')
+    })
+
+    it('does not synthesise a fallback for a bullet without a numeric metric', () => {
+      const text = 'Collaborated with the architecture team on governance initiatives.'
+      const items = [{
+        itemId: 'exp_no_metric',
+        section: 'experience' as const,
+        text,
+      }]
+
+      expect(validateAndResolveHighlights(items, [])).toEqual([])
+    })
+
+    it('does not synthesise a fallback for a summary item, only for experience', () => {
+      const text = 'Reduced onboarding time by 50% in Q1 2024.'
+      const items = [{
+        itemId: 'summary_0',
+        section: 'summary' as const,
+        text,
+      }]
+
+      expect(validateAndResolveHighlights(items, [])).toEqual([])
+    })
+
+    it('does not add a fallback when the model already returned ranges for the bullet', () => {
+      const text = 'Improved query performance by 60%.'
+      const items = [{
+        itemId: 'exp_already_highlighted',
+        section: 'experience' as const,
+        text,
+      }]
+
+      const result = validateAndResolveHighlights(items, [{
+        itemId: 'exp_already_highlighted',
+        ranges: [{ start: 0, end: 8, reason: 'action_result' as const }],
+      }])
+
+      // There must be exactly one resolved highlight entry — no duplicate from fallback.
+      expect(result.filter((r) => r.itemId === 'exp_already_highlighted')).toHaveLength(1)
+    })
+
+    it('synthesises a Portuguese fallback for a compact PT bullet with verb and metric', () => {
+      const text = 'Reduzi o custo operacional em 30%.'
+      const items = [{
+        itemId: 'exp_pt_fallback',
+        section: 'experience' as const,
+        text,
+      }]
+
+      const result = validateAndResolveHighlights(items, [])
+
+      expect(result).toHaveLength(1)
+      const span = text.slice(result[0].ranges[0].start, result[0].ranges[0].end)
+      expect(span).toContain('Reduzi')
+      expect(span).toContain('30%')
+    })
+
+    it('does not synthesise a fallback for a long bullet that fails the compact measurable check', () => {
+      const text = 'Led an end-to-end Databricks migration project with extensive stakeholder coordination, documentation, and post-go-live support across three regional teams.'
+      const items = [{
+        itemId: 'exp_long_no_fallback',
+        section: 'experience' as const,
+        text,
+      }]
+
+      expect(validateAndResolveHighlights(items, [])).toEqual([])
+    })
   })
 })
