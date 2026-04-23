@@ -9,10 +9,13 @@ import {
   getHighlightRangesForItem,
   isEditoriallyAcceptableHighlightRange,
   normalizeCvHighlightState,
+  normalizeHighlightRangesForSegmentation,
+  normalizeHighlightSpanBoundaries,
   segmentTextByHighlightRanges,
   validateAndResolveHighlights,
 } from './cv-highlight-artifact'
 import type { CVState } from '@/types/cv'
+import type { CvHighlightReason } from './cv-highlight-artifact'
 
 function buildCvState(overrides: Partial<CVState> = {}): CVState {
   return {
@@ -36,6 +39,23 @@ function buildCvState(overrides: Partial<CVState> = {}): CVState {
     skills: ['SQL', 'Python'],
     education: [],
     ...overrides,
+  }
+}
+
+function buildRange(
+  text: string,
+  fragment: string,
+  reason: CvHighlightReason = 'tool_context',
+) {
+  const start = text.indexOf(fragment)
+  if (start < 0) {
+    throw new Error(`Fragment not found: ${fragment}`)
+  }
+
+  return {
+    start,
+    end: start + fragment.length,
+    reason,
   }
 }
 
@@ -86,6 +106,7 @@ describe('cv highlight artifact helpers', () => {
 
   it('drops invalid highlight entries and ranges', () => {
     const items = flattenCvStateForHighlight(buildCvState())
+    const summaryText = items[0].text
     const result = validateAndResolveHighlights(items, [
       {
         itemId: 'missing_item',
@@ -96,8 +117,8 @@ describe('cv highlight artifact helpers', () => {
         ranges: [
           { start: -1, end: 5, reason: 'ats_strength' },
           { start: 0, end: 6, reason: 'ats_strength' },
-          { start: 4, end: 10, reason: 'tool_context' },
-          { start: 10, end: 1000, reason: 'ats_strength' },
+          buildRange(summaryText, 'focused'),
+          { start: 10, end: 10, reason: 'ats_strength' },
         ],
       },
     ])
@@ -106,7 +127,10 @@ describe('cv highlight artifact helpers', () => {
       {
         itemId: 'summary_0',
         section: 'summary',
-        ranges: [{ start: 0, end: 10, reason: 'ats_strength' }],
+        ranges: [
+          { start: 0, end: 6, reason: 'ats_strength' },
+          buildRange(summaryText, 'focused'),
+        ],
       },
     ])
   })
@@ -139,7 +163,7 @@ describe('cv highlight artifact helpers', () => {
       section: 'summary',
       ranges: [
         { start: 0, end: 6, reason: 'ats_strength' },
-        { start: 7, end: 15, reason: 'business_impact' },
+        { start: 7, end: 20, reason: 'business_impact' },
       ],
     }])
   })
@@ -152,10 +176,10 @@ describe('cv highlight artifact helpers', () => {
     ])
 
     expect(segments).toEqual([
-      { text: 'Reduced processing time by ', highlighted: true, reason: 'metric_impact' },
-      { text: '40% wi', highlighted: false },
-      { text: 'th Azure Databric', highlighted: true, reason: 'tool_context' },
-      { text: 'ks.', highlighted: false },
+      { text: 'Reduced processing time by', highlighted: true, reason: 'metric_impact' },
+      { text: ' 40% ', highlighted: false },
+      { text: 'with Azure Databricks', highlighted: true, reason: 'tool_context' },
+      { text: '.', highlighted: false },
     ])
   })
 
@@ -168,7 +192,8 @@ describe('cv highlight artifact helpers', () => {
 
     expect(segments).toEqual([
       { text: 'Improved', highlighted: true, reason: 'action_result' },
-      { text: ' latency 40%', highlighted: true, reason: 'metric_impact' },
+      { text: ' ', highlighted: false },
+      { text: 'latency 40%', highlighted: true, reason: 'metric_impact' },
     ])
     expect(segments.map((segment) => segment.text).join('')).toBe(text)
   })
@@ -185,7 +210,8 @@ describe('cv highlight artifact helpers', () => {
 
     expect(segments.map((segment) => segment.text).join('')).toBe(text)
     expect(segments).toEqual([
-      { text: 'Reduced processing time by 40% with Azure Databricks.', highlighted: true, reason: 'ats_strength' },
+      { text: 'Reduced processing time by 40% with Azure Databricks', highlighted: true, reason: 'ats_strength' },
+      { text: '.', highlighted: false },
     ])
   })
 
@@ -312,5 +338,133 @@ describe('cv highlight artifact helpers', () => {
       resolvedHighlights: [],
       generatedAt: '2026-04-22T12:00:00.000Z',
     })).toBeUndefined()
+  })
+
+  it('extends slash-separated technical phrases to a complete local term', () => {
+    const text = 'Improved CI/CD reliability for weekly releases.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'CI'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('CI/CD')
+  })
+
+  it('preserves a leading currency symbol as meaningful span content', () => {
+    const text = 'Generated $2.4M in annual savings for the operation.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, '2.4M in annual savings', 'metric_impact'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('$2.4M in annual savings')
+  })
+
+  it('expands across a short comma-separated continuation when the phrase stays compact', () => {
+    const text = 'Built Power BI dashboards, executive reporting.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Power BI dashboards'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('Power BI dashboards, executive reporting')
+  })
+
+  it('does not expand across a real clause break after a comma', () => {
+    const text = 'Reduced latency by 40%, while mentoring the team.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Reduced latency by 40%', 'metric_impact'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('Reduced latency by 40%')
+  })
+
+  it('expands compact metric follow-ups after a colon', () => {
+    const text = 'Savings: $2.4M annualized.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Savings', 'business_impact'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('Savings: $2.4M annualized')
+  })
+
+  it('keeps parenthetical technical content readable instead of truncating mid-token', () => {
+    const text = 'Built governance workflows (Azure Databricks).'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Azure Databrick'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('Azure Databricks')
+  })
+
+  it('keeps balanced parenthetical continuations intact when expanding across an opening wrapper', () => {
+    const text = 'Built governance workflows (Azure Databricks).'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'governance workflows'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('governance workflows (Azure Databricks)')
+  })
+
+  it('merges same-reason ranges across ignorable punctuation gaps without crossing a pipe', () => {
+    const text = 'Power BI dashboards, executive reporting'
+    const ranges = normalizeHighlightRangesForSegmentation(text, [
+      buildRange(text, 'Power BI dashboards'),
+      buildRange(text, 'executive reporting'),
+    ])
+
+    expect(ranges).toEqual([
+      buildRange(text, 'Power BI dashboards, executive reporting'),
+    ])
+  })
+
+  it('drops weak pipe-separated stack atoms instead of preserving noisy micro-spans', () => {
+    const text = 'Python | SQL | dbt | Airflow'
+    const items = [{
+      itemId: 'exp_pipe_stack',
+      section: 'experience' as const,
+      text,
+    }]
+
+    expect(validateAndResolveHighlights(items, [{
+      itemId: 'exp_pipe_stack',
+      ranges: [buildRange(text, 'SQL')],
+    }])).toEqual([])
+  })
+
+  it('drops weak pipe-separated stack atoms even when the flat list includes numeric tokens', () => {
+    const text = 'Python | SQL | dbt | ISO 27001'
+    const items = [{
+      itemId: 'exp_pipe_stack_numeric',
+      section: 'experience' as const,
+      text,
+    }]
+
+    expect(validateAndResolveHighlights(items, [{
+      itemId: 'exp_pipe_stack_numeric',
+      ranges: [buildRange(text, 'SQL')],
+    }])).toEqual([])
+  })
+
+  it('keeps a meaningful pipe-separated segment local instead of grouping the full list', () => {
+    const text = 'Power BI dashboards | stakeholder reporting'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Power BI dashboards |'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('Power BI dashboards')
   })
 })

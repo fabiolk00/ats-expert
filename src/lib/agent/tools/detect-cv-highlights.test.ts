@@ -122,7 +122,7 @@ describe('detectCvHighlights', () => {
       {
         itemId,
         section: 'experience',
-        ranges: [{ start: 0, end: 15, reason: 'metric_impact' }],
+        ranges: [{ start: 0, end: 18, reason: 'metric_impact' }],
       },
     ])
   })

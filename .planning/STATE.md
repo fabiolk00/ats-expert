@@ -36,7 +36,7 @@ Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-22
-Last Activity Description: Phases 93 and 94 complete
+Last Activity Description: Quick task 260422-suf validated locally for separator-aware highlight boundary normalization
 
 Progress: [##########] 100%
 
@@ -152,6 +152,12 @@ Baseline carried forward from earlier shipped milestones:
 ### Blockers or Concerns
 
 - No active implementation blocker is currently known.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 260422-suf | Normalize highlight span boundaries ignoring punctuation separators and refine broken mid-phrase highlights | 2026-04-22 | working-tree | Validated | [260422-suf-normalize-highlight-span-boundaries-igno](./quick/260422-suf-normalize-highlight-span-boundaries-igno/) |
 
 ## Session Continuity
 

@@ -7,6 +7,63 @@ export const CV_HIGHLIGHT_ARTIFACT_VERSION = 2
 const SUMMARY_MAX_HIGHLIGHT_COVERAGE = 0.4
 const EXPERIENCE_MAX_HIGHLIGHT_COVERAGE = 0.55
 const COMPACT_EXPERIENCE_HIGHLIGHT_MAX_LENGTH = 90
+const HIGHLIGHT_STACK_SEPARATOR_CHAR = '|'
+const HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS = 36
+const HIGHLIGHT_MAX_CONTINUATION_WORDS = 5
+
+const HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS = new Set([
+  ',',
+  '.',
+  ':',
+  ';',
+  '(',
+  ')',
+  '[',
+  ']',
+  '/',
+  '\\',
+  HIGHLIGHT_STACK_SEPARATOR_CHAR,
+  '-',
+  '–',
+  '—',
+])
+
+const HIGHLIGHT_BRIDGEABLE_BOUNDARY_CHARS = new Set([
+  ',',
+  ':',
+  ';',
+  '(',
+  '[',
+  '/',
+  '\\',
+  '-',
+  '–',
+  '—',
+])
+
+const HIGHLIGHT_MERGEABLE_GAP_CHARS = new Set([
+  ',',
+  '(',
+  ')',
+  '[',
+  ']',
+  '/',
+  '\\',
+  '-',
+  '–',
+  '—',
+])
+
+const HIGHLIGHT_INLINE_COMPOSITE_CHARS = new Set([
+  '/',
+  '\\',
+  '-',
+  '–',
+  '—',
+])
+
+const HIGHLIGHT_STRONG_CLAUSE_START_PATTERN = /^(?:and|but|while|however|whereas|mas|por(?:e|é)m|enquanto|because|porque)\b/i
+const HIGHLIGHT_VERB_HINT_PATTERN = /\b(?:led|built|created|designed|developed|implemented|managed|reduced|increased|improved|optimized|automated|scaled|delivered|owned|migrated|supported|analyzed|aumentei|reduzi|melhorei|otimizei|automatizei|liderei|criei|desenvolvi|implementei|gerenciei|entreguei|migrei|apoiei|analisei)\b/i
 
 export type CvHighlightInputItem = {
   itemId: string
@@ -246,12 +303,490 @@ function clampHighlightRange(
   }
 }
 
+function isWhitespaceLike(char: string | undefined): boolean {
+  return typeof char === 'string' && /\s/u.test(char)
+}
+
+function isWordLikeChar(char: string | undefined): boolean {
+  return typeof char === 'string' && /[\p{L}\p{N}]/u.test(char)
+}
+
+function countHighlightWords(value: string): number {
+  return value.match(/[\p{L}\p{N}$%+#]+/gu)?.length ?? 0
+}
+
+function hasMeaningfulHighlightContent(value: string): boolean {
+  return /[\p{L}\p{N}]/u.test(value) || /\$\s*\d/u.test(value)
+}
+
+function isInlineDecimalOrAbbreviationBoundary(
+  text: string,
+  index: number,
+): boolean {
+  return text[index] === '.'
+    && isWordLikeChar(text[index - 1])
+    && isWordLikeChar(text[index + 1])
+}
+
+function trimHighlightEdgeNoiseBounds(
+  text: string,
+  start: number,
+  end: number,
+): { start: number; end: number } | null {
+  let nextStart = start
+  let nextEnd = end
+
+  while (
+    nextStart < nextEnd
+    && (
+      isWhitespaceLike(text[nextStart])
+      || (
+        HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS.has(text[nextStart]!)
+        && !(
+          (text[nextStart] === '(' && text.slice(nextStart + 1, nextEnd).includes(')'))
+          || (text[nextStart] === '[' && text.slice(nextStart + 1, nextEnd).includes(']'))
+        )
+      )
+    )
+  ) {
+    nextStart += 1
+  }
+
+  while (
+    nextEnd > nextStart
+    && (
+      isWhitespaceLike(text[nextEnd - 1])
+      || (
+        HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS.has(text[nextEnd - 1]!)
+        && !(
+          (text[nextEnd - 1] === ')' && text.slice(nextStart, nextEnd - 1).includes('('))
+          || (text[nextEnd - 1] === ']' && text.slice(nextStart, nextEnd - 1).includes('['))
+        )
+      )
+    )
+  ) {
+    nextEnd -= 1
+  }
+
+  if (nextEnd <= nextStart) {
+    return null
+  }
+
+  return { start: nextStart, end: nextEnd }
+}
+
+function normalizeRangeToWordBoundaries(
+  text: string,
+  range: CvHighlightRange,
+): CvHighlightRange {
+  let start = range.start
+  let end = range.end
+
+  while (
+    start > 0
+    && isWordLikeChar(text[start - 1])
+    && (
+      isWordLikeChar(text[start])
+      || (
+        HIGHLIGHT_INLINE_COMPOSITE_CHARS.has(text[start]!)
+        && isWordLikeChar(text[start + 1])
+      )
+    )
+  ) {
+    start -= 1
+  }
+
+  while (
+    end < text.length
+    && isWordLikeChar(text[end])
+    && (
+      isWordLikeChar(text[end - 1])
+      || HIGHLIGHT_INLINE_COMPOSITE_CHARS.has(text[end - 1]!)
+    )
+  ) {
+    end += 1
+  }
+
+  return {
+    start,
+    end,
+    reason: range.reason,
+  }
+}
+
+function expandRangeLeftForCurrencyPrefix(
+  text: string,
+  range: CvHighlightRange,
+): CvHighlightRange {
+  let start = range.start
+
+  if (
+    start > 0
+    && text[start - 1] === '$'
+    && isWordLikeChar(text[start])
+  ) {
+    start -= 1
+  }
+
+  return {
+    start,
+    end: range.end,
+    reason: range.reason,
+  }
+}
+
+function expandRangeAcrossInlineCompositeTerms(
+  text: string,
+  range: CvHighlightRange,
+): CvHighlightRange {
+  let start = range.start
+  let end = range.end
+
+  while (
+    start > 1
+    && HIGHLIGHT_INLINE_COMPOSITE_CHARS.has(text[start - 1]!)
+    && isWordLikeChar(text[start - 2])
+    && isWordLikeChar(text[start])
+  ) {
+    start -= 1
+    while (start > 0 && isWordLikeChar(text[start - 1])) {
+      start -= 1
+    }
+  }
+
+  while (
+    end + 1 < text.length
+    && HIGHLIGHT_INLINE_COMPOSITE_CHARS.has(text[end]!)
+    && isWordLikeChar(text[end - 1])
+    && isWordLikeChar(text[end + 1])
+  ) {
+    end += 1
+    while (end < text.length && isWordLikeChar(text[end])) {
+      end += 1
+    }
+  }
+
+  if (
+    end < text.length
+    && text[end] === '%'
+    && isWordLikeChar(text[end - 1])
+  ) {
+    end += 1
+  }
+
+  return {
+    start,
+    end,
+    reason: range.reason,
+  }
+}
+
+function readShortContinuationEnd(
+  text: string,
+  start: number,
+): number | null {
+  let cursor = start
+
+  while (
+    cursor < text.length
+    && cursor - start <= HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS
+  ) {
+    const char = text[cursor]
+    if (
+      char === HIGHLIGHT_STACK_SEPARATOR_CHAR
+      || (
+        /[.!?]/u.test(char)
+        && !isInlineDecimalOrAbbreviationBoundary(text, cursor)
+      )
+    ) {
+      break
+    }
+
+    if (
+      cursor > start
+      && (
+        char === ','
+        || char === ':'
+        || char === ';'
+        || char === '('
+        || char === '['
+      )
+    ) {
+      break
+    }
+
+    cursor += 1
+  }
+
+  while (cursor > start && isWhitespaceLike(text[cursor - 1])) {
+    cursor -= 1
+  }
+
+  if (cursor <= start) {
+    return null
+  }
+
+  return cursor
+}
+
+function shouldExpandAcrossBoundary(
+  separatorChar: string,
+  continuationText: string,
+): boolean {
+  const trimmed = continuationText.trim()
+  if (!trimmed || !hasMeaningfulHighlightContent(trimmed)) {
+    return false
+  }
+
+  if (trimmed.length > HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS) {
+    return false
+  }
+
+  if (countHighlightWords(trimmed) > HIGHLIGHT_MAX_CONTINUATION_WORDS) {
+    return false
+  }
+
+  if (HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(trimmed)) {
+    return false
+  }
+
+  if (separatorChar === ':' || separatorChar === ';') {
+    return /^[$\d\p{Lu}]/u.test(trimmed)
+  }
+
+  return true
+}
+
+function expandRangeRightAcrossSeparator(
+  text: string,
+  range: CvHighlightRange,
+): CvHighlightRange {
+  let separatorIndex = range.end
+  while (separatorIndex < text.length && isWhitespaceLike(text[separatorIndex])) {
+    separatorIndex += 1
+  }
+
+  const separatorChar = text[separatorIndex]
+  if (!separatorChar || !HIGHLIGHT_BRIDGEABLE_BOUNDARY_CHARS.has(separatorChar)) {
+    return range
+  }
+
+  let continuationStart = separatorIndex + 1
+  while (continuationStart < text.length && isWhitespaceLike(text[continuationStart])) {
+    continuationStart += 1
+  }
+
+  const continuationEnd = readShortContinuationEnd(text, continuationStart)
+  if (continuationEnd === null) {
+    return range
+  }
+
+  const continuationText = text.slice(continuationStart, continuationEnd)
+  if (!shouldExpandAcrossBoundary(separatorChar, continuationText)) {
+    return range
+  }
+
+  return {
+    start: range.start,
+    end: continuationEnd,
+    reason: range.reason,
+  }
+}
+
+function isLikelyPipeStackText(text: string): boolean {
+  const pipeCount = text.split(HIGHLIGHT_STACK_SEPARATOR_CHAR).length - 1
+  if (pipeCount < 2) {
+    return false
+  }
+
+  return !HIGHLIGHT_VERB_HINT_PATTERN.test(text)
+}
+
+function isWeakPipeSegment(
+  itemText: string,
+  fragment: string,
+): boolean {
+  if (!isLikelyPipeStackText(itemText)) {
+    return false
+  }
+
+  if (/\d|\$|%/u.test(fragment) || HIGHLIGHT_VERB_HINT_PATTERN.test(fragment)) {
+    return false
+  }
+
+  return countHighlightWords(fragment) <= 2
+}
+
+function constrainRangeToPipeSegment(
+  text: string,
+  range: CvHighlightRange,
+): CvHighlightRange | null {
+  const fragment = text.slice(range.start, range.end)
+  if (!fragment.includes(HIGHLIGHT_STACK_SEPARATOR_CHAR)) {
+    if (isWeakPipeSegment(text, fragment.trim())) {
+      return null
+    }
+
+    return range
+  }
+
+  let bestBounds: { start: number; end: number } | null = null
+  let cursor = range.start
+
+  while (cursor < range.end) {
+    while (
+      cursor < range.end
+      && (
+        text[cursor] === HIGHLIGHT_STACK_SEPARATOR_CHAR
+        || isWhitespaceLike(text[cursor])
+      )
+    ) {
+      cursor += 1
+    }
+
+    if (cursor >= range.end) {
+      break
+    }
+
+    let segmentEnd = cursor
+    while (
+      segmentEnd < range.end
+      && text[segmentEnd] !== HIGHLIGHT_STACK_SEPARATOR_CHAR
+    ) {
+      segmentEnd += 1
+    }
+
+    const trimmedBounds = trimHighlightEdgeNoiseBounds(text, cursor, segmentEnd)
+    if (trimmedBounds) {
+      if (
+        !bestBounds
+        || trimmedBounds.end - trimmedBounds.start > bestBounds.end - bestBounds.start
+      ) {
+        bestBounds = trimmedBounds
+      }
+    }
+
+    cursor = segmentEnd + 1
+  }
+
+  if (!bestBounds) {
+    return null
+  }
+
+  const bestFragment = text.slice(bestBounds.start, bestBounds.end).trim()
+  if (!bestFragment || isWeakPipeSegment(text, bestFragment)) {
+    return null
+  }
+
+  return {
+    start: bestBounds.start,
+    end: bestBounds.end,
+    reason: range.reason,
+  }
+}
+
+function shouldMergeAcrossIgnorableGap(
+  text: string,
+  previousRange: CvHighlightRange,
+  nextRange: CvHighlightRange,
+): boolean {
+  if (previousRange.reason !== nextRange.reason) {
+    return false
+  }
+
+  const gapText = text.slice(previousRange.end, nextRange.start)
+  if (!gapText) {
+    return false
+  }
+
+  if ([...gapText].some((char) => (
+    !isWhitespaceLike(char)
+    && !HIGHLIGHT_MERGEABLE_GAP_CHARS.has(char)
+  ))) {
+    return false
+  }
+
+  const mergedText = text.slice(previousRange.start, nextRange.end).trim()
+  if (mergedText.includes(HIGHLIGHT_STACK_SEPARATOR_CHAR)) {
+    return false
+  }
+
+  return countHighlightWords(mergedText) <= HIGHLIGHT_MAX_CONTINUATION_WORDS + 3
+    && mergedText.length <= HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS * 2
+}
+
+export function normalizeHighlightSpanBoundaries(
+  text: string,
+  range: CvHighlightRange,
+): CvHighlightRange | null {
+  let normalizedRange = clampHighlightRange(text.length, range)
+  if (!normalizedRange) {
+    return null
+  }
+
+  const trimmedInitialBounds = trimHighlightEdgeNoiseBounds(
+    text,
+    normalizedRange.start,
+    normalizedRange.end,
+  )
+  if (!trimmedInitialBounds) {
+    return null
+  }
+
+  normalizedRange = {
+    start: trimmedInitialBounds.start,
+    end: trimmedInitialBounds.end,
+    reason: range.reason,
+  }
+
+  normalizedRange = normalizeRangeToWordBoundaries(text, normalizedRange)
+  normalizedRange = expandRangeLeftForCurrencyPrefix(text, normalizedRange)
+  normalizedRange = expandRangeAcrossInlineCompositeTerms(text, normalizedRange)
+  normalizedRange = expandRangeRightAcrossSeparator(text, normalizedRange)
+  normalizedRange = normalizeRangeToWordBoundaries(text, normalizedRange)
+  normalizedRange = expandRangeLeftForCurrencyPrefix(text, normalizedRange)
+  normalizedRange = expandRangeAcrossInlineCompositeTerms(text, normalizedRange)
+
+  if (text.includes(HIGHLIGHT_STACK_SEPARATOR_CHAR)) {
+    const constrainedRange = constrainRangeToPipeSegment(text, normalizedRange)
+    if (!constrainedRange) {
+      return null
+    }
+
+    normalizedRange = constrainedRange
+  }
+
+  const trimmedFinalBounds = trimHighlightEdgeNoiseBounds(
+    text,
+    normalizedRange.start,
+    normalizedRange.end,
+  )
+  if (!trimmedFinalBounds) {
+    return null
+  }
+
+  const finalRange = {
+    start: trimmedFinalBounds.start,
+    end: trimmedFinalBounds.end,
+    reason: normalizedRange.reason,
+  }
+
+  if (!hasMeaningfulHighlightContent(text.slice(finalRange.start, finalRange.end))) {
+    return null
+  }
+
+  return finalRange
+}
+
 export function normalizeHighlightRangesForSegmentation(
-  textLength: number,
+  text: string,
   ranges: CvHighlightRange[],
 ): CvHighlightRange[] {
+  const textLength = text.length
   const sortedRanges = ranges
     .map((range) => clampHighlightRange(textLength, range))
+    .filter((range): range is CvHighlightRange => range !== null)
+    .map((range) => normalizeHighlightSpanBoundaries(text, range))
     .filter((range): range is CvHighlightRange => range !== null)
     .sort((left, right) => left.start - right.start || left.end - right.end)
 
@@ -272,6 +807,11 @@ export function normalizeHighlightRangesForSegmentation(
 
     if (range.start < previousRange.end) {
       previousRange.end = Math.max(previousRange.end, range.end)
+      return acc
+    }
+
+    if (shouldMergeAcrossIgnorableGap(text, previousRange, range)) {
+      previousRange.end = range.end
       return acc
     }
 
@@ -338,7 +878,7 @@ export function validateAndResolveHighlights(
       return
     }
 
-    const normalizedRanges = normalizeHighlightRangesForSegmentation(item.text.length, candidateRanges)
+    const normalizedRanges = normalizeHighlightRangesForSegmentation(item.text, candidateRanges)
     const validRanges = normalizedRanges.reduce<CvHighlightRange[]>((acc, range) => {
       const previousRange = acc[acc.length - 1]
       if (!isSafeNonOverlappingRange(range, item.text, previousRange)) {
@@ -389,7 +929,7 @@ export function segmentTextByHighlightRanges(
   text: string,
   ranges: CvHighlightRange[],
 ): CvHighlightTextSegment[] {
-  const normalizedRanges = normalizeHighlightRangesForSegmentation(text.length, ranges)
+  const normalizedRanges = normalizeHighlightRangesForSegmentation(text, ranges)
   if (normalizedRanges.length === 0) {
     return [{ text, highlighted: false }]
   }
