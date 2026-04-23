@@ -457,6 +457,29 @@ describe('cv highlight artifact helpers', () => {
     }])).toEqual([])
   })
 
+  it('keeps phrase closure compact through validateAndResolveHighlights on long bullets', () => {
+    const text = 'Atuei no suporte operacional da loja ao longo da semana, reforÃ§ando o atendimento ao cliente, contribuindo para uma experiÃªncia de compra mais Ã¡gil e organizada, enquanto apoiava inventÃ¡rios, alinhamentos internos e rotinas administrativas do fechamento semanal.'
+    const items = [{
+      itemId: 'exp_phrase_closure_long',
+      section: 'experience' as const,
+      text,
+    }]
+
+    expect(validateAndResolveHighlights(items, [{
+      itemId: 'exp_phrase_closure_long',
+      ranges: [buildRange(text, 'reforÃ§ando o atendimento ao cliente')],
+    }])).toEqual([{
+      itemId: 'exp_phrase_closure_long',
+      section: 'experience',
+      ranges: [
+        buildRange(
+          text,
+          'reforÃ§ando o atendimento ao cliente, contribuindo para uma experiÃªncia de compra mais Ã¡gil e organizada',
+        ),
+      ],
+    }])
+  })
+
   it('keeps a meaningful pipe-separated segment local instead of grouping the full list', () => {
     const text = 'Power BI dashboards | stakeholder reporting'
     const range = normalizeHighlightSpanBoundaries(
@@ -466,5 +489,103 @@ describe('cv highlight artifact helpers', () => {
 
     expect(range).not.toBeNull()
     expect(text.slice(range!.start, range!.end)).toBe('Power BI dashboards')
+  })
+
+  it('keeps going across a short gerund continuation that still closes the same idea', () => {
+    const text = 'Organized shelf replenishment, garantindo disponibilidade contínua dos itens no ponto de venda.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Organized shelf replenishment'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe(
+      'Organized shelf replenishment, garantindo disponibilidade contínua dos itens no ponto de venda',
+    )
+  })
+
+  it('extends into a short prepositional phrase that completes the action', () => {
+    const text = 'Prestei auxílio aos clientes durante o processo de compra.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Prestei auxílio aos clientes'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe(
+      'Prestei auxílio aos clientes durante o processo de compra',
+    )
+  })
+
+  it('absorbs a coordinated continuation when it still belongs to the same support activity', () => {
+    const text = 'Atuei no atendimento ao cliente e no apoio às rotinas comerciais.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Atuei no atendimento ao cliente'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe(
+      'Atuei no atendimento ao cliente e no apoio às rotinas comerciais',
+    )
+  })
+
+  it('extends a metric fragment to the full measurable closure', () => {
+    const text = 'Atuei na otimização dos fluxos, reduzindo em até 40% o tempo de processamento.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'reduzindo em até 40%'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe(
+      'reduzindo em até 40% o tempo de processamento',
+    )
+  })
+
+  it('extends a compact comma continuation when it still finishes the same business idea', () => {
+    const text = 'Reforcei o atendimento ao cliente, contribuindo para uma experiência de compra mais ágil e organizada.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Reforcei o atendimento ao cliente'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe(
+      'Reforcei o atendimento ao cliente, contribuindo para uma experiência de compra mais ágil e organizada',
+    )
+  })
+
+  it('does not absorb broad comma-separated prepositional tails that start a new support context', () => {
+    const text = 'Improved store operations, in partnership with finance and logistics across LATAM.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Improved store operations'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('Improved store operations')
+  })
+
+  it('does not absorb broad whitespace prepositional tails after a metric fragment', () => {
+    const text = 'Reduced latency by 40% in batch pipelines across LATAM.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Reduced latency by 40%', 'metric_impact'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('Reduced latency by 40%')
+  })
+
+  it('still stops before a clearly separate clause even with the looser continuation policy', () => {
+    const text = 'Mantive a organização do estoque, enquanto outra equipe conduzia o fechamento diário.'
+    const range = normalizeHighlightSpanBoundaries(
+      text,
+      buildRange(text, 'Mantive a organização do estoque'),
+    )
+
+    expect(range).not.toBeNull()
+    expect(text.slice(range!.start, range!.end)).toBe('Mantive a organização do estoque')
   })
 })

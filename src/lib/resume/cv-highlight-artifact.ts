@@ -8,8 +8,8 @@ const SUMMARY_MAX_HIGHLIGHT_COVERAGE = 0.4
 const EXPERIENCE_MAX_HIGHLIGHT_COVERAGE = 0.55
 const COMPACT_EXPERIENCE_HIGHLIGHT_MAX_LENGTH = 90
 const HIGHLIGHT_STACK_SEPARATOR_CHAR = '|'
-const HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS = 36
-const HIGHLIGHT_MAX_CONTINUATION_WORDS = 5
+const HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS = 72
+const HIGHLIGHT_MAX_CONTINUATION_WORDS = 10
 
 const HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS = new Set([
   ',',
@@ -63,7 +63,10 @@ const HIGHLIGHT_INLINE_COMPOSITE_CHARS = new Set([
 ])
 
 const HIGHLIGHT_STRONG_CLAUSE_START_PATTERN = /^(?:and|but|while|however|whereas|mas|por(?:e|é)m|enquanto|because|porque)\b/i
-const HIGHLIGHT_VERB_HINT_PATTERN = /\b(?:led|built|created|designed|developed|implemented|managed|reduced|increased|improved|optimized|automated|scaled|delivered|owned|migrated|supported|analyzed|aumentei|reduzi|melhorei|otimizei|automatizei|liderei|criei|desenvolvi|implementei|gerenciei|entreguei|migrei|apoiei|analisei)\b/i
+const HIGHLIGHT_VERB_HINT_PATTERN = /\b(?:led|built|created|designed|developed|implemented|managed|reduced|increased|improved|optimized|automated|scaled|delivered|owned|migrated|supported|analyzed|organized|reinforced|maintained|provided|served|coordinated|atendi|atuei|organizei|reforcei|mantive|prestei|coordenei|garanti|contribui|suportei|aumentei|reduzi|melhorei|otimizei|automatizei|liderei|criei|desenvolvi|implementei|gerenciei|entreguei|migrei|apoiei|analisei)\b/i
+const HIGHLIGHT_GERUND_CONTINUATION_PATTERN = /^(?:contributing|reinforcing|ensuring|supporting|maintaining|reducing|increasing|driving|improving|enabling|closing|strengthening|contribuindo|reforcando|reforçando|garantindo|apoiando|mantendo|reduzindo|aumentando|impulsionando|melhorando|viabilizando|fortalecendo)\b/i
+const HIGHLIGHT_COORDINATED_CONTINUATION_PATTERN = /^(?:and|e)\s+(?:with|for|in|on|during|com|para|em|no|na|nos|nas|ao|aos|a|à|support|supporting|apoio|apoiando|atendimento|rotinas|processo|processos|disponibilidade|estabilidade|satisfacao|satisfação)\b/i
+const HIGHLIGHT_DIRECT_CLOSURE_PREPOSITION_PATTERN = /^(?:during|in|on|to|com|para|em|no|na|nos|nas|durante|ao|aos|a|à|as|às)\b/i
 
 export type CvHighlightInputItem = {
   itemId: string
@@ -328,6 +331,71 @@ function isInlineDecimalOrAbbreviationBoundary(
     && isWordLikeChar(text[index + 1])
 }
 
+function startsWithAttachedContinuation(value: string): boolean {
+  const trimmed = normalizeLeadingContinuationText(value)
+  if (!trimmed) {
+    return false
+  }
+
+  return HIGHLIGHT_GERUND_CONTINUATION_PATTERN.test(trimmed)
+    || HIGHLIGHT_COORDINATED_CONTINUATION_PATTERN.test(trimmed)
+}
+
+function isLikelyNounPhraseContinuation(value: string): boolean {
+  const trimmed = normalizeLeadingContinuationText(value)
+  if (!trimmed) {
+    return false
+  }
+
+  return countHighlightWords(trimmed) <= 4
+    && !HIGHLIGHT_VERB_HINT_PATTERN.test(trimmed)
+    && !HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(trimmed)
+}
+
+function normalizeLeadingContinuationText(value: string): string {
+  let cursor = 0
+
+  while (
+    cursor < value.length
+    && (
+      isWhitespaceLike(value[cursor])
+      || HIGHLIGHT_IGNORABLE_BOUNDARY_CHARS.has(value[cursor]!)
+    )
+  ) {
+    cursor += 1
+  }
+
+  return value.slice(cursor).trim()
+}
+
+function hasActionOrMetricLead(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return false
+  }
+
+  return HIGHLIGHT_VERB_HINT_PATTERN.test(trimmed) || /[$\d%]/u.test(trimmed)
+}
+
+function isLikelyTightPrepositionalClosure(value: string): boolean {
+  const normalized = normalizeLeadingContinuationText(value)
+  if (!normalized || !HIGHLIGHT_DIRECT_CLOSURE_PREPOSITION_PATTERN.test(normalized)) {
+    return false
+  }
+
+  if (countHighlightWords(normalized) > 5) {
+    return false
+  }
+
+  const [, ...tailWords] = normalized.split(/\s+/u)
+  const tail = tailWords.join(' ')
+  if (!tail) {
+    return false
+  }
+
+  return !/\b(?:with|for|by|via|through|across|toward|towards|between|among|com|para|durante|during|em|no|na|nos|nas)\b/i.test(tail)
+}
+
 function trimHighlightEdgeNoiseBounds(
   text: string,
   start: number,
@@ -534,6 +602,8 @@ function shouldExpandAcrossBoundary(
   continuationText: string,
 ): boolean {
   const trimmed = continuationText.trim()
+  const normalized = normalizeLeadingContinuationText(continuationText)
+  const attachedContinuation = startsWithAttachedContinuation(normalized)
   if (!trimmed || !hasMeaningfulHighlightContent(trimmed)) {
     return false
   }
@@ -542,19 +612,83 @@ function shouldExpandAcrossBoundary(
     return false
   }
 
-  if (countHighlightWords(trimmed) > HIGHLIGHT_MAX_CONTINUATION_WORDS) {
+  if (
+    countHighlightWords(normalized || trimmed)
+    > (attachedContinuation ? HIGHLIGHT_MAX_CONTINUATION_WORDS + 4 : HIGHLIGHT_MAX_CONTINUATION_WORDS)
+  ) {
     return false
   }
 
-  if (HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(trimmed)) {
+  if (HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(normalized || trimmed)) {
     return false
   }
 
   if (separatorChar === ':' || separatorChar === ';') {
-    return /^[$\d\p{Lu}]/u.test(trimmed)
+    return /^[$\d\p{Lu}]/u.test(normalized || trimmed)
+  }
+
+  if (separatorChar === ',') {
+    return attachedContinuation
+      || isLikelyNounPhraseContinuation(normalized)
+      || /^[$\d]/u.test(normalized || trimmed)
   }
 
   return true
+}
+
+function shouldPreferPhraseClosure(
+  text: string,
+  range: CvHighlightRange,
+  candidateEnd: number,
+): boolean {
+  if (candidateEnd <= range.end) {
+    return false
+  }
+
+  const addition = text.slice(range.end, candidateEnd).trim()
+  const normalizedAddition = normalizeLeadingContinuationText(addition)
+  const currentFragment = text.slice(range.start, range.end).trim()
+  if (!addition || !hasMeaningfulHighlightContent(addition)) {
+    return false
+  }
+
+  if (addition.length > HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS) {
+    return false
+  }
+
+  if (
+    countHighlightWords(normalizedAddition || addition)
+    > (startsWithAttachedContinuation(normalizedAddition) ? HIGHLIGHT_MAX_CONTINUATION_WORDS + 2 : HIGHLIGHT_MAX_CONTINUATION_WORDS)
+  ) {
+    return false
+  }
+
+  if (HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(normalizedAddition || addition)) {
+    return false
+  }
+
+  if (/^(?:for|with|by|via|through|across)\b/i.test(normalizedAddition)) {
+    return false
+  }
+
+  const attachedContinuation = HIGHLIGHT_GERUND_CONTINUATION_PATTERN.test(normalizedAddition)
+    || HIGHLIGHT_COORDINATED_CONTINUATION_PATTERN.test(normalizedAddition)
+  const nounPhraseClosure = isLikelyNounPhraseContinuation(normalizedAddition)
+    && /[$\d%]/u.test(currentFragment)
+  const prepositionalClosure = isLikelyTightPrepositionalClosure(normalizedAddition)
+    && hasActionOrMetricLead(currentFragment)
+
+  if (!attachedContinuation && !nounPhraseClosure && !prepositionalClosure) {
+    return false
+  }
+
+  const mergedText = text.slice(range.start, candidateEnd).trim()
+  if (mergedText.includes(HIGHLIGHT_STACK_SEPARATOR_CHAR)) {
+    return false
+  }
+
+  return mergedText.length <= HIGHLIGHT_MAX_BOUNDARY_REFINEMENT_CHARS * 2
+    && countHighlightWords(mergedText) <= HIGHLIGHT_MAX_CONTINUATION_WORDS + 5
 }
 
 function expandRangeRightAcrossSeparator(
@@ -583,6 +717,35 @@ function expandRangeRightAcrossSeparator(
 
   const continuationText = text.slice(continuationStart, continuationEnd)
   if (!shouldExpandAcrossBoundary(separatorChar, continuationText)) {
+    return range
+  }
+
+  return {
+    start: range.start,
+    end: continuationEnd,
+    reason: range.reason,
+  }
+}
+
+function expandRangeRightForPhraseClosure(
+  text: string,
+  range: CvHighlightRange,
+): CvHighlightRange {
+  let continuationStart = range.end
+  while (continuationStart < text.length && isWhitespaceLike(text[continuationStart])) {
+    continuationStart += 1
+  }
+
+  if (continuationStart >= text.length) {
+    return range
+  }
+
+  const continuationEnd = readShortContinuationEnd(text, continuationStart)
+  if (continuationEnd === null) {
+    return range
+  }
+
+  if (!shouldPreferPhraseClosure(text, range, continuationEnd)) {
     return range
   }
 
@@ -743,6 +906,7 @@ export function normalizeHighlightSpanBoundaries(
   normalizedRange = expandRangeLeftForCurrencyPrefix(text, normalizedRange)
   normalizedRange = expandRangeAcrossInlineCompositeTerms(text, normalizedRange)
   normalizedRange = expandRangeRightAcrossSeparator(text, normalizedRange)
+  normalizedRange = expandRangeRightForPhraseClosure(text, normalizedRange)
   normalizedRange = normalizeRangeToWordBoundaries(text, normalizedRange)
   normalizedRange = expandRangeLeftForCurrencyPrefix(text, normalizedRange)
   normalizedRange = expandRangeAcrossInlineCompositeTerms(text, normalizedRange)
