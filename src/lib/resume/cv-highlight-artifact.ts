@@ -67,6 +67,7 @@ const HIGHLIGHT_VERB_HINT_PATTERN = /\b(?:led|built|created|designed|developed|i
 const HIGHLIGHT_GERUND_CONTINUATION_PATTERN = /^(?:contributing|reinforcing|ensuring|supporting|maintaining|reducing|increasing|driving|improving|enabling|closing|strengthening|contribuindo|reforcando|reforçando|garantindo|apoiando|mantendo|reduzindo|aumentando|impulsionando|melhorando|viabilizando|fortalecendo)\b/i
 const HIGHLIGHT_COORDINATED_CONTINUATION_PATTERN = /^(?:and|e)\s+(?:with|for|in|on|during|com|para|em|no|na|nos|nas|ao|aos|a|à|support|supporting|apoio|apoiando|atendimento|rotinas|processo|processos|disponibilidade|estabilidade|satisfacao|satisfação)\b/i
 const HIGHLIGHT_DIRECT_CLOSURE_PREPOSITION_PATTERN = /^(?:during|in|on|to|com|para|em|no|na|nos|nas|durante|ao|aos|a|à|as|às)\b/i
+const HIGHLIGHT_SEMANTIC_DESCRIPTOR_HINT_PATTERN = /\b(?:focused|specialized|oriented|dedicated|responsible|experienced|especializado|focado|orientado|dedicado|responsavel|responsável|experiente)\b/i
 
 export type CvHighlightInputItem = {
   itemId: string
@@ -377,6 +378,15 @@ function hasActionOrMetricLead(value: string): boolean {
   return HIGHLIGHT_VERB_HINT_PATTERN.test(trimmed) || /[$\d%]/u.test(trimmed)
 }
 
+function hasSemanticClosureLead(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return false
+  }
+
+  return hasActionOrMetricLead(trimmed) || HIGHLIGHT_SEMANTIC_DESCRIPTOR_HINT_PATTERN.test(trimmed)
+}
+
 function isLikelyTightPrepositionalClosure(value: string): boolean {
   const normalized = normalizeLeadingContinuationText(value)
   if (!normalized || !HIGHLIGHT_DIRECT_CLOSURE_PREPOSITION_PATTERN.test(normalized)) {
@@ -394,6 +404,34 @@ function isLikelyTightPrepositionalClosure(value: string): boolean {
   }
 
   return !/\b(?:with|for|by|via|through|across|toward|towards|between|among|com|para|durante|during|em|no|na|nos|nas)\b/i.test(tail)
+}
+
+function isLikelyTightSemanticComplementClosure(
+  value: string,
+): boolean {
+  const normalized = normalizeLeadingContinuationText(value)
+  if (!normalized) {
+    return false
+  }
+
+  if (countHighlightWords(normalized) > 6) {
+    return false
+  }
+
+  if (HIGHLIGHT_STRONG_CLAUSE_START_PATTERN.test(normalized)) {
+    return false
+  }
+
+  if (HIGHLIGHT_VERB_HINT_PATTERN.test(normalized)) {
+    return false
+  }
+
+  if (/^(?:for|with|by|via|through|across)\b/i.test(normalized)) {
+    return false
+  }
+
+  return /^(?:para|com|no|na|nos|nas|ao|aos|a|à|em|focused on|specialized in|oriented to|dedicated to|responsible for)\b/i.test(normalized)
+    || isLikelyNounPhraseContinuation(normalized)
 }
 
 function trimHighlightEdgeNoiseBounds(
@@ -673,12 +711,20 @@ function shouldPreferPhraseClosure(
 
   const attachedContinuation = HIGHLIGHT_GERUND_CONTINUATION_PATTERN.test(normalizedAddition)
     || HIGHLIGHT_COORDINATED_CONTINUATION_PATTERN.test(normalizedAddition)
-  const nounPhraseClosure = isLikelyNounPhraseContinuation(normalizedAddition)
-    && /[$\d%]/u.test(currentFragment)
-  const prepositionalClosure = isLikelyTightPrepositionalClosure(normalizedAddition)
-    && hasActionOrMetricLead(currentFragment)
 
-  if (!attachedContinuation && !nounPhraseClosure && !prepositionalClosure) {
+  const nounPhraseClosure = isLikelyNounPhraseContinuation(normalizedAddition)
+    && (
+      /[$\d%]/u.test(currentFragment)
+      || hasSemanticClosureLead(currentFragment)
+    )
+
+  const prepositionalClosure = isLikelyTightPrepositionalClosure(normalizedAddition)
+    && hasSemanticClosureLead(currentFragment)
+
+  const semanticComplementClosure = isLikelyTightSemanticComplementClosure(normalizedAddition)
+    && hasSemanticClosureLead(currentFragment)
+
+  if (!attachedContinuation && !nounPhraseClosure && !prepositionalClosure && !semanticComplementClosure) {
     return false
   }
 
