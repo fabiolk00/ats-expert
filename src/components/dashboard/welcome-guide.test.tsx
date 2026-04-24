@@ -110,7 +110,7 @@ describe("DashboardWelcomeGuide", () => {
     }) as unknown as typeof fetch)
   })
 
-  it("redirects to Perfil before opening the first step when the user enters /dashboard", async () => {
+  it("redirects to Perfil before opening the first step when the user enters /chat", async () => {
     mockPathname = DASHBOARD_WELCOME_GUIDE_CHAT_PATH
 
     const { rerender } = render(<TestTargets showProfile={false} showAtsCta={false} showSessions={false} showNewConversation={false} />)

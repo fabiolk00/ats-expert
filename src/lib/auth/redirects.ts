@@ -1,6 +1,8 @@
+import { PROFILE_SETUP_PATH, canonicalizeAppPath } from "@/lib/routes/app"
+
 export function getSafeRedirectPath(
   candidate: string | null | undefined,
-  fallback = '/dashboard',
+  fallback = PROFILE_SETUP_PATH,
 ): string {
   if (!candidate) {
     return fallback
@@ -10,5 +12,5 @@ export function getSafeRedirectPath(
     return fallback
   }
 
-  return candidate
+  return canonicalizeAppPath(candidate)
 }

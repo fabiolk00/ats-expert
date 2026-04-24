@@ -4,12 +4,10 @@ import { useEffect, useState } from "react"
 import { useClerk, useUser } from "@clerk/nextjs"
 import { AnimatePresence, motion } from "motion/react"
 import {
-  ChevronLeft,
-  ChevronRight,
+  FileText,
   HelpCircle,
   LogOut,
   MessageSquare,
-  PanelLeft,
   Plus,
   Settings,
   Sparkles,
@@ -49,10 +47,15 @@ import {
   type DashboardWelcomeGuideTargetId,
 } from "@/lib/dashboard/welcome-guide"
 import { PLANS, PlanSlug } from "@/lib/plans"
+import {
+  CHAT_PATH,
+  DASHBOARD_RESUMES_HISTORY_PATH,
+  DASHBOARD_SESSIONS_PATH,
+  PROFILE_SETUP_PATH,
+} from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
 import { NEW_CONVERSATION_EVENT } from "./events"
 
-const EXPANDED_WIDTH = 240
 const COLLAPSED_WIDTH = 56
 
 interface DashboardSidebarProps {
@@ -82,29 +85,27 @@ type ProfileResponse = {
 const navItems: NavItem[] = [
   {
     label: "Perfil",
-    href: "/dashboard/resumes/new",
+    href: PROFILE_SETUP_PATH,
     icon: User,
     isActive: (pathname) =>
-      pathname === "/dashboard/resumes/new" ||
-      pathname.startsWith("/dashboard/resumes/new/") ||
-      pathname === "/profile" ||
-      pathname.startsWith("/profile/"),
+      pathname === PROFILE_SETUP_PATH
+      || pathname.startsWith(`${PROFILE_SETUP_PATH}/`)
+      || pathname === "/profile"
+      || pathname.startsWith("/profile/"),
   },
   {
     label: "Sessões",
-    href: "/dashboard/sessions",
+    href: DASHBOARD_SESSIONS_PATH,
     icon: MessageSquare,
-    isActive: (pathname) => pathname === "/dashboard/sessions",
+    isActive: (pathname) => pathname === DASHBOARD_SESSIONS_PATH,
+  },
+  {
+    label: "Currículos",
+    href: DASHBOARD_RESUMES_HISTORY_PATH,
+    icon: FileText,
+    isActive: (pathname) => pathname === DASHBOARD_RESUMES_HISTORY_PATH,
   },
 ]
-
-function getShortcutLabel(): string {
-  if (typeof window !== "undefined" && /(Mac|iPhone|iPad|iPod)/i.test(window.navigator.platform)) {
-    return "⌘B"
-  }
-
-  return "Ctrl+B"
-}
 
 function getInitials(fullName?: string | null, email?: string | null): string {
   const source = fullName?.trim() || email?.trim() || "Usuário"
@@ -133,11 +134,13 @@ function SidebarNavItem({
 }) {
   const pathname = usePathname()
   const isActive = item.isActive(pathname)
+  const isCollapsedDesktop = !isOpen && !isMobile
 
   const link = (
     <Link
       href={item.href}
       onClick={onNavigate}
+      aria-label={isCollapsedDesktop ? item.label : undefined}
       {...(guideTargetId ? getDashboardGuideTargetProps(guideTargetId) : {})}
       className={cn(
         "flex items-center rounded-lg text-sm font-medium transition-colors",
@@ -165,7 +168,7 @@ function SidebarNavItem({
     </Link>
   )
 
-  if (!isOpen && !isMobile) {
+  if (isCollapsedDesktop) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>{link}</TooltipTrigger>
@@ -180,7 +183,6 @@ function SidebarNavItem({
 function SidebarContent({
   isOpen,
   isMobile,
-  onToggle,
   onCloseMobile,
   creditsRemaining,
   maxCredits,
@@ -193,7 +195,6 @@ function SidebarContent({
 }: DashboardSidebarProps & {
   isOpen: boolean
   isMobile: boolean
-  onToggle: () => void
   onCloseMobile?: () => void
 }) {
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false)
@@ -215,7 +216,7 @@ function SidebarContent({
   const currentCredits = creditsRemaining ?? 0
   const planLabel = currentPlan ? `Plano ${PLANS[currentPlan].name}` : "Plano indisponível"
   const avatarSrc = profilePhotoUrl ?? userImageUrl ?? user?.imageUrl ?? undefined
-  const [shortcutLabel, setShortcutLabel] = useState("Ctrl+B")
+  const isCollapsedDesktop = !isOpen && !isMobile
 
   useEffect(() => {
     let isMounted = true
@@ -250,10 +251,6 @@ function SidebarContent({
     }
   }, [])
 
-  useEffect(() => {
-    setShortcutLabel(getShortcutLabel())
-  }, [])
-
   const handleSignOut = async (): Promise<void> => {
     onCloseMobile?.()
 
@@ -266,25 +263,21 @@ function SidebarContent({
     }
   }
 
-  const brand = isOpen || isMobile ? (
-    <Logo size="sm" linkTo="/dashboard" />
-  ) : (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-label="Expandir sidebar"
-      className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background/80 transition-colors hover:bg-sidebar-accent/60"
-    >
-      <PanelLeft className="h-4 w-4 text-sidebar-foreground/75" strokeWidth={1.75} />
-    </button>
-  )
+  const handleNewConversation = () => {
+    window.dispatchEvent(new Event(NEW_CONVERSATION_EVENT))
+    router.replace(CHAT_PATH)
+    onCloseMobile?.()
+  }
 
   const accountTrigger = (
     <button
       type="button"
+      aria-label={isCollapsedDesktop ? "Abrir menu da conta" : undefined}
       className={cn(
-        "flex w-full items-center rounded-xl text-left transition-colors hover:bg-sidebar-accent/60",
-        isOpen || isMobile ? "gap-3 px-3 py-2.5" : "justify-center px-0 py-2",
+        "flex items-center text-left transition-colors",
+        isOpen || isMobile
+          ? "w-full gap-3 rounded-xl px-3 py-2.5 hover:bg-sidebar-accent/60"
+          : "h-10 w-10 justify-center rounded-lg px-0 py-0 text-sidebar-foreground/70",
       )}
     >
       <Avatar className="h-9 w-9 border border-border/60">
@@ -310,47 +303,43 @@ function SidebarContent({
     </button>
   )
 
+  const newConversationButton = (
+    <button
+      type="button"
+      onClick={handleNewConversation}
+      aria-label="Nova conversa"
+      {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.newConversation)}
+      className={cn(
+        "flex items-center rounded-lg text-sm font-medium transition-colors",
+        isOpen || isMobile
+          ? "w-full gap-3 px-3 py-2"
+          : "h-10 w-10 justify-center px-0 py-0",
+        "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+      )}
+    >
+      <Plus className="h-4 w-4 shrink-0 text-sidebar-foreground/75" strokeWidth={1.75} />
+      {isOpen || isMobile ? <span>Nova Conversa</span> : null}
+    </button>
+  )
+
   return (
     <>
       <div className="flex h-full flex-col">
-        <div
-          className={cn(
-            "flex items-center border-b border-border",
-            isOpen || isMobile ? "justify-between px-3 py-4" : "justify-center px-2 py-4",
-          )}
-        >
-          {brand}
-          <div className={cn("flex items-center gap-1", !isOpen && !isMobile && "flex-col")}>
-            {isMobile ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onCloseMobile}
-                aria-label="Fechar menu"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            ) : isOpen ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={onToggle}
-                    aria-label={isOpen ? "Recolher sidebar" : "Expandir sidebar"}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background/80 transition-colors hover:bg-sidebar-accent/60"
-                  >
-                    {isOpen ? <ChevronLeft className="h-4 w-4 text-sidebar-foreground/75" strokeWidth={1.75} /> : <ChevronRight className="h-4 w-4 text-sidebar-foreground/75" strokeWidth={1.75} />}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  {isOpen ? "Recolher sidebar" : "Expandir sidebar"} • {shortcutLabel}
-                </TooltipContent>
-              </Tooltip>
-            ) : null}
+        {isMobile ? (
+          <div className="flex items-center justify-between border-b border-border px-3 py-4">
+            <Logo size="sm" linkTo={CHAT_PATH} />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onCloseMobile}
+              aria-label="Fechar menu"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
-        </div>
+        ) : null}
 
-        <ScrollArea className="flex-1 px-2 py-4">
+        <ScrollArea className={cn("flex-1 px-2 pb-4", isMobile ? "pt-4" : "pt-3")}>
           <nav className="space-y-1">
             {navItems.map((item) => (
               <SidebarNavItem
@@ -370,27 +359,15 @@ function SidebarContent({
             ))}
           </nav>
 
-          {/* Nova Conversa Button */}
-          <div className="border-t border-border/30 mt-2 pt-2">
-            <button
-              onClick={() => {
-                window.dispatchEvent(new Event(NEW_CONVERSATION_EVENT))
-                router.replace("/dashboard")
-                onCloseMobile?.()
-              }}
-              {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.newConversation)}
-              className={cn(
-                'flex items-center rounded-lg text-sm font-medium transition-colors w-full',
-                isOpen || isMobile
-                  ? 'gap-3 px-3 py-2 hover:bg-sidebar-accent/50'
-                  : 'h-10 justify-center px-0 py-0 hover:bg-sidebar-accent/50',
-                'text-sidebar-foreground/70 hover:text-sidebar-foreground',
-              )}
-              title="Nova conversa"
-            >
-              <Plus className="h-4 w-4 shrink-0 text-sidebar-foreground/75" strokeWidth={1.75} />
-              {isOpen || isMobile ? <span>Nova Conversa</span> : null}
-            </button>
+          <div className="mt-2 border-t border-border/30 pt-2">
+            {isCollapsedDesktop ? (
+              <Tooltip>
+                <TooltipTrigger asChild>{newConversationButton}</TooltipTrigger>
+                <TooltipContent side="right">Nova conversa</TooltipContent>
+              </Tooltip>
+            ) : (
+              newConversationButton
+            )}
           </div>
 
           <SessionDocumentsPanel isSidebarOpen={isOpen || isMobile} />
@@ -399,7 +376,12 @@ function SidebarContent({
         <div className="mt-auto border-t border-border px-2 py-4">
           {hasBillingData ? (
             <div className={cn("mb-4 space-y-2", isOpen || isMobile ? "px-3" : "px-1")}>
-              <div className={cn("flex items-center", isOpen || isMobile ? "justify-between" : "justify-center")}>
+              <div
+                className={cn(
+                  "flex items-center",
+                  isOpen || isMobile ? "justify-between" : "justify-center",
+                )}
+              >
                 {isOpen || isMobile ? (
                   <>
                     <div className="flex items-center gap-2 text-primary">
@@ -423,28 +405,21 @@ function SidebarContent({
                   </Tooltip>
                 )}
               </div>
-              {(isOpen || isMobile) ? (
+              {isOpen || isMobile ? (
                 <>
                   <Progress value={percentage} className="h-2" />
                   {renewsIn ? (
-                    <p className="text-center text-[10px] text-muted-foreground">Reseta em {renewsIn}</p>
+                    <p className="text-center text-[10px] text-muted-foreground">
+                      Reseta em {renewsIn}
+                    </p>
                   ) : null}
                 </>
               ) : null}
             </div>
           ) : null}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              {!isOpen && !isMobile ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>{accountTrigger}</TooltipTrigger>
-                  <TooltipContent side="right">{displayName}</TooltipContent>
-                </Tooltip>
-              ) : (
-                accountTrigger
-              )}
-            </DropdownMenuTrigger>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>{accountTrigger}</DropdownMenuTrigger>
             <DropdownMenuContent
               align={isOpen || isMobile ? "end" : "center"}
               side={isOpen || isMobile ? "top" : "right"}
@@ -513,13 +488,7 @@ export function DashboardSidebar({
   userImageUrl,
 }: DashboardSidebarProps) {
   const isMobile = useIsMobile()
-  const {
-    isOpen,
-    isMounted,
-    isMobileOpen,
-    toggle,
-    closeMobile,
-  } = useSidebarContext()
+  const { isMounted, isMobileOpen, closeMobile } = useSidebarContext()
 
   if (isMobile) {
     return (
@@ -531,7 +500,6 @@ export function DashboardSidebar({
           <SidebarContent
             isOpen
             isMobile
-            onToggle={toggle}
             onCloseMobile={closeMobile}
             creditsRemaining={creditsRemaining}
             maxCredits={maxCredits}
@@ -548,19 +516,22 @@ export function DashboardSidebar({
   }
 
   if (!isMounted) {
-    return <div style={{ width: EXPANDED_WIDTH }} className="h-screen shrink-0 border-r border-border bg-sidebar" />
+    return (
+      <div
+        style={{ width: COLLAPSED_WIDTH }}
+        className="h-screen shrink-0 border-r border-border bg-sidebar"
+      />
+    )
   }
 
   return (
-    <motion.aside
-      animate={{ width: isOpen ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
-      transition={{ duration: 0.2, ease: "easeInOut" }}
+    <aside
+      style={{ width: COLLAPSED_WIDTH }}
       className="relative h-screen shrink-0 overflow-hidden border-r border-border bg-sidebar"
     >
       <SidebarContent
-        isOpen={isOpen}
+        isOpen={false}
         isMobile={false}
-        onToggle={toggle}
         creditsRemaining={creditsRemaining}
         maxCredits={maxCredits}
         renewsIn={renewsIn}
@@ -570,6 +541,6 @@ export function DashboardSidebar({
         userEmail={userEmail}
         userImageUrl={userImageUrl}
       />
-    </motion.aside>
+    </aside>
   )
 }

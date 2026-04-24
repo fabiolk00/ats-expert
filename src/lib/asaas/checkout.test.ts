@@ -124,7 +124,7 @@ describe('Asaas checkout link creation', () => {
       plan: 'monthly',
       checkoutReference: 'chk_monthly',
       externalReference: 'curria:v1:u:usr_123:c:chk_monthly',
-      successUrl: 'https://curria.test/dashboard',
+      successUrl: 'https://curria.test/profile-setup',
       cancelUrl: 'https://curria.test/precos',
       expiredUrl: 'https://curria.test/precos',
       billingInfo: {
@@ -142,7 +142,7 @@ describe('Asaas checkout link creation', () => {
       chargeTypes: ['RECURRENT'],
       minutesToExpire: 60,
       callback: {
-        successUrl: 'https://curria.test/dashboard',
+        successUrl: 'https://curria.test/profile-setup',
         cancelUrl: 'https://curria.test/precos',
         expiredUrl: 'https://curria.test/precos',
       },

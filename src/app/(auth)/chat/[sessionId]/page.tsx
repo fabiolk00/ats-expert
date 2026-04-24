@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation"
 
+import { buildChatPath } from "@/lib/routes/app"
+
 interface ChatPageProps {
   params: { sessionId: string }
 }
 
 export default function LegacyChatPage({ params }: ChatPageProps) {
-  // Redirect legacy /chat/[sessionId] URLs to /dashboard?session=[sessionId]
-  // This maintains backwards compatibility for bookmarked URLs and external links
-  redirect(`/dashboard?session=${params.sessionId}`)
+  redirect(buildChatPath(params.sessionId))
 }

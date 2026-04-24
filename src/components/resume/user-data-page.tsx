@@ -21,7 +21,6 @@ import {
 import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -37,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { dashboardWelcomeGuideTargets, getDashboardGuideTargetProps } from "@/lib/dashboard/welcome-guide"
 import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
 import { assessAtsEnhancementReadiness, getAtsEnhancementBlockingItems } from "@/lib/profile/ats-enhancement"
+import { PROFILE_SETUP_PATH, buildResumeComparisonPath } from "@/lib/routes/app"
 import { cvStateToTemplateData } from "@/lib/templates/cv-state-to-template-data"
 import { cn } from "@/lib/utils"
 import type { CVState } from "@/types/cv"
@@ -345,17 +345,6 @@ function formatUpdatedLabel(lastUpdatedAt: string | null): string {
   })}`
 }
 
-function buildInitials(fullName: string): string {
-  const initials = fullName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((chunk) => chunk[0])
-    .join("")
-
-  return initials || "CV"
-}
-
 function normalizeRoleForReview(value?: string): string {
   return (value ?? "")
     .normalize("NFD")
@@ -451,6 +440,14 @@ function resolveProfileDownloadState(urls: Awaited<ReturnType<typeof getDownload
   }
 }
 
+function LinkedInMark({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+    </svg>
+  )
+}
+
 function ProfileSectionCard({
   title,
   editLabel,
@@ -472,12 +469,12 @@ function ProfileSectionCard({
     <Card
       data-testid={testId}
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-none",
+        "flex min-h-0 flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white p-0 shadow-none",
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+      <div className="flex items-center justify-between gap-3 border-b border-neutral-100 px-4 py-2.5">
+        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
           {title}
         </h2>
         <Button
@@ -499,7 +496,6 @@ function ProfileSectionCard({
 
 export default function UserDataPage({
   currentCredits = 0,
-  userImageUrl = null,
 }: UserDataPageProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -510,7 +506,6 @@ export default function UserDataPage({
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [resumeData, setResumeData] = useState<CVState>(() => normalizeResumeData())
   const [profileSource, setProfileSource] = useState<string | null>(null)
-  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -548,14 +543,12 @@ export default function UserDataPage({
         if (data.profile) {
           setResumeData(normalizeResumeData(data.profile.cvState))
           setProfileSource(data.profile.source)
-          setProfilePhotoUrl(data.profile.profilePhotoUrl)
           setLastUpdatedAt(data.profile.updatedAt)
           return
         }
 
         setResumeData(normalizeResumeData())
         setProfileSource(null)
-        setProfilePhotoUrl(null)
         setLastUpdatedAt(null)
       } catch (error) {
         if (isMounted) {
@@ -677,12 +670,13 @@ export default function UserDataPage({
     nextProfilePhotoUrl?: string | null,
     nextProfileSource?: string | null,
   ) => {
+    void nextProfilePhotoUrl
     setIsImportOpen(false)
     setActiveImportSource(null)
     setResumeData(normalizeResumeData(data))
     setProfileSource(nextProfileSource ?? "linkedin")
-    setProfilePhotoUrl(nextProfilePhotoUrl ?? null)
     setLastUpdatedAt(new Date().toISOString())
+    setActiveView("profile")
   }
 
   const persistProfile = async (): Promise<void> => {
@@ -702,7 +696,6 @@ export default function UserDataPage({
 
     setResumeData(normalizeResumeData(data.profile.cvState))
     setProfileSource(data.profile.source)
-    setProfilePhotoUrl(data.profile.profilePhotoUrl)
     setLastUpdatedAt(data.profile.updatedAt)
   }
 
@@ -713,8 +706,8 @@ export default function UserDataPage({
       await persistProfile()
       toast.success("Perfil salvo com sucesso.")
 
-      if (pathname !== "/dashboard/resume/new") {
-        router.push("/dashboard/resume/new")
+      if (pathname !== PROFILE_SETUP_PATH) {
+        router.push(PROFILE_SETUP_PATH)
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao salvar o perfil.")
@@ -828,7 +821,7 @@ export default function UserDataPage({
           : "Versão ATS criada com sucesso.",
       )
 
-      router.push(`/dashboard/resume/compare/${encodeURIComponent(data.sessionId)}`)
+      router.push(buildResumeComparisonPath(data.sessionId))
     } catch (error) {
       toast.error(extractErrorMessage(error, generationCopy.failure))
     } finally {
@@ -903,8 +896,6 @@ export default function UserDataPage({
   const updatedLabel = formatUpdatedLabel(lastUpdatedAt)
   const isBusy = isLoadingProfile || isSaving || isRunningAtsEnhancement
   const setupGenerationButtonDisabled = isBusy || currentCredits < 1
-  const initials = buildInitials(template.fullName)
-  const avatarSrc = profilePhotoUrl ?? userImageUrl ?? undefined
   const suspiciousValidationTargetRole = rewriteValidationFailure?.workflowMode === "job_targeting"
     && (
       rewriteValidationFailure.targetRoleConfidence === "low"
@@ -946,326 +937,305 @@ export default function UserDataPage({
   }>
 
   const renderProfileView = () => (
-    <main className="min-h-screen bg-white text-slate-900 lg:h-screen lg:overflow-hidden">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6 lg:h-full lg:min-h-0 lg:py-5">
-        <header className="shrink-0 rounded-3xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start gap-4">
-                <Avatar className="h-16 w-16 border border-slate-200">
-                  <AvatarImage src={avatarSrc} alt={template.fullName || "Sua foto de perfil"} />
-                  <AvatarFallback className="bg-slate-100 text-base font-semibold text-slate-700">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <h1 className="truncate text-2xl font-semibold tracking-tight text-slate-950">
-                        {template.fullName || "Seu nome"}
-                      </h1>
-                      <p className="mt-1 text-sm font-medium text-slate-500">
-                        {template.jobTitle || "Cargo principal"}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline" className="rounded-full border-slate-200 px-3 py-1 text-xs text-slate-600">
-                        {profileBadgeText}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
-                    {sanitizedResumeData.location ? (
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5" />
-                        {sanitizedResumeData.location}
-                      </span>
-                    ) : null}
-                    {contactItems.map((item) => {
-                      const Icon = item.icon
-
-                      return (
-                        <a
-                          key={item.key}
-                          href={item.href}
-                          target={item.href.startsWith("mailto") || item.href.startsWith("tel") ? undefined : "_blank"}
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 transition-colors hover:text-slate-700"
-                        >
-                          <Icon className="h-3.5 w-3.5" />
-                          {item.label}
-                        </a>
-                      )
-                    })}
-                    {!sanitizedResumeData.location && contactItems.length === 0 ? (
-                      <span>Adicione seus dados de contato para completar o cabeçalho.</span>
-                    ) : null}
-                  </div>
-
-                  <p className="mt-3 text-xs text-slate-400">{updatedLabel}</p>
-                </div>
-              </div>
+    <main className="min-h-screen bg-white text-neutral-900 lg:h-screen lg:overflow-hidden">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:h-full lg:min-h-0 lg:px-6 lg:py-5">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-xl font-semibold tracking-tight text-neutral-900">
+                {template.fullName || "Seu nome"}
+              </h1>
+              <span className="text-sm font-medium text-neutral-500">
+                {template.jobTitle || "Cargo principal"}
+              </span>
+              <Button
+                type="button"
+                size="icon"
+                aria-label="Editar perfil"
+                disabled={isBusy}
+                onClick={handleOpenEditor}
+                className="h-7 w-7 rounded-full bg-black text-white hover:bg-black/90 hover:text-white disabled:bg-neutral-200 disabled:text-neutral-400"
+              >
+                <PenLine className="h-3.5 w-3.5" />
+              </Button>
             </div>
 
-            <div className="flex shrink-0 flex-col gap-2 xl:items-end">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isBusy}
-                  onClick={() => setIsImportOpen(true)}
-                  className="gap-2 rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                >
-                  <Upload className="h-4 w-4" />
-                  Importar do LinkedIn ou PDF
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={profileDownloadState.status !== "ready" || isDownloadingPdf}
-                  onClick={() => void handleDownloadPdf()}
-                  className="gap-2 rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  Download PDF
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isBusy}
-                  onClick={handleOpenEditor}
-                  className="gap-2 rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                >
-                  <PenLine className="h-4 w-4" />
-                  Editar perfil
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => setActiveView("enhancement")}
-                  className="gap-2 rounded-lg bg-black text-white hover:bg-black/90"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Melhorar currículo com IA
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap gap-2 xl:justify-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={isBusy}
-                  onClick={() => router.push("/dashboard")}
-                  className="h-8 px-2 text-slate-500 hover:bg-transparent hover:text-slate-800"
-                >
-                  Cancelar
-                </Button>
-              </div>
-
-              {profileDownloadState.message ? (
-                <p className="max-w-md text-xs text-slate-500 xl:text-right">
-                  {profileDownloadState.message}
-                </p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+              {sanitizedResumeData.location ? (
+                <span className="flex items-center gap-1 text-xs text-neutral-400">
+                  <MapPin className="h-3 w-3" />
+                  {sanitizedResumeData.location}
+                </span>
               ) : null}
+              {contactItems.map((item) => {
+                const Icon = item.icon
+
+                return (
+                  <a
+                    key={item.key}
+                    href={item.href}
+                    target={item.href.startsWith("mailto") || item.href.startsWith("tel") ? undefined : "_blank"}
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-neutral-400 transition-colors hover:text-neutral-700"
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {item.label}
+                  </a>
+                )
+              })}
+              {!sanitizedResumeData.location && contactItems.length === 0 ? (
+                <span className="text-xs text-neutral-400">Adicione seus dados de contato para completar o cabeçalho.</span>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-col gap-2 lg:items-end">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                aria-label="Importar do LinkedIn ou PDF"
+                disabled={isBusy}
+                onClick={() => setIsImportOpen(true)}
+                className="h-auto gap-1.5 rounded-md border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-neutral-50"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>Importar /</span>
+                <LinkedInMark className="h-3.5 w-3.5 text-[#0A66C2]" />
+                <span>/ PDF</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={profileDownloadState.status !== "ready" || isDownloadingPdf}
+                onClick={() => void handleDownloadPdf()}
+                className="h-auto gap-1.5 rounded-md border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-neutral-50 disabled:opacity-50"
+              >
+                {isDownloadingPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                Download PDF
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setActiveView("enhancement")}
+                className="h-auto gap-1.5 rounded-md bg-neutral-900 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Melhorar currículo com IA
+              </Button>
             </div>
           </div>
         </header>
 
+        <div className="mb-5 mt-3 flex flex-col gap-2 border-t border-neutral-100 pt-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-neutral-400">
+            <span>{profileBadgeText}</span>
+            <span aria-hidden="true">•</span>
+            <span>{updatedLabel}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-400">
+            {profileDownloadState.message ? (
+              <p className="max-w-md text-xs text-neutral-400 lg:text-right">
+                {profileDownloadState.message}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
         {isLoadingProfile ? (
           <div className="flex flex-1 items-center justify-center">
-            <div className="flex items-center gap-3 text-slate-500">
+            <div className="flex items-center gap-3 text-neutral-500">
               <Loader2 className="h-5 w-5 animate-spin" />
               Carregando perfil salvo...
             </div>
           </div>
         ) : (
-          <div className="mt-5 flex-1 overflow-y-auto lg:min-h-0 lg:overflow-hidden">
-            <div className="flex flex-col gap-5 lg:h-full lg:min-h-0">
-              <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.95fr)]">
-                <section className="flex min-h-0 flex-col gap-5">
-                  <ProfileSectionCard
-                    title="Resumo profissional"
-                    editLabel={PROFILE_SECTION_META.summary.label}
-                    onEdit={() => handleEditSection("summary")}
-                    testId="summary-section-card"
-                  >
-                    {sanitizedResumeData.summary ? (
-                      <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                        {sanitizedResumeData.summary}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-slate-400">
-                        Adicione um resumo profissional para apresentar sua proposta de valor.
-                      </p>
-                    )}
-                  </ProfileSectionCard>
+          <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
+            <section className="flex min-h-0 flex-col gap-5">
+              <ProfileSectionCard
+                title="Resumo profissional"
+                editLabel={PROFILE_SECTION_META.summary.label}
+                onEdit={() => handleEditSection("summary")}
+                testId="summary-section-card"
+              >
+                {sanitizedResumeData.summary ? (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-600">
+                    {sanitizedResumeData.summary}
+                  </p>
+                ) : (
+                  <p className="text-sm text-neutral-400">
+                    Adicione um resumo profissional para apresentar sua proposta de valor.
+                  </p>
+                )}
+              </ProfileSectionCard>
 
-                  <ProfileSectionCard
-                    title="Experiência"
-                    editLabel={PROFILE_SECTION_META.experience.label}
-                    onEdit={() => handleEditSection("experience")}
-                    className="lg:flex-1"
-                    testId="experience-section-card"
-                  >
-                    {sanitizedResumeData.experience.length > 0 ? (
-                      <div className="space-y-5">
-                        {sanitizedResumeData.experience.map((experience, index) => (
-                          <article
-                            key={`${experience.title}-${experience.company}-${index}`}
-                            className={cn(
-                              "space-y-2 pb-5",
-                              index < sanitizedResumeData.experience.length - 1 && "border-b border-slate-100",
-                            )}
-                          >
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="min-w-0">
-                                <h3 className="text-sm font-semibold text-slate-900">
+              <ProfileSectionCard
+                title="Experiência"
+                editLabel={PROFILE_SECTION_META.experience.label}
+                onEdit={() => handleEditSection("experience")}
+                className="flex-1"
+                testId="experience-section-card"
+              >
+                {sanitizedResumeData.experience.length > 0 ? (
+                  <div className="-mx-4 -my-4">
+                    {sanitizedResumeData.experience.map((experience, index) => (
+                      <div
+                        key={`${experience.title}-${experience.company}-${index}`}
+                        className="px-4"
+                      >
+                        <article
+                          className={cn(
+                            "group py-4 transition-colors hover:bg-neutral-50/50",
+                            index < sanitizedResumeData.experience.length - 1 && "border-b border-neutral-100",
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-baseline gap-x-2">
+                                <span className="text-sm font-semibold text-neutral-900">
                                   {experience.title || "Cargo não informado"}
-                                </h3>
-                                <p className="text-sm text-slate-500">
-                                  {experience.company || "Empresa não informada"}
-                                </p>
-                                {experience.location ? (
-                                  <p className="mt-1 text-xs text-slate-400">{experience.location}</p>
-                                ) : null}
-                              </div>
-                              {formatPeriod(experience.startDate, experience.endDate) ? (
-                                <span className="text-xs font-medium text-slate-400">
-                                  {formatPeriod(experience.startDate, experience.endDate)}
                                 </span>
+                                <span className="text-sm text-neutral-500">
+                                  {experience.company || "Empresa não informada"}
+                                </span>
+                              </div>
+                              {experience.location ? (
+                                <div className="mt-0.5 flex items-center gap-1 text-xs text-neutral-400">
+                                  <MapPin className="h-3 w-3 shrink-0" />
+                                  {experience.location}
+                                </div>
                               ) : null}
                             </div>
-
-                            {experience.bullets.length > 0 ? (
-                              <ul className="space-y-2">
-                                {experience.bullets.map((bullet, bulletIndex) => (
-                                  <li
-                                    key={`${experience.title}-${bulletIndex}`}
-                                    className="flex gap-2 text-sm leading-6 text-slate-600"
-                                  >
-                                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
-                                    <span>{bullet}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-sm text-slate-400">Adicione bullets para detalhar essa experiência.</p>
-                            )}
-                          </article>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-400">
-                        Adicione pelo menos uma experiência profissional para estruturar seu currículo base.
-                      </p>
-                    )}
-                  </ProfileSectionCard>
-                </section>
-
-                <aside className="flex min-h-0 flex-col gap-5">
-                  <ProfileSectionCard
-                    title="Skills"
-                    editLabel={PROFILE_SECTION_META.skills.label}
-                    onEdit={() => handleEditSection("skills")}
-                    className="lg:flex-1"
-                    testId="skills-section-card"
-                  >
-                    {sanitizedResumeData.skills.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {sanitizedResumeData.skills.map((skill, index) => (
-                          <Badge
-                            key={`${skill}-${index}`}
-                            variant="outline"
-                            className="rounded-full border-slate-200 px-3 py-1 text-xs text-slate-700"
-                          >
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-400">
-                        Liste ferramentas, tecnologias e competências relevantes.
-                      </p>
-                    )}
-                  </ProfileSectionCard>
-
-                  <ProfileSectionCard
-                    title="Educação"
-                    editLabel={PROFILE_SECTION_META.education.label}
-                    onEdit={() => handleEditSection("education")}
-                    className="lg:flex-1"
-                    testId="education-section-card"
-                  >
-                    {sanitizedResumeData.education.length > 0 ? (
-                      <div className="space-y-4">
-                        {sanitizedResumeData.education.map((education, index) => (
-                          <article
-                            key={`${education.degree}-${education.institution}-${index}`}
-                            className={cn(
-                              "space-y-1 pb-4",
-                              index < sanitizedResumeData.education.length - 1 && "border-b border-slate-100",
-                            )}
-                          >
-                            <h3 className="text-sm font-semibold text-slate-900">
-                              {education.degree || "Formação não informada"}
-                            </h3>
-                            <p className="text-sm text-slate-500">
-                              {education.institution || "Instituição não informada"}
-                            </p>
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
-                              {education.year ? <span>{education.year}</span> : null}
-                              {education.gpa ? <span>{education.gpa}</span> : null}
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-400">
-                        Adicione suas formações acadêmicas e cursos relevantes.
-                      </p>
-                    )}
-                  </ProfileSectionCard>
-
-                  <ProfileSectionCard
-                    title="Certificações"
-                    editLabel={PROFILE_SECTION_META.certifications.label}
-                    onEdit={() => handleEditSection("certifications")}
-                    className="lg:flex-1"
-                    testId="certifications-section-card"
-                  >
-                    {sanitizedResumeData.certifications?.length ? (
-                      <div className="space-y-4">
-                        {sanitizedResumeData.certifications.map((certification, index) => (
-                          <article
-                            key={`${certification.name}-${certification.issuer}-${index}`}
-                            className={cn(
-                              "space-y-1 pb-4",
-                              index < (sanitizedResumeData.certifications?.length ?? 0) - 1 && "border-b border-slate-100",
-                            )}
-                          >
-                            <h3 className="text-sm font-semibold text-slate-900">
-                              {certification.name || "Certificação não informada"}
-                            </h3>
-                            <p className="text-sm text-slate-500">
-                              {certification.issuer || "Emissor não informado"}
-                            </p>
-                            {certification.year ? (
-                              <p className="text-xs text-slate-400">{certification.year}</p>
+                            {formatPeriod(experience.startDate, experience.endDate) ? (
+                              <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-neutral-400">
+                                {formatPeriod(experience.startDate, experience.endDate)}
+                              </span>
                             ) : null}
-                          </article>
-                        ))}
+                          </div>
+
+                          {experience.bullets.length > 0 ? (
+                            <ul className="mt-2.5 space-y-1.5">
+                              {experience.bullets.map((bullet, bulletIndex) => (
+                                <li
+                                  key={`${experience.title}-${bulletIndex}`}
+                                  className="flex gap-2 text-sm leading-relaxed text-neutral-600"
+                                >
+                                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-neutral-300" />
+                                  <span>{bullet}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2.5 text-sm text-neutral-400">
+                              Adicione bullets para detalhar essa experiência.
+                            </p>
+                          )}
+                        </article>
                       </div>
-                    ) : (
-                      <p className="text-sm text-slate-400">
-                        Nenhuma certificação adicionada ainda.
-                      </p>
-                    )}
-                  </ProfileSectionCard>
-                </aside>
-              </div>
-            </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-400">
+                    Adicione pelo menos uma experiência profissional para estruturar seu currículo base.
+                  </p>
+                )}
+              </ProfileSectionCard>
+            </section>
+
+            <aside className="flex min-h-0 flex-col gap-5 overflow-y-auto pb-1">
+              <ProfileSectionCard
+                title="Skills"
+                editLabel={PROFILE_SECTION_META.skills.label}
+                onEdit={() => handleEditSection("skills")}
+                testId="skills-section-card"
+              >
+                {sanitizedResumeData.skills.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {sanitizedResumeData.skills.map((skill, index) => (
+                      <span
+                        key={`${skill}-${index}`}
+                        className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs text-neutral-600"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-400">
+                    Liste ferramentas, tecnologias e competências relevantes.
+                  </p>
+                )}
+              </ProfileSectionCard>
+
+              <ProfileSectionCard
+                title="Educação"
+                editLabel={PROFILE_SECTION_META.education.label}
+                onEdit={() => handleEditSection("education")}
+                testId="education-section-card"
+              >
+                {sanitizedResumeData.education.length > 0 ? (
+                  <div className="space-y-3">
+                    {sanitizedResumeData.education.map((education, index) => (
+                      <article key={`${education.degree}-${education.institution}-${index}`}>
+                        <p className="text-sm font-medium text-neutral-800">
+                          {education.degree || "Formação não informada"}
+                        </p>
+                        <p className="text-xs text-neutral-400">
+                          {education.institution || "Instituição não informada"}
+                          {education.year ? ` · ${education.year}` : ""}
+                          {education.gpa ? ` · ${education.gpa}` : ""}
+                        </p>
+                        {index < sanitizedResumeData.education.length - 1 ? (
+                          <div className="mt-3 border-t border-neutral-100" />
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-400">
+                    Adicione suas formações acadêmicas e cursos relevantes.
+                  </p>
+                )}
+              </ProfileSectionCard>
+
+              <ProfileSectionCard
+                title="Certificações"
+                editLabel={PROFILE_SECTION_META.certifications.label}
+                onEdit={() => handleEditSection("certifications")}
+                testId="certifications-section-card"
+              >
+                {sanitizedResumeData.certifications?.length ? (
+                  <div className="space-y-2">
+                    {sanitizedResumeData.certifications.map((certification, index) => (
+                      <article
+                        key={`${certification.name}-${certification.issuer}-${index}`}
+                        className="flex items-start justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium leading-snug text-neutral-800">
+                            {certification.name || "Certificação não informada"}
+                          </p>
+                          {certification.issuer ? (
+                            <p className="text-xs text-neutral-400">
+                              {certification.issuer}
+                            </p>
+                          ) : null}
+                        </div>
+                        {certification.year ? (
+                          <span className="shrink-0 text-xs tabular-nums text-neutral-400">
+                            {certification.year}
+                          </span>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-400">
+                    Nenhuma certificação adicionada ainda.
+                  </p>
+                )}
+              </ProfileSectionCard>
+            </aside>
           </div>
         )}
       </div>
@@ -1314,14 +1284,14 @@ export default function UserDataPage({
                 <Upload className="h-4 w-4" />
                 Importar do LinkedIn ou PDF
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSaving || isRunningAtsEnhancement}
-                onClick={() => router.push("/dashboard")}
-              >
-                Cancelar
-              </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSaving || isRunningAtsEnhancement}
+                  onClick={() => router.push(PROFILE_SETUP_PATH)}
+                >
+                  Cancelar
+                </Button>
               <Button
                 type="button"
                 disabled={isSaving || isRunningAtsEnhancement}
@@ -1538,22 +1508,23 @@ export default function UserDataPage({
   )
 
   const renderEnhancementView = () => (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(241,245,249,0.8),transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] text-slate-900 lg:h-screen lg:overflow-hidden">
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-4 sm:px-6 lg:h-full lg:min-h-0 lg:py-6">
-        <header className="shrink-0 border-b border-slate-200/80 pb-4">
+    <main className="min-h-screen bg-white text-slate-900 lg:h-screen lg:overflow-hidden">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-4 sm:px-6 lg:h-full lg:min-h-0 lg:py-5">
+        <header className="shrink-0 rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <Button
               type="button"
               variant="ghost"
+              data-testid="enhancement-back-button"
               aria-label="Voltar ao perfil"
-              className="-ml-3 h-9 px-3 text-slate-500 hover:bg-transparent hover:text-slate-900"
+              className="-ml-3 h-8 px-3 text-slate-500 hover:bg-transparent hover:text-slate-900"
               onClick={() => setActiveView("profile")}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Voltar ao perfil
             </Button>
 
-            <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-500 shadow-sm lg:text-right">
+            <div className="text-sm text-slate-500 lg:text-right">
               <span className="font-medium text-slate-900">Modo: {selectedModeLabel}</span>
               <span className="mx-2 text-slate-300">·</span>
               <span>{currentCredits} créditos disponíveis</span>
@@ -1561,23 +1532,26 @@ export default function UserDataPage({
           </div>
         </header>
 
-        <div className="mt-6 flex-1 overflow-y-auto lg:min-h-0">
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.78fr)]">
-            <Card className="rounded-[28px] border border-slate-200 bg-white p-0 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.28)]">
-              <div className="space-y-7 p-6 sm:p-7">
+        <div className="mt-5 flex-1 overflow-y-auto lg:min-h-0">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.82fr)]">
+            <Card className="rounded-3xl border border-slate-200 bg-white p-0 shadow-sm">
+              <div className="space-y-6 p-6">
                 <div className="space-y-3">
-                  <p
+                  <Badge
                     data-testid="ats-panel-badge"
-                    className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400"
+                    className="bg-black px-3 py-1 text-xs font-medium text-white hover:bg-black/90"
                   >
-                    Escolha o tipo de otimização
-                  </p>
-                  <h1 className="max-w-3xl text-[2rem] font-semibold tracking-tight text-slate-950">
-                    Escolha como quer otimizar seu currículo
+                    {displayGenerationCopy.badge}
+                  </Badge>
+                  <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
+                    {enhancementIntent === "target_job"
+                      ? "Adapte seu currículo para a vaga certa."
+                      : "Melhore seu currículo para ATS com mais clareza."}
                   </h1>
                   <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                    Há duas ações diferentes aqui: uma melhoria ATS geral, sem vaga específica,
-                    ou uma adaptação orientada pela descrição real de uma vaga.
+                    {enhancementIntent === "target_job"
+                      ? "Escolha a adaptação por vaga quando você já tiver a descrição do cargo e quiser priorizar requisitos, keywords e experiências mais relevantes."
+                      : "Escolha a melhoria ATS geral quando quiser fortalecer estrutura, clareza e legibilidade sem depender de uma vaga específica."}
                   </p>
                 </div>
 
@@ -1589,7 +1563,7 @@ export default function UserDataPage({
                     onClick={handleSelectAtsIntent}
                     disabled={isBusy}
                     className={cn(
-                      "rounded-2xl border p-5 text-left transition",
+                      "rounded-2xl border p-4 text-left transition",
                       enhancementIntent === "ats"
                         ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900"
                         : "border-slate-200 bg-white hover:border-slate-300",
@@ -1618,7 +1592,7 @@ export default function UserDataPage({
                     onClick={handleSelectTargetJobIntent}
                     disabled={isBusy}
                     className={cn(
-                      "rounded-2xl border p-5 text-left transition",
+                      "rounded-2xl border p-4 text-left transition",
                       enhancementIntent === "target_job"
                         ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900"
                         : "border-slate-200 bg-white hover:border-slate-300",
@@ -1642,26 +1616,24 @@ export default function UserDataPage({
                 </div>
 
                 {enhancementIntent === "ats" ? (
-                  <div className="space-y-4 rounded-[24px] border border-slate-200 bg-slate-50/90 p-5">
+                  <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                     <div>
                       <h2 className="text-sm font-semibold text-slate-950">Melhoria ATS geral</h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        Ideal quando você ainda não tem uma vaga específica.
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        A IA melhora estrutura, clareza, resumo, bullets e compatibilidade com sistemas ATS.
+                        Ideal quando você ainda não tem uma vaga específica. A IA melhora estrutura, clareza, resumo,
+                        bullets e compatibilidade com sistemas ATS.
                       </p>
                     </div>
 
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                      <p className="text-sm font-medium text-emerald-900">Seu currículo base continua preservado</p>
+                      <p className="text-sm font-medium text-emerald-900">Seguro para testar</p>
                       <p className="mt-1 text-xs leading-5 text-emerald-700">
-                        A IA cria uma nova versão para você comparar antes de exportar.
+                        Seu currículo base continua preservado. A IA cria uma nova versão para você comparar antes de exportar.
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3 rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
+                  <div className="space-y-3">
                     <label
                       htmlFor="target-job-description"
                       className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
@@ -1681,7 +1653,7 @@ export default function UserDataPage({
                         ? "target-job-description-helper target-job-description-error"
                         : "target-job-description-helper"}
                       placeholder="Cole aqui responsabilidades, requisitos, qualificações, stack, senioridade e qualquer detalhe importante da vaga..."
-                      className="min-h-[260px] resize-none rounded-2xl border-slate-200 bg-white text-sm leading-6 text-slate-800 placeholder:text-slate-400 focus-visible:ring-black"
+                      className="min-h-[260px] resize-none rounded-2xl border-slate-200 bg-slate-50 text-sm leading-6 text-slate-800 placeholder:text-slate-400 focus-visible:ring-black"
                     />
                     <p id="target-job-description-helper" className="text-xs leading-5 text-slate-500">
                       Cole a descrição completa da vaga para a IA adaptar seu currículo com base nos requisitos reais.
@@ -1723,7 +1695,7 @@ export default function UserDataPage({
                   disabled={setupGenerationButtonDisabled}
                   onClick={handleEnhancementSubmit}
                   {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.profileAtsCta)}
-                  className="h-11 w-full gap-2 rounded-xl bg-black px-5 text-sm font-medium text-white hover:bg-black/90 sm:w-auto sm:min-w-[250px]"
+                  className="h-11 w-full gap-2 rounded-xl bg-black px-5 text-sm font-medium text-white hover:bg-black/90"
                   data-testid="ats-panel-cta"
                 >
                   {isRunningAtsEnhancement ? (
@@ -1743,8 +1715,8 @@ export default function UserDataPage({
               </div>
             </Card>
 
-            <Card className="h-fit rounded-[28px] border border-slate-200 bg-white p-0 shadow-[0_24px_70px_-38px_rgba(15,23,42,0.2)] xl:sticky xl:top-0">
-              <div className="space-y-5 p-6 sm:p-7">
+            <Card className="rounded-3xl border border-slate-200 bg-white p-0 shadow-sm">
+              <div className="space-y-5 p-6">
                 <div>
                   <h2 className="text-base font-semibold text-slate-950">O que você recebe</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -1766,6 +1738,26 @@ export default function UserDataPage({
                   <p className="mt-1 text-xs leading-5 text-emerald-700">
                     A IA cria uma nova versão. Você compara antes de exportar.
                   </p>
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Neste modo</p>
+                  {generationFeatures.map((feature) => {
+                    const Icon = feature.icon
+
+                    return (
+                      <div
+                        key={feature.id}
+                        data-testid={`ats-feature-${feature.id}`}
+                        className="flex items-start gap-3 text-sm text-slate-700"
+                      >
+                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="leading-6">{feature.label}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </Card>

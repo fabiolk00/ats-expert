@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { getSafeRedirectPath } from "@/lib/auth/redirects"
 import { buildDefaultCheckoutOnboardingPath } from "@/lib/billing/checkout-navigation"
 import { navigateToUrl } from "@/lib/navigation/external"
+import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 
 type ClerkPasswordSettings = {
   min_length?: number
@@ -46,7 +47,7 @@ export default function SignupForm() {
     requestedRedirectTo,
     buildDefaultCheckoutOnboardingPath(),
   )
-  const authenticatedRedirectTo = getSafeRedirectPath(requestedRedirectTo, "/dashboard")
+  const authenticatedRedirectTo = getSafeRedirectPath(requestedRedirectTo, PROFILE_SETUP_PATH)
 
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")

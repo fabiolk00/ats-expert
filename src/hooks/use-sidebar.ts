@@ -2,41 +2,27 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-const STORAGE_KEY = 'curria:sidebar:open'
+const DESKTOP_SIDEBAR_OPEN = false
 
 export function useSidebar() {
-  const [isOpen, setIsOpen] = useState(true)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(STORAGE_KEY)
-      if (stored !== null) {
-        setIsOpen(stored === 'true')
-      }
-    }
-  }, [])
-
-  const persistDesktopState = useCallback((nextValue: boolean) => {
-    setIsOpen(nextValue)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, String(nextValue))
-    }
   }, [])
 
   const toggle = useCallback(() => {
-    persistDesktopState(!isOpen)
-  }, [isOpen, persistDesktopState])
+    // Desktop sidebar stays permanently collapsed to preserve workspace width.
+  }, [])
 
   const open = useCallback(() => {
-    persistDesktopState(true)
-  }, [persistDesktopState])
+    // Desktop sidebar stays permanently collapsed to preserve workspace width.
+  }, [])
 
   const close = useCallback(() => {
-    persistDesktopState(false)
-  }, [persistDesktopState])
+    // Desktop sidebar stays permanently collapsed to preserve workspace width.
+  }, [])
 
   const openMobile = useCallback(() => {
     setIsMobileOpen(true)
@@ -50,24 +36,8 @@ export function useSidebar() {
     setIsMobileOpen((previous) => !previous)
   }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
-        event.preventDefault()
-        persistDesktopState(!isOpen)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, persistDesktopState])
-
   return {
-    isOpen,
+    isOpen: DESKTOP_SIDEBAR_OPEN,
     isMobileOpen,
     isMounted,
     toggle,

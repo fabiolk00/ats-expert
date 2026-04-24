@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { canAccessOperationsDashboard } from '@/lib/auth/operations-access'
 import { getExportOperationsSnapshot } from '@/lib/ops/export-operations'
+import { PROFILE_SETUP_PATH } from '@/lib/routes/app'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -17,7 +18,7 @@ export default async function OperationsPage() {
   const appUser = await getCurrentAppUser()
 
   if (!canAccessOperationsDashboard(appUser)) {
-    redirect('/dashboard')
+    redirect(PROFILE_SETUP_PATH)
   }
 
   const snapshot = await getExportOperationsSnapshot()

@@ -7,8 +7,8 @@ current_phase_name: promote core contextual stack evidence in preview highlights
 current_plan: 01 complete
 status: phase_complete
 stopped_at: Completed 94-01-PLAN.md
-last_updated: "2026-04-22T23:38:00.000Z"
-last_activity: 2026-04-22
+last_updated: "2026-04-24T09:43:42.5113578-03:00"
+last_activity: 2026-04-24
 progress:
   total_phases: 57
   completed_phases: 11
@@ -35,8 +35,8 @@ Current Phase Name: promote core contextual stack evidence in preview highlights
 Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
-Last activity: 2026-04-22
-Last Activity Description: Quick task 260422-wgg refined semantic phrase-closure stop conditions for persisted preview highlights
+Last activity: 2026-04-24
+Last Activity Description: Quick task 260424-d2p renamed auth and dashboard endpoints to the new canonical profile setup, chat, and resumes history routes
 
 Progress: [##########] 100%
 
@@ -163,6 +163,8 @@ Baseline carried forward from earlier shipped milestones:
 |---|-------------|------|--------|--------|-----------|
 | 260422-suf | Normalize highlight span boundaries ignoring punctuation separators and refine broken mid-phrase highlights | 2026-04-22 | working-tree | Validated | [260422-suf-normalize-highlight-span-boundaries-igno](./quick/260422-suf-normalize-highlight-span-boundaries-igno/) |
 | 260422-vlo | Add end-to-end highlight outcome observability for silent zero-highlight cases | 2026-04-22 | working-tree | Validated | [260422-vlo-add-end-to-end-highlight-outcome-observa](./quick/260422-vlo-add-end-to-end-highlight-outcome-observa/) |
+| 260424-c9m | Alinhar user-data-page.tsx ao layout do zip de referência com fidelidade visual máxima sem regredir os fluxos existentes | 2026-04-24 | working-tree | Validated | [260424-c9m-alinhar-user-data-page-tsx-ao-layout-do-](./quick/260424-c9m-alinhar-user-data-page-tsx-ao-layout-do-/) |
+| 260424-d2p | Renomear endpoints de auth/dashboard para `/profile-setup`, `/chat` e `/dashboard/resumes-history`, atualizando redirects, redirect_to e cobertura de testes | 2026-04-24 | working-tree | Validated | [260424-d2p-rename-auth-dashboard-endpoints-dashboar](./quick/260424-d2p-rename-auth-dashboard-endpoints-dashboar/) |
 
 ## Session Continuity
 

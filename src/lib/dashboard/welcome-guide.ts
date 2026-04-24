@@ -1,6 +1,6 @@
 export const DASHBOARD_WELCOME_GUIDE_TARGET_ATTR = "data-dashboard-guide-target"
-export const DASHBOARD_WELCOME_GUIDE_PROFILE_PATH = "/dashboard/resumes/new"
-export const DASHBOARD_WELCOME_GUIDE_CHAT_PATH = "/dashboard"
+export const DASHBOARD_WELCOME_GUIDE_PROFILE_PATH = "/profile-setup"
+export const DASHBOARD_WELCOME_GUIDE_CHAT_PATH = "/chat"
 export const DASHBOARD_WELCOME_GUIDE_SESSIONS_PATH = "/dashboard/sessions"
 
 export const dashboardWelcomeGuideTargets = {

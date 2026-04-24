@@ -35,6 +35,7 @@ describe("SessionList", () => {
     expect(screen.getByText("ATS Readiness Score: 89–91")).toBeInTheDocument()
     expect(screen.getByText("Estimado")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Explicação do score estimado" })).toBeInTheDocument()
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/chat?session=sess_123")
   })
 
 })

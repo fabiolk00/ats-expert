@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 
 import Logo from "@/components/logo"
+import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
 
 interface GenerationLoadingProps {
@@ -146,7 +147,7 @@ export function GenerationLoading({
     >
       <div className="flex w-full max-w-md flex-col items-center gap-8 px-6">
         <div className="animate-pulse">
-          <Logo linkTo="/dashboard/resume/new" size="default" />
+          <Logo linkTo={PROFILE_SETUP_PATH} size="default" />
         </div>
 
         <div className="text-center">

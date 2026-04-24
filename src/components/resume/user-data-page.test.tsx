@@ -11,7 +11,7 @@ const mockAnchorClick = vi.fn()
 const mockCreateObjectURL = vi.fn(() => "blob:curria-test")
 const mockRevokeObjectURL = vi.fn()
 
-let mockPathname = "/dashboard/resume/new"
+let mockPathname = "/profile-setup"
 
 type MockResumeData = {
   fullName: string
@@ -348,7 +348,7 @@ describe("UserDataPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllGlobals()
-    mockPathname = "/dashboard/resume/new"
+    mockPathname = "/profile-setup"
     mockGetDownloadUrls.mockReset()
     window.localStorage.clear()
 
@@ -384,6 +384,16 @@ describe("UserDataPage", () => {
     expect(screen.getByText("Base salva manualmente")).toBeInTheDocument()
     expect(screen.getByText("Criei dashboards executivos.")).toBeInTheDocument()
     expect(screen.getByText("AWS Cloud Practitioner")).toBeInTheDocument()
+  })
+
+  it("does not render a cancel action in the profile shell", async () => {
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await screen.findByText("Ana Silva")
+
+    expect(screen.queryByRole("button", { name: "Cancelar" })).not.toBeInTheDocument()
   })
 
   it("opens the existing import flow from the profile header", async () => {
@@ -533,7 +543,7 @@ describe("UserDataPage", () => {
     render(<UserDataPage currentCredits={2} />)
 
     await openEnhancementMode(user)
-    await user.click(screen.getByRole("button", { name: /Voltar ao perfil/i }))
+    await user.click(screen.getByTestId("enhancement-back-button"))
 
     expect(await screen.findByText("Ana Silva")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Melhorar curr/i })).toBeInTheDocument()

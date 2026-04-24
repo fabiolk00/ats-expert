@@ -81,7 +81,7 @@ describe("LoginForm", () => {
 
     await waitFor(() => {
       expect(mockSetActive).toHaveBeenCalledWith({ session: "sess_123" })
-      expect(mockNavigateToUrl).toHaveBeenCalledWith("/dashboard/resumes/new")
+      expect(mockNavigateToUrl).toHaveBeenCalledWith("/profile-setup")
     })
   })
 
@@ -113,7 +113,7 @@ describe("LoginForm", () => {
       expect(mockAuthenticateWithRedirect).toHaveBeenCalledWith({
         strategy: "oauth_google",
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/dashboard/resumes/new",
+        redirectUrlComplete: "/profile-setup",
       })
     })
   })

@@ -45,7 +45,7 @@ test.describe('chat transcript integrity', () => {
       email: 'transcript@example.com',
     })
 
-    await page.goto(`/dashboard?session=${sessionId}`)
+    await page.goto(`/chat?session=${sessionId}`)
 
     await expect(page.getByText(/Recebi a vaga e ela ja ficou salva como referencia para o seu curriculo\./i)).toHaveCount(1)
 

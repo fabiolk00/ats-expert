@@ -16,6 +16,7 @@ import {
   type PaidPlanSlug,
 } from "@/lib/billing/checkout-navigation"
 import { PLANS, formatPrice } from "@/lib/plans"
+import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
 
 const plans = [
@@ -90,7 +91,7 @@ export default function PricingCards() {
           return
         }
 
-        router.push("/dashboard")
+        router.push(PROFILE_SETUP_PATH)
         return
       }
 

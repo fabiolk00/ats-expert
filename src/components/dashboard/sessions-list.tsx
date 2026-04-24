@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MessageCircle, Loader2 } from 'lucide-react'
+import { buildChatPath } from '@/lib/routes/app'
 import { cn } from '@/lib/utils'
 
 type SessionItem = {
@@ -71,7 +72,7 @@ export function SessionsList() {
       {sessions.map((session) => (
         <button
           key={session.id}
-          onClick={() => router.push(`/dashboard?session=${session.id}`)}
+          onClick={() => router.push(buildChatPath(session.id))}
           className={cn(
             'flex items-center gap-4 rounded-lg px-4 py-3 text-left transition-colors border',
             'border-border/30 hover:border-border/50 hover:bg-sidebar-accent/30 text-sidebar-foreground'

@@ -23,8 +23,8 @@ describe("ResumesPage", () => {
     expect(revalidate).toBe(0)
   })
 
-  it("redirects the frontend route back to /dashboard", async () => {
-    await expect(ResumesPage()).rejects.toThrow("redirect:/dashboard")
-    expect(mockRedirect).toHaveBeenCalledWith("/dashboard")
+  it("redirects the frontend route to the canonical resumes history page", async () => {
+    await expect(ResumesPage()).rejects.toThrow("redirect:/dashboard/resumes-history")
+    expect(mockRedirect).toHaveBeenCalledWith("/dashboard/resumes-history")
   })
 })

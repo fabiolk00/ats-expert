@@ -67,13 +67,13 @@ test.describe('long vacancy generation stress', () => {
       email: 'long-vacancy@example.com',
     })
 
-    await page.goto('/dashboard')
+    await page.goto('/chat')
     await expect(page.getByTestId('resume-workspace')).toHaveAttribute('data-base-output-ready', 'false')
 
     await page.getByTestId('chat-input').fill(longVacancyText)
     await page.getByTestId('chat-send-button').click()
 
-    await expect(page).toHaveURL(new RegExp(`/dashboard\\?session=${sessionId}$`))
+    await expect(page).toHaveURL(new RegExp(`/chat\\?session=${sessionId}$`))
     await expect(page.getByTestId('chat-interface')).toHaveAttribute('data-session-id', sessionId)
     await expect(page.getByTestId('chat-interface')).toHaveAttribute('data-message-count', '2')
     await expect(
@@ -82,7 +82,7 @@ test.describe('long vacancy generation stress', () => {
     await expect(page.getByText(/Gere um arquivo\./i)).toBeVisible()
 
     const revisitWorkspace = async () => {
-      await page.goto(`/dashboard?session=${sessionId}`, { waitUntil: 'domcontentloaded' })
+      await page.goto(`/chat?session=${sessionId}`, { waitUntil: 'domcontentloaded' })
     }
 
     for (let iteration = 1; iteration <= 3; iteration += 1) {
@@ -123,12 +123,12 @@ test.describe('long vacancy generation stress', () => {
         page.getByTestId('preview-panel-frame'),
         `template viewer should keep the generated PDF mounted after cycle ${iteration}`,
       ).toHaveAttribute('src', /__e2e-assets\/resume\.pdf/)
-      await expect(page.getByTestId('session-documents-panel')).toHaveAttribute('data-state', 'ready')
+      await expect(page.getByTestId('preview-download-pdf')).toBeVisible()
     }
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByTestId('document-item-pdf').click(),
+      page.getByTestId('preview-download-pdf').click(),
     ])
 
     expect(download.suggestedFilename()).toBe('Resume.pdf')

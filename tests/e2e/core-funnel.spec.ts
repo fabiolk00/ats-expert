@@ -45,25 +45,25 @@ test.describe('dashboard core funnel', () => {
       email: 'core@example.com',
     })
 
-    await page.goto('/dashboard')
+    await page.goto('/chat')
     await expect(page.getByTestId('chat-interface')).toHaveAttribute('data-session-id', '')
 
     await page.getByTestId('chat-input').fill('Platform engineer role focused on Kubernetes and AWS')
     await page.getByTestId('chat-send-button').click()
 
-    await expect(page).toHaveURL(new RegExp(`/dashboard\\?session=${sessionId}$`))
+    await expect(page).toHaveURL(new RegExp(`/chat\\?session=${sessionId}$`))
     await expect(page.getByTestId('chat-interface')).toHaveAttribute('data-session-id', sessionId)
     await expect(page.getByTestId('resume-workspace')).toHaveAttribute('data-session-id', sessionId)
     await expect(page.getByTestId('resume-workspace')).toHaveAttribute('data-target-count', '1')
     await expect(page.getByTestId('resume-workspace')).toHaveAttribute('data-base-output-ready', 'true')
 
-    await expect(page.getByTestId('session-documents-panel')).toHaveAttribute('data-state', 'ready')
     await expect(page.getByTestId('preview-panel')).toHaveAttribute('data-state', 'ready')
     await expect(page.getByTestId('preview-panel-frame')).toHaveAttribute('src', /__e2e-assets\/resume\.pdf/)
+    await expect(page.getByTestId('preview-download-pdf')).toBeVisible()
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByTestId('document-item-pdf').click(),
+      page.getByTestId('preview-download-pdf').click(),
     ])
 
     expect(download.suggestedFilename()).toBe('Resume.pdf')

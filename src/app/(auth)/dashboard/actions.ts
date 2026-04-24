@@ -2,6 +2,8 @@
 
 import { redirect } from 'next/navigation'
 
+import { PROFILE_SETUP_PATH } from '@/lib/routes/app'
+
 export async function createSession() {
-  redirect('/dashboard/resumes/new')
+  redirect(PROFILE_SETUP_PATH)
 }

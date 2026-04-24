@@ -117,7 +117,7 @@ describe('checkout route billing sequencing', () => {
     expect(vi.mocked(createCheckoutLink)).toHaveBeenCalledWith(expect.objectContaining({
       checkoutReference: 'chk_123',
       externalReference: 'curria:v1:u:usr_123:c:chk_123',
-      successUrl: buildAppUrl('/dashboard'),
+      successUrl: buildAppUrl('/profile-setup'),
       cancelUrl: buildAppUrl('/precos'),
       expiredUrl: buildAppUrl('/precos'),
       billingInfo: {
@@ -239,7 +239,7 @@ describe('checkout route billing sequencing', () => {
     expect(createCheckoutLink).toHaveBeenCalledWith(expect.objectContaining({
       userName: 'Usuario CurrIA',
       userEmail: null,
-      successUrl: buildAppUrl('/dashboard'),
+      successUrl: buildAppUrl('/profile-setup'),
       cancelUrl: buildAppUrl('/precos'),
     }))
   })

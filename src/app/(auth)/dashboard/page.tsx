@@ -1,10 +1,6 @@
-import React from "react"
-import { currentUser } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 
-import { ResumeWorkspace } from "@/components/dashboard/resume-workspace"
-import { loadOptionalBillingInfo } from "@/lib/asaas/optional-billing-info"
-import { getCurrentAppUser } from "@/lib/auth/app-user"
-import { isE2EAuthEnabled } from "@/lib/auth/e2e-auth"
+import { buildChatPath } from "@/lib/routes/app"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -21,35 +17,5 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     ? rawSessionParam[0]
     : rawSessionParam
 
-  const [appUser, clerkUser] = await Promise.all([
-    getCurrentAppUser(),
-    isE2EAuthEnabled() ? Promise.resolve(null) : currentUser(),
-  ])
-  let billingInfo = null
-  if (appUser) {
-    const result = await loadOptionalBillingInfo(appUser.id, "dashboard_page")
-    billingInfo = result.billingInfo
-  }
-
-  const currentCredits = appUser?.creditAccount.creditsRemaining ?? 0
-  const activeRecurringPlan = billingInfo?.hasActiveRecurringSubscription ? billingInfo.plan : null
-  const missingContactInfo = {
-    missingEmail: !clerkUser?.primaryEmailAddress?.emailAddress?.trim(),
-    missingPhone: !clerkUser?.primaryPhoneNumber?.phoneNumber?.trim(),
-  }
-  const displayName =
-    clerkUser?.firstName?.trim()
-    || clerkUser?.fullName?.trim()
-    || clerkUser?.username
-    || "Você"
-
-  return (
-    <ResumeWorkspace
-      initialSessionId={initialSessionId || undefined}
-      userName={displayName}
-      missingContactInfo={missingContactInfo}
-      activeRecurringPlan={activeRecurringPlan}
-      currentCredits={currentCredits}
-    />
-  )
+  redirect(buildChatPath(initialSessionId))
 }

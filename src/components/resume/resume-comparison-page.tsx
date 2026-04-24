@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { ResumeComparisonView } from "@/components/resume/resume-comparison-view"
 import { Button } from "@/components/ui/button"
 import { getResumeComparison } from "@/lib/dashboard/workspace-client"
+import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 import type { ResumeComparisonResponse } from "@/types/dashboard"
 
 export function ResumeComparisonPage({ sessionId }: { sessionId: string }) {
@@ -65,7 +66,7 @@ export function ResumeComparisonPage({ sessionId }: { sessionId: string }) {
           <p className="text-sm text-muted-foreground">
             {error ?? "Não foi possível carregar a comparação desta sessão."}
           </p>
-          <Button type="button" onClick={() => router.push("/dashboard/resume/new")}>
+          <Button type="button" onClick={() => router.push(PROFILE_SETUP_PATH)}>
             Voltar ao perfil
           </Button>
         </div>
@@ -87,8 +88,8 @@ export function ResumeComparisonPage({ sessionId }: { sessionId: string }) {
       highlightState={comparison.highlightState}
       scoreLabel={comparison.originalScore.label}
       optimizationNotes={comparison.optimizationSummary?.notes ?? []}
-      backHref="/dashboard/resume/new"
-      onContinue={() => router.push("/dashboard/resume/new")}
+      backHref={PROFILE_SETUP_PATH}
+      onContinue={() => router.push(PROFILE_SETUP_PATH)}
     />
   )
 }

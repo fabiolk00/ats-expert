@@ -17,6 +17,7 @@ import {
   type CvHighlightTextSegment,
 } from "@/lib/resume/cv-highlight-artifact"
 import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
+import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
 import type { AtsReadinessScoreContract } from "@/lib/ats/scoring/types"
 import type { ResumeGenerationType } from "@/types/agent"
@@ -427,7 +428,7 @@ export function ResumeComparisonView({
   atsReadiness,
   highlightState,
   optimizationNotes = [],
-  backHref = "/dashboard/resume/new",
+  backHref = PROFILE_SETUP_PATH,
   onContinue,
   onCvStateUpdate,
   className,

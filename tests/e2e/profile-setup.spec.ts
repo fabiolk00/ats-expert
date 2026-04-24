@@ -119,7 +119,7 @@ async function bootstrapProfileSetupPage(
     creditsRemaining: options.creditsRemaining ?? 3,
   })
 
-  await page.goto("/dashboard/resumes/new")
+  await page.goto("/profile-setup")
   await expect(page.getByTestId("user-data-page")).toBeVisible()
   await dismissDashboardGuideIfVisible(page)
 }
@@ -144,7 +144,7 @@ async function openEnhancement(page: Page): Promise<void> {
 }
 
 async function ensureProfileShell(page: Page): Promise<void> {
-  const backButton = page.getByRole("button", { name: "Voltar ao perfil" })
+  const backButton = page.getByTestId("enhancement-back-button")
 
   if (await backButton.isVisible().catch(() => false)) {
     await backButton.click()
@@ -162,7 +162,14 @@ async function fillMinimumReadyProfile(page: Page): Promise<void> {
 }
 
 test.describe("manual profile setup", () => {
-  test("redirects guests away from /dashboard/resumes/new", async ({ page }) => {
+  test("redirects guests away from /profile-setup", async ({ page }) => {
+    await clearE2EAuth(page)
+    await page.goto("/profile-setup")
+
+    await expect(page).toHaveURL(/\/(login|entrar)(?:\?.*)?$/)
+  })
+
+  test("redirects guests away from /dashboard/resumes/new as well", async ({ page }) => {
     await clearE2EAuth(page)
     await page.goto("/dashboard/resumes/new")
 
@@ -191,12 +198,12 @@ test.describe("manual profile setup", () => {
       email: "profile@example.com",
     })
 
-    await page.goto("/dashboard/resumes/new")
+    await page.goto("/profile-setup")
     await openEditor(page)
     await fillMinimumReadyProfile(page)
     await page.getByTestId("profile-save-button").click()
 
-    await expect(page).toHaveURL(/\/dashboard\/resume(?:s)?\/new(?:\?.*)?$/)
+    await expect(page).toHaveURL(/\/profile-setup(?:\?.*)?$/)
     await expect(page.getByTestId("user-data-page")).toBeVisible()
 
     expect(savedProfilePayload).toEqual({
@@ -212,13 +219,10 @@ test.describe("manual profile setup", () => {
     })
   })
 
-  test("returns to /dashboard when cancelar is clicked from the profile shell", async ({ page }) => {
+  test("does not render a cancelar action in the profile shell", async ({ page }) => {
     await bootstrapProfileSetupPage(page)
 
-    await page.getByRole("button", { name: "Cancelar" }).click()
-
-    await expect(page).toHaveURL(/\/dashboard(?:\?.*)?$/)
-    await expect(page.getByTestId("chat-interface")).toBeVisible()
+    await expect(page.getByRole("button", { name: "Cancelar" })).toHaveCount(0)
   })
 
   test("opens and closes the import modal from the profile header", async ({ page }) => {
@@ -339,7 +343,7 @@ test.describe("manual profile setup", () => {
       creditsRemaining: 3,
     })
 
-    await page.goto("/dashboard/resumes/new")
+    await page.goto("/profile-setup")
     await expect(page.getByTestId("user-data-page")).toBeVisible()
 
     await page.getByRole("button", { name: "Importar do LinkedIn ou PDF" }).click()
@@ -391,7 +395,7 @@ test.describe("manual profile setup", () => {
 
     await expect(page.getByRole("dialog")).toBeVisible()
     await expect(page.getByText("Complete seu perfil antes de melhorar para ATS")).toBeVisible()
-    await expect(page).toHaveURL(/\/dashboard\/resumes\/new(?:\?.*)?$/)
+    await expect(page).toHaveURL(/\/profile-setup(?:\?.*)?$/)
   })
 
   test("starts ATS enhancement from a ready base profile and lands on the compare page", async ({ page }) => {
@@ -491,7 +495,7 @@ test.describe("manual profile setup", () => {
     await openEnhancement(page)
     await page.getByTestId("enhancement-intent-target-job").click()
     await page.getByTestId("target-job-description-input").fill(targetJobDescription)
-    await expect(page.getByText(/Cole a descrição completa da vaga/i)).toBeVisible()
+    await expect(page.getByText(/Adapte seu curr/i)).toBeVisible()
     await page.getByTestId("ats-panel-cta").click()
 
     await expect(page).toHaveURL(new RegExp(`/dashboard/resume/compare/${sessionId}$`))
@@ -556,7 +560,7 @@ test.describe("manual profile setup", () => {
 
     await expect(page.getByText("Cole a descrição da vaga para adaptar seu currículo.")).toBeVisible()
     await expect(page.getByTestId("target-job-description-input")).toBeFocused()
-    await expect(page).toHaveURL(/\/dashboard\/resumes\/new(?:\?.*)?$/)
+    await expect(page).toHaveURL(/\/profile-setup(?:\?.*)?$/)
     expect(smartGenerationCalled).toBe(false)
     expect(atsEnhancementCalled).toBe(false)
   })

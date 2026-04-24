@@ -16,8 +16,9 @@ import { getClerkErrorMessage } from "@/components/auth/clerk-error"
 import { Button } from "@/components/ui/button"
 import { getSafeRedirectPath } from "@/lib/auth/redirects"
 import { navigateToUrl } from "@/lib/navigation/external"
+import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 
-const POST_LOGIN_REDIRECT_PATH = "/dashboard/resumes/new"
+const POST_LOGIN_REDIRECT_PATH = PROFILE_SETUP_PATH
 
 export default function LoginForm() {
   const { isLoaded, signIn, setActive } = useSignIn()
