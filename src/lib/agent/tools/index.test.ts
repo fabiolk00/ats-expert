@@ -830,7 +830,7 @@ describe('agent tool dispatch', () => {
     expect(execution.output).toEqual({
       success: false,
       code: 'GENERATE_FILE_LATEST_VERSION_MISSING',
-      error: 'Gere uma nova versÃ£o otimizada pela IA antes de exportar este currÃ­culo.',
+      error: 'Gere uma nova versão otimizada pela IA antes de exportar este currículo.',
     })
     expect(generateBillableResume).not.toHaveBeenCalled()
     expect(recordMetricCounter).toHaveBeenCalledWith('architecture.generate_file.latest_version_missing')

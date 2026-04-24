@@ -1039,7 +1039,7 @@ describe('generateBillableResume', () => {
     expect(result.output).toEqual({
       success: false,
       code: 'GENERATE_RESUME_PENDING_GENERATION_MISSING',
-      error: 'A geraÃ§Ã£o pendente esperada nÃ£o foi criada antes de continuar a exportaÃ§Ã£o.',
+      error: 'A geração pendente esperada não foi criada antes de continuar a exportação.',
     })
     expect(mockReserveCreditForGenerationIntent).not.toHaveBeenCalled()
     expect(mockGenerateFile).not.toHaveBeenCalled()

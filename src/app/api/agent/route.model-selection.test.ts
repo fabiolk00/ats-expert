@@ -252,7 +252,7 @@ describe('/api/agent route model selection', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         sessionId: 'sess_dialog_model_override',
-        message: 'quais ajustes voce sugere para o meu curriculo?',
+      message: 'quais ajustes você sugere para o meu currículo?',
       }),
     }))
 
@@ -283,7 +283,7 @@ describe('/api/agent route model selection', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         sessionId: 'sess_confirm_model_override',
-        message: 'o que voce mudaria antes da geracao final?',
+      message: 'o que você mudaria antes da geração final?',
       }),
     }))
 

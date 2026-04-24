@@ -737,6 +737,32 @@ describe("UserDataPage", () => {
     expect(within(card).getByText("Resultado relevante 18")).toBeInTheDocument()
   })
 
+  it("keeps resume section content tight below the section header", async () => {
+    buildFetchMock(createJsonResponse(buildProfileResponse(buildResumeData({
+      summary: "Resumo enxuto para validar o espaçamento.",
+      experience: [{
+        title: "Senior Backend Engineer",
+        company: "CurrIA",
+        location: "Sao Paulo",
+        startDate: "2020",
+        endDate: "Atual",
+        bullets: ["Entregou melhorias importantes."],
+      }],
+    }))))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    const summaryCard = await screen.findByTestId("summary-section-card")
+    const experienceCard = await screen.findByTestId("experience-section-card")
+    const summaryContent = summaryCard.lastElementChild
+    const firstExperienceArticle = within(experienceCard).getByText("Senior Backend Engineer").closest("article")
+
+    expect(summaryContent).not.toBeNull()
+    expect(summaryContent).toHaveClass("pt-2.5")
+    expect(firstExperienceArticle).not.toBeNull()
+    expect(firstExperienceArticle).toHaveClass("pt-2.5")
+  })
+
   it("keeps the certifications card visible with its edit action even when empty", async () => {
     buildFetchMock(createJsonResponse(buildProfileResponse(buildResumeData({
       certifications: [],

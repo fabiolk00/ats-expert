@@ -1102,7 +1102,7 @@ export async function generateBillableResume(input: {
       return {
         output: toolFailure(
           TOOL_ERROR_CODES.GENERATE_RESUME_PENDING_GENERATION_MISSING,
-          'A geraÃ§Ã£o pendente esperada nÃ£o foi criada antes de continuar a exportaÃ§Ã£o.',
+          'A geração pendente esperada não foi criada antes de continuar a exportação.',
         ),
         generatedOutput: {
           status: 'failed',
