@@ -114,7 +114,7 @@ describe('PreviewPanel', () => {
     expect(screen.getByTestId('preview-open-external')).toHaveAttribute('href', 'https://example.com/resume.pdf')
     expect(setCachedUrl).toHaveBeenCalledWith('sess_123:target_123', 'https://example.com/resume.pdf')
 
-    await userEvent.click(screen.getByTitle('Edit resume'))
+    await userEvent.click(screen.getByTitle('Editar currículo'))
 
     await waitFor(() => {
       expect(screen.getByTestId('resume-editor-state')).toHaveTextContent('open')

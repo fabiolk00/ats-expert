@@ -262,10 +262,10 @@ function PreviewPanelContent({
                 onClick={() => setIsEditorOpen(true)}
                 data-testid="preview-edit-button"
                 className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                title="Edit resume"
+                title="Editar currículo"
               >
                 <Pencil className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Edit</span>
+                <span className="hidden sm:inline">Editar</span>
               </button>
               <button
                 type="button"
@@ -296,7 +296,7 @@ function PreviewPanelContent({
               type="button"
               onClick={onClose}
               className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="Fechar pre-visualizacao"
+              aria-label="Fechar pré-visualização"
             >
               <X className="h-4 w-4" />
             </button>
@@ -357,7 +357,7 @@ function PreviewPanelContent({
               data-testid="preview-panel-frame"
               src={previewUrl}
               className={isLockedPreview ? 'h-full w-full border-0 blur-sm' : 'h-full w-full border-0'}
-              title={`Pre-visualizacao: ${file.label}`}
+              title={`Pré-visualização: ${file.label}`}
             />
             {isLockedPreview ? (
               <div

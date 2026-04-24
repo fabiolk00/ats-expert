@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { toast } from "sonner"
@@ -6,7 +6,127 @@ import { toast } from "sonner"
 import UserDataPage from "./user-data-page"
 
 const mockPush = vi.fn()
+const mockGetDownloadUrls = vi.fn()
+const mockAnchorClick = vi.fn()
+const mockCreateObjectURL = vi.fn(() => "blob:curria-test")
+const mockRevokeObjectURL = vi.fn()
+
 let mockPathname = "/dashboard/resume/new"
+
+type MockResumeData = {
+  fullName: string
+  email: string
+  phone: string
+  linkedin?: string
+  location?: string
+  summary: string
+  experience: Array<{
+    title: string
+    company: string
+    location?: string
+    startDate: string
+    endDate: string
+    bullets: string[]
+  }>
+  skills: string[]
+  education: Array<{
+    degree: string
+    institution: string
+    year: string
+    gpa?: string
+  }>
+  certifications?: Array<{
+    name: string
+    issuer: string
+    year?: string
+  }>
+}
+
+const baseResumeData: MockResumeData = {
+  fullName: "Ana Silva",
+  email: "ana@example.com",
+  phone: "555-0100",
+  linkedin: "https://linkedin.com/in/ana",
+  location: "Sao Paulo",
+  summary: "Analista de dados com foco em BI.",
+  experience: [{
+    title: "Analista de Dados",
+    company: "Acme",
+    location: "Sao Paulo",
+    startDate: "2022",
+    endDate: "2024",
+    bullets: ["Criei dashboards executivos."],
+  }],
+  skills: ["SQL", "Power BI", "ETL", "Excel"],
+  education: [{
+    degree: "Bacharel em Sistemas de Informacao",
+    institution: "USP",
+    year: "2020",
+  }],
+  certifications: [{
+    name: "AWS Cloud Practitioner",
+    issuer: "Amazon",
+    year: "2024",
+  }],
+}
+
+function buildResumeData(overrides: Partial<MockResumeData> = {}): MockResumeData {
+  return {
+    ...baseResumeData,
+    ...overrides,
+  }
+}
+
+function buildProfileResponse(cvState: MockResumeData | null = baseResumeData, source = "manual") {
+  return {
+    profile: cvState
+      ? {
+          id: "profile_123",
+          source,
+          cvState,
+          linkedinUrl: cvState.linkedin ?? null,
+          profilePhotoUrl: null,
+          extractedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+      : null,
+  }
+}
+
+function createJsonResponse(body: unknown, init: { ok?: boolean; status?: number } = {}) {
+  const status = init.status ?? (init.ok === false ? 500 : 200)
+
+  return {
+    ok: init.ok ?? status < 400,
+    status,
+    json: async () => body,
+  }
+}
+
+function createBlobResponse() {
+  return {
+    ok: true,
+    status: 200,
+    blob: async () => new Blob(["%PDF-1.4 CurrIA"], { type: "application/pdf" }),
+    json: async () => ({}),
+  }
+}
+
+function buildFetchMock(...responses: Array<ReturnType<typeof createJsonResponse> | ReturnType<typeof createBlobResponse>>) {
+  const fetchMock = vi.fn()
+
+  responses.forEach((response) => {
+    fetchMock.mockResolvedValueOnce(response)
+  })
+
+  vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+  return fetchMock
+}
+
+async function openEnhancementMode(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: /Melhorar curr/i }))
+}
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -22,1470 +142,657 @@ vi.mock("sonner", () => ({
   },
 }))
 
+vi.mock("@/lib/dashboard/welcome-guide", () => ({
+  dashboardWelcomeGuideTargets: {
+    profileAtsCta: "profile-ats-cta",
+  },
+  getDashboardGuideTargetProps: () => ({}),
+}))
+
+vi.mock("@/lib/dashboard/workspace-client", () => ({
+  getDownloadUrls: (...args: unknown[]) => mockGetDownloadUrls(...args),
+}))
+
+vi.mock("./generation-loading", () => ({
+  GenerationLoading: ({
+    isLoading,
+    generationType,
+  }: {
+    isLoading: boolean
+    generationType: string
+  }) => (
+    isLoading
+      ? <div data-testid="generation-loading">{generationType}</div>
+      : null
+  ),
+}))
+
 vi.mock("./resume-builder", () => ({
   ImportResumeModal: ({
+    isOpen,
+    onClose,
     onImportStarted,
-    onImportFinished,
     onImportSuccess,
   }: {
+    isOpen: boolean
+    onClose: () => void
     onImportStarted?: (source: "linkedin" | "pdf") => void
-    onImportFinished?: () => void
-    onImportSuccess: (data: unknown, profilePhotoUrl?: string | null, source?: string | null) => void
+    onImportSuccess: (data: MockResumeData, profilePhotoUrl?: string | null, source?: string | null) => void
   }) => (
-    <div>
-      <button type="button" onClick={() => onImportStarted?.("linkedin")}>
-        mock-import-start
-      </button>
-      <button
-        type="button"
-        onClick={() => onImportSuccess({
-          fullName: "Ana Silva",
-          email: "ana@example.com",
-          phone: "555-0100",
-          summary: "Imported summary",
-          experience: [],
-          skills: [],
-          education: [],
-        }, null, "pdf")}
-      >
-        mock-import
-      </button>
-      <button type="button" onClick={() => onImportFinished?.()}>
-        mock-import-finish
-      </button>
-    </div>
+    isOpen ? (
+      <div role="dialog" aria-label="Importar perfil profissional">
+        <p>Importar perfil profissional</p>
+        <button type="button" onClick={() => onImportStarted?.("linkedin")}>
+          mock-import-start
+        </button>
+        <button
+          type="button"
+          onClick={() => onImportSuccess(buildResumeData({
+            fullName: "Bruna Costa",
+            email: "bruna@example.com",
+            phone: "555-0200",
+            linkedin: "https://linkedin.com/in/bruna",
+            location: "Recife",
+            summary: "Product designer com foco em ATS.",
+            experience: [],
+            skills: ["Figma", "UX Writing", "Design Systems"],
+            education: [],
+            certifications: [],
+          }), null, "pdf")}
+        >
+          mock-import-success
+        </button>
+        <button type="button" onClick={onClose}>
+          Fechar
+        </button>
+      </div>
+    ) : null
   ),
 }))
 
 vi.mock("./visual-resume-editor", () => ({
-  normalizeResumeData: (value?: unknown) => value ?? {
-    fullName: "",
-    email: "",
-    phone: "",
-    linkedin: "",
-    location: "",
-    summary: "",
-    experience: [],
-    skills: [],
-    education: [],
-    certifications: [],
+  normalizeResumeData: (value?: Partial<MockResumeData>) => ({
+    fullName: value?.fullName ?? "",
+    email: value?.email ?? "",
+    phone: value?.phone ?? "",
+    linkedin: value?.linkedin ?? "",
+    location: value?.location ?? "",
+    summary: value?.summary ?? "",
+    experience: value?.experience ?? [],
+    skills: value?.skills ?? [],
+    education: value?.education ?? [],
+    certifications: value?.certifications ?? [],
+  }),
+  VisualResumeEditor: ({
+    value,
+    onChange,
+    importProgressSource,
+  }: {
+    value: MockResumeData
+    onChange: (next: MockResumeData) => void
+    importProgressSource?: string | null
+  }) => {
+    const experience = value.experience[0] ?? {
+      title: "",
+      company: "",
+      location: "",
+      startDate: "",
+      endDate: "",
+      bullets: [],
+    }
+    const education = value.education[0] ?? {
+      degree: "",
+      institution: "",
+      year: "",
+      gpa: "",
+    }
+    const certification = value.certifications?.[0] ?? {
+      name: "",
+      issuer: "",
+      year: "",
+    }
+
+    return (
+      <div
+        data-testid="visual-resume-editor"
+        data-import-source={importProgressSource ?? "idle"}
+      >
+        <button type="button" aria-expanded="true">Dados pessoais</button>
+        <input
+          placeholder="Nome completo"
+          value={value.fullName}
+          onChange={(event) => onChange({ ...value, fullName: event.target.value })}
+        />
+        <input
+          placeholder="Email"
+          value={value.email}
+          onChange={(event) => onChange({ ...value, email: event.target.value })}
+        />
+        <input
+          placeholder="Telefone"
+          value={value.phone}
+          onChange={(event) => onChange({ ...value, phone: event.target.value })}
+        />
+        <input
+          placeholder="LinkedIn"
+          value={value.linkedin ?? ""}
+          onChange={(event) => onChange({ ...value, linkedin: event.target.value })}
+        />
+        <input
+          placeholder="Localização"
+          value={value.location ?? ""}
+          onChange={(event) => onChange({ ...value, location: event.target.value })}
+        />
+
+        <button type="button" aria-expanded="true">Resumo profissional</button>
+        <textarea
+          placeholder="Escreva um resumo curto com sua proposta de valor"
+          value={value.summary}
+          onChange={(event) => onChange({ ...value, summary: event.target.value })}
+        />
+
+        <button type="button" aria-expanded="true">Experiência</button>
+        <input
+          placeholder="Cargo"
+          value={experience.title}
+          onChange={(event) => onChange({
+            ...value,
+            experience: [{
+              ...experience,
+              title: event.target.value,
+            }],
+          })}
+        />
+
+        <button type="button" aria-expanded="true">Skills</button>
+        <textarea
+          placeholder="Uma skill por linha"
+          value={value.skills.join("\n")}
+          onChange={(event) => onChange({
+            ...value,
+            skills: event.target.value.split("\n"),
+          })}
+        />
+
+        <button type="button" aria-expanded="true">Educação</button>
+        <input
+          placeholder="Curso"
+          value={education.degree}
+          onChange={(event) => onChange({
+            ...value,
+            education: [{
+              ...education,
+              degree: event.target.value,
+            }],
+          })}
+        />
+
+        <button type="button" aria-expanded="true">Certificações</button>
+        <input
+          placeholder="Nome da certificação"
+          value={certification.name}
+          onChange={(event) => onChange({
+            ...value,
+            certifications: [{
+              ...certification,
+              name: event.target.value,
+            }],
+          })}
+        />
+      </div>
+    )
   },
-  VisualResumeEditor: ({ importProgressSource }: { importProgressSource?: string | null }) => (
-    <div
-      data-testid="visual-resume-editor"
-      data-import-source={importProgressSource ?? "idle"}
-    />
-  ),
 }))
 
 describe("UserDataPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.unstubAllGlobals()
     mockPathname = "/dashboard/resume/new"
-  })
+    mockGetDownloadUrls.mockReset()
+    window.localStorage.clear()
 
-  it("loads the saved profile with a no-store fetch to avoid stale setup data", async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: null,
-      }),
-    }))
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    await screen.findByText("Perfil ainda não salvo")
-
-    expect(fetchMock).toHaveBeenCalledWith("/api/profile", expect.objectContaining({
-      credentials: "include",
-      cache: "no-store",
-    }))
-  })
-
-  it("opens a friendly modal when the base profile is incomplete for ATS", async () => {
-    const user = userEvent.setup()
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: {
-          id: "profile_123",
-          source: "manual",
-          cvState: {
-            fullName: "",
-            email: "",
-            phone: "",
-            linkedin: "",
-            location: "",
-            summary: "",
-            experience: [],
-            skills: ["SQL"],
-            education: [],
-            certifications: [],
-          },
-          linkedinUrl: null,
-          extractedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      }),
-    })) as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    const atsButton = await screen.findByText("Melhorar para ATS (1 crédito)")
-    expect(atsButton).toBeEnabled()
-    expect(screen.getByText("Complete seu currículo para gerar uma versão ATS.")).toBeInTheDocument()
-
-    await user.click(atsButton)
-
-    expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
-    expect(screen.getByText("• Dados pessoais: adicione seu nome completo.")).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        "• Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.",
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText("• Experiência: inclua pelo menos uma experiência profissional.")).toBeInTheDocument()
-    expect(screen.getByText("• Educação: adicione pelo menos uma formação acadêmica.")).toBeInTheDocument()
-  })
-
-  it("enables the ATS enhancement button when the base profile is ready", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: {
-          id: "profile_123",
-          source: "manual",
-          cvState: {
-            fullName: "Ana Silva",
-            email: "ana@example.com",
-            phone: "555-0100",
-            linkedin: "https://linkedin.com/in/ana",
-            location: "Sao Paulo",
-            summary: "Analista de dados com foco em BI.",
-            experience: [{
-              title: "Analista de Dados",
-              company: "Acme",
-              location: "Sao Paulo",
-              startDate: "2022",
-              endDate: "2024",
-              bullets: ["Criei dashboards executivos."],
-            }],
-            skills: ["SQL", "Power BI", "ETL", "Excel"],
-            education: [{
-              degree: "Bacharel em Sistemas de Informacao",
-              institution: "USP",
-              year: "2020",
-            }],
-            certifications: [{
-              name: "AWS Cloud Practitioner",
-              issuer: "Amazon",
-              year: "2024",
-            }],
-          },
-          linkedinUrl: null,
-          extractedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      }),
-    })) as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    await waitFor(() => {
-      expect(screen.getByText("Melhorar para ATS (1 crédito)")).toBeEnabled()
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+      writable: true,
     })
-
-    expect(screen.getByText("Créditos disponíveis")).toBeInTheDocument()
-    expect(screen.getByText("2")).toBeInTheDocument()
-  })
-
-  it("opens the generated comparison before following to the dashboard session", async () => {
-    const user = userEvent.setup()
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          sessionId: "sess_ats_123",
-          generationType: "ATS_ENHANCEMENT",
-        }),
-      })
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    const button = await screen.findByText("Melhorar para ATS (1 crédito)")
-    await user.click(button)
-
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/dashboard/resume/compare/sess_ats_123")
+    Object.defineProperty(window.HTMLAnchorElement.prototype, "click", {
+      configurable: true,
+      value: mockAnchorClick,
+      writable: true,
     })
-    expect(fetchMock).toHaveBeenCalledWith("/api/profile/ats-enhancement", expect.objectContaining({
-      method: "POST",
-    }))
-  })
-
-  it("shows the loading overlay while the ATS generation request is still running", async () => {
-    const user = userEvent.setup()
-    let resolveGenerationRequest:
-      | ((value: {
-          ok: boolean
-          json: () => Promise<{
-            success: boolean
-            sessionId: string
-            generationType: "ATS_ENHANCEMENT"
-          }>
-        }) => void)
-      | undefined
-
-    const pendingGenerationRequest = new Promise<{
-      ok: boolean
-      json: () => Promise<{
-        success: boolean
-        sessionId: string
-        generationType: "ATS_ENHANCEMENT"
-      }>
-    }>((resolve) => {
-      resolveGenerationRequest = resolve
+    Object.defineProperty(globalThis.URL, "createObjectURL", {
+      configurable: true,
+      value: mockCreateObjectURL,
+      writable: true,
     })
-
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockImplementationOnce(() => pendingGenerationRequest)
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    await user.click(await screen.findByTestId("ats-panel-cta"))
-
-    expect(await screen.findByTestId("generation-loading")).toBeInTheDocument()
-    expect(screen.getByText("Otimizando para ATS")).toBeInTheDocument()
-
-    resolveGenerationRequest?.({
-      ok: true,
-      json: async () => ({
-        success: true,
-        sessionId: "sess_ats_loading",
-        generationType: "ATS_ENHANCEMENT",
-      }),
-    })
-
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/dashboard/resume/compare/sess_ats_loading")
+    Object.defineProperty(globalThis.URL, "revokeObjectURL", {
+      configurable: true,
+      value: mockRevokeObjectURL,
+      writable: true,
     })
   })
 
-  it("shows the comparison screen for job targeting before continuing to the dashboard", async () => {
-    const user = userEvent.setup()
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          sessionId: "sess_target_123",
-          generationType: "JOB_TARGETING",
-        }),
-      })
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+  it("loads the saved profile and renders CRM cards from existing profile data", async () => {
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
 
     render(<UserDataPage currentCredits={2} />)
 
-    fireEvent.change(await screen.findByTestId("target-job-description-input"), {
-      target: { value: "Vaga para analista de dados senior com foco em produto e SQL." },
-    })
-
-    expect(screen.getByText("Adaptar meu currículo para esta vaga")).toBeInTheDocument()
-    expect(screen.getByText("Adaptar para vaga (1 crédito)")).toBeInTheDocument()
-
-    await user.click(screen.getByText("Adaptar para vaga (1 crédito)"))
-
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/dashboard/resume/compare/sess_target_123")
-    })
-
-    expect(fetchMock).toHaveBeenCalledWith("/api/profile/smart-generation", expect.objectContaining({
-      method: "POST",
-      body: expect.stringContaining("\"targetJobDescription\":\"Vaga para analista de dados senior com foco em produto e SQL.\""),
-    }))
+    expect(await screen.findByText("Ana Silva")).toBeInTheDocument()
+    expect(screen.getAllByText("Analista de Dados").length).toBeGreaterThan(0)
+    expect(screen.getByText("Base salva manualmente")).toBeInTheDocument()
+    expect(screen.getByText("Criei dashboards executivos.")).toBeInTheDocument()
+    expect(screen.getByText("AWS Cloud Practitioner")).toBeInTheDocument()
   })
 
-  it("returns to ATS mode when the target job description is cleared", async () => {
+  it("opens the existing import flow from the profile header", async () => {
     const user = userEvent.setup()
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: {
-          id: "profile_123",
-          source: "manual",
-          cvState: {
-            fullName: "Ana Silva",
-            email: "ana@example.com",
-            phone: "555-0100",
-            linkedin: "https://linkedin.com/in/ana",
-            location: "Sao Paulo",
-            summary: "Analista de dados com foco em BI.",
-            experience: [{
-              title: "Analista de Dados",
-              company: "Acme",
-              location: "Sao Paulo",
-              startDate: "2022",
-              endDate: "2024",
-              bullets: ["Criei dashboards executivos."],
-            }],
-            skills: ["SQL", "Power BI", "ETL", "Excel"],
-            education: [{
-              degree: "Bacharel em Sistemas de Informacao",
-              institution: "USP",
-              year: "2020",
-            }],
-            certifications: [{
-              name: "AWS Cloud Practitioner",
-              issuer: "Amazon",
-              year: "2024",
-            }],
-          },
-          linkedinUrl: null,
-          extractedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      }),
-    })) as unknown as typeof fetch)
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
 
     render(<UserDataPage currentCredits={2} />)
 
-    const input = await screen.findByTestId("target-job-description-input")
-    fireEvent.change(input, { target: { value: "Vaga para analista." } })
+    await user.click(await screen.findByRole("button", { name: /Importar do LinkedIn ou PDF/i }))
 
-    expect(screen.getByText("Adaptar meu currículo para esta vaga")).toBeInTheDocument()
-
-    await user.clear(input)
-
-    expect(screen.getByText("Melhorar meu currículo para ATS")).toBeInTheDocument()
-    expect(screen.getByText("Melhorar para ATS (1 crédito)")).toBeInTheDocument()
+    expect(screen.getByRole("dialog", { name: /Importar perfil profissional/i })).toBeInTheDocument()
   })
 
-  it("shows a readable message when the ATS route returns a schema error object", async () => {
+  it("keeps import connected to the editor by switching into the existing editor view", async () => {
     const user = userEvent.setup()
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: async () => ({
-          error: {
-            fieldErrors: {
-              targetJobDescription: ["Descricao da vaga muito longa."],
-            },
-          },
-        }),
-      })
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+    buildFetchMock(createJsonResponse(buildProfileResponse(null)))
 
     render(<UserDataPage currentCredits={2} />)
 
-    fireEvent.change(await screen.findByTestId("target-job-description-input"), {
-      target: { value: "Vaga para analista de dados senior com foco em produto e SQL." },
-    })
-    await user.click(screen.getByText("Adaptar para vaga (1 crédito)"))
+    await user.click(await screen.findByRole("button", { name: /Importar do LinkedIn ou PDF/i }))
+    await user.click(screen.getByRole("button", { name: "mock-import-start" }))
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Descricao da vaga muito longa.")
-    })
+    expect(await screen.findByTestId("visual-resume-editor")).toHaveAttribute("data-import-source", "linkedin")
+    expect(screen.getByRole("heading", { name: /Edite seu curr/i })).toBeInTheDocument()
   })
 
-  it.skip("shows a blocking validation modal when smart generation fails factual validation", async () => {
+  it("saves edited profile data through the existing save flow", async () => {
     const user = userEvent.setup()
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 422,
-        json: async () => ({
-          error: "Job targeting rewrite validation failed.",
-          sessionId: "sess_target_123",
-          workflowMode: "job_targeting",
-          rewriteValidation: {
-            valid: false,
-            issues: [{
-              severity: "high",
-              section: "summary",
-              message: "O resumo otimizado menciona skills sem alinhamento com a experiência reescrita.",
-            }],
-          },
-          targetRole: "Vaga Alvo",
-          targetRoleConfidence: "low",
-        }),
-      })
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+    const fetchMock = buildFetchMock(
+      createJsonResponse(buildProfileResponse(null)),
+      createJsonResponse(buildProfileResponse(buildResumeData({
+        fullName: "Ana Teste",
+        email: "ana@example.com",
+        phone: "+55 11 99999-0000",
+        linkedin: "https://linkedin.com/in/ana-teste",
+        location: "Sao Paulo, BR",
+        summary: "Backend engineer focused on reliability.",
+        experience: [],
+        skills: ["TypeScript", "Node.js"],
+        education: [],
+        certifications: [],
+      }))),
+    )
 
     render(<UserDataPage currentCredits={2} />)
 
-    fireEvent.change(await screen.findByTestId("target-job-description-input"), {
-      target: { value: "Vaga para analista de dados senior com foco em produto e SQL." },
-    })
+    await user.click(await screen.findByRole("button", { name: /Editar perfil/i }))
 
-    await user.click(screen.getByTestId("ats-panel-cta"))
+    const fullNameInput = await screen.findByPlaceholderText("Nome completo")
+    const emailInput = screen.getByPlaceholderText("Email")
+    const phoneInput = screen.getByPlaceholderText("Telefone")
+    const linkedinInput = screen.getByPlaceholderText("LinkedIn")
+    const locationInput = screen.getByPlaceholderText("Localização")
+    const summaryInput = screen.getByPlaceholderText(/Escreva um resumo curto/i)
+    const skillsInput = screen.getByPlaceholderText(/Uma skill por linha/i)
 
-    expect(await screen.findByText("NÃ£o concluÃ­mos essa adaptaÃ§Ã£o automaticamente")).toBeInTheDocument()
-    expect(screen.getByText("Resumo: O resumo otimizado menciona skills sem alinhamento com a experiÃªncia reescrita.")).toBeInTheDocument()
-    expect(screen.getByText("PossÃ­vel bug de leitura da vaga")).toBeInTheDocument()
-    expect(screen.getByText(/Vaga Alvo/)).toBeInTheDocument()
-    expect(mockPush).not.toHaveBeenCalled()
-  })
+    await user.clear(fullNameInput)
+    await user.type(fullNameInput, "  Ana Teste  ")
+    await user.clear(emailInput)
+    await user.type(emailInput, " ana@example.com ")
+    await user.clear(phoneInput)
+    await user.type(phoneInput, " +55 11 99999-0000 ")
+    await user.clear(linkedinInput)
+    await user.type(linkedinInput, " https://linkedin.com/in/ana-teste ")
+    await user.clear(locationInput)
+    await user.type(locationInput, " Sao Paulo, BR ")
+    await user.clear(summaryInput)
+    await user.type(summaryInput, " Backend engineer focused on reliability. ")
+    await user.clear(skillsInput)
+    await user.type(skillsInput, "TypeScript{enter}Node.js{enter}  ")
 
-  it("shows a blocking validation modal when smart generation fails factual validation with structured payload", async () => {
-    const user = userEvent.setup()
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 422,
-        json: async () => ({
-          error: "Job targeting rewrite validation failed.",
-          sessionId: "sess_target_123",
-          workflowMode: "job_targeting",
-          rewriteValidation: {
-            valid: false,
-            issues: [{
-              severity: "high",
-              section: "summary",
-              message: "O resumo otimizado menciona skills sem alinhamento com a experiência reescrita.",
-            }],
-          },
-          targetRole: "Vaga Alvo",
-          targetRoleConfidence: "low",
-        }),
-      })
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    fireEvent.change(await screen.findByTestId("target-job-description-input"), {
-      target: { value: "Vaga para analista de dados senior com foco em produto e SQL." },
-    })
-
-    await user.click(screen.getByTestId("ats-panel-cta"))
-
-    expect(await screen.findByRole("heading", { name: /não concluímos essa adaptação automaticamente/i })).toBeInTheDocument()
-    expect(screen.getByText(/O resumo otimizado menciona skills sem alinhamento com a experiência reescrita\./i)).toBeInTheDocument()
-    expect(screen.getByText(/Possível bug de leitura da vaga/i)).toBeInTheDocument()
-    expect(screen.getByText(/Vaga Alvo/)).toBeInTheDocument()
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it("shows a friendly ATS modal when a deeper validation item is still missing", async () => {
-    const user = userEvent.setup()
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: {
-          id: "profile_123",
-          source: "manual",
-          cvState: {
-            fullName: "Ana Silva",
-            email: "ana@example.com",
-            phone: "555-0100",
-            linkedin: "https://linkedin.com/in/ana",
-            location: "Sao Paulo",
-            summary: "Analista de dados com foco em BI.",
-            experience: [{
-              title: "Analista de Dados",
-              company: "Acme",
-              location: "Sao Paulo",
-              startDate: "2022",
-              endDate: "2024",
-              bullets: ["Criei dashboards executivos."],
-            }],
-            skills: ["SQL", "Power BI", "ETL", "Excel"],
-            education: [{
-              degree: "Bacharel em Sistemas de Informacao",
-              institution: "",
-              year: "2023",
-            }],
-            certifications: [{
-              name: "AWS Cloud Practitioner",
-              issuer: "Amazon",
-              year: "2024",
-            }],
-          },
-          linkedinUrl: null,
-          extractedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      }),
-    }))
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    await user.click(await screen.findByText("Melhorar para ATS (1 crédito)"))
-
-    expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
-    expect(screen.getByText("• Formação 1: adicione a instituição.")).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it("shows a friendly ATS modal for partially filled experience rows before starting ATS", async () => {
-    const user = userEvent.setup()
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: {
-          id: "profile_123",
-          source: "manual",
-          cvState: {
-            fullName: "Ana Silva",
-            email: "ana@example.com",
-            phone: "555-0100",
-            linkedin: "https://linkedin.com/in/ana",
-            location: "Sao Paulo",
-            summary: "Analista de dados com foco em BI.",
-            experience: [{
-              title: "",
-              company: "",
-              location: "",
-              startDate: "2022",
-              endDate: "2024",
-              bullets: [],
-            }],
-            skills: ["SQL", "Power BI", "ETL", "Excel"],
-            education: [{
-              degree: "Bacharel em Sistemas de Informacao",
-              institution: "USP",
-              year: "2020",
-            }],
-            certifications: [{
-              name: "AWS Cloud Practitioner",
-              issuer: "Amazon",
-              year: "2024",
-            }],
-          },
-          linkedinUrl: null,
-          extractedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      }),
-    }))
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    await user.click(await screen.findByText("Melhorar para ATS (1 crédito)"))
-
-    expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
-    expect(screen.getByText("• Experiência 1: adicione o cargo.")).toBeInTheDocument()
-    expect(screen.getByText("• Experiência 1: adicione a empresa.")).toBeInTheDocument()
-    expect(screen.getByText("• Experiência 1: adicione pelo menos um resultado ou responsabilidade.")).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it("shows a friendly ATS modal when required ATS sections are still empty", async () => {
-    const user = userEvent.setup()
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: {
-          id: "profile_123",
-          source: "manual",
-          cvState: {
-            fullName: "Ana Silva",
-            email: "ana@example.com",
-            phone: "555-0100",
-            linkedin: "https://linkedin.com/in/ana",
-            location: "Sao Paulo",
-            summary: "",
-            experience: [{
-              title: "Analista de Dados",
-              company: "Acme",
-              location: "Sao Paulo",
-              startDate: "2022",
-              endDate: "2024",
-              bullets: ["Criei dashboards executivos."],
-            }],
-            skills: ["SQL", "Power BI", "ETL", "Excel"],
-            education: [],
-            certifications: [],
-          },
-          linkedinUrl: null,
-          extractedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      }),
-    }))
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    await user.click(await screen.findByText("Melhorar para ATS (1 crédito)"))
-
-    expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        "• Resumo profissional: escreva um resumo curto com seu posicionamento e seus principais resultados.",
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText("• Educação: adicione pelo menos uma formação acadêmica.")).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it("shows the ATS modal when the server returns missing items after validation", async () => {
-    const user = userEvent.setup()
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "Ana Silva",
-              email: "ana@example.com",
-              phone: "555-0100",
-              linkedin: "https://linkedin.com/in/ana",
-              location: "Sao Paulo",
-              summary: "Analista de dados com foco em BI.",
-              experience: [{
-                title: "Analista de Dados",
-                company: "Acme",
-                location: "Sao Paulo",
-                startDate: "2022",
-                endDate: "2024",
-                bullets: ["Criei dashboards executivos."],
-              }],
-              skills: ["SQL", "Power BI", "ETL", "Excel"],
-              education: [{
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2020",
-              }],
-              certifications: [{
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              }],
-            },
-            linkedinUrl: null,
-            profilePhotoUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: async () => ({
-          error: "Complete seu currículo para gerar uma versão ATS.",
-          missingItems: ["Experiência 1: adicione pelo menos um resultado ou responsabilidade."],
-        }),
-      })
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    await user.click(await screen.findByText("Melhorar para ATS (1 crédito)"))
-
-    expect(screen.getByText("Complete seu perfil antes de melhorar para ATS")).toBeInTheDocument()
-    expect(screen.getByText("• Experiência 1: adicione pelo menos um resultado ou responsabilidade.")).toBeInTheDocument()
-    expect(mockPush).not.toHaveBeenCalled()
-  })
-
-  it("updates the source badge when a PDF import succeeds", async () => {
-    const user = userEvent.setup()
-
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: null,
-      }),
-    })) as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    await user.click(await screen.findByText("mock-import"))
-
-    expect(screen.getByText("Base salva a partir de currículo importado")).toBeInTheDocument()
-  })
-
-  it("starts the guided section loading state as soon as an import begins", async () => {
-    const user = userEvent.setup()
-
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: null,
-      }),
-    })) as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    const editor = await screen.findByTestId("visual-resume-editor")
-    expect(editor).toHaveAttribute("data-import-source", "idle")
-
-    await user.click(screen.getByText("mock-import-start"))
-    expect(editor).toHaveAttribute("data-import-source", "linkedin")
-
-    await user.click(screen.getByText("mock-import-finish"))
-    expect(editor).toHaveAttribute("data-import-source", "idle")
-  })
-
-  it("renders cancelar and salvar below the editor and keeps salvar black", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: null,
-      }),
-    })) as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    const editor = await screen.findByTestId("visual-resume-editor")
-    const cancelarButton = screen.getByRole("button", { name: "Cancelar" })
-    const salvarButton = screen.getByTestId("profile-save-button")
-
-    expect(
-      editor.compareDocumentPosition(cancelarButton) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(
-      cancelarButton.compareDocumentPosition(salvarButton) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(salvarButton).toHaveClass("bg-black", "text-white")
-  })
-
-  it("keeps the current setup route after saving without forcing a same-route push", async () => {
-    const user = userEvent.setup()
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: null,
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "",
-              email: "",
-              phone: "",
-              linkedin: "",
-              location: "",
-              summary: "",
-              experience: [],
-              skills: [],
-              education: [],
-              certifications: [],
-            },
-            linkedinUrl: null,
-            profilePhotoUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
-
-    render(<UserDataPage currentCredits={2} />)
-
-    await user.click(await screen.findByTestId("profile-save-button"))
+    await user.click(screen.getByTestId("profile-save-button"))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2)
     })
 
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/profile", expect.objectContaining({
+      method: "PUT",
+      body: JSON.stringify({
+        fullName: "Ana Teste",
+        email: "ana@example.com",
+        phone: "+55 11 99999-0000",
+        linkedin: "https://linkedin.com/in/ana-teste",
+        location: "Sao Paulo, BR",
+        summary: "Backend engineer focused on reliability.",
+        experience: [],
+        skills: ["TypeScript", "Node.js"],
+        education: [],
+      }),
+    }))
+    expect(toast.success).toHaveBeenCalled()
     expect(mockPush).not.toHaveBeenCalled()
   })
 
-  it("redirects to /dashboard/resume/new after saving when opened from another route", async () => {
-    const user = userEvent.setup()
-    mockPathname = "/dashboard"
-
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: null,
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          profile: {
-            id: "profile_123",
-            source: "manual",
-            cvState: {
-              fullName: "",
-              email: "",
-              phone: "",
-              linkedin: "",
-              location: "",
-              summary: "",
-              experience: [],
-              skills: [],
-              education: [],
-              certifications: [],
-            },
-            linkedinUrl: null,
-            profilePhotoUrl: null,
-            extractedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }),
-      })
-
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch)
+  it("renders working edit buttons for every required resume section", async () => {
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
 
     render(<UserDataPage currentCredits={2} />)
 
-    await user.click(await screen.findByTestId("profile-save-button"))
+    await screen.findByText("Ana Silva")
 
+    expect(screen.getByRole("button", { name: /Editar resumo profissional/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Editar experi/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Editar skills/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Editar educa/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Editar certific/i })).toBeInTheDocument()
+  })
+
+  it("reuses the existing editor flow when a section edit button is clicked", async () => {
+    const user = userEvent.setup()
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await user.click(await screen.findByRole("button", { name: /Editar resumo profissional/i }))
+
+    const summaryInput = await screen.findByPlaceholderText(/Escreva um resumo curto/i)
+
+    expect(screen.getByTestId("visual-resume-editor")).toBeInTheDocument()
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/dashboard/resume/new")
+      expect(summaryInput).toHaveFocus()
     })
   })
 
-  it("locks the ATS card process copy on the setup page", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: null,
-      }),
-    })) as unknown as typeof fetch)
+  it("opens enhancement mode with ATS selected by default", async () => {
+    const user = userEvent.setup()
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
 
     render(<UserDataPage currentCredits={2} />)
 
-    expect(await screen.findByText("Melhorar meu currículo para ATS")).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        "Usa o seu perfil base para gerar uma versão ATS em pt-BR seguindo o modelo padrão da plataforma: estrutura linear, sem elementos que atrapalham parsing, linguagem objetiva e foco em verdade, matching e clareza.",
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText("Construção e leitura estruturada do currículo")).toBeInTheDocument()
-    expect(screen.getByText("ATS Readiness Score, clareza e legibilidade do currículo.")).toBeInTheDocument()
-    expect(screen.getByText("Reescrita estratégica de resumo e bullets.")).toBeInTheDocument()
-    expect(screen.getByText("Template ATS em PDF textual, simples e objetivo.")).toBeInTheDocument()
-    expect(screen.getByTestId("ats-panel-badge")).toHaveClass("bg-foreground", "text-background")
-    expect(screen.getByTestId("ats-feature-analysis")).toHaveClass("border-emerald-500/50", "bg-emerald-50")
-    expect(screen.getByTestId("ats-panel-cta")).toHaveClass("bg-emerald-600", "text-white")
+    await openEnhancementMode(user)
+
+    expect(screen.getByTestId("ats-panel-cta")).toBeInTheDocument()
+    expect(screen.getByTestId("enhancement-intent-ats")).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByTestId("enhancement-intent-target-job")).toHaveAttribute("aria-pressed", "false")
+    expect(screen.queryByTestId("target-job-description-input")).not.toBeInTheDocument()
+    expect(screen.getByText(/Modo:/i)).toHaveTextContent("Modo: Melhoria ATS geral")
     expect(screen.getByText("Melhorar para ATS (1 crédito)")).toBeInTheDocument()
-    expect(screen.getByTestId("target-job-description-input")).toBeInTheDocument()
+    expect(screen.getByText(/Cr.ditos dispon/i)).toBeInTheDocument()
   })
 
-  it("renders the base preview sections in the requested order", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        profile: {
-          id: "profile_123",
-          source: "manual",
-          cvState: {
-            fullName: "Ana Silva",
-            email: "ana@example.com",
-            phone: "555-0100",
-            linkedin: "",
-            location: "Sao Paulo",
-            summary: "Analista de dados com foco em BI.",
-            experience: [],
-            skills: ["SQL"],
-            education: [
-              {
-                degree: "Bacharel em Sistemas de Informacao",
-                institution: "USP",
-                year: "2023",
-              },
-            ],
-            certifications: [
-              {
-                name: "AWS Cloud Practitioner",
-                issuer: "Amazon",
-                year: "2024",
-              },
-            ],
-          },
-          linkedinUrl: null,
-          extractedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      }),
-    })) as unknown as typeof fetch)
+  it("returns to the profile view from enhancement mode", async () => {
+    const user = userEvent.setup()
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
 
     render(<UserDataPage currentCredits={2} />)
 
-    const personalHeading = await screen.findByText("Dados pessoais")
-    const summaryHeading = screen.getByText("Resumo")
-    const skillsHeading = screen.getAllByText("Skills").find((element) => element.tagName === "H4")
-    const experienceHeading = screen.getByText("Experiencia")
-    const educationHeading = screen.getByText("Educação")
-    const certificationsHeading = screen.getByText("Certificações")
+    await openEnhancementMode(user)
+    await user.click(screen.getByRole("button", { name: /Voltar ao perfil/i }))
 
-    if (!skillsHeading) {
-      throw new Error("Expected preview Skills heading to be rendered as an H4 element.")
-    }
+    expect(await screen.findByText("Ana Silva")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Melhorar curr/i })).toBeInTheDocument()
+  })
 
-    expect(
-      personalHeading.compareDocumentPosition(summaryHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(
-      summaryHeading.compareDocumentPosition(skillsHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(
-      skillsHeading.compareDocumentPosition(experienceHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(
-      experienceHeading.compareDocumentPosition(educationHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(
-      educationHeading.compareDocumentPosition(certificationsHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+  it("keeps the ATS enhancement flow wired to the existing endpoint and compare redirect", async () => {
+    const user = userEvent.setup()
+    const fetchMock = buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse({
+        success: true,
+        sessionId: "sess_ats_123",
+      }),
+    )
 
-    expect(await screen.findByText("Educação")).toBeInTheDocument()
-    expect(screen.getByText("Bacharel em Sistemas de Informacao")).toBeInTheDocument()
-    expect(screen.getByText("USP - 2023")).toBeInTheDocument()
-    expect(screen.getByText("• AWS Cloud Practitioner")).toBeInTheDocument()
+    render(<UserDataPage currentCredits={2} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/resume/compare/sess_ats_123")
+    })
+
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/profile/ats-enhancement", expect.objectContaining({
+      method: "POST",
+    }))
+    expect(toast.success).toHaveBeenCalled()
+    expect(window.localStorage.getItem("curria:last-profile-generation-session-id")).toBe("sess_ats_123")
+  })
+
+  it("shows the vacancy textarea and CTA after selecting target-job intent", async () => {
+    const user = userEvent.setup()
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+
+    expect(screen.getByTestId("enhancement-intent-target-job")).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByTestId("target-job-description-input")).toBeInTheDocument()
+    expect(screen.getByText("Adaptar para esta vaga (1 crédito)")).toBeInTheDocument()
+  })
+
+  it("clears the target-job description when switching back to ATS intent", async () => {
+    const user = userEvent.setup()
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+    await user.type(screen.getByTestId("target-job-description-input"), "Vaga para analista de dados.")
+    await user.click(screen.getByTestId("enhancement-intent-ats"))
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+
+    expect(screen.getByTestId("target-job-description-input")).toHaveValue("")
+  })
+
+  it("shows local validation and does not call generation when target-job intent is empty", async () => {
+    const user = userEvent.setup()
+    const fetchMock = buildFetchMock(createJsonResponse(buildProfileResponse()))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+    const targetJobTextarea = screen.getByTestId("target-job-description-input")
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Cole a descrição da vaga para adaptar seu currículo.")
+    expect(targetJobTextarea).toHaveFocus()
+    expect(targetJobTextarea).toHaveAttribute("aria-invalid", "true")
+    expect(targetJobTextarea).toHaveAttribute(
+      "aria-describedby",
+      expect.stringContaining("target-job-description-error"),
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it("keeps target-job generation wired to the existing textarea and smart-generation handler", async () => {
+    const user = userEvent.setup()
+    const fetchMock = buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse({
+        success: true,
+        sessionId: "sess_target_123",
+      }),
+    )
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+    await user.type(
+      screen.getByTestId("target-job-description-input"),
+      "Vaga para analista de dados senior com foco em produto e SQL.",
+    )
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/resume/compare/sess_target_123")
+    })
+
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/profile/smart-generation", expect.objectContaining({
+      method: "POST",
+      body: expect.stringContaining("\"targetJobDescription\":\"Vaga para analista de dados senior com foco em produto e SQL.\""),
+    }))
+  })
+
+  it("shows the missing ATS requirements dialog when the profile is incomplete", async () => {
+    const user = userEvent.setup()
+    buildFetchMock(createJsonResponse(buildProfileResponse(buildResumeData({
+      fullName: "",
+      summary: "",
+      experience: [],
+      education: [],
+      skills: ["SQL"],
+      certifications: [],
+    }))))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    expect(screen.getByText(/Complete seu perfil antes de melhorar para ATS/i)).toBeInTheDocument()
+    expect(screen.getByText(/Dados pessoais: adicione seu nome completo/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/inclua pelo menos uma experi/i).length).toBeGreaterThan(0)
+  })
+
+  it("shows the rewrite validation dialog when the API returns validation issues", async () => {
+    const user = userEvent.setup()
+    buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse({
+        workflowMode: "job_targeting",
+        rewriteValidation: {
+          valid: false,
+          issues: [{
+            severity: "high",
+            message: "O resumo otimizado menciona skills sem alinhamento com a experiencia reescrita.",
+            section: "summary",
+          }],
+        },
+        targetRole: "Vaga Alvo",
+        targetRoleConfidence: "low",
+      }, {
+        ok: false,
+        status: 422,
+      }),
+    )
+
+    render(<UserDataPage currentCredits={2} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+    await user.type(screen.getByTestId("target-job-description-input"), "Vaga para analista de dados.")
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    expect(await screen.findByRole("heading", { name: /automaticamente/i })).toBeInTheDocument()
+    expect(screen.getByText(/skills sem alinhamento/i)).toBeInTheDocument()
+    expect(screen.getByText(/bug de leitura da vaga/i)).toBeInTheDocument()
+  })
+
+  it("contains long experience content inside a scrollable section card", async () => {
+    const longBullets = Array.from({ length: 18 }, (_, index) => `Resultado relevante ${index + 1}`)
+    buildFetchMock(createJsonResponse(buildProfileResponse(buildResumeData({
+      experience: [{
+        title: "Senior Backend Engineer",
+        company: "CurrIA",
+        location: "Sao Paulo",
+        startDate: "2020",
+        endDate: "Atual",
+        bullets: longBullets,
+      }],
+    }))))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    const card = await screen.findByTestId("experience-section-card")
+    const content = card.lastElementChild
+
+    expect(content).not.toBeNull()
+    expect(content).toHaveClass("overflow-y-auto")
+    expect(within(card).getByText("Resultado relevante 18")).toBeInTheDocument()
+  })
+
+  it("keeps the certifications card visible with its edit action even when empty", async () => {
+    buildFetchMock(createJsonResponse(buildProfileResponse(buildResumeData({
+      certifications: [],
+    }))))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    const card = await screen.findByTestId("certifications-section-card")
+
+    expect(within(card).getByRole("button", { name: /Editar certific/i })).toBeInTheDocument()
+    expect(within(card).getByText(/Nenhuma certific/i)).toBeInTheDocument()
+  })
+
+  it("keeps download honest and disabled when no generated PDF is available", async () => {
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
+
+    render(<UserDataPage currentCredits={2} />)
+
+    const downloadButton = await screen.findByRole("button", { name: /Download PDF/i })
+
+    expect(downloadButton).toBeDisabled()
+    expect(screen.getByText(/gerar uma vers/i)).toBeInTheDocument()
+    expect(mockGetDownloadUrls).not.toHaveBeenCalled()
+  })
+
+  it("uses the existing file download flow when a generated PDF is available", async () => {
+    const user = userEvent.setup()
+    window.localStorage.setItem("curria:last-profile-generation-session-id", "sess_download_123")
+    mockGetDownloadUrls
+      .mockResolvedValueOnce({
+        available: true,
+        docxUrl: null,
+        pdfUrl: "https://files.curria.test/cv.pdf",
+        pdfFileName: "Curriculo-Ana.pdf",
+        generationStatus: "ready",
+      })
+      .mockResolvedValueOnce({
+        available: true,
+        docxUrl: null,
+        pdfUrl: "https://files.curria.test/cv.pdf",
+        pdfFileName: "Curriculo-Ana.pdf",
+        generationStatus: "ready",
+      })
+    const fetchMock = buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createBlobResponse(),
+    )
+
+    render(<UserDataPage currentCredits={2} />)
+
+    const downloadButton = await screen.findByRole("button", { name: /Download PDF/i })
+
+    await waitFor(() => {
+      expect(downloadButton).toBeEnabled()
+    })
+
+    await user.click(downloadButton)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenLastCalledWith("https://files.curria.test/cv.pdf")
+    })
+
+    expect(mockGetDownloadUrls).toHaveBeenNthCalledWith(1, "sess_download_123")
+    expect(mockGetDownloadUrls).toHaveBeenNthCalledWith(2, "sess_download_123")
+    expect(mockAnchorClick).toHaveBeenCalled()
+    expect(mockCreateObjectURL).toHaveBeenCalled()
+    expect(mockRevokeObjectURL).toHaveBeenCalled()
   })
 })

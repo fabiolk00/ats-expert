@@ -7,6 +7,7 @@ import { useSessionCvState } from '@/hooks/use-session-cv-state'
 import { generateResume, saveEditedResume } from '@/lib/dashboard/workspace-client'
 import { toast } from 'sonner'
 
+import { ARTIFACT_REFRESH_EVENT } from './events'
 import { ResumeEditorModal } from './resume-editor-modal'
 
 vi.mock('@/hooks/use-session-cv-state', () => ({
@@ -112,6 +113,8 @@ describe('ResumeEditorModal', () => {
 
   it('saves edited content and calls onSaved', async () => {
     const onSaved = vi.fn()
+    const handleArtifactRefresh = vi.fn()
+    window.addEventListener(ARTIFACT_REFRESH_EVENT, handleArtifactRefresh as EventListener)
 
     render(
       <ResumeEditorModal
@@ -144,6 +147,8 @@ describe('ResumeEditorModal', () => {
       summary: 'Updated summary',
     }))
     expect(toast.success).toHaveBeenCalledWith('Edição salva. Atualizando o PDF.')
+    expect(handleArtifactRefresh).toHaveBeenCalledTimes(1)
+    window.removeEventListener(ARTIFACT_REFRESH_EVENT, handleArtifactRefresh as EventListener)
   })
 
   it('loads and saves the optimized resume scope when requested', async () => {

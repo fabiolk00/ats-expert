@@ -43,33 +43,33 @@ const itemVariants: Variants = {
 const timelineSteps = [
   {
     icon: Target,
-    title: "A ConfiguraÃ§Ã£o",
-    desc: "A empresa cria a vaga e define as palavras-chave, habilidades e critÃ©rios obrigatÃ³rios que o robÃ´ deve buscar.",
+    title: "A Configuração",
+    desc: "A empresa cria a vaga e define as palavras-chave, habilidades e critérios obrigatórios que o robô deve buscar.",
   },
   {
     icon: Upload,
     title: "O Envio",
-    desc: "VocÃª se candidata e faz o upload do seu currÃ­culo em formato PDF ou DOCX no portal da empresa.",
+    desc: "Você se candidata e faz o upload do seu currículo em formato PDF ou DOCX no portal da empresa.",
   },
   {
     icon: FileSearch,
     title: "O Parsing",
-    desc: "O sistema escaneia o documento, extraindo o texto puro e tentando categorizar suas experiÃªncias, formaÃ§Ã£o e competÃªncias.",
+    desc: "O sistema escaneia o documento, extraindo o texto puro e tentando categorizar suas experiências, formação e competências.",
   },
   {
     icon: BarChart3,
     title: "O Match",
-    desc: "Um algoritmo cruza as informaÃ§Ãµes extraÃ­das com os requisitos da vaga, gerando um score de compatibilidade.",
+    desc: "Um algoritmo cruza as informações extraídas com os requisitos da vaga, gerando um score de compatibilidade.",
   },
   {
     icon: EyeOff,
     title: "O Filtro",
-    desc: "CurrÃ­culos com scores baixos sÃ£o arquivados de forma automatizada e recebem aquele e-mail padrÃ£o de rejeiÃ§Ã£o.",
+    desc: "Currículos com scores baixos são arquivados de forma automatizada e recebem aquele e-mail padrão de rejeição.",
   },
   {
     icon: CheckCircle2,
     title: "O Ranking",
-    desc: "Apenas o topo da lista, os 25% mais compatÃ­veis, Ã© liberado para a leitura atenta do recrutador humano.",
+    desc: "Apenas o topo da lista, os 25% mais compatíveis, é liberado para a leitura atenta do recrutador humano.",
   },
 ]
 
@@ -95,7 +95,7 @@ export default function OQueEAtsPageClient() {
               </span>
             </h1>
             <p className="text-lg leading-relaxed text-muted-foreground md:text-xl">
-              Entenda como funcionam os sistemas automatizados que filtram currÃ­culos antes de chegarem ao recrutador e aprenda as estratÃ©gias exatas para hackeÃ¡-los.
+              Entenda como funcionam os sistemas automatizados que filtram currículos antes de chegarem ao recrutador e aprenda as estratégias exatas para hackeá-los.
             </p>
           </motion.div>
 
@@ -108,9 +108,9 @@ export default function OQueEAtsPageClient() {
           >
             <motion.section variants={itemVariants} className="space-y-12">
               <div className="mx-auto max-w-3xl text-center">
-                <h2 className="mb-6 text-3xl font-bold tracking-tight md:text-4xl">O que Ã© um ATS?</h2>
+                <h2 className="mb-6 text-3xl font-bold tracking-tight md:text-4xl">O que é um ATS?</h2>
                 <p className="text-lg leading-relaxed text-muted-foreground md:text-xl">
-                  <strong className="text-foreground">ATS (Applicant Tracking System)</strong> Ã© um software usado por mais de 95% das grandes empresas para ler, filtrar e classificar currÃ­culos automaticamente antes que eles cheguem Ã s mÃ£os de um recrutador humano.
+                  <strong className="text-foreground">ATS (Applicant Tracking System)</strong> é um software usado por mais de 95% das grandes empresas para ler, filtrar e classificar currículos automaticamente antes que eles cheguem às mãos de um recrutador humano.
                 </p>
               </div>
 
@@ -125,8 +125,8 @@ export default function OQueEAtsPageClient() {
                     </h3>
                     <h4 className="mb-4 text-2xl font-bold">A dura realidade do mercado</h4>
                     <p className="text-lg leading-relaxed text-muted-foreground">
-                      De cada quatro currÃ­culos enviados, trÃªs sÃ£o{" "}
-                      <strong className="text-foreground">descartados automaticamente</strong> por robÃ´s. Eles nunca chegam a ser lidos por uma pessoa, independentemente da sua qualificaÃ§Ã£o ou talento.
+                      De cada quatro currículos enviados, três são{" "}
+                      <strong className="text-foreground">descartados automaticamente</strong> por robôs. Eles nunca chegam a ser lidos por uma pessoa, independentemente da sua qualificação ou talento.
                     </p>
                   </div>
 
@@ -166,10 +166,10 @@ export default function OQueEAtsPageClient() {
               <div className="mb-20 text-center">
                 <h2 className="mb-4 flex items-center justify-center gap-3 text-3xl font-bold tracking-tight md:text-4xl">
                   <Zap className="h-8 w-8 text-primary" />
-                  Como o ATS funciona na prÃ¡tica
+                  Como o ATS funciona na prática
                 </h2>
                 <p className="text-lg text-muted-foreground">
-                  O passo a passo invisÃ­vel entre o clique em &quot;Enviar&quot; e a mesa do recrutador.
+                  O passo a passo invisível entre o clique em &quot;Enviar&quot; e a mesa do recrutador.
                 </p>
               </div>
 
@@ -215,29 +215,29 @@ export default function OQueEAtsPageClient() {
               <div className="flex flex-col items-center gap-12 rounded-[3rem] border border-border/50 bg-muted/30 p-8 md:p-16 lg:flex-row">
                 <div className="lg:w-1/3">
                   <h2 className="mb-6 text-3xl font-bold tracking-tight md:text-4xl">
-                    O que o robÃ´ <span className="text-primary">procura</span> no seu currÃ­culo?
+                    O que o robô <span className="text-primary">procura</span> no seu currículo?
                   </h2>
                   <p className="text-lg leading-relaxed text-muted-foreground">
-                    Entenda as regras do jogo para nÃ£o ser desclassificado por erros bobos de formataÃ§Ã£o e texto.
+                    Entenda as regras do jogo para não ser desclassificado por erros bobos de formatação e texto.
                   </p>
                 </div>
                 <div className="grid w-full gap-4 sm:grid-cols-2 lg:w-2/3">
                   {[
                     {
                       title: "Palavras-chave exatas",
-                      desc: "O sistema busca frases idÃªnticas Ã  descriÃ§Ã£o da vaga. Se pedem React, escrever ReactJS pode nÃ£o pontuar.",
+                      desc: "O sistema busca frases idênticas à descrição da vaga. Se pedem React, escrever ReactJS pode não pontuar.",
                     },
                     {
-                      title: "FormataÃ§Ã£o limpa",
-                      desc: "Layouts com colunas mÃºltiplas, grÃ¡ficos e tabelas confundem a extraÃ§Ã£o de texto do robÃ´.",
+                      title: "Formatação limpa",
+                      desc: "Layouts com colunas múltiplas, gráficos e tabelas confundem a extração de texto do robô.",
                     },
                     {
                       title: "Formatos corretos",
-                      desc: "Sempre use PDF legÃ­vel por texto. PDFs gerados como imagem sÃ£o ignorados porque o texto fica invisÃ­vel.",
+                      desc: "Sempre use PDF legível por texto. PDFs gerados como imagem são ignorados porque o texto fica invisível.",
                     },
                     {
-                      title: "TÃ­tulos padrÃ£o",
-                      desc: "Use ExperiÃªncia Profissional em vez de nomes criativos como Minha Jornada ou Onde Atuei.",
+                      title: "Títulos padrão",
+                      desc: "Use Experiência Profissional em vez de nomes criativos como Minha Jornada ou Onde Atuei.",
                     },
                   ].map((item) => (
                     <div
@@ -268,27 +268,27 @@ export default function OQueEAtsPageClient() {
                       Como a <BrandWordmark /> te ajuda a vencer
                     </h2>
                     <p className="text-lg text-muted-foreground md:text-xl">
-                      Nossa IA faz a engenharia reversa do ATS para otimizar seu currÃ­culo especificamente para a vaga que vocÃª quer conquistar.
+                      Nossa IA faz a engenharia reversa do ATS para otimizar seu currículo especificamente para a vaga que você quer conquistar.
                     </p>
                   </div>
 
                   <div className="grid gap-8 sm:grid-cols-2">
                     {[
                       {
-                        title: "AnÃ¡lise da Vaga",
-                        desc: "ExtraÃ­mos os requisitos ocultos da descriÃ§Ã£o.",
+                        title: "Análise da Vaga",
+                        desc: "Extraímos os requisitos ocultos da descrição.",
                       },
                       {
                         title: "Score em Tempo Real",
                         desc: "Calculamos sua nota de compatibilidade exata.",
                       },
                       {
-                        title: "OtimizaÃ§Ã£o Guiada",
+                        title: "Otimização Guiada",
                         desc: "Sugerimos onde encaixar as palavras que faltam.",
                       },
                       {
-                        title: "PDF Ã  Prova de Falhas",
-                        desc: "Geramos o arquivo com o cÃ³digo-fonte perfeito para robÃ´s.",
+                        title: "PDF à Prova de Falhas",
+                        desc: "Geramos o arquivo com o código-fonte perfeito para robôs.",
                       },
                     ].map((feature, i) => (
                       <div
@@ -316,13 +316,13 @@ export default function OQueEAtsPageClient() {
                 Pronto para passar no filtro?
               </h2>
               <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground md:text-xl">
-                Pare de enviar currÃ­culos para o buraco negro. Deixe nossa IA otimizar seu perfil e comece a ser chamado para as entrevistas.
+                Pare de enviar currículos para o buraco negro. Deixe nossa IA otimizar seu perfil e comece a ser chamado para as entrevistas.
               </p>
               <Link
                 href="/criar-conta"
                 className="group inline-flex items-center gap-3 rounded-full bg-primary px-8 py-5 text-lg font-semibold text-primary-foreground shadow-xl transition-all hover:-translate-y-1 hover:bg-primary/90 hover:shadow-primary/25"
               >
-                Crie seu currÃ­culo
+                Crie seu currículo
                 <ChevronRight className="h-6 w-6 transition-transform group-hover:translate-x-1" />
               </Link>
             </motion.section>

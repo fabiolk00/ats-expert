@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowLeft, Download, Highlighter, Loader2, Pencil } from "lucide-react"
 
+import { ARTIFACT_REFRESH_EVENT, type ArtifactRefreshDetail } from "@/components/dashboard/events"
 import { ResumeEditorModal } from "@/components/dashboard/resume-editor-modal"
 import Logo from "@/components/logo"
 import { AtsReadinessStatusBadge } from "@/components/ats-readiness-status-badge"
@@ -20,7 +21,7 @@ import { cn } from "@/lib/utils"
 import type { AtsReadinessScoreContract } from "@/lib/ats/scoring/types"
 import type { ResumeGenerationType } from "@/types/agent"
 import type { CVState } from "@/types/cv"
-import type { PreviewLockSummary } from "@/types/dashboard"
+import type { DownloadUrlsResponse, PreviewLockSummary } from "@/types/dashboard"
 
 type ResumeComparisonViewProps = {
   originalCvState: CVState
@@ -39,6 +40,19 @@ type ResumeComparisonViewProps = {
   onContinue: () => void
   onCvStateUpdate?: (cvState: CVState) => void
   className?: string
+}
+
+type DownloadState = Pick<
+  DownloadUrlsResponse,
+  "pdfUrl" | "pdfFileName" | "generationStatus" | "artifactStale" | "errorMessage"
+>
+
+const EMPTY_DOWNLOAD_STATE: DownloadState = {
+  pdfUrl: null,
+  pdfFileName: null,
+  generationStatus: "idle",
+  artifactStale: undefined,
+  errorMessage: undefined,
 }
 
 function hasTextChanged(original: string, optimized: string): boolean {
@@ -108,6 +122,8 @@ function ResumeDocument({
   onEdit,
   onDownload,
   isDownloading,
+  downloadDisabled,
+  downloadPending,
   previewLock,
   showHighlights = false,
   highlightState,
@@ -118,6 +134,8 @@ function ResumeDocument({
   onEdit?: () => void
   onDownload?: () => void
   isDownloading?: boolean
+  downloadDisabled?: boolean
+  downloadPending?: boolean
   previewLock?: PreviewLockSummary
   showHighlights?: boolean
   highlightState?: CvHighlightState
@@ -160,11 +178,11 @@ function ResumeDocument({
             <button
               type="button"
               onClick={onDownload}
-              disabled={isDownloading}
+              disabled={isDownloading || downloadDisabled}
               className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 sm:h-8 sm:w-8"
               title="Baixar PDF"
             >
-              {isDownloading ? (
+              {isDownloading || downloadPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin sm:h-4 sm:w-4" />
               ) : (
                 <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -420,6 +438,8 @@ export function ResumeComparisonView({
   const [currentOptimizedCvState, setCurrentOptimizedCvState] = useState(optimizedCvState)
   const [currentHighlightState, setCurrentHighlightState] = useState(highlightState)
   const [showHighlights, setShowHighlights] = useState(true)
+  const [downloadState, setDownloadState] = useState<DownloadState>(EMPTY_DOWNLOAD_STATE)
+  const [isRefreshingDownloadState, setIsRefreshingDownloadState] = useState(false)
 
   useEffect(() => {
     setCurrentOptimizedCvState(optimizedCvState)
@@ -434,6 +454,59 @@ export function ResumeComparisonView({
     return () => window.clearTimeout(timer)
   }, [])
 
+  const refreshDownloadState = useCallback(async (): Promise<DownloadUrlsResponse | null> => {
+    try {
+      setIsRefreshingDownloadState(true)
+      const urls = await getDownloadUrls(sessionId)
+      setDownloadState({
+        pdfUrl: urls.pdfUrl ?? null,
+        pdfFileName: urls.pdfFileName ?? null,
+        generationStatus: urls.generationStatus,
+        artifactStale: urls.artifactStale,
+        errorMessage: urls.errorMessage,
+      })
+      return urls
+    } catch (error) {
+      console.error("Falha ao sincronizar o status do PDF:", error)
+      return null
+    } finally {
+      setIsRefreshingDownloadState(false)
+    }
+  }, [sessionId])
+
+  useEffect(() => {
+    void refreshDownloadState()
+  }, [refreshDownloadState])
+
+  useEffect(() => {
+    const handleArtifactRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<ArtifactRefreshDetail>).detail
+      if (detail?.sessionId !== sessionId || detail.targetId) {
+        return
+      }
+
+      void refreshDownloadState()
+    }
+
+    window.addEventListener(ARTIFACT_REFRESH_EVENT, handleArtifactRefresh as EventListener)
+
+    return () => {
+      window.removeEventListener(ARTIFACT_REFRESH_EVENT, handleArtifactRefresh as EventListener)
+    }
+  }, [refreshDownloadState, sessionId])
+
+  useEffect(() => {
+    if (downloadState.generationStatus !== "generating") {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void refreshDownloadState()
+    }, 2500)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [downloadState.generationStatus, refreshDownloadState])
+
   const title = useMemo(
     () => generationType === "JOB_TARGETING" ? "Currículo adaptado para a vaga" : "Currículo otimizado para ATS",
     [generationType],
@@ -442,17 +515,35 @@ export function ResumeComparisonView({
     () => getOptimizedScoreLabel({ atsReadiness, optimizedScore }),
     [atsReadiness, optimizedScore],
   )
+  const downloadStatusMessage = downloadState.artifactStale?.message
+    ?? (downloadState.generationStatus === "generating" && !downloadState.pdfUrl
+      ? "Atualizando o PDF salvo para download."
+      : downloadState.generationStatus === "failed"
+        ? downloadState.errorMessage ?? "Não foi possível atualizar o PDF agora."
+        : null)
+  const isDownloadDisabled = isRefreshingDownloadState
+    || (!downloadState.pdfUrl && downloadState.generationStatus !== "ready")
+  const isDownloadPending = isRefreshingDownloadState
+    || (downloadState.generationStatus === "generating" && !downloadState.pdfUrl)
 
   const handleDownload = async () => {
     try {
       setIsDownloading(true)
 
-      const urls = await getDownloadUrls(sessionId)
-      if (!urls.pdfUrl) {
+      let pdfUrl = downloadState.pdfUrl
+      let pdfFileName = downloadState.pdfFileName ?? null
+
+      if (!pdfUrl) {
+        const refreshedUrls = await refreshDownloadState()
+        pdfUrl = refreshedUrls?.pdfUrl ?? null
+        pdfFileName = refreshedUrls?.pdfFileName ?? null
+      }
+
+      if (!pdfUrl) {
         throw new Error("O PDF ainda não está disponível para download.")
       }
 
-      const response = await fetch(urls.pdfUrl)
+      const response = await fetch(pdfUrl)
       if (!response.ok) {
         throw new Error(`Falha ao baixar o PDF (${response.status}).`)
       }
@@ -461,7 +552,7 @@ export function ResumeComparisonView({
       const objectUrl = URL.createObjectURL(blob)
       const anchor = document.createElement("a")
       anchor.href = objectUrl
-      anchor.download = urls.pdfFileName
+      anchor.download = pdfFileName
         ?? (generationType === "JOB_TARGETING" ? "Curriculo_Usuario_Vaga.pdf" : "Curriculo_Usuario.pdf")
       anchor.rel = "noopener noreferrer"
       document.body.appendChild(anchor)
@@ -479,6 +570,7 @@ export function ResumeComparisonView({
     setCurrentOptimizedCvState(nextCvState)
     setCurrentHighlightState(undefined)
     onCvStateUpdate?.(nextCvState)
+    void refreshDownloadState()
   }
 
   return (
@@ -602,10 +694,25 @@ export function ResumeComparisonView({
               onEdit={previewLock?.locked ? undefined : () => setIsEditorOpen(true)}
               onDownload={previewLock?.locked ? undefined : handleDownload}
               isDownloading={isDownloading}
+              downloadDisabled={isDownloadDisabled}
+              downloadPending={isDownloadPending}
               previewLock={previewLock}
               showHighlights={showHighlights}
               highlightState={currentHighlightState}
             />
+            {!previewLock?.locked && downloadStatusMessage ? (
+              <div
+                data-testid="optimized-download-status"
+                className={cn(
+                  "mt-3 rounded-lg border px-3 py-2 text-xs",
+                  downloadState.generationStatus === "failed"
+                    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+                    : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
+                )}
+              >
+                {downloadStatusMessage}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

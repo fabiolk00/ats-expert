@@ -708,3 +708,23 @@ Plans:
 
 Plans:
 - [ ] 98-01-PLAN.md - Return exact highlight fragments plus nullable fallback offsets, resolve fragment -> range locally, and prove shared persisted-highlight seams stay unchanged
+
+### Phase 99: Adaptar a UI de profile do currículo para layout CRM preservando 100% da lógica e funcionalidade existente
+
+**Goal:** Adapt the resume profile page into the approved clean CRM-style layout while preserving the exact existing profile, import, edit, save, enhancement, validation, download, routing, and toast behavior already implemented in `src/components/resume/user-data-page.tsx`.
+**Requirements**: [RESUME-PROFILE-CRM-01, RESUME-PROFILE-EDIT-01, RESUME-PROFILE-TEST-01]
+**Depends on:** Phase 98
+**Plans:** 1 plan
+
+Plans:
+- [ ] 99-01-PLAN.md — Replace the profile shell with CRM cards, wire section edit buttons into the real editor, and preserve only real download behavior
+
+### Phase 100: Clarify ATS enhancement intent selector while preserving target-job generation behavior
+
+**Goal:** Clarify the ATS enhancement panel so users explicitly choose between general ATS improvement and target-job adaptation before generation, while preserving the existing handler, endpoint selection, dialogs, toasts, loading states, credits behavior, and compare-page handoff.
+**Requirements**: [ATS-INTENT-UI-01, ATS-INTENT-GUARD-01, ATS-INTENT-TEST-01]
+**Depends on:** Phase 99
+**Plans:** 1 plan
+
+Plans:
+- [x] 100-01-PLAN.md - Add a UI-only enhancement intent selector, preserve `generationMode` as the behavior seam, refresh the enhancement-panel layout, and add focused unit/browser regression coverage without changing backend generation contracts

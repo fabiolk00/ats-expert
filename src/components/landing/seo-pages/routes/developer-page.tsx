@@ -61,7 +61,7 @@ export default function DeveloperPage() {
         heroTitle: "Currículo de Desenvolvedor otimizado para ATS",
         heroSubtitle: "Pare de ser rejeitado por algoritmos. Formate sua stack e impacto da maneira exata que os parsers e recrutadores buscam.",
         problemCards: [
-          { title: "Stack TecnolÃ³gica Oculta", desc: "Se você esconder sua stack em paragráfos densos, o parser falha em associar a habilidade aos seus anos de experiência." },
+          { title: "Stack Tecnológica Oculta", desc: "Se você esconder sua stack em parágrafos densos, o parser falha em associar a habilidade aos seus anos de experiência." },
           { title: "Impacto de Engenharia Vago", desc: "'Escrevi código para o backend' não traduz para uma vaga sênior. Você precisa de métricas exatas de latência, escala e performance." },
           { title: "Links do GitHub Ignorados", desc: "Muitos sistemas ATS não conseguem seguir URLs. Se suas conquistas vivem apenas nos seus repositórios, elas não existem para o ATS." }
         ],
@@ -82,27 +82,27 @@ export default function DeveloperPage() {
           { category: "Infraestrutura", term: "Docker / Kubernetes" },
           { category: "Infraestrutura", term: "AWS / GCP / Azure" },
           { category: "Infraestrutura", term: "CI/CD (Actions/GitLab)" },
-          { category: "Arquitetura & BD", term: "MicroserviÃ§os / APIs REST" },
+          { category: "Arquitetura & BD", term: "Microsserviços / APIs REST" },
           { category: "Arquitetura & BD", term: "PostgreSQL / MongoDB" },
           { category: "Arquitetura & BD", term: "Redis / Kafka" },
         ],
         goodVsBad: {
-          bad: "ResponsÃ¡vel por melhorar o banco de dados e deixar a aplicação mais rápida.",
+          bad: "Responsável por melhorar o banco de dados e deixar a aplicação mais rápida.",
           good: "Arquitetou uma camada de cache distribuída em Redis, reduzindo a carga no banco de dados em 40% e melhorando o tempo de resposta da API de 800ms para 120ms em mais de 2 milhões de requisições diárias."
         },
         specializations: [
-          { title: "Engenharia Frontend", desc: "Foque fortemente em performance de renderizaÃ§Ã£o, gerenciamento de estado e arquitetura moderna de componentes.", tags: ["React", "Gerenciamento de Estado", "Web Vitals", "Acessibilidade (A11y)"] },
-          { title: "Arquitetura Backend", desc: "Enfatize design de sistemas, otimizaÃ§Ã£o de banco de dados, cache e microsserviços.", tags: ["Microsserviços", "System Design", "SQL/NoSQL", "APIs GraphQL/REST"] },
+          { title: "Engenharia Frontend", desc: "Foque fortemente em performance de renderização, gerenciamento de estado e arquitetura moderna de componentes.", tags: ["React", "Gerenciamento de Estado", "Web Vitals", "Acessibilidade (A11y)"] },
+          { title: "Arquitetura Backend", desc: "Enfatize design de sistemas, otimização de banco de dados, cache e microsserviços.", tags: ["Microsserviços", "System Design", "SQL/NoSQL", "APIs GraphQL/REST"] },
           { title: "DevOps / SRE", desc: "Destaque automatizações, eficiência de pipelines, infraestrutura em nuvem e uptime.", tags: ["Terraform", "Kubernetes", "Pipelines CI/CD", "Monitoramento"] },
           { title: "Mobile / iOS & Android", desc: "Concentre-se em design responsivo, gerenciamento de estado nativo, publicações em lojas de apps e performance mobile.", tags: ["React Native", "Swift/Kotlin", "App Store/Play Store", "Performance Mobile"] }
         ],
         seniority: [
-          { level: "Desenvolvedor Júnior", tips: ["Destaque projetos pessoais e as stacks de tecnologia exatas utilizadas.", "Foque na agilidade de aprendizado, trabalho em equipe e code reviews.", "NÃ£o exagere nas suas habilidades; seja honesto sobre seus fundamentos."] },
+          { level: "Desenvolvedor Júnior", tips: ["Destaque projetos pessoais e as stacks de tecnologia exatas utilizadas.", "Foque na agilidade de aprendizado, trabalho em equipe e code reviews.", "Não exagere nas suas habilidades; seja honesto sobre seus fundamentos."] },
           { level: "Desenvolvedor Pleno", tips: ["Mostre propriedade sobre features inteiras, do design ao deploy.", "Quantifique as melhorias de performance e redução de bugs.", "Mencione a mentoria de juniores ou a liderança de pequenas sprints ágeis."] },
-          { level: "Engenheiro Sênior / Staff", tips: ["Foque em arquitetura de sistemas, escalabilidade e padrÃµes de engenharia.", "Mostre impacto de negócios (ex: reduziu os custos de nuvem em 30%).", "Destaque a liderança interfuncional e o planejamento de roadmap."] }
+          { level: "Engenheiro Sênior / Staff", tips: ["Foque em arquitetura de sistemas, escalabilidade e padrões de engenharia.", "Mostre impacto de negócios (ex: reduziu os custos de nuvem em 30%).", "Destaque a liderança interfuncional e o planejamento de roadmap."] }
         ],
         roadmap: [
-          { step: "Audite Sua Stack", detail: "Extraia cada linguagem, framework e ferramenta que vocÃª conhece. Categorize-os claramente no topo." },
+          { step: "Audite Sua Stack", detail: "Extraia cada linguagem, framework e ferramenta que você conhece. Categorize-os claramente no topo." },
           { step: "Alinhe com a Vaga", detail: "Modifique seus bullet points para apresentar proeminentemente as palavras-chave exatas que o empregador busca." },
           { step: "Quantifique o Código", detail: "Adicione números reais: linhas de código refatoradas, latência reduzida, usuários suportados ou custos economizados." },
           { step: "Formate para a Máquina", detail: "Remova colunas, tabelas complexas e gráficos. Atenha-se a uma coluna única e parsing padrão de PDF." }
@@ -116,7 +116,6 @@ export default function DeveloperPage() {
     />
   );
 }
-
 
 
 

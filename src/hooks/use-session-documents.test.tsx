@@ -1,6 +1,7 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ARTIFACT_REFRESH_EVENT } from '@/components/dashboard/events'
 import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
 
 import { useSessionDocuments } from './use-session-documents'
@@ -62,6 +63,8 @@ describe('useSessionDocuments', () => {
         label: 'rendering',
       },
       errorMessage: undefined,
+      artifactStale: undefined,
+      previewLock: undefined,
       reconciliation: undefined,
     })
     expect(result.current.error).toBeNull()
@@ -98,13 +101,14 @@ describe('useSessionDocuments', () => {
     })
 
     expect(result.current.files.pdfFileName).toBe('Curriculo_Ana_Silva.pdf')
-
     expect(result.current.artifactStatus).toEqual({
       generationStatus: 'ready',
       jobId: undefined,
       stage: undefined,
       progress: undefined,
       errorMessage: undefined,
+      artifactStale: undefined,
+      previewLock: undefined,
       reconciliation: undefined,
     })
   })
@@ -136,11 +140,51 @@ describe('useSessionDocuments', () => {
       stage: 'needs_reconciliation',
       progress: undefined,
       errorMessage: undefined,
+      artifactStale: undefined,
+      previewLock: undefined,
       reconciliation: {
         required: true,
         status: 'pending',
         reason: 'billing finalize pending repair',
       },
     })
+  })
+
+  it('refreshes immediately when an artifact refresh event is dispatched for the current session', async () => {
+    vi.mocked(getDownloadUrls)
+      .mockResolvedValueOnce({
+        docxUrl: null,
+        pdfFileName: 'Curriculo_Ana_Silva.pdf',
+        pdfUrl: 'https://example.com/resume-before.pdf',
+        available: true,
+        generationStatus: 'ready',
+      })
+      .mockResolvedValueOnce({
+        docxUrl: null,
+        pdfFileName: 'Curriculo_Ana_Silva.pdf',
+        pdfUrl: 'https://example.com/resume-after.pdf',
+        available: true,
+        generationStatus: 'ready',
+      })
+
+    const { result } = renderHook(() => useSessionDocuments('sess_123'))
+
+    await waitFor(() => {
+      expect(result.current.files.pdfUrl).toBe('https://example.com/resume-before.pdf')
+    })
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent(ARTIFACT_REFRESH_EVENT, {
+        detail: {
+          sessionId: 'sess_123',
+        },
+      }))
+    })
+
+    await waitFor(() => {
+      expect(result.current.files.pdfUrl).toBe('https://example.com/resume-after.pdf')
+    })
+
+    expect(getDownloadUrls).toHaveBeenCalledTimes(2)
   })
 })

@@ -177,6 +177,18 @@
 - [x] **EXP-HILITE-EVIDENCE-ELIGIBILITY-01**: Experience-bullet highlight eligibility now uses two independent paths, `evidenceScore >= EVIDENCE_THRESHOLD || improvementScore >= IMPROVEMENT_THRESHOLD`, while Layer 1 continues returning signals only and does not take same-entry ranking decisions away from Layer 2 or Layer 3.
 - [x] **EXP-HILITE-EVIDENCE-TEST-01**: Regression coverage proves preserved metrics become eligible again, new metrics stay eligible, weak stack-only bullets do not gain false eligibility, and same-entry editorial surfacing still favors Tier 1 metric evidence over scope/scale under cap pressure.
 
+### Resume Profile CRM Layout Fidelity
+
+- [ ] **RESUME-PROFILE-CRM-01**: The resume profile page must adopt the approved clean CRM-style layout with a compact header, two-column section cards, black primary actions, and no KPI/sidebar shells while preserving the existing live data sources, profile save/load flow, import flow, enhancement flow, download flow, dialogs, toasts, and route contracts.
+- [ ] **RESUME-PROFILE-EDIT-01**: Profile section edit affordances must trigger the real existing editing behavior by reusing the current `VisualResumeEditor` flow, preserving section expand/focus semantics, disabled/loading states, and canonical `resumeData` normalization plus sanitization behavior.
+- [ ] **RESUME-PROFILE-TEST-01**: Focused regression coverage must prove the CRM-style page still supports profile load/save, import modal access, section edit actions, ATS and target-job setup flows, missing-requirements and rewrite-validation dialogs, empty-state rendering, and overflow-safe long-content behavior without snapshot-only assertions.
+
+### ATS Enhancement Intent Clarity
+
+- [x] **ATS-INTENT-UI-01**: The enhancement panel must expose an explicit UI intent selector between ATS improvement and target-job adaptation, default ATS intent to the general-improvement path, hide the large vacancy textarea in ATS mode, and show mode-matched product copy before submit without changing the existing generation handler or backend contract.
+- [x] **ATS-INTENT-GUARD-01**: Selecting target-job adaptation without a non-empty vacancy description must be blocked locally in the UI before generation starts, while ATS selection clears any draft target-job description and submit behavior continues to follow the existing `generationMode` and endpoint split.
+- [x] **ATS-INTENT-TEST-01**: Focused component and browser regression coverage must prove default ATS selection, explicit target-job selection, local empty-target validation, ATS-clear behavior, preserved dialogs/toasts/loading/credit messaging, and unchanged ATS versus smart-generation endpoint semantics.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -319,10 +331,16 @@
 | EXP-HILITE-STACK-CONTEXT-01 | Phase 94 | Complete |
 | EXP-HILITE-STACK-COMPETE-01 | Phase 94 | Complete |
 | EXP-HILITE-STACK-TEST-01 | Phase 94 | Complete |
+| RESUME-PROFILE-CRM-01 | Phase 99 | Planned |
+| RESUME-PROFILE-EDIT-01 | Phase 99 | Planned |
+| RESUME-PROFILE-TEST-01 | Phase 99 | Planned |
+| ATS-INTENT-UI-01 | Phase 100 | Complete |
+| ATS-INTENT-GUARD-01 | Phase 100 | Complete |
+| ATS-INTENT-TEST-01 | Phase 100 | Complete |
 
 **Coverage:**
-- v1.6 requirements: 98 total
-- Mapped to phases: 98
+- v1.6 requirements: 104 total
+- Mapped to phases: 104
 - Unmapped: 0
 
 ---

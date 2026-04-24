@@ -51,6 +51,9 @@ Baseline carried forward from earlier shipped milestones:
 
 ### Roadmap Evolution
 
+- Phase 99 added: Adaptar a UI de profile do currículo para layout CRM preservando 100% da lógica e funcionalidade existente.
+- Phase 100 added: Clarify ATS enhancement intent selector while preserving target-job generation behavior.
+- Phase 100 completed: ATS enhancement now has an explicit intent selector, local accessible empty-target validation, and focused unit/browser proof while preserving the existing generation contracts.
 - Phase 97 added: Close CV highlight logic with hybrid editorial resolver.
 - Phase 95 added: Replace deterministic preview highlights with persisted single-call LLM highlight artifacts.
 - Phase 93 added: Summary editorial hardening to reduce repetition and increase information density in ATS enhancement preview.

@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 
+import { ARTIFACT_REFRESH_EVENT } from '@/components/dashboard/events'
 import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
 import {
   CV_HIGHLIGHT_ARTIFACT_VERSION,
@@ -111,9 +112,15 @@ describe('ResumeComparisonView', () => {
       available: true,
       docxUrl: null,
       pdfUrl: 'https://example.com/resume.pdf',
+      pdfFileName: 'Curriculo_Ana_Silva.pdf',
       generationStatus: 'ready',
       previewLock: undefined,
     })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('opens the editor in optimized mode and updates the optimized document after save', async () => {
@@ -236,5 +243,92 @@ describe('ResumeComparisonView', () => {
     expect(screen.getByRole('button', { name: /mostrar destaques/i })).toBeInTheDocument()
     expect(screen.getByTestId('optimized-summary-highlight')).toHaveTextContent('Optimized summary')
     expect(screen.getByTestId('optimized-summary-highlight').querySelector('[data-highlighted="true"]')).toBeNull()
+  })
+
+  it('re-enables download after save when a refreshed artifact becomes available', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: vi.fn().mockResolvedValue(new Blob(['pdf'])),
+    })
+    const createObjectUrl = vi.fn(() => 'blob:resume')
+    const revokeObjectUrl = vi.fn()
+
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: createObjectUrl,
+      revokeObjectURL: revokeObjectUrl,
+    })
+
+    vi.mocked(getDownloadUrls)
+      .mockResolvedValueOnce({
+        available: true,
+        docxUrl: null,
+        pdfUrl: 'https://example.com/resume-before.pdf',
+        pdfFileName: 'Curriculo_Ana_Silva.pdf',
+        generationStatus: 'ready',
+      })
+      .mockResolvedValueOnce({
+        available: false,
+        docxUrl: null,
+        pdfUrl: null,
+        generationStatus: 'generating',
+      })
+      .mockResolvedValueOnce({
+        available: true,
+        docxUrl: null,
+        pdfUrl: 'https://example.com/resume-after.pdf',
+        pdfFileName: 'Curriculo_Ana_Silva_Atualizado.pdf',
+        generationStatus: 'ready',
+      })
+
+    render(
+      <ResumeComparisonView
+        originalCvState={buildCvState('Original summary')}
+        optimizedCvState={buildCvState('Optimized summary')}
+        generationType="ATS_ENHANCEMENT"
+        sessionId="sess_123"
+        highlightState={buildHighlightState()}
+        onContinue={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(getDownloadUrls).toHaveBeenCalledTimes(1)
+    })
+
+    await user.click(screen.getByTitle('Editar currículo'))
+    await user.click(screen.getByRole('button', { name: 'Mock Save' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('optimized-download-status')).toHaveTextContent('Atualizando o PDF salvo para download.')
+    })
+
+    const downloadButton = screen.getByTitle('Baixar PDF')
+    expect(downloadButton).toBeDisabled()
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(ARTIFACT_REFRESH_EVENT, {
+        detail: {
+          sessionId: 'sess_123',
+        },
+      }))
+    })
+
+    await waitFor(() => {
+      expect(getDownloadUrls).toHaveBeenCalledTimes(3)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('optimized-download-status')).not.toBeInTheDocument()
+      expect(downloadButton).not.toBeDisabled()
+    })
+
+    await user.click(downloadButton)
+
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/resume-after.pdf')
+    expect(createObjectUrl).toHaveBeenCalledTimes(1)
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:resume')
   })
 })

@@ -35,6 +35,9 @@ jobs:
       - name: PT-BR Copy Regression Audit
         run: npm run audit:copy-regression
 
+      - name: Copy Audit Tests
+        run: npm run test:copy-audit
+
       - name: TypeScript
         run: npm run typecheck
 

@@ -305,7 +305,7 @@ describe('candidate scoring closure refinement', () => {
   })
 })
 
-describe('HIGHLIGHT_EDITORIAL_REENTRY_SEARCH_PATTERN â€” boundary guards', () => {
+describe('HIGHLIGHT_EDITORIAL_REENTRY_SEARCH_PATTERN — boundary guards', () => {
   it('finds reentry at the start of a gerund verb in continuous text', () => {
     const text = 'Otimizei fluxos internos reduzindo em 40% o tempo de processamento'
     const range = buildRange(text, 'Otimizei fluxos internos reduzindo em 40% o tempo de processamento', 'metric_impact')
@@ -407,7 +407,7 @@ describe('trim-left proximity guard', () => {
   })
 })
 
-describe('choosePreferredHighlightCandidate â€” interaction with prior expansions', () => {
+describe('choosePreferredHighlightCandidate — interaction with prior expansions', () => {
   it('does not trim a correctly expanded comma continuation when the lead verb is weak', () => {
     const text = 'Built BI dashboards, executive reporting.'
     const inputRange = buildRange(text, 'Built BI dashboards', 'business_impact')
@@ -475,7 +475,7 @@ describe('choosePreferredHighlightCandidate â€” interaction with prior expa
   })
 })
 
-describe('normalizeHighlightSpanBoundaries â€” regression fixtures', () => {
+describe('normalizeHighlightSpanBoundaries — regression fixtures', () => {
   it('pipe-stack bullet is not expanded by candidate arbitration', () => {
     const text = 'Python | SQL | dbt | Airflow'
     const range = normalizeHighlightSpanBoundaries(
@@ -555,7 +555,7 @@ describe('normalizeHighlightSpanBoundaries â€” regression fixtures', () => 
   })
 })
 
-describe('validateAndResolveHighlights â€” editorial correction fixtures', () => {
+describe('validateAndResolveHighlights — editorial correction fixtures', () => {
   it('extends a range that dies before the metric unit when the context follows immediately', () => {
     const text = 'Reduced costs by 40%.'
     const items = [{ itemId: 'exp_item', section: 'experience' as const, text }]

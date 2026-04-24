@@ -36,7 +36,7 @@ describe('SessionDocumentsPanel', () => {
       files: { docxUrl: null, pdfUrl: null, pdfFileName: null },
       artifactStatus: { generationStatus: 'idle' },
       isLoading: false,
-    error: 'Não foi possível carregar seus arquivos agora. Tente novamente em instantes.',
+      error: 'Não foi possível carregar seus arquivos agora. Tente novamente em instantes.',
       refresh,
     })
 
@@ -121,7 +121,7 @@ describe('SessionDocumentsPanel', () => {
     render(<SessionDocumentsPanel isSidebarOpen />)
 
     expect(screen.getByTestId('session-documents-panel')).toHaveAttribute('data-state', 'generating')
-    expect(screen.getByText('Preparando sua exportacao. Atualizaremos este arquivo quando estiver pronto.')).toBeInTheDocument()
+    expect(screen.getByText('Preparando sua exportação. Atualizaremos este arquivo quando estiver pronto.')).toBeInTheDocument()
     expect(screen.getByTestId('documents-progress-label')).toHaveTextContent('rendering (60%)')
   })
 
@@ -143,7 +143,32 @@ describe('SessionDocumentsPanel', () => {
 
     expect(screen.getByTestId('session-documents-panel')).toHaveAttribute('data-state', 'failed')
     expect(screen.getByText('No credits available to finalize this generation.')).toBeInTheDocument()
-    expect(screen.getByTestId('documents-progress-label')).toHaveTextContent('Ultima etapa: Falha na exportacao')
+    expect(screen.getByTestId('documents-progress-label')).toHaveTextContent('Última etapa: Falha na exportacao')
+  })
+
+  it('shows a preserved stale-artifact notice while keeping the ready PDF available', () => {
+    mockUseSessionDocuments.mockReturnValue({
+      files: {
+        docxUrl: null,
+        pdfUrl: 'https://example.com/resume.pdf',
+        pdfFileName: 'Curriculo_Ana_Silva_Analista_de_Dados.pdf',
+      },
+      artifactStatus: {
+        generationStatus: 'ready',
+        artifactStale: {
+          reason: 'manual_edit_saved_while_export_active',
+          message: 'O PDF disponível ainda corresponde à versão anterior.',
+        },
+      },
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
+    })
+
+    render(<SessionDocumentsPanel isSidebarOpen />)
+
+    expect(screen.getByText('O PDF disponível ainda corresponde à versão anterior.')).toBeInTheDocument()
+    expect(screen.getByText('Curriculo_Ana_Silva_Analista_de_Dados.pdf')).toBeInTheDocument()
   })
 
   it('shows a reconciliation notice while keeping the ready PDF available', () => {
@@ -169,7 +194,7 @@ describe('SessionDocumentsPanel', () => {
 
     render(<SessionDocumentsPanel isSidebarOpen />)
 
-    expect(screen.getByText('Estamos conferindo a cobranca desta geracao. Seu arquivo continua disponivel.')).toBeInTheDocument()
+    expect(screen.getByText('Estamos conferindo a cobrança desta geração. Seu arquivo continua disponível.')).toBeInTheDocument()
     expect(screen.getByText('billing finalize pending repair')).toBeInTheDocument()
     expect(screen.getByText('Curriculo_Ana_Silva_Analista_de_Dados.pdf')).toBeInTheDocument()
   })

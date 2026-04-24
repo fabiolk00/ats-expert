@@ -200,8 +200,9 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
 
   const hasFiles = Boolean(files.pdfUrl)
   const reconciliationMessage = artifactStatus.reconciliation?.required
-    ? 'Estamos conferindo a cobranca desta geracao. Seu arquivo continua disponivel.'
+    ? 'Estamos conferindo a cobrança desta geração. Seu arquivo continua disponível.'
     : null
+  const staleArtifactMessage = artifactStatus.artifactStale?.message ?? null
   const lockedPreviewMessage = artifactStatus.previewLock?.locked
     ? artifactStatus.previewLock.message
     : null
@@ -276,7 +277,7 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
 
       {!error && artifactStatus.generationStatus === 'generating' ? (
         <div className="space-y-1 px-2 py-1 text-xs text-muted-foreground">
-          <p>Preparando sua exportacao. Atualizaremos este arquivo quando estiver pronto.</p>
+          <p>Preparando sua exportação. Atualizaremos este arquivo quando estiver pronto.</p>
           {progressLabel ? (
             <p data-testid="documents-progress-label">{progressLabel}</p>
           ) : null}
@@ -286,13 +287,19 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
       {!error && artifactStatus.generationStatus === 'failed' ? (
         <div className="space-y-1 px-2 py-1">
           <p className="text-xs text-destructive">
-            {artifactStatus.errorMessage ?? 'A ultima geracao falhou. Tente novamente mais tarde.'}
+            {artifactStatus.errorMessage ?? 'A última geração falhou. Tente novamente mais tarde.'}
           </p>
           {progressLabel ? (
             <p className="text-[11px] text-muted-foreground" data-testid="documents-progress-label">
-              Ultima etapa: {progressLabel}
+              Última etapa: {progressLabel}
             </p>
           ) : null}
+        </div>
+      ) : null}
+
+      {!error && staleArtifactMessage ? (
+        <div className="space-y-1 px-2 py-1">
+          <p className="text-xs text-amber-700">{staleArtifactMessage}</p>
         </div>
       ) : null}
 
@@ -311,7 +318,7 @@ export function SessionDocumentsPanel({ isSidebarOpen }: { isSidebarOpen: boolea
         <div className="space-y-1 px-2 py-1">
           <p className="text-xs text-amber-700">{lockedPreviewMessage}</p>
           <p className="text-[11px] text-muted-foreground">
-            O PDF disponivel aqui e apenas ilustrativo. Gere novamente apos o upgrade para liberar a versao real.
+            O PDF disponível aqui é apenas ilustrativo. Gere novamente após o upgrade para liberar a versão real.
           </p>
         </div>
       ) : null}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
+import { ARTIFACT_REFRESH_EVENT, type ArtifactRefreshDetail } from '@/components/dashboard/events'
 import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
 import type { ArtifactStatusSummary } from '@/types/dashboard'
 
@@ -83,6 +84,7 @@ export function useSessionDocuments(sessionId: string | null): SessionDocuments 
           stage: nextFiles.stage,
           progress: nextFiles.progress,
           errorMessage: nextFiles.errorMessage,
+          artifactStale: nextFiles.artifactStale,
           previewLock: nextFiles.previewLock,
           reconciliation: nextFiles.reconciliation,
         })
@@ -111,6 +113,27 @@ export function useSessionDocuments(sessionId: string | null): SessionDocuments 
 
     const interval = window.setInterval(refresh, 10_000)
     return () => window.clearInterval(interval)
+  }, [refresh, sessionId])
+
+  useEffect(() => {
+    if (!sessionId) {
+      return
+    }
+
+    const handleArtifactRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<ArtifactRefreshDetail>).detail
+      if (detail?.sessionId !== sessionId || detail.targetId) {
+        return
+      }
+
+      refresh()
+    }
+
+    window.addEventListener(ARTIFACT_REFRESH_EVENT, handleArtifactRefresh as EventListener)
+
+    return () => {
+      window.removeEventListener(ARTIFACT_REFRESH_EVENT, handleArtifactRefresh as EventListener)
+    }
   }, [refresh, sessionId])
 
   return { files, artifactStatus, isLoading, error, refresh }

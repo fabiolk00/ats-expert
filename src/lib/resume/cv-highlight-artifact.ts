@@ -72,7 +72,7 @@ const HIGHLIGHT_SEMANTIC_DESCRIPTOR_HINT_PATTERN = /\b(?:focused|specialized|ori
 const HIGHLIGHT_WEAK_LEAD_VERB_PATTERN = /^(?:realizei|desenvolvi|auxiliei|trabalhei|atuei|fiz|fui|participei|otimizei|built|developed|worked|acted|created|implemented)\b/i
 const HIGHLIGHT_EDITORIAL_REENTRY_PATTERN = /^(?:reducing|reduced|increasing|increased|improving|improved|generating|generated|driving|delivering|delivered|reduzindo|aumentando|melhorando|gerando|conduzindo|mais de \d+|more than \d+|zero downtime|migracao de|migration of)\b/i
 const HIGHLIGHT_EDITORIAL_REENTRY_SEARCH_PATTERN = /(?<!\p{L})(?<!\p{N})(?:reducing|reduced|increasing|increased|improving|improved|generating|generated|driving|delivering|delivered|reduzindo|aumentando|melhorando|gerando|conduzindo|mais de \d+|more than \d+|zero downtime|migracao de|migration of)(?!\p{L})(?!\p{N})/iu
-const HIGHLIGHT_REENTRY_BOUNDARY_CHARS = new Set([',', ';', ':', '-', 'â€“', 'â€”'])
+const HIGHLIGHT_REENTRY_BOUNDARY_CHARS = new Set([',', ';', ':', '-', '–', '—'])
 
 export type CvHighlightInputItem = {
   itemId: string

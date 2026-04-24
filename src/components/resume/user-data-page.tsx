@@ -1,22 +1,22 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
+  ArrowLeft,
   ArrowRight,
-  BadgeCheck,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
+  CheckCircle2,
+  Download,
   FileOutput,
   FileSearch,
-  Layers3,
   Linkedin,
   Loader2,
-  Upload,
+  Mail,
   MapPin,
   PenLine,
+  Phone,
   Sparkles,
   Target,
+  Upload,
 } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -24,7 +24,7 @@ import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -33,9 +33,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { dashboardWelcomeGuideTargets, getDashboardGuideTargetProps } from "@/lib/dashboard/welcome-guide"
+import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
 import { assessAtsEnhancementReadiness, getAtsEnhancementBlockingItems } from "@/lib/profile/ats-enhancement"
 import { cvStateToTemplateData } from "@/lib/templates/cv-state-to-template-data"
 import { cn } from "@/lib/utils"
@@ -70,6 +70,15 @@ type AtsFeature = {
 }
 
 type SetupGenerationMode = "ats_enhancement" | "job_targeting"
+type EnhancementIntent = "ats" | "target_job"
+type ProfileView = "profile" | "editor" | "enhancement"
+type EditableResumeSection =
+  | "personal"
+  | "summary"
+  | "experience"
+  | "skills"
+  | "education"
+  | "certifications"
 
 type SetupGenerationCopy = {
   badge: string
@@ -113,6 +122,59 @@ type RewriteValidationFailure = {
   }>
   targetRole?: string
   targetRoleConfidence?: "high" | "low"
+}
+
+type ProfileDownloadState = {
+  status: "checking" | "ready" | "unavailable" | "error"
+  pdfUrl: string | null
+  pdfFileName: string | null
+  message: string | null
+}
+
+const LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY = "curria:last-profile-generation-session-id"
+
+const EMPTY_DOWNLOAD_STATE: ProfileDownloadState = {
+  status: "unavailable",
+  pdfUrl: null,
+  pdfFileName: null,
+  message: "Disponível depois que você gerar uma versão otimizada.",
+}
+
+const PROFILE_SECTION_META: Record<EditableResumeSection, {
+  label: string
+  heading: string
+  focusSelector: string
+}> = {
+  personal: {
+    label: "Editar dados pessoais",
+    heading: "Dados pessoais",
+    focusSelector: 'input[placeholder="Nome completo"]',
+  },
+  summary: {
+    label: "Editar resumo profissional",
+    heading: "Resumo profissional",
+    focusSelector: 'textarea[placeholder*="Escreva um resumo curto"]',
+  },
+  experience: {
+    label: "Editar experiência",
+    heading: "Experiência",
+    focusSelector: 'input[placeholder="Cargo"]',
+  },
+  skills: {
+    label: "Editar skills",
+    heading: "Skills",
+    focusSelector: 'textarea[placeholder*="Uma skill por linha"]',
+  },
+  education: {
+    label: "Editar educação",
+    heading: "Educação",
+    focusSelector: 'input[placeholder="Curso"]',
+  },
+  certifications: {
+    label: "Editar certificações",
+    heading: "Certificações",
+    focusSelector: 'input[placeholder="Nome da certificação"]',
+  },
 }
 
 function trimOptional(value?: string): string | undefined {
@@ -222,6 +284,15 @@ const targetJobFeatures: AtsFeature[] = [
   { id: "rewrite", label: "Versão targetizada pronta para preview e export.", icon: FileOutput },
 ]
 
+const enhancementValueItems = [
+  "CurrÃ­culo mais claro e compatÃ­vel com ATS",
+  "Resumo profissional mais direto",
+  "ExperiÃªncias reescritas em bullets fortes",
+  "Keywords alinhadas ao modo escolhido",
+  "VersÃ£o pronta para comparar e exportar",
+  "Seu currÃ­culo base continua preservado",
+]
+
 function getGenerationCopy(mode: SetupGenerationMode): SetupGenerationCopy {
   if (mode === "job_targeting") {
     return {
@@ -250,7 +321,7 @@ function getGenerationCopy(mode: SetupGenerationMode): SetupGenerationCopy {
     helper:
       "Se você adicionar uma vaga alvo abaixo, esta entrada muda para adaptação estratégica por vaga sem precisar ir para o chat.",
     incomplete: "Complete seu currículo para gerar uma versão ATS.",
-      buttonIdle: "Melhorar para ATS (1 crédito)",
+    buttonIdle: "Melhorar para ATS (1 crédito)",
     buttonRunning: "Gerando versão ATS",
     success: "Versão ATS criada com sucesso.",
     failure: "Erro ao gerar a versão ATS.",
@@ -267,7 +338,7 @@ function formatUpdatedLabel(lastUpdatedAt: string | null): string {
 
   return `Atualizado em ${new Date(lastUpdatedAt).toLocaleDateString("pt-BR", {
     timeZone: "America/Sao_Paulo",
-  })} as ${new Date(lastUpdatedAt).toLocaleTimeString("pt-BR", {
+  })} às ${new Date(lastUpdatedAt).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "America/Sao_Paulo",
@@ -320,12 +391,122 @@ function formatValidationSectionLabel(section?: string): string {
   }
 }
 
+function formatPeriod(startDate?: string, endDate?: string): string | null {
+  const start = startDate?.trim()
+  const end = endDate?.trim()
+
+  if (start && end) {
+    return `${start} - ${end}`
+  }
+
+  return start ?? end ?? null
+}
+
+async function triggerPdfDownload(
+  pdfUrl: string,
+  filename: string,
+): Promise<void> {
+  const response = await fetch(pdfUrl)
+  if (!response.ok) {
+    throw new Error(`Failed to download profile PDF (${response.status})`)
+  }
+
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = objectUrl
+  anchor.download = filename
+  anchor.rel = "noopener noreferrer"
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(objectUrl)
+}
+
+function resolveProfileDownloadState(urls: Awaited<ReturnType<typeof getDownloadUrls>>): ProfileDownloadState {
+  if (urls.pdfUrl) {
+    return {
+      status: "ready",
+      pdfUrl: urls.pdfUrl,
+      pdfFileName: urls.pdfFileName ?? "Curriculo.pdf",
+      message: urls.artifactStale?.message
+        ?? (urls.previewLock?.locked ? urls.previewLock.message : null),
+    }
+  }
+
+  if (urls.generationStatus === "generating") {
+    return {
+      status: "unavailable",
+      pdfUrl: null,
+      pdfFileName: null,
+      message: "O PDF da última versão ainda está sendo atualizado.",
+    }
+  }
+
+  return {
+    status: "unavailable",
+    pdfUrl: null,
+    pdfFileName: null,
+    message: urls.errorMessage ?? "Disponível depois que você gerar uma versão otimizada.",
+  }
+}
+
+function ProfileSectionCard({
+  title,
+  editLabel,
+  onEdit,
+  children,
+  className,
+  contentClassName,
+  testId,
+}: {
+  title: string
+  editLabel: string
+  onEdit: () => void
+  children: React.ReactNode
+  className?: string
+  contentClassName?: string
+  testId?: string
+}) {
+  return (
+    <Card
+      data-testid={testId}
+      className={cn(
+        "flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-none",
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          {title}
+        </h2>
+        <Button
+          type="button"
+          size="icon"
+          className="h-7 w-7 rounded-full bg-black text-white hover:bg-black/90"
+          aria-label={editLabel}
+          onClick={onEdit}
+        >
+          <PenLine className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      <div className={cn("min-h-0 flex-1 overflow-y-auto p-4", contentClassName)}>
+        {children}
+      </div>
+    </Card>
+  )
+}
+
 export default function UserDataPage({
   currentCredits = 0,
   userImageUrl = null,
 }: UserDataPageProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const editorContainerRef = useRef<HTMLDivElement | null>(null)
+  const targetJobDescriptionRef = useRef<HTMLTextAreaElement | null>(null)
+  const [activeView, setActiveView] = useState<ProfileView>("profile")
+  const [requestedEditorSection, setRequestedEditorSection] = useState<EditableResumeSection | null>(null)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [resumeData, setResumeData] = useState<CVState>(() => normalizeResumeData())
   const [profileSource, setProfileSource] = useState<string | null>(null)
@@ -335,12 +516,15 @@ export default function UserDataPage({
   const [isSaving, setIsSaving] = useState(false)
   const [isRunningAtsEnhancement, setIsRunningAtsEnhancement] = useState(false)
   const [targetJobDescription, setTargetJobDescription] = useState("")
-  const [allSectionsClosed, setAllSectionsClosed] = useState(false)
-  const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false)
+  const [enhancementIntent, setEnhancementIntent] = useState<EnhancementIntent>("ats")
+  const [targetJobValidationMessage, setTargetJobValidationMessage] = useState<string | null>(null)
   const [isAtsRequirementsOpen, setIsAtsRequirementsOpen] = useState(false)
   const [atsMissingItems, setAtsMissingItems] = useState<string[]>([])
   const [rewriteValidationFailure, setRewriteValidationFailure] = useState<RewriteValidationFailure | null>(null)
   const [activeImportSource, setActiveImportSource] = useState<ImportSource | null>(null)
+  const [lastGeneratedSessionId, setLastGeneratedSessionId] = useState<string | null>(null)
+  const [profileDownloadState, setProfileDownloadState] = useState<ProfileDownloadState>(EMPTY_DOWNLOAD_STATE)
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -390,6 +574,103 @@ export default function UserDataPage({
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const storedSessionId = window.localStorage.getItem(LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY)?.trim()
+    if (!storedSessionId) {
+      setLastGeneratedSessionId(null)
+      setProfileDownloadState(EMPTY_DOWNLOAD_STATE)
+      return
+    }
+
+    let cancelled = false
+
+    const loadDownloadState = async (): Promise<void> => {
+      setLastGeneratedSessionId(storedSessionId)
+      setProfileDownloadState({
+        status: "checking",
+        pdfUrl: null,
+        pdfFileName: null,
+        message: "Verificando a disponibilidade do último PDF gerado.",
+      })
+
+      try {
+        const urls = await getDownloadUrls(storedSessionId)
+        if (!cancelled) {
+          setProfileDownloadState(resolveProfileDownloadState(urls))
+        }
+      } catch {
+        if (!cancelled) {
+          setProfileDownloadState({
+            status: "error",
+            pdfUrl: null,
+            pdfFileName: null,
+            message: "Não foi possível verificar o download da última versão.",
+          })
+        }
+      }
+    }
+
+    void loadDownloadState()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeView !== "editor" || !requestedEditorSection) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const container = editorContainerRef.current
+      if (!container) {
+        return
+      }
+
+      const sectionMeta = PROFILE_SECTION_META[requestedEditorSection]
+      const sectionToggle = Array.from(container.querySelectorAll<HTMLButtonElement>("button[aria-expanded]"))
+        .find((button) => button.textContent?.includes(sectionMeta.heading))
+
+      if (sectionToggle?.getAttribute("aria-expanded") === "false") {
+        sectionToggle.click()
+      }
+
+      sectionToggle?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+
+      const focusTarget = container.querySelector<HTMLElement>(sectionMeta.focusSelector)
+      focusTarget?.focus()
+      focusTarget?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      })
+      setRequestedEditorSection(null)
+    }, 80)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [activeView, requestedEditorSection])
+
+  useEffect(() => {
+    if (targetJobDescription.trim()) {
+      setEnhancementIntent("target_job")
+    }
+  }, [targetJobDescription])
+
+  useEffect(() => {
+    if (enhancementIntent === "target_job" && targetJobValidationMessage) {
+      targetJobDescriptionRef.current?.focus()
+    }
+  }, [enhancementIntent, targetJobValidationMessage])
 
   const handleImportSuccess = (
     data: ResumeData,
@@ -444,7 +725,40 @@ export default function UserDataPage({
 
   const generationMode: SetupGenerationMode = targetJobDescription.trim() ? "job_targeting" : "ats_enhancement"
   const generationCopy = getGenerationCopy(generationMode)
-  const generationFeatures = generationMode === "job_targeting" ? targetJobFeatures : atsFeatures
+  const displayMode: SetupGenerationMode = enhancementIntent === "target_job" ? "job_targeting" : "ats_enhancement"
+  const displayGenerationCopy = getGenerationCopy(displayMode)
+  const generationFeatures = displayMode === "job_targeting" ? targetJobFeatures : atsFeatures
+  const selectedModeLabel = displayMode === "job_targeting" ? "Adaptação para vaga" : "Melhoria ATS geral"
+
+  const handleSelectAtsIntent = (): void => {
+    setEnhancementIntent("ats")
+    setTargetJobDescription("")
+    setTargetJobValidationMessage(null)
+  }
+
+  const handleSelectTargetJobIntent = (): void => {
+    setEnhancementIntent("target_job")
+    setTargetJobValidationMessage(null)
+  }
+
+  const handleTargetJobDescriptionChange = (value: string): void => {
+    setTargetJobDescription(value)
+    setTargetJobValidationMessage(null)
+
+    if (value.trim()) {
+      setEnhancementIntent("target_job")
+    }
+  }
+
+  const handleEnhancementSubmit = (): void => {
+    if (enhancementIntent === "target_job" && !targetJobDescription.trim()) {
+      setTargetJobValidationMessage("Cole a descrição da vaga para adaptar seu currículo.")
+      return
+    }
+
+    setTargetJobValidationMessage(null)
+    void handleSetupGeneration()
+  }
 
   const handleSetupGeneration = async (): Promise<void> => {
     const missingItems = getAtsEnhancementBlockingItems(sanitizeResumeData(resumeData))
@@ -497,6 +811,17 @@ export default function UserDataPage({
         throw new Error(extractErrorMessage(data.error, generationCopy.failure))
       }
 
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY, data.sessionId)
+      }
+      setLastGeneratedSessionId(data.sessionId)
+      setProfileDownloadState({
+        status: "unavailable",
+        pdfUrl: null,
+        pdfFileName: null,
+        message: "O PDF da nova versão estará disponível assim que a geração terminar.",
+      })
+
       toast.success(
         generationMode === "job_targeting"
           ? "Versão adaptada para a vaga criada com sucesso."
@@ -508,6 +833,43 @@ export default function UserDataPage({
       toast.error(extractErrorMessage(error, generationCopy.failure))
     } finally {
       setIsRunningAtsEnhancement(false)
+    }
+  }
+
+  const handleEditSection = (section: EditableResumeSection): void => {
+    setRequestedEditorSection(section)
+    setActiveView("editor")
+  }
+
+  const handleOpenEditor = (): void => {
+    setRequestedEditorSection("personal")
+    setActiveView("editor")
+  }
+
+  const handleDownloadPdf = async (): Promise<void> => {
+    if (!lastGeneratedSessionId) {
+      return
+    }
+
+    setIsDownloadingPdf(true)
+
+    try {
+      const urls = await getDownloadUrls(lastGeneratedSessionId)
+      const nextState = resolveProfileDownloadState(urls)
+      setProfileDownloadState(nextState)
+
+      if (!nextState.pdfUrl) {
+        throw new Error(nextState.message ?? "O PDF ainda não está disponível para download.")
+      }
+
+      await triggerPdfDownload(
+        nextState.pdfUrl,
+        nextState.pdfFileName ?? "Curriculo.pdf",
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao baixar o PDF.")
+    } finally {
+      setIsDownloadingPdf(false)
     }
   }
 
@@ -531,56 +893,13 @@ export default function UserDataPage({
     return `Base salva via ${profileSource}`
   }, [profileSource])
 
-  const filledSections = useMemo(() => {
-    const hasContact = Boolean(
-      resumeData.fullName || resumeData.email || resumeData.phone || resumeData.linkedin || resumeData.location,
-    )
-    const hasSummary = Boolean(resumeData.summary.trim())
-    const hasExperience = resumeData.experience.some((entry) =>
-      Boolean(entry.title.trim() || entry.company.trim() || entry.bullets.length > 0),
-    )
-    const hasSkills = resumeData.skills.length > 0
-    const hasEducation = resumeData.education.some((entry) =>
-      Boolean(entry.degree.trim() || entry.institution.trim() || entry.year.trim()),
-    )
-    const hasCertifications = Boolean(resumeData.certifications?.length)
-
-    return [hasContact, hasSummary, hasExperience, hasSkills, hasEducation, hasCertifications].filter(Boolean).length
-  }, [resumeData])
-
-  const stats = [
-    { label: "Seções preenchidas", value: `${filledSections}/6`, icon: Layers3 },
-    { label: "Experiências", value: `${resumeData.experience.length}`, icon: BadgeCheck },
-    { label: "Skills", value: `${resumeData.skills.length}`, icon: Sparkles },
-  ]
-
   const sanitizedResumeData = useMemo(() => sanitizeResumeData(resumeData), [resumeData])
   const template = useMemo(() => cvStateToTemplateData(sanitizedResumeData), [sanitizedResumeData])
-  const previewExperiences = template.experiences.length > 0
-    ? template.experiences
-    : [{
-        title: "Experiência principal",
-        company: "",
-        location: "",
-        period: "Período",
-        techStack: "",
-        bullets: [{ text: "Os bullets reescritos para ATS aparecem aqui." }],
-      }]
-  const previewEducation = template.education.length > 0
-    ? template.education
-    : [{
-        degree: "Sua formação aparece aqui",
-        institution: "",
-        period: "",
-      }]
-  const previewCertifications = template.certifications.length > 0
-    ? template.certifications
-    : [{ name: "Suas certificações aparecem aqui" }]
-
   const atsReadiness = useMemo(
     () => assessAtsEnhancementReadiness(sanitizedResumeData),
     [sanitizedResumeData],
   )
+
   const updatedLabel = formatUpdatedLabel(lastUpdatedAt)
   const isBusy = isLoadingProfile || isSaving || isRunningAtsEnhancement
   const setupGenerationButtonDisabled = isBusy || currentCredits < 1
@@ -592,338 +911,507 @@ export default function UserDataPage({
       || isSuspiciousTargetRole(rewriteValidationFailure.targetRole)
     )
 
-  return (
-    <div
-      data-testid="user-data-page"
-      data-loading={String(isLoadingProfile)}
-      className="min-h-screen bg-background text-foreground"
-    >
-      <div className="flex h-screen w-full overflow-hidden bg-background">
-          <aside
-            className={cn(
-              "relative flex min-h-0 flex-col border-r border-border bg-card transition-all duration-300",
-              isPreviewCollapsed ? "w-16" : "w-80",
-            )}
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsPreviewCollapsed((current) => !current)}
-              className="absolute -right-3 top-6 z-10 h-6 w-6 rounded-full border border-border bg-background shadow-sm hover:bg-accent"
-              aria-label={isPreviewCollapsed ? "Expandir preview" : "Recolher preview"}
-            >
-              {isPreviewCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
-            </Button>
+  const contactItems = [
+    sanitizedResumeData.email
+      ? {
+          key: "email",
+          label: sanitizedResumeData.email,
+          href: `mailto:${sanitizedResumeData.email}`,
+          icon: Mail,
+        }
+      : null,
+    sanitizedResumeData.phone
+      ? {
+          key: "phone",
+          label: sanitizedResumeData.phone,
+          href: `tel:${sanitizedResumeData.phone}`,
+          icon: Phone,
+        }
+      : null,
+    sanitizedResumeData.linkedin
+      ? {
+          key: "linkedin",
+          label: sanitizedResumeData.linkedin.replace(/^https?:\/\//, ""),
+          href: sanitizedResumeData.linkedin.startsWith("http")
+            ? sanitizedResumeData.linkedin
+            : `https://${sanitizedResumeData.linkedin}`,
+          icon: Linkedin,
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    key: string
+    label: string
+    href: string
+    icon: typeof Mail
+  }>
 
-            {isPreviewCollapsed ? (
-              <div className="flex flex-col items-center gap-4 p-4">
-                <Avatar className="h-10 w-10 border border-border/60">
+  const renderProfileView = () => (
+    <main className="min-h-screen bg-white text-slate-900 lg:h-screen lg:overflow-hidden">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-4 sm:px-6 lg:h-full lg:min-h-0 lg:py-5">
+        <header className="shrink-0 rounded-3xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start gap-4">
+                <Avatar className="h-16 w-16 border border-slate-200">
                   <AvatarImage src={avatarSrc} alt={template.fullName || "Sua foto de perfil"} />
-                  <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                  <AvatarFallback className="bg-slate-100 text-base font-semibold text-slate-700">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <h1 className="truncate text-2xl font-semibold tracking-tight text-slate-950">
+                        {template.fullName || "Seu nome"}
+                      </h1>
+                      <p className="mt-1 text-sm font-medium text-slate-500">
+                        {template.jobTitle || "Cargo principal"}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="rounded-full border-slate-200 px-3 py-1 text-xs text-slate-600">
+                        {profileBadgeText}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+                    {sanitizedResumeData.location ? (
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {sanitizedResumeData.location}
+                      </span>
+                    ) : null}
+                    {contactItems.map((item) => {
+                      const Icon = item.icon
+
+                      return (
+                        <a
+                          key={item.key}
+                          href={item.href}
+                          target={item.href.startsWith("mailto") || item.href.startsWith("tel") ? undefined : "_blank"}
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 transition-colors hover:text-slate-700"
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {item.label}
+                        </a>
+                      )
+                    })}
+                    {!sanitizedResumeData.location && contactItems.length === 0 ? (
+                      <span>Adicione seus dados de contato para completar o cabeçalho.</span>
+                    ) : null}
+                  </div>
+
+                  <p className="mt-3 text-xs text-slate-400">{updatedLabel}</p>
+                </div>
               </div>
-            ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                <div className="p-5">
-                  <h2 className="mb-4 text-base font-semibold text-foreground">Preview do currículo base</h2>
+            </div>
 
-                  <div className="mb-3">
-                    <h4 className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Dados pessoais
-                    </h4>
-                  </div>
+            <div className="flex shrink-0 flex-col gap-2 xl:items-end">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isBusy}
+                  onClick={() => setIsImportOpen(true)}
+                  className="gap-2 rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                >
+                  <Upload className="h-4 w-4" />
+                  Importar do LinkedIn ou PDF
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={profileDownloadState.status !== "ready" || isDownloadingPdf}
+                  onClick={() => void handleDownloadPdf()}
+                  className="gap-2 rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Download PDF
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isBusy}
+                  onClick={handleOpenEditor}
+                  className="gap-2 rounded-lg border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                >
+                  <PenLine className="h-4 w-4" />
+                  Editar perfil
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setActiveView("enhancement")}
+                  className="gap-2 rounded-lg bg-black text-white hover:bg-black/90"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Melhorar currículo com IA
+                </Button>
+              </div>
 
-                  <div className="mb-5 rounded-lg bg-muted/50 p-4">
-                    <div className="mb-3 flex items-start gap-3">
-                      <Avatar className="h-12 w-12 shrink-0 border border-border/60">
-                        <AvatarImage src={avatarSrc} alt={template.fullName || "Sua foto de perfil"} />
-                        <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
-                          {initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <h3 className="truncate font-semibold text-foreground">
-                          {template.fullName || "Seu nome"}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {template.jobTitle || "Cargo principal"}
-                        </p>
+              <div className="flex flex-wrap gap-2 xl:justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isBusy}
+                  onClick={() => router.push("/dashboard")}
+                  className="h-8 px-2 text-slate-500 hover:bg-transparent hover:text-slate-800"
+                >
+                  Cancelar
+                </Button>
+              </div>
+
+              {profileDownloadState.message ? (
+                <p className="max-w-md text-xs text-slate-500 xl:text-right">
+                  {profileDownloadState.message}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </header>
+
+        {isLoadingProfile ? (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="flex items-center gap-3 text-slate-500">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Carregando perfil salvo...
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 flex-1 overflow-y-auto lg:min-h-0 lg:overflow-hidden">
+            <div className="flex flex-col gap-5 lg:h-full lg:min-h-0">
+              <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.95fr)]">
+                <section className="flex min-h-0 flex-col gap-5">
+                  <ProfileSectionCard
+                    title="Resumo profissional"
+                    editLabel={PROFILE_SECTION_META.summary.label}
+                    onEdit={() => handleEditSection("summary")}
+                    testId="summary-section-card"
+                  >
+                    {sanitizedResumeData.summary ? (
+                      <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                        {sanitizedResumeData.summary}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-slate-400">
+                        Adicione um resumo profissional para apresentar sua proposta de valor.
+                      </p>
+                    )}
+                  </ProfileSectionCard>
+
+                  <ProfileSectionCard
+                    title="Experiência"
+                    editLabel={PROFILE_SECTION_META.experience.label}
+                    onEdit={() => handleEditSection("experience")}
+                    className="lg:flex-1"
+                    testId="experience-section-card"
+                  >
+                    {sanitizedResumeData.experience.length > 0 ? (
+                      <div className="space-y-5">
+                        {sanitizedResumeData.experience.map((experience, index) => (
+                          <article
+                            key={`${experience.title}-${experience.company}-${index}`}
+                            className={cn(
+                              "space-y-2 pb-5",
+                              index < sanitizedResumeData.experience.length - 1 && "border-b border-slate-100",
+                            )}
+                          >
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0">
+                                <h3 className="text-sm font-semibold text-slate-900">
+                                  {experience.title || "Cargo não informado"}
+                                </h3>
+                                <p className="text-sm text-slate-500">
+                                  {experience.company || "Empresa não informada"}
+                                </p>
+                                {experience.location ? (
+                                  <p className="mt-1 text-xs text-slate-400">{experience.location}</p>
+                                ) : null}
+                              </div>
+                              {formatPeriod(experience.startDate, experience.endDate) ? (
+                                <span className="text-xs font-medium text-slate-400">
+                                  {formatPeriod(experience.startDate, experience.endDate)}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            {experience.bullets.length > 0 ? (
+                              <ul className="space-y-2">
+                                {experience.bullets.map((bullet, bulletIndex) => (
+                                  <li
+                                    key={`${experience.title}-${bulletIndex}`}
+                                    className="flex gap-2 text-sm leading-6 text-slate-600"
+                                  >
+                                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
+                                    <span>{bullet}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-slate-400">Adicione bullets para detalhar essa experiência.</p>
+                            )}
+                          </article>
+                        ))}
                       </div>
-                    </div>
+                    ) : (
+                      <p className="text-sm text-slate-400">
+                        Adicione pelo menos uma experiência profissional para estruturar seu currículo base.
+                      </p>
+                    )}
+                  </ProfileSectionCard>
+                </section>
 
-                    <div className="space-y-2 text-xs text-muted-foreground">
-                      {template.linkedin ? (
-                        <div className="flex items-center gap-2">
-                          <Linkedin className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{template.linkedin}</span>
-                          <ExternalLink className="h-3 w-3 shrink-0" />
-                        </div>
-                      ) : null}
-                      {template.location ? (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 shrink-0" />
-                          <span>{template.location}</span>
-                        </div>
-                      ) : null}
-                      {!template.linkedin && !template.location ? (
-                        <p>Seus links e localização aparecem aqui.</p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="mb-5">
-                    <h4 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Resumo
-                    </h4>
-                    <p className="text-xs leading-relaxed text-foreground">
-                      {template.summary || "Seu resumo profissional aparece aqui no template final."}
-                    </p>
-                  </div>
-
-                  <Separator className="my-4" />
-
-                  <div className="mb-5">
-                    <h4 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Skills
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(sanitizedResumeData.skills.length > 0
-                        ? sanitizedResumeData.skills.slice(0, 12)
-                        : ["Suas skills priorizadas aparecem aqui"])
-                        .map((skill, index) => (
+                <aside className="flex min-h-0 flex-col gap-5">
+                  <ProfileSectionCard
+                    title="Skills"
+                    editLabel={PROFILE_SECTION_META.skills.label}
+                    onEdit={() => handleEditSection("skills")}
+                    className="lg:flex-1"
+                    testId="skills-section-card"
+                  >
+                    {sanitizedResumeData.skills.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {sanitizedResumeData.skills.map((skill, index) => (
                           <Badge
                             key={`${skill}-${index}`}
                             variant="outline"
-                            className="px-2 py-0.5 text-[10px] font-normal"
+                            className="rounded-full border-slate-200 px-3 py-1 text-xs text-slate-700"
                           >
                             {skill}
                           </Badge>
                         ))}
-                      {sanitizedResumeData.skills.length > 12 ? (
-                        <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-normal">
-                          +{sanitizedResumeData.skills.length - 12} mais
-                        </Badge>
-                      ) : null}
-                    </div>
-                  </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400">
+                        Liste ferramentas, tecnologias e competências relevantes.
+                      </p>
+                    )}
+                  </ProfileSectionCard>
 
-                  <Separator className="my-4" />
-
-                  <div>
-                    <h4 className="mb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Experiencia
-                    </h4>
-                    <div className="space-y-4">
-                      {previewExperiences.slice(0, 4).map((experience, index) => (
-                        <div key={`${experience.title}-${index}`} className="text-xs">
-                          <p className="leading-tight font-medium text-foreground">
-                            {experience.title || "Experiencia principal"}
-                            {experience.company ? ` - ${experience.company}` : ""}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-muted-foreground">
-                            {experience.period || "Periodo"}
-                          </p>
-                          <div className="mt-1 space-y-1">
-                            {experience.bullets.slice(0, 2).map((bullet, bulletIndex) => (
-                              <p
-                                key={`${experience.title}-${bulletIndex}`}
-                                className="line-clamp-2 leading-relaxed text-muted-foreground"
-                              >
-                                • {bullet.text}
-                              </p>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Separator className="my-4" />
-
-                  <div>
-                    <h4 className="mb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Educação
-                    </h4>
-                    <div className="space-y-3">
-                      {previewEducation.slice(0, 3).map((entry, index) => (
-                        <div key={`${entry.degree}-${index}`} className="text-xs">
-                          <p className="leading-tight font-medium text-foreground">
-                            {entry.degree}
-                          </p>
-                          {entry.institution ? (
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              {entry.institution}
-                              {entry.period ? ` - ${entry.period}` : ""}
-                            </p>
-                          ) : entry.period ? (
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              {entry.period}
-                            </p>
-                          ) : null}
-                        </div>
-                      ))}
-                      {template.education.length > 3 ? (
-                        <p className="text-[10px] text-muted-foreground">
-                          +{template.education.length - 3} formações
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <Separator className="my-4" />
-
-                  <div>
-                    <h4 className="mb-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Certificações
-                    </h4>
-                    <div className="space-y-2">
-                      {previewCertifications.slice(0, 4).map((certification, index) => (
-                        <p
-                          key={`${certification.name}-${index}`}
-                          className="text-xs leading-relaxed text-foreground"
-                        >
-                          • {certification.name}
-                        </p>
-                      ))}
-                      {template.certifications.length > 4 ? (
-                        <p className="text-[10px] text-muted-foreground">
-                          +{template.certifications.length - 4} certificações
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </aside>
-
-          <main className="flex min-h-0 flex-1 overflow-hidden">
-            <section className="flex min-h-0 flex-1 flex-col border-r border-border">
-              <header className="shrink-0 border-b border-border bg-card px-6 py-4">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <h1 className="text-xl font-semibold text-foreground text-balance">
-                      Revise seu currículo com uma base limpa e consistente.
-                    </h1>
-                    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                      Importe do LinkedIn, ajuste os campos manualmente e deixe seu perfil pronto para novas sessões.
-                    </p>
-                  </div>
-
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                  <Button
-                    type="button"
-                    onClick={() => setIsImportOpen(true)}
-                    disabled={isBusy}
-                    className="gap-2"
+                  <ProfileSectionCard
+                    title="Educação"
+                    editLabel={PROFILE_SECTION_META.education.label}
+                    onEdit={() => handleEditSection("education")}
+                    className="lg:flex-1"
+                    testId="education-section-card"
                   >
-                    <Upload className="h-4 w-4" />
-                    Importar do LinkedIn ou PDF
-                  </Button>
-                  <span className="text-xs text-muted-foreground">{profileBadgeText}</span>
-                </div>
-              </div>
-              </header>
+                    {sanitizedResumeData.education.length > 0 ? (
+                      <div className="space-y-4">
+                        {sanitizedResumeData.education.map((education, index) => (
+                          <article
+                            key={`${education.degree}-${education.institution}-${index}`}
+                            className={cn(
+                              "space-y-1 pb-4",
+                              index < sanitizedResumeData.education.length - 1 && "border-b border-slate-100",
+                            )}
+                          >
+                            <h3 className="text-sm font-semibold text-slate-900">
+                              {education.degree || "Formação não informada"}
+                            </h3>
+                            <p className="text-sm text-slate-500">
+                              {education.institution || "Instituição não informada"}
+                            </p>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400">
+                              {education.year ? <span>{education.year}</span> : null}
+                              {education.gpa ? <span>{education.gpa}</span> : null}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400">
+                        Adicione suas formações acadêmicas e cursos relevantes.
+                      </p>
+                    )}
+                  </ProfileSectionCard>
 
-              <div className="shrink-0 border-b border-border bg-card px-6 py-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                {stats.map((stat) => {
-                  const Icon = stat.icon
-
-                  return (
-                    <Card key={stat.label} className="border-border py-0 shadow-none">
-                      <CardContent className="p-4">
-                        <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-                          <Icon className="h-4 w-4" />
-                          <span className="text-xs font-medium uppercase tracking-wide">{stat.label}</span>
-                        </div>
-                        <p className="text-2xl font-semibold text-foreground">{stat.value}</p>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-                <p className="mt-3 text-xs text-muted-foreground">{updatedLabel}</p>
-              </div>
-
-            {isLoadingProfile ? (
-                <div className="flex min-h-[380px] flex-1 items-center justify-center px-6 py-10">
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Carregando perfil salvo...
-                </div>
-              </div>
-            ) : (
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  <div className="space-y-4 p-6">
-                    <VisualResumeEditor
-                      value={resumeData}
-                      onChange={setResumeData}
-                      disabled={isSaving || isRunningAtsEnhancement}
-                      onAllSectionsClosedChange={setAllSectionsClosed}
-                      compactMode={allSectionsClosed}
-                      importProgressSource={activeImportSource}
-                    />
-
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={isSaving || isRunningAtsEnhancement}
-                        onClick={() => router.push("/dashboard")}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                        type="button"
-                        disabled={isSaving || isRunningAtsEnhancement}
-                        onClick={() => void handleSave()}
-                        data-testid="profile-save-button"
-                        className="bg-black text-white hover:bg-black/90"
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Salvando
-                          </>
-                        ) : (
-                          "Salvar"
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-            )}
-            </section>
-
-            <aside className="flex w-80 shrink-0 flex-col border-l border-border bg-card">
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className="p-5">
-                <div className="mb-4">
-                  <Badge
-                    data-testid="ats-panel-badge"
-                    className="bg-foreground px-3 py-1 font-medium text-background hover:bg-foreground/90"
+                  <ProfileSectionCard
+                    title="Certificações"
+                    editLabel={PROFILE_SECTION_META.certifications.label}
+                    onEdit={() => handleEditSection("certifications")}
+                    className="lg:flex-1"
+                    testId="certifications-section-card"
                   >
-                    {generationCopy.badge}
-                  </Badge>
-                </div>
+                    {sanitizedResumeData.certifications?.length ? (
+                      <div className="space-y-4">
+                        {sanitizedResumeData.certifications.map((certification, index) => (
+                          <article
+                            key={`${certification.name}-${certification.issuer}-${index}`}
+                            className={cn(
+                              "space-y-1 pb-4",
+                              index < (sanitizedResumeData.certifications?.length ?? 0) - 1 && "border-b border-slate-100",
+                            )}
+                          >
+                            <h3 className="text-sm font-semibold text-slate-900">
+                              {certification.name || "Certificação não informada"}
+                            </h3>
+                            <p className="text-sm text-slate-500">
+                              {certification.issuer || "Emissor não informado"}
+                            </p>
+                            {certification.year ? (
+                              <p className="text-xs text-slate-400">{certification.year}</p>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-400">
+                        Nenhuma certificação adicionada ainda.
+                      </p>
+                    )}
+                  </ProfileSectionCard>
+                </aside>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  )
 
-                <div className="mb-5">
-                  <h2 className="mb-2 text-lg font-semibold text-foreground">
-                    {generationCopy.title}
-                  </h2>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {generationCopy.description}
-                  </p>
-                </div>
+  const renderEditorView = () => (
+    <main className="min-h-screen bg-background text-foreground lg:h-screen lg:overflow-hidden">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-4 sm:px-6 lg:h-full lg:min-h-0 lg:py-5">
+        <header className="shrink-0 rounded-3xl border border-border bg-card px-5 py-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <Button
+                type="button"
+                variant="ghost"
+                className="-ml-3 mb-2 h-8 px-3 text-muted-foreground hover:bg-transparent hover:text-foreground"
+                onClick={() => setActiveView("profile")}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar ao perfil
+              </Button>
+              <h1 className="text-xl font-semibold text-foreground">
+                Edite seu currículo base
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Use o editor existente para revisar seus dados antes de salvar ou gerar uma nova versão.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
+                  {profileBadgeText}
+                </Badge>
+                <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
+                  {updatedLabel}
+                </Badge>
+              </div>
+            </div>
 
-                <div className="mb-5 space-y-2">
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isBusy}
+                onClick={() => setIsImportOpen(true)}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Importar do LinkedIn ou PDF
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSaving || isRunningAtsEnhancement}
+                onClick={() => router.push("/dashboard")}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                disabled={isSaving || isRunningAtsEnhancement}
+                onClick={() => void handleSave()}
+                data-testid="profile-save-button"
+                className="bg-black text-white hover:bg-black/90"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Salvando
+                  </>
+                ) : (
+                  "Salvar"
+                )}
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {isLoadingProfile ? (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Carregando perfil salvo...
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={editorContainerRef}
+            className="mt-5 flex-1 overflow-y-auto lg:min-h-0"
+          >
+            <VisualResumeEditor
+              value={resumeData}
+              onChange={setResumeData}
+              disabled={isSaving || isRunningAtsEnhancement}
+              importProgressSource={activeImportSource}
+            />
+          </div>
+        )}
+      </div>
+    </main>
+  )
+
+  const renderLegacyEnhancementView = () => (
+    <main className="min-h-screen bg-white text-slate-900 lg:h-screen lg:overflow-hidden">
+      <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-4 sm:px-6 lg:h-full lg:min-h-0 lg:py-5">
+        <header className="shrink-0 rounded-3xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <Button
+                type="button"
+                variant="ghost"
+                className="-ml-3 mb-2 h-8 px-3 text-slate-500 hover:bg-transparent hover:text-slate-900"
+                onClick={() => setActiveView("profile")}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar ao perfil
+              </Button>
+              <Badge
+                data-testid="ats-panel-badge"
+                className="bg-black px-3 py-1 text-xs font-medium text-white hover:bg-black/90"
+              >
+                {generationCopy.badge}
+              </Badge>
+              <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
+                {generationCopy.title}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                {generationCopy.description}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <div className="flex items-center justify-between gap-4">
+                <span>Créditos disponíveis</span>
+                <span className="font-semibold text-slate-900">{currentCredits}</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="mt-5 flex-1 overflow-y-auto lg:min-h-0">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.8fr)]">
+            <Card className="rounded-3xl border border-slate-200 bg-white p-0 shadow-sm">
+              <div className="space-y-6 p-6">
+                <div className="space-y-2">
                   <label
                     htmlFor="target-job-description"
-                    className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
                   >
                     Vaga alvo opcional
                   </label>
@@ -933,15 +1421,16 @@ export default function UserDataPage({
                     value={targetJobDescription}
                     onChange={(event) => setTargetJobDescription(event.target.value)}
                     disabled={isBusy}
-                    rows={8}
+                    rows={10}
                     placeholder="Cole aqui a descrição da vaga para adaptar o currículo a um cargo específico."
+                    className="min-h-[220px] rounded-2xl border-slate-200 bg-slate-50 text-sm leading-6 text-slate-800 placeholder:text-slate-400 focus-visible:ring-black"
                   />
-                  <p className="text-xs leading-relaxed text-muted-foreground">
+                  <p className="text-xs leading-5 text-slate-500">
                     {generationCopy.helper}
                   </p>
                 </div>
 
-                <div className="mb-6 space-y-3">
+                <div className="space-y-3">
                   {generationFeatures.map((feature) => {
                     const Icon = feature.icon
 
@@ -949,22 +1438,12 @@ export default function UserDataPage({
                       <div
                         key={feature.id}
                         data-testid={`ats-feature-${feature.id}`}
-                        className={cn(
-                          "flex items-start gap-3 rounded-lg border p-3 text-left transition-all",
-                          "border-emerald-500/50 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-950/20",
-                        )}
+                        className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"
                       >
-                        <input
-                          type="checkbox"
-                          checked
-                          readOnly
-                          aria-label={feature.label}
-                          className="mt-0.5 h-4 w-4 rounded border-emerald-600 accent-emerald-600"
-                        />
-                        <div className="mt-0.5 text-muted-foreground">
+                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700">
                           <Icon className="h-4 w-4" />
                         </div>
-                        <span className="flex-1 text-sm leading-snug text-foreground">
+                        <span className="flex-1 text-sm leading-6 text-slate-700">
                           {feature.label}
                         </span>
                       </div>
@@ -972,63 +1451,367 @@ export default function UserDataPage({
                   })}
                 </div>
 
-                <div className="mb-4 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-muted-foreground">Créditos disponíveis</span>
-                    <span className="font-semibold text-foreground">{currentCredits}</span>
-                  </div>
+                <div className="space-y-2 text-sm">
                   {!atsReadiness.isReady ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
+                    <p className="text-slate-500">
                       {generationCopy.incomplete}
                     </p>
                   ) : null}
                   {atsReadiness.reasons.length > 0 ? (
-                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    <div className="space-y-1 text-xs text-slate-500">
                       {atsReadiness.reasons.map((reason) => (
                         <p key={reason}>• {reason}</p>
                       ))}
                     </div>
                   ) : null}
                   {currentCredits < 1 ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
+                    <p className="text-xs text-slate-500">
                       Você precisa de pelo menos 1 crédito para gerar essa versão.
                     </p>
                   ) : null}
                 </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    disabled={setupGenerationButtonDisabled}
+                    onClick={() => void handleSetupGeneration()}
+                    {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.profileAtsCta)}
+                    className="h-11 gap-2 rounded-xl bg-black px-5 text-sm font-medium text-white hover:bg-black/90"
+                    data-testid="ats-panel-cta"
+                  >
+                    {isRunningAtsEnhancement ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {generationCopy.buttonRunning}
+                      </>
+                    ) : (
+                      <>
+                        {generationCopy.buttonIdle}
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isBusy}
+                    onClick={() => setActiveView("profile")}
+                    className="h-11 rounded-xl border-slate-200 bg-white px-5 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Voltar ao perfil
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="rounded-3xl border border-slate-200 bg-white p-0 shadow-sm">
+              <div className="space-y-5 p-6">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">O que você recebe</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Uma nova versão otimizada sem sobrescrever seu currículo base.
+                  </p>
+                </div>
+
+                <div className="space-y-3 text-sm text-slate-600">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="font-medium text-slate-900">Seu currículo base continua preservado</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Você revisa a nova versão antes de exportar e continua podendo editar o perfil original.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="font-medium text-slate-900">Fluxo real da plataforma</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      O mesmo fluxo atual de validação, toasts, créditos e roteamento para comparação é preservado.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </main>
+  )
+
+  const renderEnhancementView = () => (
+    <main className="min-h-screen bg-white text-slate-900 lg:h-screen lg:overflow-hidden">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-4 sm:px-6 lg:h-full lg:min-h-0 lg:py-5">
+        <header className="shrink-0 rounded-3xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              className="-ml-3 h-8 px-3 text-slate-500 hover:bg-transparent hover:text-slate-900"
+              onClick={() => setActiveView("profile")}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar ao perfil
+            </Button>
+
+            <div className="text-sm text-slate-500 lg:text-right">
+              <span className="font-medium text-slate-900">Modo: {selectedModeLabel}</span>
+              <span className="mx-2 text-slate-300">·</span>
+              <span>{currentCredits} créditos disponíveis</span>
+            </div>
+          </div>
+        </header>
+
+        <div className="mt-5 flex-1 overflow-y-auto lg:min-h-0">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.82fr)]">
+            <Card className="rounded-3xl border border-slate-200 bg-white p-0 shadow-sm">
+              <div className="space-y-6 p-6">
                 <div className="space-y-3">
-              <Button
-                type="button"
-                disabled={setupGenerationButtonDisabled}
-                onClick={() => void handleSetupGeneration()}
-                {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.profileAtsCta)}
-                className="h-12 w-full gap-2 rounded-lg bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 disabled:bg-emerald-600/60"
-                size="lg"
-                data-testid="ats-panel-cta"
-              >
-                {isRunningAtsEnhancement ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {generationCopy.buttonRunning}
-                  </>
+                  <Badge
+                    data-testid="ats-panel-badge"
+                    className="bg-black px-3 py-1 text-xs font-medium text-white hover:bg-black/90"
+                  >
+                    {displayGenerationCopy.badge}
+                  </Badge>
+                  <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
+                    {enhancementIntent === "target_job"
+                      ? "Adapte seu currículo para a vaga certa."
+                      : "Melhore seu currículo para ATS com mais clareza."}
+                  </h1>
+                  <p className="max-w-2xl text-sm leading-6 text-slate-600">
+                    {enhancementIntent === "target_job"
+                      ? "Escolha a adaptação por vaga quando você já tiver a descrição do cargo e quiser priorizar requisitos, keywords e experiências mais relevantes."
+                      : "Escolha a melhoria ATS geral quando quiser fortalecer estrutura, clareza e legibilidade sem depender de uma vaga específica."}
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    data-testid="enhancement-intent-ats"
+                    aria-pressed={enhancementIntent === "ats"}
+                    onClick={handleSelectAtsIntent}
+                    disabled={isBusy}
+                    className={cn(
+                      "rounded-2xl border p-4 text-left transition",
+                      enhancementIntent === "ats"
+                        ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900"
+                        : "border-slate-200 bg-white hover:border-slate-300",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">Melhorar para ATS</p>
+                        <p className="text-xs text-slate-500">Sem vaga específica</p>
+                      </div>
+                      {enhancementIntent === "ats" ? (
+                        <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-medium text-white">
+                          Selecionado
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      Reestrutura seu currículo para ficar mais claro, objetivo e compatível com sistemas ATS.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    data-testid="enhancement-intent-target-job"
+                    aria-pressed={enhancementIntent === "target_job"}
+                    onClick={handleSelectTargetJobIntent}
+                    disabled={isBusy}
+                    className={cn(
+                      "rounded-2xl border p-4 text-left transition",
+                      enhancementIntent === "target_job"
+                        ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900"
+                        : "border-slate-200 bg-white hover:border-slate-300",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">Adaptar para vaga</p>
+                        <p className="text-xs text-slate-500">Com descrição da vaga</p>
+                      </div>
+                      {enhancementIntent === "target_job" ? (
+                        <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-medium text-white">
+                          Selecionado
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      Usa a descrição da vaga para priorizar keywords, requisitos e experiências mais relevantes.
+                    </p>
+                  </button>
+                </div>
+
+                {enhancementIntent === "ats" ? (
+                  <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-950">Melhoria ATS geral</h2>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Ideal quando você ainda não tem uma vaga específica. A IA melhora estrutura, clareza, resumo,
+                        bullets e compatibilidade com sistemas ATS.
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p className="text-sm font-medium text-emerald-900">Seguro para testar</p>
+                      <p className="mt-1 text-xs leading-5 text-emerald-700">
+                        Seu currículo base continua preservado. A IA cria uma nova versão para você comparar antes de exportar.
+                      </p>
+                    </div>
+                  </div>
                 ) : (
+                  <div className="space-y-3">
+                    <label
+                      htmlFor="target-job-description"
+                      className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"
+                    >
+                      DESCRIÇÃO DA VAGA
+                    </label>
+                    <Textarea
+                      ref={targetJobDescriptionRef}
+                      id="target-job-description"
+                      data-testid="target-job-description-input"
+                      value={targetJobDescription}
+                      onChange={(event) => handleTargetJobDescriptionChange(event.target.value)}
+                      disabled={isBusy}
+                      rows={10}
+                      aria-invalid={targetJobValidationMessage ? "true" : undefined}
+                      aria-describedby={targetJobValidationMessage
+                        ? "target-job-description-helper target-job-description-error"
+                        : "target-job-description-helper"}
+                      placeholder="Cole aqui responsabilidades, requisitos, qualificações, stack, senioridade e qualquer detalhe importante da vaga..."
+                      className="min-h-[260px] resize-none rounded-2xl border-slate-200 bg-slate-50 text-sm leading-6 text-slate-800 placeholder:text-slate-400 focus-visible:ring-black"
+                    />
+                    <p id="target-job-description-helper" className="text-xs leading-5 text-slate-500">
+                      Cole a descrição completa da vaga para a IA adaptar seu currículo com base nos requisitos reais.
+                    </p>
+                    {targetJobValidationMessage ? (
+                      <p
+                        id="target-job-description-error"
+                        role="alert"
+                        className="text-xs font-medium text-rose-600"
+                      >
+                        {targetJobValidationMessage}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+
+                <div className="space-y-2 text-sm">
+                  {!atsReadiness.isReady ? (
+                    <p className="text-slate-500">
+                      {displayGenerationCopy.incomplete}
+                    </p>
+                  ) : null}
+                  {atsReadiness.reasons.length > 0 ? (
+                    <div className="space-y-1 text-xs text-slate-500">
+                      {atsReadiness.reasons.map((reason) => (
+                        <p key={reason}>â€¢ {reason}</p>
+                      ))}
+                    </div>
+                  ) : null}
+                  {currentCredits < 1 ? (
+                    <p className="text-xs text-slate-500">
+                      Você precisa de pelo menos 1 crédito para gerar uma versão otimizada.
+                    </p>
+                  ) : null}
+                </div>
+
+                <Button
+                  type="button"
+                  disabled={setupGenerationButtonDisabled}
+                  onClick={handleEnhancementSubmit}
+                  {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.profileAtsCta)}
+                  className="h-11 w-full gap-2 rounded-xl bg-black px-5 text-sm font-medium text-white hover:bg-black/90"
+                  data-testid="ats-panel-cta"
+                >
+                  {isRunningAtsEnhancement ? (
                     <>
-                    {generationCopy.buttonIdle}
-                    <ArrowRight className="ml-auto h-4 w-4" />
-                  </>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {generationCopy.buttonRunning}
+                    </>
+                  ) : (
+                    <>
+                      {enhancementIntent === "target_job"
+                        ? "Adaptar para esta vaga (1 crédito)"
+                        : "Melhorar para ATS (1 crédito)"}
+                      <ArrowRight className="h-4 w-4" />
+                    </>
                   )}
                 </Button>
-            </div>
               </div>
+            </Card>
+
+            <Card className="rounded-3xl border border-slate-200 bg-white p-0 shadow-sm">
+              <div className="space-y-5 p-6">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-950">O que você recebe</h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    Uma nova versão otimizada sem sobrescrever seu currículo base.
+                  </p>
+                </div>
+
+                <ul className="space-y-3">
+                  {enhancementValueItems.map((item) => (
+                    <li key={item} className="flex gap-3 text-sm text-slate-700">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-sm font-medium text-emerald-900">Seguro para testar</p>
+                  <p className="mt-1 text-xs leading-5 text-emerald-700">
+                    A IA cria uma nova versão. Você compara antes de exportar.
+                  </p>
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Neste modo</p>
+                  {generationFeatures.map((feature) => {
+                    const Icon = feature.icon
+
+                    return (
+                      <div
+                        key={feature.id}
+                        data-testid={`ats-feature-${feature.id}`}
+                        className="flex items-start gap-3 text-sm text-slate-700"
+                      >
+                        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-emerald-700">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="leading-6">{feature.label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </aside>
-          </main>
+            </Card>
+          </div>
+        </div>
       </div>
+    </main>
+  )
+
+  return (
+    <div
+      data-testid="user-data-page"
+      data-loading={String(isLoadingProfile)}
+    >
+      {activeView === "editor"
+        ? renderEditorView()
+        : activeView === "enhancement"
+          ? renderEnhancementView()
+          : renderProfileView()}
 
       <ImportResumeModal
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
         onImportStarted={(source) => {
           setActiveImportSource(source)
+          setActiveView("editor")
           setIsImportOpen(false)
         }}
         onImportFinished={() => setActiveImportSource(null)}
