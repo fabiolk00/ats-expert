@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { collectMojibakeIssues, isAppPageFile } from './copy-audit.mjs'
+import {
+  collectMojibakeIssues,
+  isAppPageFile,
+  issueKey,
+  normalizeIssueKey,
+  uniqueIssueKeys,
+} from './copy-audit.mjs'
 
 describe('collectMojibakeIssues', () => {
   it('flags common double-encoded pt-BR copy on a single line', () => {
@@ -77,5 +83,33 @@ describe('isAppPageFile', () => {
     expect(isAppPageFile('src/app/(public)/o-que-e-ats/page.tsx')).toBe(true)
     expect(isAppPageFile('src/app/api/session/route.ts')).toBe(false)
     expect(isAppPageFile('src/components/landing/o-que-e-ats-page.tsx')).toBe(false)
+  })
+})
+
+describe('issue key normalization', () => {
+  it('normalizes Windows-style issue keys to a cross-platform slash format', () => {
+    expect(normalizeIssueKey('src\\components\\landing\\example.tsx:12:mojibake')).toBe(
+      'src/components/landing/example.tsx:12:mojibake',
+    )
+  })
+
+  it('deduplicates logically identical issues across slash styles', () => {
+    const windowsIssue = {
+      filePath: 'src\\components\\landing\\example.tsx',
+      line: 12,
+      type: 'mojibake',
+      excerpt: 'Texto corrompido',
+    } as const
+    const posixIssue = {
+      filePath: 'src/components/landing/example.tsx',
+      line: 12,
+      type: 'mojibake',
+      excerpt: 'Texto corrompido',
+    } as const
+
+    expect(issueKey(windowsIssue)).toBe('src/components/landing/example.tsx:12:mojibake')
+    expect(uniqueIssueKeys([windowsIssue, posixIssue])).toEqual([
+      'src/components/landing/example.tsx:12:mojibake',
+    ])
   })
 })

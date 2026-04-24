@@ -469,7 +469,7 @@ function ProfileSectionCard({
     <Card
       data-testid={testId}
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white p-0 shadow-none",
+        "flex min-h-0 flex-col gap-0 overflow-hidden rounded-lg border border-neutral-200 bg-white p-0 shadow-none",
         className,
       )}
     >
@@ -487,7 +487,7 @@ function ProfileSectionCard({
           <PenLine className="h-3.5 w-3.5" />
         </Button>
       </div>
-      <div className={cn("min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2.5", contentClassName)}>
+      <div className={cn("min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-0", contentClassName)}>
         {children}
       </div>
     </Card>
@@ -1077,7 +1077,7 @@ export default function UserDataPage({
                 testId="experience-section-card"
               >
                 {sanitizedResumeData.experience.length > 0 ? (
-                  <div className="-mx-4 -mb-4 -mt-2.5">
+                  <div className="-mx-4 -mb-4">
                     {sanitizedResumeData.experience.map((experience, index) => (
                       <div
                         key={`${experience.title}-${experience.company}-${index}`}
@@ -1086,7 +1086,7 @@ export default function UserDataPage({
                         <article
                           className={cn(
                             "group transition-colors hover:bg-neutral-50/50",
-                            index === 0 ? "pb-4 pt-2.5" : "py-4",
+                            index === 0 ? "pb-4" : "py-4",
                             index < sanitizedResumeData.experience.length - 1 && "border-b border-neutral-100",
                           )}
                         >

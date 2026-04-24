@@ -737,7 +737,7 @@ describe("UserDataPage", () => {
     expect(within(card).getByText("Resultado relevante 18")).toBeInTheDocument()
   })
 
-  it("keeps resume section content tight below the section header", async () => {
+  it("removes all shared spacing below resume section headers across cards", async () => {
     buildFetchMock(createJsonResponse(buildProfileResponse(buildResumeData({
       summary: "Resumo enxuto para validar o espaçamento.",
       experience: [{
@@ -748,19 +748,24 @@ describe("UserDataPage", () => {
         endDate: "Atual",
         bullets: ["Entregou melhorias importantes."],
       }],
+      skills: ["SQL", "Python"],
     }))))
 
     render(<UserDataPage currentCredits={2} />)
 
     const summaryCard = await screen.findByTestId("summary-section-card")
     const experienceCard = await screen.findByTestId("experience-section-card")
+    const skillsCard = await screen.findByTestId("skills-section-card")
     const summaryContent = summaryCard.lastElementChild
     const firstExperienceArticle = within(experienceCard).getByText("Senior Backend Engineer").closest("article")
 
+    expect(summaryCard).toHaveClass("gap-0")
+    expect(experienceCard).toHaveClass("gap-0")
+    expect(skillsCard).toHaveClass("gap-0")
     expect(summaryContent).not.toBeNull()
-    expect(summaryContent).toHaveClass("pt-2.5")
+    expect(summaryContent).toHaveClass("pt-0")
     expect(firstExperienceArticle).not.toBeNull()
-    expect(firstExperienceArticle).toHaveClass("pt-2.5")
+    expect(firstExperienceArticle).not.toHaveClass("pt-2.5")
   })
 
   it("keeps the certifications card visible with its edit action even when empty", async () => {

@@ -78,6 +78,10 @@ function normalizeFilePath(filePath) {
   return filePath.replaceAll('\\', '/')
 }
 
+export function normalizeIssueKey(value) {
+  return value.replaceAll('\\', '/')
+}
+
 export function isAppPageFile(filePath) {
   const normalizedPath = normalizeFilePath(filePath)
   return path.basename(filePath) === 'page.tsx' && normalizedPath.startsWith(`${APP_PAGE_ROOT_DIR}/`)
@@ -103,19 +107,20 @@ function getLineNumber(text, index) {
 }
 
 export function collectMojibakeIssues(filePath, text) {
+  const normalizedFilePath = normalizeFilePath(filePath)
   const issuesByLine = new Map()
 
   for (const pattern of mojibakePatterns) {
     for (const match of text.matchAll(pattern)) {
       const line = getLineNumber(text, match.index ?? 0)
-      const key = `${filePath}:${line}:mojibake`
+      const key = `${normalizedFilePath}:${line}:mojibake`
 
       if (issuesByLine.has(key)) {
         continue
       }
 
       issuesByLine.set(key, {
-        filePath,
+        filePath: normalizedFilePath,
         line,
         type: 'mojibake',
         excerpt: text.split('\n')[line - 1]?.trim() ?? '',
@@ -127,6 +132,7 @@ export function collectMojibakeIssues(filePath, text) {
 }
 
 export function collectAsciiCopyIssues(filePath, text) {
+  const normalizedFilePath = normalizeFilePath(filePath)
   const issues = []
   const lines = text.split('\n')
 
@@ -167,7 +173,7 @@ export function collectAsciiCopyIssues(filePath, text) {
       }
 
       issues.push({
-        filePath,
+        filePath: normalizedFilePath,
         line: index + 1,
         type: 'ptbr-copy',
         term,
@@ -181,13 +187,15 @@ export function collectAsciiCopyIssues(filePath, text) {
 }
 
 export function issueKey(issue) {
+  const normalizedFilePath = normalizeFilePath(issue.filePath)
+
   if (issue.type === 'mojibake') {
-    return `${issue.filePath}:${issue.line}:mojibake`
+    return `${normalizedFilePath}:${issue.line}:mojibake`
   }
 
-  return `${issue.filePath}:${issue.line}:${issue.term}`
+  return `${normalizedFilePath}:${issue.line}:${issue.term}`
 }
 
 export function uniqueIssueKeys(issues) {
-  return [...new Set(issues.map(issueKey))].sort()
+  return [...new Set(issues.map(issueKey).map(normalizeIssueKey))].sort()
 }

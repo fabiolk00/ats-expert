@@ -7,6 +7,7 @@ import {
   listCopyReviewFiles,
   listRegressionMojibakeFiles,
   listStrictMojibakeFiles,
+  normalizeIssueKey,
   uniqueIssueKeys,
 } from './lib/copy-audit.mjs'
 
@@ -96,11 +97,11 @@ let newCopyIssues = []
 
 if (baselinePath) {
   const baseline = JSON.parse(readFileSync(path.join(ROOT, baselinePath), 'utf8'))
-  const knownMojibakeIssueKeys = new Set(baseline.mojibakeIssueKeys ?? [])
-  const knownCopyIssueKeys = new Set(baseline.copyIssueKeys ?? [])
+  const knownMojibakeIssueKeys = new Set((baseline.mojibakeIssueKeys ?? []).map(normalizeIssueKey))
+  const knownCopyIssueKeys = new Set((baseline.copyIssueKeys ?? []).map(normalizeIssueKey))
 
-  newMojibakeIssues = mojibakeIssues.filter((issue) => !knownMojibakeIssueKeys.has(issueKey(issue)))
-  newCopyIssues = copyIssues.filter((issue) => !knownCopyIssueKeys.has(issueKey(issue)))
+  newMojibakeIssues = mojibakeIssues.filter((issue) => !knownMojibakeIssueKeys.has(normalizeIssueKey(issueKey(issue))))
+  newCopyIssues = copyIssues.filter((issue) => !knownCopyIssueKeys.has(normalizeIssueKey(issueKey(issue))))
 }
 
 if (!baselinePath && mojibakeIssues.length > 0) {
