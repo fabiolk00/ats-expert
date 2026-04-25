@@ -7,7 +7,7 @@ current_phase_name: restrict ai chat access to active pro subscribers across ui 
 current_plan: 01 complete
 status: phase_complete
 stopped_at: Completed 102-01-PLAN.md
-last_updated: "2026-04-25T18:11:00.0000000-03:00"
+last_updated: "2026-04-25T18:29:22.3348958-03:00"
 last_activity: 2026-04-25
 progress:
   total_phases: 57
@@ -36,7 +36,7 @@ Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-25
-Last Activity Description: Completed quick task 260425-p87 moving the mobile hero title lower so it clears the fixed navbar.
+Last Activity Description: Completed quick task 260425-po6 hiding the pricing comparison section on mobile and aligning card inclusions with the comparison table.
 
 Progress: [##########] 100%
 
@@ -52,6 +52,7 @@ Baseline carried forward from earlier shipped milestones:
 ### Roadmap Evolution
 
 - Phase 104 added: Warn before job target generation when vacancy match is weak and require user confirmation to continue.
+- Phase 105 added: Refine career fit from a boolean warning into a graduated low/medium/high risk evaluation with contextual gating.
 - Phase 103 added: Align Monthly and Pro plan price and credit limits across UI, billing, and tests.
 - Phase 102 added: Restrict AI chat access to active Pro subscribers across UI and API.
 - Phase 101 completed: the existing resume history UI now renders live protected generation history with latest-6 pagination and download/open actions.
@@ -195,6 +196,8 @@ Baseline carried forward from earlier shipped milestones:
 | 260425-oxl | Reorder the landing navbar links to ATS, areas, then pricing | 2026-04-25 | working-tree | Validated | [260425-oxl-reorder-landing-navbar-links-to-ats-resu](./quick/260425-oxl-reorder-landing-navbar-links-to-ats-resu/) |
 
 | 260425-p87 | Move the mobile hero title lower so it clears the fixed navbar | 2026-04-25 | working-tree | Validated | [260425-p87-move-the-landing-hero-title-lower-so-the](./quick/260425-p87-move-the-landing-hero-title-lower-so-the/) |
+
+| 260425-po6 | Hide the pricing comparison section on mobile and align pricing cards with the comparison matrix | 2026-04-25 | working-tree | Validated | [260425-po6-hide-the-pricing-comparison-section-on-m](./quick/260425-po6-hide-the-pricing-comparison-section-on-m/) |
 
 ## Session Continuity
 

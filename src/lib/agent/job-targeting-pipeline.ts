@@ -1,6 +1,7 @@
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 import { buildTargetingPlan } from '@/lib/agent/tools/build-targeting-plan'
 import { summarizeHighlightState } from '@/lib/agent/highlight-observability'
+import { evaluateCareerFitRisk } from '@/lib/agent/profile-review'
 import {
   generateCvHighlightState,
   type HighlightDetectionOutcome,
@@ -183,16 +184,41 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     analyzedAt,
   } satisfies NonNullable<Session['agentState']['gapAnalysis']>
   const targetFitAssessment = deriveTargetFitAssessment(gapAnalysisExecution, analyzedAt)
+  const careerFitEvaluation = evaluateCareerFitRisk({
+    cvState: session.cvState,
+    agentState: {
+      ...session.agentState,
+      targetJobDescription,
+      gapAnalysis,
+      targetFitAssessment,
+    },
+  })
 
   await persistAgentState(session, {
     ...session.agentState,
     workflowMode: 'job_targeting',
     gapAnalysis,
     targetFitAssessment,
+    careerFitEvaluation: careerFitEvaluation ?? undefined,
     atsWorkflowRun: buildWorkflowRun(session, {
       currentStage: 'targeting_plan',
     }),
   })
+
+  if (careerFitEvaluation) {
+    logInfo('career_fit_evaluated', {
+      sessionId: session.id,
+      riskLevel: careerFitEvaluation.riskLevel,
+      riskPoints: careerFitEvaluation.riskPoints,
+      signals: JSON.stringify({
+        matchScore: careerFitEvaluation.signals.matchScore ?? null,
+        missingSkillsCount: careerFitEvaluation.signals.missingSkillsCount ?? null,
+        weakAreasCount: careerFitEvaluation.signals.weakAreasCount ?? null,
+        familyDistance: careerFitEvaluation.signals.familyDistance ?? null,
+        seniorityGapMajor: careerFitEvaluation.signals.seniorityGapMajor,
+      }),
+    })
+  }
 
   const targetingPlan = buildTargetingPlan({
     cvState: session.cvState,
@@ -205,6 +231,7 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     workflowMode: 'job_targeting',
     gapAnalysis,
     targetFitAssessment,
+    careerFitEvaluation: careerFitEvaluation ?? undefined,
     targetingPlan,
     atsWorkflowRun: buildWorkflowRun(session, {
       currentStage: 'rewrite_plan',
@@ -313,6 +340,7 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     workflowMode: 'job_targeting',
     gapAnalysis,
     targetFitAssessment,
+    careerFitEvaluation: careerFitEvaluation ?? undefined,
     targetingPlan,
     rewriteStatus: validation.valid ? 'completed' : 'failed',
     optimizedCvState: validation.valid ? rewriteResult.optimizedCvState : previousOptimizedCvState,

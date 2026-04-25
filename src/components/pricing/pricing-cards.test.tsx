@@ -55,12 +55,18 @@ describe("PricingCards", () => {
     }
   })
 
-  it("shows job management as blocked on free and included on paid plans", () => {
+  it("renders the same inclusion matrix as the comparison table", () => {
     render(<PricingCards />)
 
-    expect(screen.getAllByText("Gerenciamento de vagas")).toHaveLength(4)
-    expect(screen.getAllByLabelText("Recurso incluído")).toHaveLength(3)
-    expect(screen.getAllByLabelText("Recurso indisponível")).toHaveLength(1)
+    expect(screen.getAllByText("Currículos")).toHaveLength(4)
+    expect(screen.getAllByText("ATS Expert")).toHaveLength(4)
+    expect(screen.getAllByText("Chat com IA")).toHaveLength(4)
+    expect(screen.getAllByLabelText("PDF: incluído")).toHaveLength(3)
+    expect(screen.getAllByLabelText("PDF: não incluído")).toHaveLength(1)
+    expect(screen.getAllByLabelText("Chat com IA: incluído")).toHaveLength(1)
+    expect(screen.getAllByLabelText("Chat com IA: não incluído")).toHaveLength(3)
+    expect(screen.getAllByLabelText("Histórico: incluído")).toHaveLength(3)
+    expect(screen.getAllByLabelText("Histórico: não incluído")).toHaveLength(1)
   })
 
   it("redirects signed-out users to signup when they choose the free plan", async () => {

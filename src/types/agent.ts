@@ -116,6 +116,7 @@ export type AgentState = {
   workflowMode?: WorkflowMode
   targetJobDescription?: string
   targetFitAssessment?: TargetFitAssessment
+  careerFitEvaluation?: CareerFitEvaluation
   parseConfidenceScore?: number
   parseStatus: 'empty' | 'attached' | 'parsed' | 'failed'
   parseError?: string
@@ -159,6 +160,8 @@ export type AgentState = {
     confirmRequestedAt?: string
     generationConfirmedAt?: string
     careerFitWarningIssuedAt?: string
+    careerFitRiskLevelAtWarning?: CareerFitRiskLevel
+    careerFitWarningJDFingerprint?: string
     careerFitWarningTargetJobDescription?: string
     careerFitOverrideConfirmedAt?: string
     careerFitOverrideTargetJobDescription?: string
@@ -305,6 +308,24 @@ export type TargetFitAssessment = {
   summary: string
   reasons: string[]
   assessedAt: string
+}
+
+export type CareerFitRiskLevel = 'low' | 'medium' | 'high'
+
+export type CareerFitEvaluation = {
+  riskLevel: CareerFitRiskLevel
+  needsExplicitConfirmation: boolean
+  summary: string
+  reasons: string[]
+  riskPoints: number
+  assessedAt: string
+  signals: {
+    matchScore?: number
+    missingSkillsCount?: number
+    weakAreasCount?: number
+    familyDistance?: 'same' | 'adjacent' | 'distant' | 'unknown'
+    seniorityGapMajor: boolean
+  }
 }
 
 export type CareerFitCheckpoint = {

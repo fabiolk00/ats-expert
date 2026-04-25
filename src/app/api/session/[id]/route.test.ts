@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { fingerprintJD } from '@/lib/agent/jd-fingerprint'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getAiChatAccess } from '@/lib/billing/ai-chat-access.server'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
@@ -156,6 +157,7 @@ describe('session route', () => {
         },
         phaseMeta: {
           careerFitWarningIssuedAt: '2026-04-22T10:05:00.000Z',
+          careerFitWarningJDFingerprint: fingerprintJD('Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.'),
           careerFitWarningTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
         },
       },
@@ -178,12 +180,12 @@ describe('session route', () => {
     expect(body.session.agentState.careerFitCheckpoint).toMatchObject({
       status: 'pending_confirmation',
       targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
-      summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento.',
+      summary: 'Desalinhamento estrutural para a vaga.',
       assessedAt: '2026-04-22T10:00:00.000Z',
     })
     expect(body.session.agentState.careerFitCheckpoint.reasons).toEqual(expect.arrayContaining([
       'Skill ausente ou pouco evidenciada: Kubernetes',
-      'Principais gaps hoje: Kubernetes, Go, Terraform.',
+      'Seu histórico atual parece mais alinhado a data, enquanto esta vaga pede um foco mais claro em devops.',
     ]))
   })
 
@@ -219,6 +221,7 @@ describe('session route', () => {
         },
         phaseMeta: {
           careerFitWarningIssuedAt: '2026-04-22T10:05:00.000Z',
+          careerFitWarningJDFingerprint: fingerprintJD('Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.'),
           careerFitWarningTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
           careerFitOverrideConfirmedAt: '2026-04-22T10:06:00.000Z',
           careerFitOverrideTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',

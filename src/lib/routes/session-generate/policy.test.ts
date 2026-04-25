@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { fingerprintJD } from '@/lib/agent/jd-fingerprint'
 import { listActiveJobsForUser } from '@/lib/jobs/repository'
 
 import { evaluateSessionGeneratePolicy } from './policy'
@@ -125,5 +126,95 @@ describe('session-generate policy helpers', () => {
         jobId: 'job_same_session',
       }),
     })
+  })
+
+  it('allows target generation for medium career-fit risk after the warning was shown', async () => {
+    await expect(evaluateSessionGeneratePolicy({
+      scope: 'target',
+      session: {
+        id: 'sess_medium',
+        cvState: {
+          fullName: 'Ana',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          summary: 'Analista de BI com foco em SQL e Power BI.',
+          experience: [],
+          skills: ['SQL', 'Power BI'],
+          education: [],
+        },
+        agentState: {
+          targetJobDescription: 'Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.',
+          careerFitEvaluation: {
+            riskLevel: 'medium',
+            needsExplicitConfirmation: false,
+            summary: 'Alinhamento parcial com lacunas relevantes.',
+            reasons: [],
+            riskPoints: 4,
+            assessedAt: '2026-04-12T12:00:00.000Z',
+            signals: {
+              matchScore: 52,
+              missingSkillsCount: 2,
+              weakAreasCount: 2,
+              familyDistance: 'adjacent',
+              seniorityGapMajor: false,
+            },
+          },
+          phaseMeta: {
+            careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
+            careerFitRiskLevelAtWarning: 'medium',
+            careerFitWarningJDFingerprint: fingerprintJD('Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.'),
+            careerFitWarningTargetJobDescription: 'Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.',
+          },
+        },
+      } as never,
+      appUser: { id: 'usr_1' } as never,
+      target: { id: 'target_1' } as never,
+      primaryIdempotencyKey: 'artifact:sess_medium:target',
+    } as never)).resolves.toEqual({ kind: 'allow' })
+  })
+
+  it('blocks target generation for high career-fit risk until explicit confirmation is recorded', async () => {
+    await expect(evaluateSessionGeneratePolicy({
+      scope: 'target',
+      session: {
+        id: 'sess_high',
+        cvState: {
+          fullName: 'Ana',
+          email: 'ana@example.com',
+          phone: '555-0100',
+          summary: 'Analista de BI com foco em SQL e Power BI.',
+          experience: [],
+          skills: ['SQL', 'Power BI'],
+          education: [],
+        },
+        agentState: {
+          targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+          careerFitEvaluation: {
+            riskLevel: 'high',
+            needsExplicitConfirmation: true,
+            summary: 'Desalinhamento estrutural para a vaga.',
+            reasons: [],
+            riskPoints: 10,
+            assessedAt: '2026-04-12T12:00:00.000Z',
+            signals: {
+              matchScore: 35,
+              missingSkillsCount: 6,
+              weakAreasCount: 5,
+              familyDistance: 'distant',
+              seniorityGapMajor: true,
+            },
+          },
+          phaseMeta: {
+            careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
+            careerFitRiskLevelAtWarning: 'high',
+            careerFitWarningJDFingerprint: fingerprintJD('Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.'),
+            careerFitWarningTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+          },
+        },
+      } as never,
+      appUser: { id: 'usr_1' } as never,
+      target: { id: 'target_1' } as never,
+      primaryIdempotencyKey: 'artifact:sess_high:target',
+    } as never)).resolves.toEqual({ kind: 'blocked_career_fit_confirmation' })
   })
 })

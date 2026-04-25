@@ -14,11 +14,11 @@ import {
   resolveRewriteFocus,
 } from '@/lib/agent/agent-intents'
 import { buildSystemPrompt, trimMessages } from '@/lib/agent/context-builder'
+import { fingerprintJD } from '@/lib/agent/jd-fingerprint'
 import {
   buildCareerFitWarningText,
   formatProfileAuditSummary,
   hasActiveCareerFitWarning,
-  requiresCareerFitWarning,
 } from '@/lib/agent/profile-review'
 import { localizeTargetFitSummary } from '@/lib/agent/target-fit'
 import {
@@ -516,24 +516,47 @@ function resolveGenerationPrerequisiteMessage(session: Session): string | null {
 
   if (hasPendingCareerFitOverride(session)) {
     return buildCareerFitWarningText(session)
+      ?? 'Antes de seguir com a geração, preciso do seu ok explícito para continuar mesmo com esse desalinhamento.'
   }
 
   return null
 }
 
-function shouldShowCareerFitWarning(session: Session): boolean {
-  return requiresCareerFitWarning(session) && !hasActiveCareerFitWarning(session)
+function resolveCareerFitEvaluation(session: Session) {
+  return session.agentState.careerFitEvaluation ?? null
 }
 
-function hasPendingCareerFitOverride(session: Session): boolean {
-  const targetJobDescription = session.agentState.targetJobDescription?.trim()
+function shouldShowCareerFitWarning(session: Session): boolean {
+  const evaluation = resolveCareerFitEvaluation(session)
   const phaseMeta = session.agentState.phaseMeta
+  const currentJDFingerprint = fingerprintJD(session.agentState.targetJobDescription ?? '')
 
-  if (!targetJobDescription || !phaseMeta?.careerFitWarningIssuedAt) {
+  if (!evaluation || evaluation.riskLevel === 'low') {
     return false
   }
 
-  if (phaseMeta.careerFitWarningTargetJobDescription?.trim() !== targetJobDescription) {
+  return !(
+    phaseMeta?.careerFitWarningIssuedAt
+    && phaseMeta?.careerFitWarningJDFingerprint
+    && phaseMeta.careerFitWarningJDFingerprint === currentJDFingerprint
+  )
+}
+
+function hasPendingCareerFitOverride(session: Session): boolean {
+  const evaluation = resolveCareerFitEvaluation(session)
+  const targetJobDescription = session.agentState.targetJobDescription?.trim()
+  const phaseMeta = session.agentState.phaseMeta
+  const currentJDFingerprint = fingerprintJD(targetJobDescription ?? '')
+
+  if (evaluation?.riskLevel !== 'high' || !targetJobDescription || !phaseMeta?.careerFitWarningIssuedAt) {
+    return false
+  }
+
+  if (!phaseMeta.careerFitWarningJDFingerprint || phaseMeta.careerFitWarningJDFingerprint !== currentJDFingerprint) {
+    return false
+  }
+
+  if (phaseMeta.careerFitRiskLevelAtWarning !== 'high') {
     return false
   }
 
@@ -545,9 +568,10 @@ function hasPendingCareerFitOverride(session: Session): boolean {
 }
 
 async function markCareerFitWarningIssued(session: Session): Promise<Parameters<typeof applyToolPatchWithVersion>[1] | null> {
+  const evaluation = resolveCareerFitEvaluation(session)
   const targetJobDescription = session.agentState.targetJobDescription?.trim()
 
-  if (!targetJobDescription) {
+  if (!targetJobDescription || !evaluation || evaluation.riskLevel === 'low') {
     return null
   }
 
@@ -555,6 +579,8 @@ async function markCareerFitWarningIssued(session: Session): Promise<Parameters<
     agentState: {
       phaseMeta: {
         careerFitWarningIssuedAt: new Date().toISOString(),
+        careerFitRiskLevelAtWarning: evaluation.riskLevel,
+        careerFitWarningJDFingerprint: fingerprintJD(targetJobDescription),
         careerFitWarningTargetJobDescription: targetJobDescription,
       },
     },
@@ -566,8 +592,9 @@ async function markCareerFitWarningIssued(session: Session): Promise<Parameters<
 
 async function confirmCareerFitOverride(session: Session): Promise<Parameters<typeof applyToolPatchWithVersion>[1] | null> {
   const targetJobDescription = session.agentState.targetJobDescription?.trim()
+  const warningRiskLevel = session.agentState.phaseMeta?.careerFitRiskLevelAtWarning
 
-  if (!targetJobDescription) {
+  if (!targetJobDescription || warningRiskLevel !== 'high') {
     return null
   }
 
@@ -1552,15 +1579,9 @@ export async function* runAgentLoop(
   let assistantResponded = false
   let cachedSystemPrompt = buildSystemPrompt(session, userMessage)
   let systemPromptDirty = false
-  const pendingCareerFitOverride = Boolean(
-    session.agentState.targetJobDescription?.trim()
-    && session.agentState.phaseMeta?.careerFitWarningIssuedAt
-    && session.agentState.phaseMeta?.careerFitWarningTargetJobDescription?.trim() === session.agentState.targetJobDescription?.trim()
-    && !session.agentState.phaseMeta?.careerFitOverrideConfirmedAt,
-  )
 
   try {
-    if (pendingCareerFitOverride && isWeakFitContinueRequest(userMessage)) {
+    if (hasPendingCareerFitOverride(session) && isWeakFitContinueRequest(userMessage)) {
       const patch = await confirmCareerFitOverride(session)
       if (patch) {
         yield createPatchChunk(session, patch)
@@ -1605,7 +1626,7 @@ export async function* runAgentLoop(
       return
     }
 
-    if (pendingCareerFitOverride && isCareerFitOverrideConfirmation(userMessage)) {
+    if (hasPendingCareerFitOverride(session) && isCareerFitOverrideConfirmation(userMessage)) {
       const patch = await confirmCareerFitOverride(session)
       if (patch) {
         yield createPatchChunk(session, patch)
@@ -1632,16 +1653,7 @@ export async function* runAgentLoop(
     }
 
     if (isGenerationApproval(userMessage)) {
-      if (hasPendingCareerFitOverride(session) && hasActiveCareerFitWarning(session)) {
-        const overridePatch = await confirmCareerFitOverride(session)
-        if (overridePatch) {
-          yield createPatchChunk(session, overridePatch)
-        }
-      }
-
-      const careerFitWarning = pendingCareerFitOverride
-        ? buildCareerFitWarningText(session)
-        : (yield* maybeIssueCareerFitWarning({ session }))
+      const careerFitWarning = yield* maybeIssueCareerFitWarning({ session })
       if (careerFitWarning) {
         yield {
           type: 'text',
@@ -1659,6 +1671,13 @@ export async function* runAgentLoop(
           maxMessages: AGENT_CONFIG.maxMessagesPerSession,
         })
         return
+      }
+
+      if (hasPendingCareerFitOverride(session) && hasActiveCareerFitWarning(session)) {
+        const overridePatch = await confirmCareerFitOverride(session)
+        if (overridePatch) {
+          yield createPatchChunk(session, overridePatch)
+        }
       }
 
       const generationPrerequisiteMessage = resolveGenerationPrerequisiteMessage(session)
@@ -1702,16 +1721,7 @@ export async function* runAgentLoop(
     }
 
     if (isGenerationRequest(userMessage)) {
-      if (hasPendingCareerFitOverride(session) && hasActiveCareerFitWarning(session)) {
-        const overridePatch = await confirmCareerFitOverride(session)
-        if (overridePatch) {
-          yield createPatchChunk(session, overridePatch)
-        }
-      }
-
-      const careerFitWarning = pendingCareerFitOverride
-        ? buildCareerFitWarningText(session)
-        : (yield* maybeIssueCareerFitWarning({ session }))
+      const careerFitWarning = yield* maybeIssueCareerFitWarning({ session })
       if (careerFitWarning) {
         yield {
           type: 'text',
@@ -1720,6 +1730,42 @@ export async function* runAgentLoop(
 
         assistantResponded = true
         await appendAssistantTurn(session.id, careerFitWarning)
+
+        logInfo('agent.stream.completed', {
+          ...releaseMetadata,
+          requestId,
+          sessionId: session.id,
+          appUserId,
+          phase: session.phase,
+          stateVersion: session.stateVersion,
+          isNewSession,
+          messageCountAfter: session.messageCount + 1,
+          toolLoopsUsed: toolIterations,
+          success: true,
+          latencyMs: Date.now() - requestStartedAt,
+        })
+
+        yield buildDoneChunk({
+          requestId,
+          session,
+          isNewSession,
+          toolIterations,
+          maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+        })
+        return
+      }
+
+      if (hasPendingCareerFitOverride(session)) {
+        const pendingOverrideWarning = buildCareerFitWarningText(session)
+          ?? 'Antes de seguir, preciso do seu ok explícito para continuar mesmo com esse desalinhamento.'
+
+        yield {
+          type: 'text',
+          content: pendingOverrideWarning,
+        }
+
+        assistantResponded = true
+        await appendAssistantTurn(session.id, pendingOverrideWarning)
 
         logInfo('agent.stream.completed', {
           ...releaseMetadata,

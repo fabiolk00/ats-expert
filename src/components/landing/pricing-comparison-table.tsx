@@ -1,10 +1,11 @@
 import { Check, Sparkles, X } from "lucide-react"
 
-import { PLANS, formatPrice, type PlanSlug } from "@/lib/plans"
+import { PLAN_COMPARISON, PLAN_DISPLAY_ORDER } from "@/lib/pricing/plan-comparison"
+import { PLANS, formatPrice } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
-function BoolCell({ value, highlight }: { value: "Sim" | "Não"; highlight?: boolean }) {
-  if (value === "Sim") {
+function BoolCell({ value, highlight }: { value: boolean; highlight?: boolean }) {
+  if (value) {
     return (
       <div
         className={cn(
@@ -23,48 +24,6 @@ function BoolCell({ value, highlight }: { value: "Sim" | "Não"; highlight?: boo
     </div>
   )
 }
-
-const plans: Array<{
-  slug: PlanSlug
-  ats: string
-  pdf: "Sim" | "Não"
-  chatIA: "Sim" | "Não"
-  historico: "Sim" | "Não"
-  highlight: "black" | "gold" | null
-}> = [
-  {
-    slug: "free",
-    ats: "Básico",
-    pdf: "Não",
-    chatIA: "Não",
-    historico: "Não",
-    highlight: null,
-  },
-  {
-    slug: "unit",
-    ats: "Completo",
-    pdf: "Sim",
-    chatIA: "Não",
-    historico: "Sim",
-    highlight: null,
-  },
-  {
-    slug: "monthly",
-    ats: "Completo",
-    pdf: "Sim",
-    chatIA: "Não",
-    historico: "Sim",
-    highlight: "black",
-  },
-  {
-    slug: "pro",
-    ats: "Completo",
-    pdf: "Sim",
-    chatIA: "Sim",
-    historico: "Sim",
-    highlight: "gold",
-  },
-] as const
 
 const columns = [
   { label: "Plano", key: "name" },
@@ -109,10 +68,11 @@ export default function PricingComparisonTable() {
           </div>
 
           <div className="divide-y divide-neutral-100">
-            {plans.map((plan) => {
-              const config = PLANS[plan.slug]
-              const isBlack = plan.highlight === "black"
-              const isGold = plan.highlight === "gold"
+            {PLAN_DISPLAY_ORDER.map((slug) => {
+              const config = PLANS[slug]
+              const comparison = PLAN_COMPARISON[slug]
+              const isBlack = comparison.highlight === "black"
+              const isGold = comparison.highlight === "gold"
               const period = config.billing === "monthly" ? "/mês" : null
               const curriculos = String(config.credits)
 
@@ -188,23 +148,23 @@ export default function PricingComparisonTable() {
                       className={cn(
                         "text-sm",
                         isBlack ? "text-neutral-300" : isGold ? "text-amber-800" : "text-neutral-600",
-                        plan.ats === "Completo" && "font-medium",
+                        comparison.ats === "Completo" && "font-medium",
                       )}
                     >
-                      {plan.ats}
+                      {comparison.ats}
                     </span>
                   </div>
 
                   <div className="col-span-1 flex justify-center">
-                    <BoolCell value={plan.pdf} />
+                    <BoolCell value={comparison.pdf} />
                   </div>
 
                   <div className="col-span-1 flex justify-center">
-                    <BoolCell value={plan.chatIA} highlight={isGold} />
+                    <BoolCell value={comparison.chatIA} highlight={isGold} />
                   </div>
 
                   <div className="col-span-1 flex justify-center">
-                    <BoolCell value={plan.historico} />
+                    <BoolCell value={comparison.historico} />
                   </div>
                 </div>
               )

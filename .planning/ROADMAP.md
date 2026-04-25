@@ -768,3 +768,18 @@ Plans:
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 104 to break down)
+
+### Phase 105: Refinar career fit de warning booleano para avaliacao graduada com risco low medium high e gating contextual
+
+**Goal:** Replace the rigid boolean weak-fit warning with a graduated career-fit risk evaluation that distinguishes adjacent versus distant role moves, warns on medium and high risk, and only requires explicit override for structurally high-risk targeting.
+**Requirements**: [CAREER-FIT-RISK-01, CAREER-FIT-GATE-01, CAREER-FIT-TEST-01]
+**Depends on:** Phase 104
+**Plans:** 0 plans
+
+**Success Criteria** (what must be TRUE):
+  1. Career fit is no longer treated primarily as a boolean mismatch; the agent persists a structured low/medium/high evaluation with explainable signals and compatible fallback surfaces.
+  2. Adjacent profile moves such as BI/data candidates targeting analytics-oriented roles no longer trigger the same hard behavior as distant family jumps, while distant plus weak-signal cases still surface strong protection.
+  3. The agent loop, prompt guardrail, and committed tests prove that medium risk warns without blocking, high risk requires explicit confirmation before generation, and existing compatibility contracts stay intact.
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 105 to break down)

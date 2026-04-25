@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockLengthExceededStream, mockTextStream, mockTextThenToolStream, mockToolCallStream } from './__tests__/mock-openai-stream'
+import { fingerprintJD } from './jd-fingerprint'
+import * as profileReview from './profile-review'
 import { runAgentLoop } from './streaming-loop'
 
 const {
@@ -1862,7 +1864,7 @@ describe('runAgentLoop streaming', () => {
     )
   })
 
-  it('surfaces a realism warning before generating when the vacancy is a weak fit and no warning was shown yet', async () => {
+  it('surfaces a high-risk warning before generating when no warning was shown yet', async () => {
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
@@ -1871,6 +1873,21 @@ describe('runAgentLoop streaming', () => {
         rewriteHistory: {},
         sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
         targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+        careerFitEvaluation: {
+          riskLevel: 'high' as const,
+          needsExplicitConfirmation: true,
+          summary: 'Desalinhamento estrutural para a vaga.',
+          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
+          riskPoints: 10,
+          assessedAt: '2026-04-12T12:00:00.000Z',
+          signals: {
+            matchScore: 34,
+            missingSkillsCount: 3,
+            weakAreasCount: 2,
+            familyDistance: 'distant' as const,
+            seniorityGapMajor: false,
+          },
+        },
         targetFitAssessment: {
           level: 'weak' as const,
           summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento, com lacunas relevantes que uma reescrita de currículo sozinha não resolve.',
@@ -1906,9 +1923,14 @@ describe('runAgentLoop streaming', () => {
       .map((event) => event.content)
       .join('')
 
-    expect(finalText).toContain('encaixe fraco para o seu perfil atual')
-    expect(finalText).toContain('Entendo, mas quero continuar')
+    expect(finalText).toContain('[Aviso]')
+    expect(finalText).toContain('Desalinhamento estrutural para a vaga')
+    expect(finalText).toContain('Confirme explicitamente para continuar')
     expect((session.agentState as { phaseMeta?: { careerFitWarningIssuedAt?: string } }).phaseMeta?.careerFitWarningIssuedAt).toBeDefined()
+    expect((session.agentState as { phaseMeta?: { careerFitRiskLevelAtWarning?: string } }).phaseMeta?.careerFitRiskLevelAtWarning).toBe('high')
+    expect((session.agentState as { phaseMeta?: { careerFitWarningJDFingerprint?: string } }).phaseMeta?.careerFitWarningJDFingerprint).toBe(
+      fingerprintJD('Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.'),
+    )
     expect((session.agentState as { phaseMeta?: { careerFitWarningTargetJobDescription?: string } }).phaseMeta?.careerFitWarningTargetJobDescription).toContain('Senior Platform Engineer')
     expect(mockDispatchToolWithContext).not.toHaveBeenCalledWith(
       'generate_file',
@@ -1918,7 +1940,8 @@ describe('runAgentLoop streaming', () => {
     )
   })
 
-  it('still blocks generation after the realism warning until the explicit override is confirmed', async () => {
+  it('does not block generation when careerFitEvaluation is missing and agent-loop never recalculates it live', async () => {
+    const evaluateCareerFitRiskSpy = vi.spyOn(profileReview, 'evaluateCareerFitRisk')
     const session = {
       ...buildSession(),
       phase: 'dialog' as const,
@@ -1938,25 +1961,15 @@ describe('runAgentLoop streaming', () => {
         parseStatus: 'parsed' as const,
         rewriteHistory: {},
         sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
-        targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
-        targetFitAssessment: {
-          level: 'weak' as const,
-          summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento, com lacunas relevantes que uma reescrita de currículo sozinha não resolve.',
-          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
-          assessedAt: '2026-04-12T12:00:00.000Z',
-        },
+        targetJobDescription: 'Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.',
         gapAnalysis: {
           result: {
-            matchScore: 34,
-            missingSkills: ['Kubernetes', 'Go', 'Terraform'],
+            matchScore: 40,
+            missingSkills: ['SEO', 'CRM'],
             weakAreas: ['experience', 'summary'],
-            improvementSuggestions: ['Build infrastructure projects before targeting this level.'],
+            improvementSuggestions: ['Connect analytics outcomes to marketing funnel goals.'],
           },
           analyzedAt: '2026-04-12T12:00:00.000Z',
-        },
-        phaseMeta: {
-          careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
-          careerFitWarningTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
         },
       },
     }
@@ -1976,11 +1989,11 @@ describe('runAgentLoop streaming', () => {
         return {
           output: {
             success: true,
-            targetId: 'target_weak_123',
+            targetId: 'target_missing_eval_123',
             targetJobDescription: session.agentState.targetJobDescription,
             derivedCvState: session.cvState,
           },
-          outputJson: JSON.stringify({ success: true, targetId: 'target_weak_123' }),
+          outputJson: JSON.stringify({ success: true, targetId: 'target_missing_eval_123' }),
           persistedPatch: {
             agentState: {
               targetJobDescription: session.agentState.targetJobDescription,
@@ -2052,7 +2065,7 @@ describe('runAgentLoop streaming', () => {
       session,
       userMessage: 'Aceito',
       appUserId: 'usr_123',
-      requestId: 'req_generation_after_realism_warning',
+      requestId: 'req_generation_without_career_fit_evaluation',
       isNewSession: false,
       requestStartedAt: Date.now(),
     })) {
@@ -2064,7 +2077,399 @@ describe('runAgentLoop streaming', () => {
       .map((event) => event.content)
       .join('')
 
-    expect(finalText).toContain('Entendo, mas quero continuar')
+    expect(finalText).toContain('ATS-otimizado em PDF')
+    expect(evaluateCareerFitRiskSpy).not.toHaveBeenCalled()
+    expect(mockDispatchToolWithContext).toHaveBeenCalledWith(
+      'generate_file',
+      expect.objectContaining({
+        cv_state: expect.any(Object),
+      }),
+      expect.objectContaining({ id: 'sess_123' }),
+      undefined,
+    )
+  })
+
+  it('allows generation after a medium-risk warning without storing an override', async () => {
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      internalHeuristicAtsScore: {
+        total: 52,
+        breakdown: {
+          format: 70,
+          structure: 60,
+          keywords: 40,
+          contact: 95,
+          impact: 20,
+        },
+        issues: [],
+        suggestions: [],
+      },
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.',
+        careerFitEvaluation: {
+          riskLevel: 'medium' as const,
+          needsExplicitConfirmation: false,
+          summary: 'Alinhamento parcial com lacunas relevantes.',
+          reasons: ['Experiência analítica aproveitável, mas com lacunas em growth e CRM.'],
+          riskPoints: 4,
+          assessedAt: '2026-04-12T12:00:00.000Z',
+          signals: {
+            matchScore: 52,
+            missingSkillsCount: 2,
+            weakAreasCount: 2,
+            familyDistance: 'adjacent' as const,
+            seniorityGapMajor: false,
+          },
+        },
+        targetFitAssessment: {
+          level: 'partial' as const,
+          summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento, com lacunas relevantes que uma reescrita de currículo sozinha não resolve.',
+          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
+          assessedAt: '2026-04-12T12:00:00.000Z',
+        },
+        gapAnalysis: {
+          result: {
+            matchScore: 52,
+            missingSkills: ['SEO', 'CRM'],
+            weakAreas: ['experience', 'summary'],
+            improvementSuggestions: ['Connect analytics outcomes to marketing funnel goals.'],
+          },
+          analyzedAt: '2026-04-12T12:00:00.000Z',
+        },
+        phaseMeta: {
+          careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
+          careerFitRiskLevelAtWarning: 'medium' as const,
+          careerFitWarningJDFingerprint: fingerprintJD('Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.'),
+          careerFitWarningTargetJobDescription: 'Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.',
+        },
+      },
+    }
+
+    mockDispatchToolWithContext.mockImplementation(async (toolName) => {
+      if (toolName === 'set_phase') {
+        return {
+          output: { success: true, phase: 'generation' },
+          outputJson: JSON.stringify({ success: true, phase: 'generation' }),
+          persistedPatch: {
+            phase: 'generation',
+          },
+        }
+      }
+
+      if (toolName === 'create_target_resume') {
+        return {
+          output: {
+            success: true,
+            targetId: 'target_medium_123',
+            targetJobDescription: session.agentState.targetJobDescription,
+            derivedCvState: session.cvState,
+          },
+          outputJson: JSON.stringify({ success: true, targetId: 'target_medium_123' }),
+          persistedPatch: {
+            agentState: {
+              targetJobDescription: session.agentState.targetJobDescription,
+            },
+          },
+        }
+      }
+
+      if (toolName === 'generate_file') {
+        return {
+          output: {
+            success: true,
+            pdfUrl: 'https://example.com/resume.pdf',
+          },
+          outputJson: JSON.stringify({ success: true, pdfUrl: 'https://example.com/resume.pdf' }),
+          persistedPatch: {
+            generatedOutput: {
+              status: 'ready',
+              pdfPath: 'usr_123/sess_123/resume.pdf',
+            },
+          },
+        }
+      }
+
+      if (toolName === 'score_ats') {
+        return {
+          output: {
+            success: true,
+            result: {
+              total: 56,
+              breakdown: {
+                format: 70,
+                structure: 60,
+                keywords: 45,
+                contact: 95,
+                impact: 30,
+              },
+              issues: [],
+              suggestions: [],
+            },
+          },
+          outputJson: JSON.stringify({ success: true, result: { total: 56 } }),
+          persistedPatch: {
+            internalHeuristicAtsScore: {
+              total: 56,
+              breakdown: {
+                format: 70,
+                structure: 60,
+                keywords: 45,
+                contact: 95,
+                impact: 30,
+              },
+              issues: [],
+              suggestions: [],
+            },
+          },
+        }
+      }
+
+      return {
+        output: { success: true },
+        outputJson: JSON.stringify({ success: true }),
+        persistedPatch: undefined,
+      }
+    })
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage: 'Aceito',
+      appUserId: 'usr_123',
+      requestId: 'req_generation_after_medium_warning',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => event.content)
+      .join('')
+
+    expect(finalText).toContain('ATS-otimizado em PDF')
+    expect((session.agentState as { phaseMeta?: { careerFitOverrideConfirmedAt?: string } }).phaseMeta?.careerFitOverrideConfirmedAt).toBeUndefined()
+    expect(mockDispatchToolWithContext).toHaveBeenCalledWith(
+      'generate_file',
+      expect.objectContaining({
+        cv_state: expect.any(Object),
+      }),
+      expect.objectContaining({ id: 'sess_123' }),
+      undefined,
+    )
+  })
+
+  it('does not reopen the warning when the JD content is the same but whitespace differs', async () => {
+    const warnedJD = '  Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.  \r\n'
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      internalHeuristicAtsScore: {
+        total: 52,
+        breakdown: {
+          format: 70,
+          structure: 60,
+          keywords: 40,
+          contact: 95,
+          impact: 20,
+        },
+        issues: [],
+        suggestions: [],
+      },
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.',
+        careerFitEvaluation: {
+          riskLevel: 'high' as const,
+          needsExplicitConfirmation: true,
+          summary: 'Desalinhamento estrutural para a vaga.',
+          reasons: ['Lacunas relevantes em growth e CRM.'],
+          riskPoints: 8,
+          assessedAt: '2026-04-12T12:00:00.000Z',
+          signals: {
+            matchScore: 52,
+            missingSkillsCount: 2,
+            weakAreasCount: 2,
+            familyDistance: 'adjacent' as const,
+            seniorityGapMajor: false,
+          },
+        },
+        phaseMeta: {
+          careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
+          careerFitRiskLevelAtWarning: 'medium' as const,
+          careerFitWarningJDFingerprint: fingerprintJD(warnedJD),
+          careerFitWarningTargetJobDescription: warnedJD,
+        },
+      },
+    }
+
+    mockDispatchToolWithContext.mockImplementation(async (toolName) => {
+      if (toolName === 'set_phase') {
+        return {
+          output: { success: true, phase: 'generation' },
+          outputJson: JSON.stringify({ success: true, phase: 'generation' }),
+          persistedPatch: {
+            phase: 'generation',
+          },
+        }
+      }
+
+      if (toolName === 'create_target_resume') {
+        return {
+          output: {
+            success: true,
+            targetId: 'target_no_rewarning_123',
+            targetJobDescription: session.agentState.targetJobDescription,
+            derivedCvState: session.cvState,
+          },
+          outputJson: JSON.stringify({ success: true, targetId: 'target_no_rewarning_123' }),
+          persistedPatch: {
+            agentState: {
+              targetJobDescription: session.agentState.targetJobDescription,
+            },
+          },
+        }
+      }
+
+      if (toolName === 'generate_file') {
+        return {
+          output: {
+            success: true,
+            pdfUrl: 'https://example.com/resume.pdf',
+          },
+          outputJson: JSON.stringify({ success: true, pdfUrl: 'https://example.com/resume.pdf' }),
+          persistedPatch: {
+            generatedOutput: {
+              status: 'ready',
+              pdfPath: 'usr_123/sess_123/resume.pdf',
+            },
+          },
+        }
+      }
+
+      if (toolName === 'score_ats') {
+        return {
+          output: {
+            success: true,
+            result: {
+              total: 56,
+              breakdown: {
+                format: 70,
+                structure: 60,
+                keywords: 45,
+                contact: 95,
+                impact: 30,
+              },
+              issues: [],
+              suggestions: [],
+            },
+          },
+          outputJson: JSON.stringify({ success: true, result: { total: 56 } }),
+          persistedPatch: {
+            internalHeuristicAtsScore: {
+              total: 56,
+              breakdown: {
+                format: 70,
+                structure: 60,
+                keywords: 45,
+                contact: 95,
+                impact: 30,
+              },
+              issues: [],
+              suggestions: [],
+            },
+          },
+        }
+      }
+
+      return {
+        output: { success: true },
+        outputJson: JSON.stringify({ success: true }),
+        persistedPatch: undefined,
+      }
+    })
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage: 'Aceito',
+      appUserId: 'usr_123',
+      requestId: 'req_generation_no_rewarning_same_jd',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => event.content)
+      .join('')
+
+    expect(finalText).toContain('ATS-otimizado em PDF')
+    expect(finalText).not.toContain('[Aviso]')
+    expect((session.agentState as { phaseMeta?: { careerFitWarningIssuedAt?: string } }).phaseMeta?.careerFitWarningIssuedAt).toBe('2026-04-12T12:05:00.000Z')
+  })
+
+  it('reopens the warning when the JD content changes for real', async () => {
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+        careerFitEvaluation: {
+          riskLevel: 'high' as const,
+          needsExplicitConfirmation: true,
+          summary: 'Desalinhamento estrutural para a vaga.',
+          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
+          riskPoints: 10,
+          assessedAt: '2026-04-12T12:00:00.000Z',
+          signals: {
+            matchScore: 34,
+            missingSkillsCount: 3,
+            weakAreasCount: 2,
+            familyDistance: 'distant' as const,
+            seniorityGapMajor: false,
+          },
+        },
+        phaseMeta: {
+          careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
+          careerFitRiskLevelAtWarning: 'medium' as const,
+          careerFitWarningJDFingerprint: fingerprintJD('Senior Data Engineer'),
+          careerFitWarningTargetJobDescription: 'Growth marketing role with growth analytics, CRM optimization and SEO reporting ownership.',
+        },
+      },
+    }
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage: 'Aceito',
+      appUserId: 'usr_123',
+      requestId: 'req_generation_rewarning_new_jd',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => event.content)
+      .join('')
+
+    expect(finalText).toContain('[Aviso]')
+    expect(finalText).toContain('Desalinhamento estrutural para a vaga')
     expect(mockDispatchToolWithContext).not.toHaveBeenCalledWith(
       'generate_file',
       expect.any(Object),
@@ -2082,6 +2487,21 @@ describe('runAgentLoop streaming', () => {
         rewriteHistory: {},
         sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
         targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+        careerFitEvaluation: {
+          riskLevel: 'high' as const,
+          needsExplicitConfirmation: true,
+          summary: 'Desalinhamento estrutural para a vaga.',
+          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
+          riskPoints: 10,
+          assessedAt: '2026-04-12T12:00:00.000Z',
+          signals: {
+            matchScore: 34,
+            missingSkillsCount: 3,
+            weakAreasCount: 2,
+            familyDistance: 'distant' as const,
+            seniorityGapMajor: false,
+          },
+        },
         targetFitAssessment: {
           level: 'weak' as const,
           summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento, com lacunas relevantes que uma reescrita de currículo sozinha não resolve.',
@@ -2099,6 +2519,8 @@ describe('runAgentLoop streaming', () => {
         },
         phaseMeta: {
           careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
+          careerFitRiskLevelAtWarning: 'high' as const,
+          careerFitWarningJDFingerprint: fingerprintJD('Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.'),
           careerFitWarningTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
         },
       },
@@ -2147,6 +2569,21 @@ describe('runAgentLoop streaming', () => {
         rewriteHistory: {},
         sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
         targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go e Terraform.',
+        careerFitEvaluation: {
+          riskLevel: 'high' as const,
+          needsExplicitConfirmation: true,
+          summary: 'Desalinhamento estrutural para a vaga.',
+          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
+          riskPoints: 10,
+          assessedAt: '2026-04-12T12:00:00.000Z',
+          signals: {
+            matchScore: 34,
+            missingSkillsCount: 3,
+            weakAreasCount: 2,
+            familyDistance: 'distant' as const,
+            seniorityGapMajor: false,
+          },
+        },
         targetFitAssessment: {
           level: 'weak' as const,
           summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento.',
@@ -2164,6 +2601,8 @@ describe('runAgentLoop streaming', () => {
         },
         phaseMeta: {
           careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
+          careerFitRiskLevelAtWarning: 'high' as const,
+          careerFitWarningJDFingerprint: fingerprintJD('Senior Platform Engineer com foco em Kubernetes, Go e Terraform.'),
           careerFitWarningTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go e Terraform.',
         },
       },

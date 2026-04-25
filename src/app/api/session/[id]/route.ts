@@ -118,6 +118,7 @@ export async function GET(
             parseConfidenceScore: session.agentState.parseConfidenceScore,
             targetJobDescription: session.agentState.targetJobDescription,
             targetFitAssessment: session.agentState.targetFitAssessment,
+            careerFitEvaluation: session.agentState.careerFitEvaluation,
             careerFitCheckpoint: buildCareerFitCheckpoint(session),
             gapAnalysis: session.agentState.gapAnalysis,
             targetingPlan: session.agentState.targetingPlan,

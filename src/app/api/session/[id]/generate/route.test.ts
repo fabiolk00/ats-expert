@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { fingerprintJD } from '@/lib/agent/jd-fingerprint'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import {
   applyGeneratedOutputPatch,
@@ -322,6 +323,21 @@ describe('generate route', () => {
         rewriteHistory: {},
         sourceResumeText: 'Frontend developer with React and CSS.',
         targetJobDescription: 'Senior DevOps Engineer with Kubernetes, Terraform and AWS.',
+        careerFitEvaluation: {
+          riskLevel: 'high' as const,
+          needsExplicitConfirmation: true,
+          summary: 'Desalinhamento estrutural para a vaga.',
+          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
+          riskPoints: 10,
+          assessedAt: '2026-04-12T12:00:00.000Z',
+          signals: {
+            matchScore: 32,
+            missingSkillsCount: 3,
+            weakAreasCount: 1,
+            familyDistance: 'distant' as const,
+            seniorityGapMajor: false,
+          },
+        },
         targetFitAssessment: {
           level: 'weak' as const,
           summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento.',
@@ -339,6 +355,8 @@ describe('generate route', () => {
         },
         phaseMeta: {
           careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
+          careerFitRiskLevelAtWarning: 'high' as const,
+          careerFitWarningJDFingerprint: fingerprintJD('Senior DevOps Engineer with Kubernetes, Terraform and AWS.'),
           careerFitWarningTargetJobDescription: 'Senior DevOps Engineer with Kubernetes, Terraform and AWS.',
         },
       },

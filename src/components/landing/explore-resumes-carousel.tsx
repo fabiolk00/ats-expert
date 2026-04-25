@@ -51,7 +51,7 @@ const resumeGuides = [
     background: "from-amber-600 via-orange-600 to-rose-500",
   },
   {
-    title: "Analista financeiro",
+    title: "Analista Financeiro",
     subtitle: "Indicadores, Controle, Planejamento",
     href: "/curriculo-financeiro-ats",
     icon: Wallet,

@@ -1,6 +1,6 @@
 import type { JobStatusSnapshot } from '@/types/jobs'
 
-import { hasConfirmedCareerFitOverride, requiresCareerFitWarning } from '@/lib/agent/profile-review'
+import { requiresCareerFitOverrideConfirmation } from '@/lib/agent/profile-review'
 import { listActiveJobsForUser } from '@/lib/jobs/repository'
 
 import type { SessionGenerateContext, SessionGeneratePolicyDecision } from './types'
@@ -34,7 +34,7 @@ export function isBillingReconciliationPending(job: JobStatusSnapshot): boolean 
 export async function evaluateSessionGeneratePolicy(
   context: SessionGenerateContext,
 ): Promise<SessionGeneratePolicyDecision> {
-  if (context.scope === 'target' && requiresCareerFitWarning(context.session) && !hasConfirmedCareerFitOverride(context.session)) {
+  if (context.scope === 'target' && requiresCareerFitOverrideConfirmation(context.session)) {
     return { kind: 'blocked_career_fit_confirmation' }
   }
 

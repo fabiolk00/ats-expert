@@ -17,6 +17,10 @@ vi.mock("@/components/landing/header", () => ({
   default: () => <header>Header</header>,
 }))
 
+vi.mock("@/components/landing/floating-decorations", () => ({
+  FloatingDecorations: () => <div>Decorations</div>,
+}))
+
 vi.mock("@/components/landing/pricing-comparison-table", () => ({
   default: () => <div data-testid="pricing-comparison-table-component">Comparison Table</div>,
 }))
@@ -26,12 +30,14 @@ vi.mock("@/components/pricing/pricing-cards", () => ({
 }))
 
 describe("PrecosPage", () => {
-  it("keeps the normal cards layout and exposes a scroll cue to the comparison table", () => {
+  it("keeps only the pricing cards visible on mobile and hides the comparison section there", () => {
     render(<PrecosPage />)
 
     expect(screen.getByTestId("pricing-cards-component")).toBeInTheDocument()
     expect(screen.getByTestId("pricing-comparison-table-component")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: /ver comparação completa/i })).toHaveAttribute("href", "#pricing-comparison-table")
-    expect(screen.getByText(/desça para comparar todos os recursos lado a lado/i)).toBeInTheDocument()
+    expect(screen.getByTestId("pricing-comparison-link")).toHaveClass("hidden")
+    expect(screen.getByTestId("pricing-comparison-link")).toHaveClass("md:flex")
+    expect(screen.getByTestId("pricing-comparison-section")).toHaveClass("hidden")
+    expect(screen.getByTestId("pricing-comparison-section")).toHaveClass("md:block")
   })
 })

@@ -366,7 +366,11 @@ export function buildSourceContextBlocks(input: {
     blocks.push({ key: 'generated_output', heading: '## Generation State', body: generationState, minChars: 80 })
   }
 
-  const careerFit = buildCareerFitPromptSnapshot(session.agentState.targetFitAssessment, session.agentState.gapAnalysis?.result)
+  const careerFit = buildCareerFitPromptSnapshot(
+    session.agentState.careerFitEvaluation,
+    session.agentState.targetFitAssessment,
+    session.agentState.gapAnalysis?.result,
+  )
   if (careerFit && (session.phase === 'confirm' || actionType === 'prepare_generation_support')) {
     blocks.push({ key: 'career_fit_guardrail', heading: '## Career Fit Guardrail', body: careerFit, minChars: 100 })
   }

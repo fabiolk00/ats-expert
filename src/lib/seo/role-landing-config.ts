@@ -1969,7 +1969,7 @@ export const financeiroConfig: RoleLandingConfig = {
   },
   faqs: [
     {
-      question: "O que colocar no currículo de analista financeiro?",
+      question: "O que colocar no currículo de ?",
       answer: "O mais importante é mostrar impacto financeiro. Inclua DRE, fluxo de caixa, orçamento, forecast, KPIs, ferramentas usadas e ganhos concretos como redução de custos, melhoria de acurácia ou eficiência operacional. Currículo financeiro sem indicadores tende a parecer apenas operacional.",
     },
     {

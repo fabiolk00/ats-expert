@@ -1,5 +1,12 @@
 import type { CVState, GapAnalysisResult } from '@/types/cv'
-import type { CareerFitCheckpoint, Session, TargetFitAssessment } from '@/types/agent'
+import type {
+  CareerFitCheckpoint,
+  CareerFitEvaluation,
+  CareerFitRiskLevel,
+  Session,
+  TargetFitAssessment,
+} from '@/types/agent'
+import { fingerprintJD } from '@/lib/agent/jd-fingerprint'
 import { localizeTargetFitSummary } from '@/lib/agent/target-fit'
 
 type RoleFamily =
@@ -14,7 +21,60 @@ type RoleFamily =
   | 'marketing'
   | 'unknown'
 
+type RoleFamilyDistance = 'same' | 'adjacent' | 'distant' | 'unknown'
+
 type SeniorityLevel = 'intern' | 'junior' | 'mid' | 'senior' | 'lead' | 'executive' | 'unknown'
+
+const ADJACENCY_MAP: Partial<Record<RoleFamily, Partial<Record<RoleFamily, RoleFamilyDistance>>>> = {
+  frontend: {
+    backend: 'adjacent',
+    design: 'adjacent',
+    mobile: 'adjacent',
+    qa: 'adjacent',
+  },
+  backend: {
+    frontend: 'adjacent',
+    devops: 'adjacent',
+    data: 'adjacent',
+    mobile: 'adjacent',
+    qa: 'adjacent',
+  },
+  devops: {
+    backend: 'adjacent',
+  },
+  data: {
+    backend: 'adjacent',
+    product: 'adjacent',
+    marketing: 'adjacent',
+  },
+  design: {
+    frontend: 'adjacent',
+    mobile: 'adjacent',
+    product: 'adjacent',
+    marketing: 'adjacent',
+  },
+  product: {
+    data: 'adjacent',
+    design: 'adjacent',
+    marketing: 'adjacent',
+  },
+  qa: {
+    frontend: 'adjacent',
+    backend: 'adjacent',
+    mobile: 'adjacent',
+  },
+  mobile: {
+    frontend: 'adjacent',
+    backend: 'adjacent',
+    design: 'adjacent',
+    qa: 'adjacent',
+  },
+  marketing: {
+    data: 'adjacent',
+    product: 'adjacent',
+    design: 'adjacent',
+  },
+}
 
 export type ProfileAuditFinding = {
   key: 'headline' | 'contact' | 'summary' | 'experience' | 'skills' | 'education' | 'proof'
@@ -63,6 +123,18 @@ function inferRoleFamily(text: string): RoleFamily {
   if (/\b(marketing|growth|seo|crm|paid media)\b/.test(normalized)) return 'marketing'
 
   return 'unknown'
+}
+
+function roleFamilyDistance(profile: RoleFamily, target: RoleFamily): RoleFamilyDistance {
+  if (profile === target) {
+    return 'same'
+  }
+
+  if (profile === 'unknown' || target === 'unknown') {
+    return 'unknown'
+  }
+
+  return ADJACENCY_MAP[profile]?.[target] ?? 'distant'
 }
 
 function inferSeniorityLevel(text: string): SeniorityLevel {
@@ -201,41 +273,165 @@ export function buildProfileAuditSnapshot(cvState: CVState, maxItems = 4): strin
   ].join('\n')
 }
 
-export function requiresCareerFitWarning(session: Pick<Session, 'agentState' | 'cvState'>): boolean {
-  const targetJobDescription = session.agentState.targetJobDescription?.trim()
-  if (!targetJobDescription) {
-    return false
+function resolveCurrentCareerFitEvaluation(
+  session: Pick<Session, 'agentState' | 'cvState'>,
+): CareerFitEvaluation | null {
+  return session.agentState.careerFitEvaluation ?? evaluateCareerFitRisk(session)
+}
+
+function buildFamilyDistanceReason(params: {
+  profileFamily: RoleFamily
+  targetFamily: RoleFamily
+  familyDistance: RoleFamilyDistance
+}): string | null {
+  if (
+    params.profileFamily === 'unknown'
+    || params.targetFamily === 'unknown'
+    || params.familyDistance === 'same'
+  ) {
+    return null
   }
 
+  if (params.familyDistance === 'adjacent') {
+    return `Seu histórico atual é adjacente a ${params.targetFamily}, mas a vaga concentra mais em ${params.targetFamily} do que o seu histórico recente demonstra hoje.`
+  }
+
+  return `Seu histórico atual parece mais alinhado a ${params.profileFamily}, enquanto esta vaga pede um foco mais claro em ${params.targetFamily}.`
+}
+
+export function evaluateCareerFitRisk(session: Pick<Session, 'agentState' | 'cvState'>): CareerFitEvaluation | null {
+  const targetJobDescription = session.agentState.targetJobDescription?.trim()
+  if (!targetJobDescription) {
+    return null
+  }
+
+  const gapAnalysisResult = session.agentState.gapAnalysis?.result
+  const targetFitAssessment = session.agentState.targetFitAssessment
   const profileText = inferProfileText(session.cvState)
   const profileFamily = inferRoleFamily(profileText)
   const targetFamily = inferRoleFamily(targetJobDescription)
-  const familyMismatch = profileFamily !== 'unknown' && targetFamily !== 'unknown' && profileFamily !== targetFamily
-  const seniorityMismatch = seniorityGapIsMajor(
+  const familyDistance = roleFamilyDistance(profileFamily, targetFamily)
+  const seniorityGapMajor = seniorityGapIsMajor(
     inferSeniorityLevel(profileText),
     inferSeniorityLevel(targetJobDescription),
   )
+  const matchScore = gapAnalysisResult?.matchScore
+  const missingSkillsCount = gapAnalysisResult?.missingSkills.length ?? 0
+  const weakAreasCount = gapAnalysisResult?.weakAreas.length ?? 0
 
-  return Boolean(session.agentState.gapAnalysis && isWeakGapAnalysis(session.agentState.gapAnalysis.result))
-    || familyMismatch
-    || seniorityMismatch
+  let riskPoints = 0
+
+  if (matchScore !== undefined) {
+    if (matchScore < 45) {
+      riskPoints += 4
+    } else if (matchScore < 60) {
+      riskPoints += 2
+    }
+  }
+
+  if (missingSkillsCount >= 6) {
+    riskPoints += 3
+  } else if (missingSkillsCount >= 4) {
+    riskPoints += 2
+  } else if (missingSkillsCount >= 2) {
+    riskPoints += 1
+  }
+
+  if (weakAreasCount >= 5) {
+    riskPoints += 3
+  } else if (weakAreasCount >= 3) {
+    riskPoints += 2
+  } else if (weakAreasCount >= 1) {
+    riskPoints += 1
+  }
+
+  if (familyDistance === 'distant') {
+    riskPoints += 4
+  } else if (familyDistance === 'adjacent') {
+    riskPoints += 1
+  }
+
+  if (seniorityGapMajor) {
+    riskPoints += 3
+  }
+
+  if (
+    familyDistance === 'adjacent'
+    && matchScore !== undefined
+    && matchScore >= 55
+    && missingSkillsCount <= 3
+  ) {
+    riskPoints = Math.max(0, riskPoints - 1)
+  }
+
+  let riskLevel: CareerFitRiskLevel
+  if (riskPoints >= 8) {
+    riskLevel = 'high'
+  } else if (riskPoints >= 4) {
+    riskLevel = 'medium'
+  } else {
+    riskLevel = 'low'
+  }
+
+  const summaryByRiskLevel: Record<CareerFitRiskLevel, string> = {
+    low: 'Alinhamento viável com gaps tratáveis.',
+    medium: 'Alinhamento parcial com lacunas relevantes.',
+    high: 'Desalinhamento estrutural para a vaga.',
+  }
+
+  const familyDistanceReason = buildFamilyDistanceReason({
+    profileFamily,
+    targetFamily,
+    familyDistance,
+  })
+  const seniorityReason = seniorityGapMajor
+    ? 'A senioridade pedida pela vaga parece acima do que seu histórico recente demonstra hoje.'
+    : null
+
+  const reasons = Array.from(new Set([
+    ...(targetFitAssessment?.reasons ?? []),
+    familyDistanceReason,
+    seniorityReason,
+    ...(gapAnalysisResult?.missingSkills ?? []).slice(0, 2).map((skill) => `Skill ausente: ${skill}`),
+  ].filter((value): value is string => Boolean(value)))).slice(0, 4)
+
+  return {
+    riskLevel,
+    needsExplicitConfirmation: riskLevel === 'high',
+    summary: summaryByRiskLevel[riskLevel],
+    reasons,
+    riskPoints,
+    assessedAt: session.agentState.gapAnalysis?.analyzedAt
+      ?? targetFitAssessment?.assessedAt
+      ?? new Date().toISOString(),
+    signals: {
+      matchScore,
+      missingSkillsCount,
+      weakAreasCount,
+      familyDistance,
+      seniorityGapMajor,
+    },
+  }
 }
 
-function isWeakGapAnalysis(result: GapAnalysisResult): boolean {
-  return result.matchScore < 45
-    || result.missingSkills.length >= 6
-    || result.weakAreas.length >= 5
+export function requiresCareerFitWarning(session: Pick<Session, 'agentState' | 'cvState'>): boolean {
+  const evaluation = resolveCurrentCareerFitEvaluation(session)
+  if (!evaluation) {
+    return false
+  }
+
+  return evaluation.riskLevel === 'medium' || evaluation.riskLevel === 'high'
 }
 
 export function hasActiveCareerFitWarning(session: Pick<Session, 'agentState'>): boolean {
   const targetJobDescription = session.agentState.targetJobDescription?.trim()
   const phaseMeta = session.agentState.phaseMeta
 
-  if (!targetJobDescription || !phaseMeta?.careerFitWarningIssuedAt) {
+  if (!targetJobDescription || !phaseMeta?.careerFitWarningIssuedAt || !phaseMeta.careerFitWarningJDFingerprint) {
     return false
   }
 
-  return phaseMeta.careerFitWarningTargetJobDescription?.trim() === targetJobDescription
+  return phaseMeta.careerFitWarningJDFingerprint === fingerprintJD(targetJobDescription)
 }
 
 export function hasConfirmedCareerFitOverride(session: Pick<Session, 'agentState'>): boolean {
@@ -249,13 +445,19 @@ export function hasConfirmedCareerFitOverride(session: Pick<Session, 'agentState
   return phaseMeta.careerFitOverrideTargetJobDescription?.trim() === targetJobDescription
 }
 
-export function requiresCareerFitOverrideConfirmation(session: Pick<Session, 'agentState'>): boolean {
+export function requiresCareerFitOverrideConfirmation(session: Pick<Session, 'agentState' | 'cvState'>): boolean {
+  const evaluation = resolveCurrentCareerFitEvaluation(session)
+
+  if (evaluation?.riskLevel !== 'high') {
+    return false
+  }
+
   return hasActiveCareerFitWarning(session)
     && !hasConfirmedCareerFitOverride(session)
 }
 
 function buildCareerFitMismatchNotes(session: Pick<Session, 'agentState' | 'cvState'>): {
-  familyMismatch: boolean
+  familyDistance: RoleFamilyDistance
   seniorityMismatch: boolean
   mismatchReason: string | null
 } {
@@ -263,120 +465,126 @@ function buildCareerFitMismatchNotes(session: Pick<Session, 'agentState' | 'cvSt
   const profileText = inferProfileText(session.cvState)
   const profileFamily = inferRoleFamily(profileText)
   const targetFamily = inferRoleFamily(targetJobDescription)
-  const familyMismatch = profileFamily !== 'unknown' && targetFamily !== 'unknown' && profileFamily !== targetFamily
+  const familyDistance = roleFamilyDistance(profileFamily, targetFamily)
   const seniorityMismatch = seniorityGapIsMajor(
     inferSeniorityLevel(profileText),
     inferSeniorityLevel(targetJobDescription),
   )
 
-  const mismatchReason = familyMismatch
-    ? `Seu histórico atual parece mais alinhado a ${profileFamily}, enquanto esta vaga pede um foco mais claro em ${targetFamily}.`
-    : seniorityMismatch
+  const mismatchReason = buildFamilyDistanceReason({
+    profileFamily,
+    targetFamily,
+    familyDistance,
+  }) ?? (seniorityMismatch
       ? 'A senioridade pedida pela vaga parece acima do que seu histórico recente demonstra hoje.'
-      : null
+      : null)
 
   return {
-    familyMismatch,
+    familyDistance,
     seniorityMismatch,
     mismatchReason,
   }
 }
 
+/**
+ * CURRIA-105 migration note:
+ * - Audited current consumers: `src/lib/agent/agent-persistence.ts` and
+ *   `src/app/api/session/[id]/route.ts`.
+ * - Both consumers feed the existing hard-block confirmation modal flow only.
+ * - No softer UI badge, tooltip, or informational consumer was found in the current codebase.
+ *
+ * @deprecated Behavior changed in CURRIA-105: checkpoint is now only emitted for
+ * riskLevel='high' with pending confirmation. For medium risk, consumers should
+ * read agentState.careerFitEvaluation directly.
+ *
+ * This function will be removed in a future cleanup phase. Do not add new consumers.
+ */
+// NEW-CONSUMER-FORBIDDEN: use agentState.careerFitEvaluation instead
 export function buildCareerFitCheckpoint(session: Pick<Session, 'agentState' | 'cvState'>): CareerFitCheckpoint | null {
   const targetJobDescription = session.agentState.targetJobDescription?.trim()
-  if (!targetJobDescription || !requiresCareerFitOverrideConfirmation(session)) {
+  const evaluation = resolveCurrentCareerFitEvaluation(session)
+
+  if (
+    !targetJobDescription
+    || !evaluation?.needsExplicitConfirmation
+    || !requiresCareerFitOverrideConfirmation(session)
+  ) {
     return null
   }
 
-  const targetFit = session.agentState.targetFitAssessment
   const gapAnalysis = session.agentState.gapAnalysis?.result
-  const { familyMismatch, seniorityMismatch, mismatchReason } = buildCareerFitMismatchNotes(session)
+  const { familyDistance, seniorityMismatch, mismatchReason } = buildCareerFitMismatchNotes(session)
 
-  if (!targetFit && !gapAnalysis && !familyMismatch && !seniorityMismatch) {
+  if (!gapAnalysis && familyDistance === 'same' && !seniorityMismatch) {
     return null
   }
-
-  const summary = targetFit?.summary
-    ? localizeTargetFitSummary(targetFit.summary)
-    : (gapAnalysis
-      ? `A aderência estimada para esta vaga está em ${gapAnalysis.matchScore}/100.`
-      : 'Ainda existe um desalinhamento relevante entre o seu histórico atual e essa vaga.')
-
-  const reasons = Array.from(new Set([
-    ...(targetFit?.reasons.slice(0, 2) ?? []),
-    mismatchReason,
-    gapAnalysis?.missingSkills.length
-      ? `Principais gaps hoje: ${gapAnalysis.missingSkills.slice(0, 3).join(', ')}.`
-      : null,
-    gapAnalysis?.weakAreas.length
-      ? `Áreas ainda frágeis para esta vaga: ${gapAnalysis.weakAreas.slice(0, 2).join(', ')}.`
-      : null,
-  ].filter((value): value is string => Boolean(value))))
 
   return {
     status: 'pending_confirmation',
     targetJobDescription,
-    summary,
-    reasons,
+    summary: evaluation.summary,
+    reasons: Array.from(new Set([
+      ...evaluation.reasons,
+      mismatchReason,
+      gapAnalysis?.weakAreas.length
+        ? `Áreas ainda frágeis para esta vaga: ${gapAnalysis.weakAreas.slice(0, 2).join(', ')}.`
+        : null,
+    ].filter((value): value is string => Boolean(value)))).slice(0, 4),
     nextSteps: [
       'Cancelar para revisar a vaga alvo ou ajustar a estratégia antes de gerar.',
       'Continuar mesmo assim para seguir com a otimização usando apenas o seu histórico real.',
     ],
-    assessedAt: targetFit?.assessedAt
-      ?? session.agentState.gapAnalysis?.analyzedAt
-      ?? session.agentState.phaseMeta?.careerFitWarningIssuedAt
-      ?? new Date().toISOString(),
+    assessedAt: evaluation.assessedAt,
   }
 }
 
-export function buildCareerFitWarningText(session: Pick<Session, 'agentState' | 'cvState'>): string | null {
-  const targetFit = session.agentState.targetFitAssessment
-  const gapAnalysis = session.agentState.gapAnalysis?.result
-  const targetJobDescription = session.agentState.targetJobDescription?.trim()
-  if (!targetJobDescription) {
+export function buildCareerFitWarningText(
+  input: CareerFitEvaluation | Pick<Session, 'agentState' | 'cvState'>,
+): string | null {
+  const evaluation = 'riskLevel' in input ? input : resolveCurrentCareerFitEvaluation(input)
+  if (!evaluation) {
     return null
   }
 
-  const gaps = [
-    ...(gapAnalysis?.missingSkills.slice(0, 3) ?? []),
-    ...(gapAnalysis?.weakAreas.slice(0, 2) ?? []),
-  ].filter(Boolean)
-
-  const gapSummary = gaps.length > 0
-    ? `Principais gaps hoje: ${gaps.join(', ')}.`
-    : 'Ainda existem lacunas importantes entre seu histórico atual e o que a vaga pede.'
-
-  const { familyMismatch, seniorityMismatch, mismatchReason } = buildCareerFitMismatchNotes(session)
-
-  if (!targetFit && !gapAnalysis && !familyMismatch && !seniorityMismatch) {
-    return null
+  const tonePrefix: Record<CareerFitRiskLevel, string> = {
+    low: '[Informativo]',
+    medium: '[Atenção]',
+    high: '[Aviso]',
   }
 
-  const fitSummary = targetFit?.summary
-    ? localizeTargetFitSummary(targetFit.summary)
-    : (gapAnalysis
-      ? `A aderência estimada para esta vaga está em ${gapAnalysis.matchScore}/100.`
-      : 'Mesmo sem uma análise completa, já existe um desalinhamento estrutural relevante para essa vaga.')
+  const reasonLines = evaluation.reasons.map((reason) => `- ${reason}`).join('\n')
+  const suffix = evaluation.riskLevel === 'high'
+    ? 'Reescrever o CV não fecha lacunas estruturais. Confirme explicitamente para continuar.'
+    : ''
 
   return [
-    'Preciso ser honesto: esta vaga parece um encaixe fraco para o seu perfil atual.',
-    fitSummary,
-    mismatchReason,
-    gapSummary,
-    'Seguir com a candidatura assim pode gastar seu tempo e reduzir a chance de retorno, porque reescrever o currículo sozinho não fecha lacunas estruturais.',
-    'Minha recomendação seria priorizar vagas mais próximas do seu nível atual ou fortalecer esses pontos com estudo, projetos e prática antes de insistir nessa trilha.',
-    'Se mesmo assim você quiser prosseguir, responda com "Aceito" ou diga "Entendo, mas quero continuar". Depois disso eu sigo com a otimização normalmente.',
-  ].filter(Boolean).join(' ')
+    `${tonePrefix[evaluation.riskLevel]} ${evaluation.summary}`,
+    reasonLines,
+    suffix,
+  ].filter(Boolean).join('\n')
 }
 
-export function buildCareerFitPromptSnapshot(targetFitAssessment?: TargetFitAssessment, gapAnalysis?: GapAnalysisResult): string {
-  if (!targetFitAssessment && !gapAnalysis) {
+export function buildCareerFitPromptSnapshot(
+  careerFitEvaluation?: CareerFitEvaluation | null,
+  targetFitAssessment?: TargetFitAssessment,
+  gapAnalysis?: GapAnalysisResult,
+): string {
+  if (!careerFitEvaluation) {
     return ''
   }
 
   const lines: string[] = [
-    'If the fit is weak, give an honest realism check before generating anything and wait for explicit user confirmation to continue.',
+    `Career Fit Risk: ${careerFitEvaluation.riskLevel}.`,
+    `Career fit summary: ${careerFitEvaluation.summary}`,
   ]
+
+  if (careerFitEvaluation.riskLevel === 'high') {
+    lines.push('Require explicit confirmation before generation.')
+  } else if (careerFitEvaluation.riskLevel === 'medium') {
+    lines.push('Warn, but continue with conservative optimization.')
+  } else {
+    lines.push('Informative only: proceed with standard honest optimization.')
+  }
 
   if (targetFitAssessment) {
     lines.push(`Current fit level: ${targetFitAssessment.level}. ${localizeTargetFitSummary(targetFitAssessment.summary)}`)

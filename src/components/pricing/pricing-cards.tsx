@@ -15,28 +15,18 @@ import {
   isPaidPlanSlug,
   type PaidPlanSlug,
 } from "@/lib/billing/checkout-navigation"
-import { PLANS, formatPrice } from "@/lib/plans"
+import { PLAN_DISPLAY_ORDER, getPlanComparisonRows } from "@/lib/pricing/plan-comparison"
+import { PLANS, formatPrice, type PlanSlug } from "@/lib/plans"
 import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
 
-const plans = [
-  {
-    slug: "free" as const,
-    popular: false,
-  },
-  {
-    slug: "unit" as const,
-    popular: false,
-  },
-  {
-    slug: "monthly" as const,
-    popular: true,
-  },
-  {
-    slug: "pro" as const,
-    popular: false,
-  },
-] as const
+const plans = PLAN_DISPLAY_ORDER.map((slug) => ({
+  slug,
+  popular: slug === "monthly",
+})) as Array<{
+  slug: PlanSlug
+  popular: boolean
+}>
 
 type DisplayPlan = (typeof plans)[number]["slug"]
 
@@ -120,7 +110,7 @@ export default function PricingCards() {
       {plans.map((plan) => {
         const config = PLANS[plan.slug]
         const period = config.billing === "monthly" ? "/mês" : ""
-        const hasJobManagement = plan.slug !== "free"
+        const comparisonRows = getPlanComparisonRows(plan.slug)
 
         return (
           <Card
@@ -149,23 +139,51 @@ export default function PricingCards() {
                 <span className="text-muted-foreground">{period}</span>
               </div>
 
-              <ul className="space-y-4 text-left">
-                {config.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-3">
-                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
-                    <span className="text-sm font-medium">{feature}</span>
+              <ul className="space-y-3 text-left">
+                {comparisonRows.map((row) => (
+                  <li
+                    key={row.label}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 bg-muted/20 px-3 py-3"
+                  >
+                    {row.type === "value" ? (
+                      <>
+                        <span className="text-sm font-medium text-foreground">{row.label}</span>
+                        <span
+                          className={cn(
+                            "inline-flex min-w-[72px] items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold",
+                            row.label === "ATS Expert"
+                              ? row.value === "Completo"
+                                ? "bg-primary/10 text-primary"
+                                : "bg-muted text-muted-foreground"
+                              : "bg-muted text-foreground",
+                          )}
+                        >
+                          {row.value}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3">
+                          {row.included ? (
+                            <Check
+                              aria-label={`${row.label}: incluído`}
+                              className="h-4 w-4 flex-shrink-0 text-emerald-500"
+                            />
+                          ) : (
+                            <X
+                              aria-label={`${row.label}: não incluído`}
+                              className="h-4 w-4 flex-shrink-0 text-red-500"
+                            />
+                          )}
+                          <span className={cn("text-sm font-medium", row.included ? "text-foreground" : "text-muted-foreground")}>
+                            {row.label}
+                          </span>
+                        </div>
+                        <span className="sr-only">{row.included ? "Incluído" : "Não incluído"}</span>
+                      </>
+                    )}
                   </li>
                 ))}
-                <li key="job-management" className="flex items-start gap-3">
-                  {hasJobManagement ? (
-                    <Check aria-label="Recurso incluído" className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
-                  ) : (
-                    <X aria-label="Recurso indisponível" className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
-                  )}
-                  <span className={cn("text-sm font-medium", hasJobManagement ? undefined : "text-muted-foreground")}>
-                    Gerenciamento de vagas
-                  </span>
-                </li>
               </ul>
             </CardContent>
 

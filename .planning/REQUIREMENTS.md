@@ -196,6 +196,12 @@
 - [x] **RESUME-HISTORY-UI-01**: The existing `Currículos recentes` screen must use live history data, preserve the approved dashboard-card visual direction, differentiate chat/ATS geral/vaga alvo, and paginate 4 cards per page with explicit loading, empty, and error states.
 - [x] **RESUME-HISTORY-TEST-01**: Focused service, API, and UI regression coverage must prove latest-6 pagination, secure ownership filtering, source-kind mapping, safe URLs, and the real-history rendering/actions on the existing screen without screenshot-only assertions.
 
+### Graduated Career-Fit Guardrail
+
+- [ ] **CAREER-FIT-RISK-01**: Job-target career fit must be evaluated through a persisted low/medium/high assessment with structured supporting signals, explicit family-distance handling, and backward-compatible fallback seams instead of a single boolean mismatch gate.
+- [ ] **CAREER-FIT-GATE-01**: Agent generation flow must warn on medium and high career-fit risk, require explicit override only for high risk, and persist target-scoped warning metadata plus prompt guardrail context without removing existing compatibility fields immediately.
+- [ ] **CAREER-FIT-TEST-01**: Focused unit and streaming/context regressions must prove adjacent BI/data scenarios avoid hard blocking, distant high-risk scenarios still require confirmation, and prompt snapshots expose the current risk level consistently.
+
 ## Future Requirements
 
 | Requirement | Why Deferred |
@@ -348,10 +354,13 @@
 | RESUME-HISTORY-ACCESS-01 | Phase 101 | Complete |
 | RESUME-HISTORY-UI-01 | Phase 101 | Complete |
 | RESUME-HISTORY-TEST-01 | Phase 101 | Complete |
+| CAREER-FIT-RISK-01 | Phase 105 | Planned |
+| CAREER-FIT-GATE-01 | Phase 105 | Planned |
+| CAREER-FIT-TEST-01 | Phase 105 | Planned |
 
 **Coverage:**
-- v1.6 requirements: 108 total
-- Mapped to phases: 108
+- v1.6 requirements: 111 total
+- Mapped to phases: 111
 - Unmapped: 0
 
 ---

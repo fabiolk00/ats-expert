@@ -17,6 +17,7 @@ import {
 import { TOOL_ERROR_CODES, type ToolErrorCode } from '@/lib/agent/tool-errors'
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 import { deriveTargetFitAssessment } from '@/lib/agent/target-fit'
+import { evaluateCareerFitRisk } from '@/lib/agent/profile-review'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getAiChatAccess } from '@/lib/billing/ai-chat-access.server'
 import {
@@ -123,6 +124,7 @@ function buildDetectedTargetJobAgentState(
     targetJobDescription: detection.targetJobDescription,
     gapAnalysis: undefined,
     targetFitAssessment: undefined,
+    careerFitEvaluation: undefined,
     targetingPlan: undefined,
     rewriteStatus: 'pending',
     optimizedCvState: undefined,
@@ -294,6 +296,11 @@ async function maybeAutoGenerateGapAnalysisForDetectedTarget(
     },
     targetFitAssessment: deriveTargetFitAssessment(gapAnalysisResult.result, analyzedAt),
   }
+
+  nextAgentState.careerFitEvaluation = evaluateCareerFitRisk({
+    cvState: session.cvState,
+    agentState: nextAgentState,
+  }) ?? undefined
 
   await persistTargetJobAgentState(session, nextAgentState, appUserId, requestId)
 }

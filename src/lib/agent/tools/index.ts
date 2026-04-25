@@ -35,6 +35,7 @@ import type {
   ToolFailure,
 } from '@/types/agent'
 import type { Phase } from '@/types/cv'
+import { evaluateCareerFitRisk } from '@/lib/agent/profile-review'
 
 import { applyGapAction } from './gap-to-action'
 import { analyzeGap } from './gap-analysis'
@@ -367,6 +368,44 @@ export async function executeTool(
         externalSignal,
       )
       const analyzedAt = new Date().toISOString()
+      const gapAnalysis = result.result
+        ? {
+            result: result.result,
+            analyzedAt,
+          }
+        : undefined
+      const targetFitAssessment = result.result
+        ? deriveTargetFitAssessment(
+            result.result,
+            analyzedAt,
+          )
+        : undefined
+      const careerFitEvaluation = gapAnalysis && targetFitAssessment
+        ? evaluateCareerFitRisk({
+            cvState: session.cvState,
+            agentState: {
+              ...session.agentState,
+              targetJobDescription: target_job_description,
+              gapAnalysis,
+              targetFitAssessment,
+            },
+          })
+        : null
+
+      if (careerFitEvaluation) {
+        logInfo('career_fit_evaluated', {
+          sessionId: session.id,
+          riskLevel: careerFitEvaluation.riskLevel,
+          riskPoints: careerFitEvaluation.riskPoints,
+          signals: JSON.stringify({
+            matchScore: careerFitEvaluation.signals.matchScore ?? null,
+            missingSkillsCount: careerFitEvaluation.signals.missingSkillsCount ?? null,
+            weakAreasCount: careerFitEvaluation.signals.weakAreasCount ?? null,
+            familyDistance: careerFitEvaluation.signals.familyDistance ?? null,
+            seniorityGapMajor: careerFitEvaluation.signals.seniorityGapMajor,
+          }),
+        })
+      }
 
       return {
         output: result.output,
@@ -374,14 +413,9 @@ export async function executeTool(
           ? {
               agentState: {
                 targetJobDescription: target_job_description,
-                targetFitAssessment: deriveTargetFitAssessment(
-                  result.result,
-                  analyzedAt,
-                ),
-                gapAnalysis: {
-                  result: result.result,
-                  analyzedAt,
-                },
+                targetFitAssessment,
+                careerFitEvaluation: careerFitEvaluation ?? undefined,
+                gapAnalysis,
               },
             }
           : undefined,

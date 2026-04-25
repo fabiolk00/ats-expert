@@ -40,7 +40,10 @@ export default function PrecosPage() {
 
             <PricingCards />
 
-            <div className="mt-8 flex justify-center text-center sm:mt-10">
+            <div
+              data-testid="pricing-comparison-link"
+              className="mt-8 hidden justify-center text-center md:flex md:mt-10"
+            >
               <Link
                 href="#pricing-comparison-table"
                 className="group inline-flex flex-col items-center gap-3 rounded-full px-5 py-3 transition-colors hover:bg-muted/50"
@@ -63,7 +66,11 @@ export default function PrecosPage() {
           </div>
         </section>
 
-        <div id="pricing-comparison-table" className="scroll-mt-24">
+        <div
+          id="pricing-comparison-table"
+          data-testid="pricing-comparison-section"
+          className="hidden scroll-mt-24 md:block"
+        >
           <PricingComparisonTable />
         </div>
       </main>

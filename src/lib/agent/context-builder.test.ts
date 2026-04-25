@@ -204,10 +204,25 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('<user_resume_data>')
   })
 
-  it('includes the realism guardrail when the target fit is weak', () => {
+  it('includes the career fit guardrail when a graduated risk evaluation exists', () => {
     const prompt = buildSystemPrompt(buildSession({
       phase: 'confirm',
       agentState: {
+        careerFitEvaluation: {
+          riskLevel: 'medium',
+          needsExplicitConfirmation: false,
+          summary: 'Alinhamento parcial com lacunas relevantes.',
+          reasons: ['Experiência analítica aproveitável, mas com lacunas em growth e CRM.'],
+          riskPoints: 4,
+          assessedAt: '2026-03-25T12:00:00.000Z',
+          signals: {
+            matchScore: 52,
+            missingSkillsCount: 2,
+            weakAreasCount: 2,
+            familyDistance: 'adjacent',
+            seniorityGapMajor: false,
+          },
+        },
         targetFitAssessment: {
           level: 'weak',
           summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento, com lacunas relevantes que uma reescrita de currículo sozinha não resolve.',
@@ -227,9 +242,57 @@ describe('buildSystemPrompt', () => {
     }))
 
     expect(prompt).toContain('## Career Fit Guardrail')
-    expect(prompt).toContain('If the fit is weak, give an honest realism check before generating anything')
+    expect(prompt).toContain('Career Fit Risk: medium.')
+    expect(prompt).toContain('Warn, but continue with conservative optimization.')
     expect(prompt).toContain('Current fit level: weak.')
     expect(prompt).toContain('Current gap score: 38/100.')
+  })
+
+  it('includes an informative career fit block when riskLevel is low', () => {
+    const prompt = buildSystemPrompt(buildSession({
+      phase: 'confirm',
+      agentState: {
+        careerFitEvaluation: {
+          riskLevel: 'low',
+          needsExplicitConfirmation: false,
+          summary: 'Alinhamento viável com gaps tratáveis.',
+          reasons: ['Boa sobreposição de stack principal.'],
+          riskPoints: 1,
+          assessedAt: '2026-03-25T12:00:00.000Z',
+          signals: {
+            matchScore: 76,
+            missingSkillsCount: 1,
+            weakAreasCount: 0,
+            familyDistance: 'same',
+            seniorityGapMajor: false,
+          },
+        },
+      },
+    }))
+
+    expect(prompt).toContain('## Career Fit Guardrail')
+    expect(prompt).toContain('Career Fit Risk: low.')
+    expect(prompt).toContain('Alinhamento viável com gaps tratáveis.')
+    expect(prompt).toContain('Informative only: proceed with standard honest optimization.')
+    expect(prompt).not.toContain('Require explicit confirmation before generation.')
+    expect(prompt).not.toContain('do not proceed')
+    expect(prompt).not.toContain('careerFitOverrideConfirmedAt')
+    expect(prompt).not.toContain('Warn, but continue with conservative optimization.')
+    expect(prompt).not.toContain('do not fabricate')
+  })
+
+  it('omits the Career Fit Guardrail block when careerFitEvaluation is null', () => {
+    const prompt = buildSystemPrompt(buildSession({
+      phase: 'confirm',
+      agentState: {
+        careerFitEvaluation: null as never,
+        targetFitAssessment: undefined,
+        gapAnalysis: undefined,
+      },
+    }))
+
+    expect(prompt).not.toContain('Career Fit Risk:')
+    expect(prompt).not.toContain('## Career Fit Guardrail')
   })
 
   it('does not include raw resume text after structured state already exists', () => {

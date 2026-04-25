@@ -6,8 +6,7 @@ import {
 } from '@/lib/agent/agent-intents'
 import {
   buildCareerFitWarningText,
-  hasConfirmedCareerFitOverride,
-  requiresCareerFitWarning,
+  requiresCareerFitOverrideConfirmation,
 } from '@/lib/agent/profile-review'
 import {
   hasResumeContextForAutoGap,
@@ -31,7 +30,7 @@ export type ClassifiedAgentAction = {
 }
 
 function hasPendingCareerFitOverride(session: Session): boolean {
-  return requiresCareerFitWarning(session) && !hasConfirmedCareerFitOverride(session)
+  return requiresCareerFitOverrideConfirmation(session)
 }
 
 export function resolveGenerationPrerequisiteMessage(session: Session): string | null {
