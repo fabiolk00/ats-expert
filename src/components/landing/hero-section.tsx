@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowRight, ChevronDown } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 import { BrandText } from "@/components/brand-wordmark"
 import { FloatingDecorations } from "@/components/landing/floating-decorations"
@@ -14,42 +14,41 @@ export default function HeroSection() {
 
       <div className="container relative z-10 mx-auto px-4 sm:px-6">
         <div className="flex flex-col gap-8 sm:gap-10 md:gap-12 lg:grid lg:grid-cols-2 lg:items-center lg:gap-16">
-          <div className="flex flex-col gap-6 sm:gap-8">
+          <div className="flex flex-col gap-6 sm:gap-8 lg:self-end">
             <div className="space-y-4 sm:space-y-6">
-              <h1 className="text-[clamp(1.875rem,7vw,4.5rem)] font-extrabold leading-[1.1] tracking-tight">
-                <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                  <span className="block">Consiga mais</span>
-                  <span className="block">entrevistas.</span>
-                  <span className="block">Passe no ATS.</span>
+              <h1 className="text-center text-[clamp(1.875rem,7vw,4.5rem)] font-extrabold leading-[1.1] tracking-tight lg:text-left">
+                <span className="block bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                  Consiga mais
+                </span>
+                <span className="block bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                  entrevistas.
+                </span>
+                <span className="block bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                  Passe no ATS.
                 </span>
               </h1>
               <p className="text-base leading-relaxed text-muted-foreground text-pretty sm:text-lg md:text-lg">
                 <BrandText text="Descubra por que seu currículo está sendo ignorado e o que corrigir para passar no ATS." />
               </p>
             </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-              <Button asChild size="lg" className="gap-2 text-base font-semibold">
-                <Link href="/o-que-e-ats">
-                  Ver meu score ATS grátis
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="text-base font-semibold text-foreground">
-                <a href="#pricing">Ver como melhorar</a>
-              </Button>
-            </div>
           </div>
 
-          <div className="flex flex-col items-center justify-center gap-8">
+          <div className="flex flex-col items-center justify-center gap-8 lg:row-span-2">
             <BeforeAfterComparison />
           </div>
-        </div>
-      </div>
 
-      <div className="pointer-events-none absolute bottom-6 left-1/2 flex -translate-x-1/2 animate-bounce flex-col items-center gap-2 sm:bottom-8">
-        <span className="text-xs font-medium text-muted-foreground/60">Scroll para explorar</span>
-        <ChevronDown className="h-5 w-5 text-muted-foreground/40" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 lg:self-start">
+            <Button asChild size="lg" className="gap-2 text-base font-semibold">
+              <Link href="/o-que-e-ats">
+                Ver meu score ATS grátis
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="text-base font-semibold text-foreground">
+              <a href="#pricing">Ver como melhorar</a>
+            </Button>
+          </div>
+        </div>
       </div>
     </section>
   )

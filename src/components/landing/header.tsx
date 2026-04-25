@@ -38,10 +38,8 @@ type DropdownItem = {
   description: string
 }
 
-const navLinks = [
-  { label: "O que é o ATS?", href: "/o-que-e-ats" },
-  { label: "Preços", href: "/#pricing" },
-]
+const atsLink = { label: "O que é ATS?", href: "/o-que-e-ats" }
+const pricingLink = { label: "Preços", href: "/#pricing" }
 
 const dropdownColumns: Array<{
   title: string
@@ -105,7 +103,7 @@ const dropdownColumns: Array<{
       },
     ],
   },
-]
+] as const
 
 const mobileDropdownItems = dropdownColumns.flatMap((column) => column.items)
 
@@ -128,7 +126,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4">
+    <div className="fixed left-0 right-0 top-0 z-50 flex justify-center px-4 pt-4">
       <header
         className={cn(
           "w-full max-w-5xl rounded-2xl border border-border/50 bg-white/80 backdrop-blur-xl transition-all duration-300",
@@ -142,15 +140,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Logo />
 
             <nav className="hidden items-center gap-1 md:flex">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="rounded-lg px-3 py-1.5 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ))}
+              <Link
+                href={atsLink.href}
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground"
+              >
+                {atsLink.label}
+              </Link>
 
               <DropdownMenu>
                 <DropdownMenuTrigger className="group flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-foreground outline-none transition-colors duration-150 hover:bg-muted/60 hover:text-foreground">
@@ -202,6 +197,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              <Link
+                href={pricingLink.href}
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground"
+              >
+                {pricingLink.label}
+              </Link>
             </nav>
           </div>
 
@@ -222,6 +224,15 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   className="hidden rounded-xl px-4 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:inline-flex"
                 >
                   <Link href="/criar-conta">Criar conta</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  className="rounded-xl px-3 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:hidden"
+                >
+                  <Link href="/criar-conta" data-testid="mobile-signup-link">
+                    Criar conta
+                  </Link>
                 </Button>
               </>
             )}
@@ -257,16 +268,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
         {mobileOpen && (
           <div className="border-t border-border/40 px-4 pb-4 pt-3 md:hidden">
             <nav className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={closeMobileMenu}
-                  className="rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ))}
+              <Link
+                href={atsLink.href}
+                onClick={closeMobileMenu}
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              >
+                {atsLink.label}
+              </Link>
 
               <button
                 type="button"
@@ -302,6 +310,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   ))}
                 </div>
               )}
+
+              <Link
+                href={pricingLink.href}
+                onClick={closeMobileMenu}
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              >
+                {pricingLink.label}
+              </Link>
 
               {showAuthButtons && (
                 <div className="mt-4 flex flex-col gap-2 border-t border-border/40 pt-4">

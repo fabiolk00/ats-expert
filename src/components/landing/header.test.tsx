@@ -38,7 +38,8 @@ describe("Header", () => {
     render(<Header />)
 
     expect(screen.getByRole("link", { name: "Entrar" })).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Criar conta" })).toBeInTheDocument()
+    expect(screen.getAllByRole("link", { name: "Criar conta" })).toHaveLength(2)
+    expect(screen.getByTestId("mobile-signup-link")).toBeInTheDocument()
   })
 
   it("shows the user menu once Clerk is loaded and the user is signed in", () => {
@@ -48,5 +49,16 @@ describe("Header", () => {
 
     expect(screen.getByText("Perfil")).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "Entrar" })).not.toBeInTheDocument()
+  })
+
+  it("renders the main navigation in the expected sequence", () => {
+    render(<Header />)
+
+    const atsLink = screen.getByRole("link", { name: "O que é ATS?" })
+    const areasTrigger = screen.getByText("Currículos por área")
+    const pricingLink = screen.getByRole("link", { name: "Preços" })
+
+    expect(atsLink.compareDocumentPosition(areasTrigger) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(areasTrigger.compareDocumentPosition(pricingLink) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
