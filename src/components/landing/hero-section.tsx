@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-background py-12 sm:py-16 md:py-24 lg:py-28">
+    <section className="relative overflow-hidden bg-background pb-12 pt-28 sm:pb-16 sm:pt-32 md:py-24 lg:py-28">
       <FloatingDecorations />
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl" />
 

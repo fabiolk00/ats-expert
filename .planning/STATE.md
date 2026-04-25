@@ -7,7 +7,7 @@ current_phase_name: restrict ai chat access to active pro subscribers across ui 
 current_plan: 01 complete
 status: phase_complete
 stopped_at: Completed 102-01-PLAN.md
-last_updated: "2026-04-25T17:58:00.0000000-03:00"
+last_updated: "2026-04-25T18:11:00.0000000-03:00"
 last_activity: 2026-04-25
 progress:
   total_phases: 57
@@ -36,7 +36,7 @@ Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-25
-Last Activity Description: Completed quick task 260425-oxl reordering the landing navbar links to ATS, areas, then pricing.
+Last Activity Description: Completed quick task 260425-p87 moving the mobile hero title lower so it clears the fixed navbar.
 
 Progress: [##########] 100%
 
@@ -193,6 +193,8 @@ Baseline carried forward from earlier shipped milestones:
 | 260425-k00 | Remove the hero scroll indicator and move mobile CTAs below the before/after block | 2026-04-25 | working-tree | Validated | [260425-k00-restore-the-colored-hero-headline-stylin](./quick/260425-k00-restore-the-colored-hero-headline-stylin/) |
 
 | 260425-oxl | Reorder the landing navbar links to ATS, areas, then pricing | 2026-04-25 | working-tree | Validated | [260425-oxl-reorder-landing-navbar-links-to-ats-resu](./quick/260425-oxl-reorder-landing-navbar-links-to-ats-resu/) |
+
+| 260425-p87 | Move the mobile hero title lower so it clears the fixed navbar | 2026-04-25 | working-tree | Validated | [260425-p87-move-the-landing-hero-title-lower-so-the](./quick/260425-p87-move-the-landing-hero-title-lower-so-the/) |
 
 ## Session Continuity
 

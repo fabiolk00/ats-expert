@@ -22,10 +22,14 @@ describe("HeroSection", () => {
     render(<HeroSection />)
 
     const heading = screen.getByRole("heading", { level: 1 })
+    const section = heading.closest("section")
     const comparison = screen.getByTestId("before-after-comparison")
     const primaryCta = screen.getByRole("link", { name: /ver meu score ats grátis/i })
     const secondaryCta = screen.getByRole("link", { name: /ver como melhorar/i })
 
+    expect(section).toHaveClass("pt-28")
+    expect(section).toHaveClass("sm:pt-32")
+    expect(section).toHaveClass("md:py-24")
     expect(heading).toHaveClass("text-center")
     expect(heading).toHaveClass("lg:text-left")
     expect(comparison.compareDocumentPosition(primaryCta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
