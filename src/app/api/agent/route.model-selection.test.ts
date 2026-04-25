@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { getAiChatAccess } from '@/lib/billing/ai-chat-access.server'
 
 const {
   mockCreateChatCompletionStreamWithRetry,
@@ -41,6 +42,10 @@ vi.mock('@/lib/openai/chat', () => ({
 
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: mockGetCurrentAppUser,
+}))
+
+vi.mock('@/lib/billing/ai-chat-access.server', () => ({
+  getAiChatAccess: vi.fn(),
 }))
 
 vi.mock('@/lib/rate-limit', () => ({
@@ -162,6 +167,15 @@ async function loadRoute() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(getAiChatAccess).mockResolvedValue({
+    allowed: true,
+    feature: 'ai_chat',
+    reason: 'active_pro',
+    plan: 'pro',
+    status: 'active',
+    renewsAt: '2026-05-20T00:00:00.000Z',
+    asaasSubscriptionId: 'sub_123',
+  })
   process.env.OPENAI_MODEL_COMBO = 'combo_a'
   process.env.OPENAI_MODEL = 'gpt-5-mini'
   delete process.env.OPENAI_AGENT_MODEL

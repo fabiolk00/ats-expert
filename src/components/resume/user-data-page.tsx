@@ -37,6 +37,7 @@ import { dashboardWelcomeGuideTargets, getDashboardGuideTargetProps } from "@/li
 import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
 import { assessAtsEnhancementReadiness, getAtsEnhancementBlockingItems } from "@/lib/profile/ats-enhancement"
 import { PROFILE_SETUP_PATH, buildResumeComparisonPath } from "@/lib/routes/app"
+import { getDisplayableTargetRole, isSuspiciousTargetRole } from "@/lib/target-role"
 import { cvStateToTemplateData } from "@/lib/templates/cv-state-to-template-data"
 import { cn } from "@/lib/utils"
 import type { CVState } from "@/types/cv"
@@ -343,24 +344,6 @@ function formatUpdatedLabel(lastUpdatedAt: string | null): string {
     minute: "2-digit",
     timeZone: "America/Sao_Paulo",
   })}`
-}
-
-function normalizeRoleForReview(value?: string): string {
-  return (value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase()
-}
-
-function isSuspiciousTargetRole(value?: string): boolean {
-  const normalized = normalizeRoleForReview(value)
-
-  if (!normalized) {
-    return false
-  }
-
-  return /^(responsabilidades?(?:\s+e\s+atribuicoes)?|atribuicoes|requisitos(?:\s+e\s+qualificacoes)?|qualificacoes|descricao|atividades|about\s+the\s+job|about\s+the\s+role|job\s+description|responsibilities|requirements|qualifications|vaga\s+alvo)$/.test(normalized)
 }
 
 function formatValidationSectionLabel(section?: string): string {
@@ -901,6 +884,7 @@ export default function UserDataPage({
       rewriteValidationFailure.targetRoleConfidence === "low"
       || isSuspiciousTargetRole(rewriteValidationFailure.targetRole)
     )
+  const displayValidationTargetRole = getDisplayableTargetRole(rewriteValidationFailure?.targetRole)
 
   const contactItems = [
     sanitizedResumeData.email
@@ -1854,10 +1838,19 @@ export default function UserDataPage({
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
                 <p className="font-medium text-rose-900">Possível bug de leitura da vaga</p>
                 <p className="mt-2">
-                  Detectamos um cargo-alvo suspeito na vaga analisada:
-                  {" "}
-                  <span className="font-medium">{rewriteValidationFailure?.targetRole}</span>.
-                  Isso parece mais um título de seção ou placeholder do que o cargo real. Se isso não fizer sentido para você, trate como erro do sistema e tente reenviar a vaga.
+                  {displayValidationTargetRole ? (
+                    <>
+                      Detectamos um cargo-alvo suspeito na vaga analisada:
+                      {" "}
+                      <span className="font-medium">{displayValidationTargetRole}</span>.
+                      Isso parece mais um título de seção ou placeholder do que o cargo real. Se isso não fizer sentido para você, trate como erro do sistema e tente reenviar a vaga.
+                    </>
+                  ) : (
+                    <>
+                      Não conseguimos identificar com confiança o cargo-alvo da vaga analisada.
+                      Isso sugere erro de leitura da vaga ou uso de um placeholder interno, não do cargo real. Se isso não fizer sentido para você, trate como erro do sistema e tente reenviar a vaga.
+                    </>
+                  )}
                 </p>
               </div>
             ) : (

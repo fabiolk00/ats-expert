@@ -10,6 +10,7 @@ Element.prototype.scrollIntoView = vi.fn()
 
 const {
   mockCreateChatCompletionStreamWithRetry,
+  mockGetAiChatAccess,
   mockGetCurrentAppUser,
   mockAgentLimiterLimit,
   mockGetSession,
@@ -24,6 +25,7 @@ const {
   mockGetToolDefinitionsForPhase,
 } = vi.hoisted(() => ({
   mockCreateChatCompletionStreamWithRetry: vi.fn(),
+  mockGetAiChatAccess: vi.fn(),
   mockGetCurrentAppUser: vi.fn(),
   mockAgentLimiterLimit: vi.fn(),
   mockGetSession: vi.fn(),
@@ -77,6 +79,10 @@ vi.mock("@/lib/openai/chat", () => ({
 
 vi.mock("@/lib/auth/app-user", () => ({
   getCurrentAppUser: mockGetCurrentAppUser,
+}))
+
+vi.mock("@/lib/billing/ai-chat-access.server", () => ({
+  getAiChatAccess: mockGetAiChatAccess,
 }))
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -204,6 +210,15 @@ describe("ChatInterface real /api/agent transcript integration", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     persistedMessages = []
+    mockGetAiChatAccess.mockResolvedValue({
+      allowed: true,
+      feature: "ai_chat",
+      reason: "active_pro",
+      plan: "pro",
+      status: "active",
+      renewsAt: "2026-05-20T00:00:00.000Z",
+      asaasSubscriptionId: "sub_123",
+    })
 
     mockGetCurrentAppUser.mockResolvedValue({
       id: "usr_123",

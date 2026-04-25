@@ -57,6 +57,7 @@ describe("PlanUpdateDialog", () => {
     expect(screen.getByText("Atualização de plano")).toBeInTheDocument()
     expect(screen.getByText("Mais popular")).toBeInTheDocument()
     expect(screen.getByText("Créditos atuais: 4")).toBeInTheDocument()
+    expect(screen.getByText("R$ 59,90")).toBeInTheDocument()
     expect(screen.getAllByRole("button", { name: "Selecionar" })).toHaveLength(3)
   })
 
@@ -88,7 +89,7 @@ describe("PlanUpdateDialog", () => {
         isOpen
         onOpenChange={vi.fn()}
         activeRecurringPlan="monthly"
-        currentCredits={20}
+        currentCredits={12}
       />,
     )
 
@@ -104,7 +105,7 @@ describe("PlanUpdateDialog", () => {
         isOpen
         onOpenChange={vi.fn()}
         activeRecurringPlan="pro"
-        currentCredits={50}
+        currentCredits={30}
       />,
     )
 

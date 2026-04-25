@@ -26,7 +26,7 @@ type UserQuotaBillingRow = {
   asaas_subscription_id: string | null
 }
 
-type BillingStatus = 'active' | 'canceled' | 'past_due'
+export type BillingStatus = 'active' | 'canceled' | 'past_due'
 
 type UserBillingInfo = {
   plan: PlanSlug
@@ -44,6 +44,13 @@ type ActiveRecurringSubscription = {
   renewsAt: string | null
 }
 
+export type UserBillingMetadata = {
+  plan: PlanSlug | null
+  renewsAt: string | null
+  status: BillingStatus | null
+  asaasSubscriptionId: string | null
+}
+
 export async function getUserBillingPlan(appUserId: string): Promise<PlanSlug | null> {
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
@@ -57,6 +64,30 @@ export async function getUserBillingPlan(appUserId: string): Promise<PlanSlug | 
   }
 
   return resolvePlanSlug(data?.plan ?? null)
+}
+
+export async function getUserBillingMetadata(appUserId: string): Promise<UserBillingMetadata | null> {
+  const supabase = getSupabaseAdminClient()
+  const { data, error } = await supabase
+    .from('user_quotas')
+    .select('plan, renews_at, status, asaas_subscription_id')
+    .eq('user_id', appUserId)
+    .maybeSingle<UserQuotaBillingRow>()
+
+  if (error) {
+    throw new Error(`Failed to load billing metadata: ${error.message}`)
+  }
+
+  if (!data) {
+    return null
+  }
+
+  return {
+    plan: resolvePlanSlug(data.plan ?? null),
+    renewsAt: data.renews_at,
+    status: normalizeBillingStatus(data.status ?? null),
+    asaasSubscriptionId: data.asaas_subscription_id,
+  }
 }
 
 function buildCreditAccountId(appUserId: string): string {
@@ -285,43 +316,37 @@ export async function checkUserQuota(appUserId: string): Promise<boolean> {
 export async function getActiveRecurringSubscription(
   appUserId: string,
 ): Promise<ActiveRecurringSubscription | null> {
-  const supabase = getSupabaseAdminClient()
-  const { data, error } = await supabase
-    .from('user_quotas')
-    .select('plan, renews_at, status, asaas_subscription_id')
-    .eq('user_id', appUserId)
-    .maybeSingle<UserQuotaBillingRow>()
+  const metadata = await getUserBillingMetadata(appUserId)
 
-  if (error) {
-    throw new Error(`Failed to load recurring subscription state: ${error.message}`)
-  }
-
-  const plan = resolvePlanSlug(data?.plan ?? null)
-  const status = normalizeBillingStatus(data?.status ?? null)
-
-  if (!plan || PLANS[plan].billing !== 'monthly' || status !== 'active' || !data?.asaas_subscription_id) {
+  if (
+    !metadata?.plan
+    || PLANS[metadata.plan].billing !== 'monthly'
+    || metadata.status !== 'active'
+    || !metadata.asaasSubscriptionId
+  ) {
     return null
   }
 
-  if (plan !== 'monthly' && plan !== 'pro') {
+  if (metadata.plan !== 'monthly' && metadata.plan !== 'pro') {
     return null
   }
 
   return {
-    plan,
-    asaasSubscriptionId: data.asaas_subscription_id,
-    renewsAt: data.renews_at,
+    plan: metadata.plan,
+    asaasSubscriptionId: metadata.asaasSubscriptionId,
+    renewsAt: metadata.renewsAt,
   }
 }
 
 export async function getUserBillingInfo(appUserId: string): Promise<UserBillingInfo | null> {
   const supabase = getSupabaseAdminClient()
-  const [quotaResult, creditResult] = await Promise.all([
+  const [metadata, quotaResult, creditResult] = await Promise.all([
+    getUserBillingMetadata(appUserId),
     supabase
       .from('user_quotas')
-      .select('plan, credits_remaining, renews_at, status, asaas_subscription_id')
+      .select('credits_remaining')
       .eq('user_id', appUserId)
-      .maybeSingle<UserQuotaBillingRow>(),
+      .maybeSingle<Pick<UserQuotaBillingRow, 'credits_remaining'>>(),
     supabase
       .from('credit_accounts')
       .select('credits_remaining')
@@ -330,7 +355,7 @@ export async function getUserBillingInfo(appUserId: string): Promise<UserBilling
   ])
 
   if (quotaResult.error) {
-    throw new Error(`Failed to load billing metadata: ${quotaResult.error.message}`)
+    throw new Error(`Failed to load billing quota metadata: ${quotaResult.error.message}`)
   }
 
   if (creditResult.error) {
@@ -339,18 +364,17 @@ export async function getUserBillingInfo(appUserId: string): Promise<UserBilling
 
   const quotaData = quotaResult.data
   const creditData = creditResult.data
-  const plan = resolvePlanSlug(quotaData?.plan ?? null)
+  const plan = metadata?.plan ?? null
 
-  if (!plan || !quotaData || !creditData) {
+  if (!plan || !quotaData || !creditData || !metadata) {
     return null
   }
 
-  const status = normalizeBillingStatus(quotaData.status)
   const hasActiveRecurringSubscription =
     PLANS[plan].billing === 'monthly' &&
-    status === 'active' &&
-    typeof quotaData.asaas_subscription_id === 'string' &&
-    quotaData.asaas_subscription_id.length > 0
+    metadata.status === 'active' &&
+    typeof metadata.asaasSubscriptionId === 'string' &&
+    metadata.asaasSubscriptionId.length > 0
   const maxCredits = Math.max(
     quotaData.credits_remaining ?? 0,
     creditData.credits_remaining,
@@ -361,9 +385,9 @@ export async function getUserBillingInfo(appUserId: string): Promise<UserBilling
     plan,
     creditsRemaining: creditData.credits_remaining,
     maxCredits,
-    renewsAt: quotaData.renews_at,
-    status,
-    asaasSubscriptionId: quotaData.asaas_subscription_id,
+    renewsAt: metadata.renewsAt,
+    status: metadata.status,
+    asaasSubscriptionId: metadata.asaasSubscriptionId,
     hasActiveRecurringSubscription,
   }
 }

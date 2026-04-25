@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 101
-current_phase_name: connect existing resume history UI to real generated artifacts and protected access
+current_phase: 102
+current_phase_name: restrict ai chat access to active pro subscribers across ui and api
 current_plan: 01 complete
 status: phase_complete
-stopped_at: Completed 101-01-PLAN.md
-last_updated: "2026-04-24T11:08:03.3232052-03:00"
-last_activity: 2026-04-24
+stopped_at: Completed 102-01-PLAN.md
+last_updated: "2026-04-25T01:00:00.0000000-03:00"
+last_activity: 2026-04-25
 progress:
   total_phases: 57
   completed_phases: 11
@@ -24,19 +24,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** A job seeker can reliably turn their real profile and a target role into an honest, ATS-ready resume output they can confidently download and use.
-**Current focus:** The existing resume history surface now uses durable protected generation history while preserving the current generation, billing, and compare/file seams.
+**Current focus:** AI chat access is now restricted to active Pro subscribers across the authenticated UI and server routes, while preserving the existing billing and session architecture.
 
 ## Current Position
 
-Phase: 101 (connect existing resume history UI to real generated artifacts and protected access) - COMPLETE
+Phase: 102 (restrict ai chat access to active pro subscribers across ui and api) - COMPLETE
 Plan: 01 complete
-Current Phase: 101
-Current Phase Name: connect existing resume history UI to real generated artifacts and protected access
+Current Phase: 102
+Current Phase Name: restrict ai chat access to active pro subscribers across ui and api
 Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
-Last activity: 2026-04-24
-Last Activity Description: Completed quick task 260424-fgc setting shared resume section top padding to pt-1.5
+Last activity: 2026-04-25
+Last Activity Description: Completed 102-01-PLAN.md restricting AI chat access to active Pro subscribers across UI and API.
 
 Progress: [##########] 100%
 
@@ -51,6 +51,8 @@ Baseline carried forward from earlier shipped milestones:
 
 ### Roadmap Evolution
 
+- Phase 103 added: Align Monthly and Pro plan price and credit limits across UI, billing, and tests.
+- Phase 102 added: Restrict AI chat access to active Pro subscribers across UI and API.
 - Phase 101 completed: the existing resume history UI now renders live protected generation history with latest-6 pagination and download/open actions.
 - Phase 101 added: Connect the existing resume history UI to real generated artifacts and protected access.
 - Phase 99 added: Adaptar a UI de profile do currículo para layout CRM preservando 100% da lógica e funcionalidade existente.

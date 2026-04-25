@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 
 import { handleAgentPost } from './request-orchestrator'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
+import { getAiChatAccess } from '@/lib/billing/ai-chat-access.server'
 import { agentLimiter } from '@/lib/rate-limit'
 import {
   appendMessage,
@@ -27,6 +28,10 @@ const { mockReleaseMetadata } = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn(),
+}))
+
+vi.mock('@/lib/billing/ai-chat-access.server', () => ({
+  getAiChatAccess: vi.fn(),
 }))
 
 vi.mock('@/lib/rate-limit', () => ({
@@ -140,6 +145,15 @@ function buildSession(overrides?: Record<string, unknown>) {
 describe('handleAgentPost', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getAiChatAccess).mockResolvedValue({
+      allowed: true,
+      feature: 'ai_chat',
+      reason: 'active_pro',
+      plan: 'pro',
+      status: 'active',
+      renewsAt: '2026-05-20T00:00:00.000Z',
+      asaasSubscriptionId: 'sub_123',
+    })
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
       status: 'active',
@@ -210,6 +224,39 @@ describe('handleAgentPost', () => {
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ error: 'Unauthorized' })
     expect(response.headers.get('X-Agent-Release')).toBe(mockReleaseMetadata.releaseId)
+  })
+
+  it('returns 403 before rate limiting or session work when Pro chat access is denied', async () => {
+    vi.mocked(getAiChatAccess).mockResolvedValue({
+      allowed: false,
+      feature: 'ai_chat',
+      reason: 'plan_not_pro',
+      plan: 'monthly',
+      status: 'active',
+      renewsAt: '2026-05-20T00:00:00.000Z',
+      asaasSubscriptionId: 'sub_123',
+      code: 'PRO_PLAN_REQUIRED',
+      title: 'Chat com IA exclusivo do plano PRO',
+      message: 'Este recurso está disponível apenas para usuários do plano PRO. Faça upgrade para acessar o chat com IA.',
+      upgradeUrl: '/precos?checkoutPlan=pro',
+    })
+
+    const response = await handleAgentPost(new NextRequest('http://localhost/api/agent', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'oi' }),
+    }))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({
+      error: 'Este recurso está disponível apenas para usuários do plano PRO. Faça upgrade para acessar o chat com IA.',
+      title: 'Chat com IA exclusivo do plano PRO',
+      code: 'PRO_PLAN_REQUIRED',
+      upgradeUrl: '/precos?checkoutPlan=pro',
+    })
+    expect(agentLimiter.limit).not.toHaveBeenCalled()
+    expect(getSession).not.toHaveBeenCalled()
+    expect(createSession).not.toHaveBeenCalled()
   })
 
   it('creates a new session, persists target detection, and returns text-only async acknowledgement ordering', async () => {

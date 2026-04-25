@@ -18,6 +18,7 @@ import { TOOL_ERROR_CODES, type ToolErrorCode } from '@/lib/agent/tool-errors'
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 import { deriveTargetFitAssessment } from '@/lib/agent/target-fit'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
+import { getAiChatAccess } from '@/lib/billing/ai-chat-access.server'
 import {
   createSession,
   getSession,
@@ -336,6 +337,32 @@ export async function handleAgentPost(req: NextRequest): Promise<Response> {
     return createAgentJsonResponse({ error: 'Unauthorized' }, { status: 401 }, releaseMetadata)
   }
   const appUserId = appUser.id
+
+  const aiChatAccess = await timing.runStage('chat_access', () => getAiChatAccess(appUserId))
+  if (!aiChatAccess.allowed) {
+    logWarn('agent.request.chat_access_denied', {
+      ...releaseMetadata,
+      requestId,
+      appUserId,
+      aiChatAccessReason: aiChatAccess.reason,
+      aiChatAccessCode: aiChatAccess.code,
+      plan: aiChatAccess.plan ?? undefined,
+      billingStatus: aiChatAccess.status ?? undefined,
+      renewsAt: aiChatAccess.renewsAt ?? undefined,
+      success: false,
+      latencyMs: Date.now() - requestStartedAt,
+    })
+    return createAgentJsonResponse(
+      {
+        error: aiChatAccess.message,
+        title: aiChatAccess.title,
+        code: aiChatAccess.code,
+        upgradeUrl: aiChatAccess.upgradeUrl,
+      },
+      { status: 403 },
+      releaseMetadata,
+    )
+  }
 
   const { success } = await timing.runStage('rate_limit', () => agentLimiter.limit(appUserId))
   if (!success) {

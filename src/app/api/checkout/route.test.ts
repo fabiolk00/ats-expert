@@ -81,7 +81,7 @@ describe('checkout route billing sequencing', () => {
       userId: 'usr_123',
       checkoutReference: 'chk_123',
       plan: 'monthly',
-      amountMinor: 3900,
+      amountMinor: 3990,
       currency: 'BRL',
       status: 'pending',
       asaasLink: null,
@@ -344,7 +344,7 @@ describe('checkout route billing sequencing', () => {
     )
 
     expect(response.status).toBe(200)
-    expect(createCheckoutRecordPending).toHaveBeenCalled()
+    expect(createCheckoutRecordPending).toHaveBeenCalledWith('usr_123', 'pro', 5990)
   })
 
   it('fails closed when recurring subscription validation is unavailable', async () => {

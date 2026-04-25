@@ -46,6 +46,7 @@ import {
   getDashboardGuideTargetProps,
   type DashboardWelcomeGuideTargetId,
 } from "@/lib/dashboard/welcome-guide"
+import { AI_CHAT_UPGRADE_URL } from "@/lib/billing/ai-chat-access"
 import { PLANS, PlanSlug } from "@/lib/plans"
 import {
   CHAT_PATH,
@@ -59,6 +60,7 @@ import { NEW_CONVERSATION_EVENT } from "./events"
 const COLLAPSED_WIDTH = 56
 
 interface DashboardSidebarProps {
+  canAccessAiChat?: boolean
   creditsRemaining?: number
   maxCredits?: number
   renewsIn?: string
@@ -73,6 +75,7 @@ type NavItem = {
   label: string
   href: string
   icon: typeof User
+  requiresAiChatAccess?: boolean
   isActive: (pathname: string) => boolean
 }
 
@@ -97,6 +100,7 @@ const navItems: NavItem[] = [
     label: "Sessões",
     href: DASHBOARD_SESSIONS_PATH,
     icon: MessageSquare,
+    requiresAiChatAccess: true,
     isActive: (pathname) => pathname === DASHBOARD_SESSIONS_PATH,
   },
   {
@@ -184,6 +188,7 @@ function SidebarContent({
   isOpen,
   isMobile,
   onCloseMobile,
+  canAccessAiChat = false,
   creditsRemaining,
   maxCredits,
   renewsIn,
@@ -202,6 +207,7 @@ function SidebarContent({
   const router = useRouter()
   const { signOut } = useClerk()
   const { user } = useUser()
+  const visibleNavItems = navItems.filter((item) => canAccessAiChat || !item.requiresAiChatAccess)
   const hasBillingData = maxCredits !== undefined && creditsRemaining !== undefined
   const percentage =
     hasBillingData && maxCredits > 0 ? (creditsRemaining / maxCredits) * 100 : 0
@@ -264,6 +270,12 @@ function SidebarContent({
   }
 
   const handleNewConversation = () => {
+    if (!canAccessAiChat) {
+      router.push(AI_CHAT_UPGRADE_URL)
+      onCloseMobile?.()
+      return
+    }
+
     window.dispatchEvent(new Event(NEW_CONVERSATION_EVENT))
     router.replace(CHAT_PATH)
     onCloseMobile?.()
@@ -341,7 +353,7 @@ function SidebarContent({
 
         <ScrollArea className={cn("flex-1 px-2 pb-4", isMobile ? "pt-4" : "pt-3")}>
           <nav className="space-y-1">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <SidebarNavItem
                 key={item.href}
                 item={item}
@@ -478,6 +490,7 @@ function SidebarContent({
 }
 
 export function DashboardSidebar({
+  canAccessAiChat = false,
   creditsRemaining,
   maxCredits,
   renewsIn,
@@ -501,6 +514,7 @@ export function DashboardSidebar({
             isOpen
             isMobile
             onCloseMobile={closeMobile}
+            canAccessAiChat={canAccessAiChat}
             creditsRemaining={creditsRemaining}
             maxCredits={maxCredits}
             renewsIn={renewsIn}
@@ -532,6 +546,7 @@ export function DashboardSidebar({
       <SidebarContent
         isOpen={false}
         isMobile={false}
+        canAccessAiChat={canAccessAiChat}
         creditsRemaining={creditsRemaining}
         maxCredits={maxCredits}
         renewsIn={renewsIn}

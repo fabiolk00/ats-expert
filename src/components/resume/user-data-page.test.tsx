@@ -712,6 +712,8 @@ describe("UserDataPage", () => {
     expect(await screen.findByRole("heading", { name: /automaticamente/i })).toBeInTheDocument()
     expect(screen.getByText(/skills sem alinhamento/i)).toBeInTheDocument()
     expect(screen.getByText(/bug de leitura da vaga/i)).toBeInTheDocument()
+    expect(screen.getByText(/não conseguimos identificar com confiança o cargo-alvo/i)).toBeInTheDocument()
+    expect(screen.queryByText("Vaga Alvo")).not.toBeInTheDocument()
   })
 
   it("contains long experience content inside a scrollable section card", async () => {

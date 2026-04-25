@@ -39,11 +39,11 @@ export const PLANS = {
     name: "Mensal",
     slug: "monthly",
     price: 3990,
-    credits: 20,
+    credits: 12,
     billing: "monthly" as const,
     description: "Ideal para busca ativa de emprego",
     features: [
-      "20 currículos por mês",
+      "12 currículos por mês",
       "Chat iterativo com IA",
       "Histórico de currículos",
       "Match com vagas",
@@ -53,12 +53,12 @@ export const PLANS = {
   pro: {
     name: "Pro",
     slug: "pro",
-    price: 6990,
-    credits: 50,
+    price: 5990,
+    credits: 30,
     billing: "monthly" as const,
     description: "Para profissionais e recrutadores",
     features: [
-      "50 currículos por mês",
+      "30 currículos por mês",
       "Tudo do plano Mensal",
       "Suporte prioritário",
       "Acesso antecipado a recursos",
@@ -76,7 +76,8 @@ type Plan = (typeof PLANS)[PlanSlug]
 export function formatPrice(cents: number, period?: string): string {
   if (cents === 0) return "R$ 0"
   const reais = cents / 100
-  const formatted = `R$ ${reais.toFixed(2).replace(/\.00$/, "")}`
+  const formattedNumber = reais.toFixed(2).replace('.', ',').replace(/,00$/, "")
+  const formatted = `R$ ${formattedNumber}`
   return period ? `${formatted}${period}` : formatted
 }
 

@@ -10,17 +10,24 @@ const mockCurrentUser = vi.fn().mockResolvedValue({
   firstName: "Fabio",
   username: "fabiok",
 })
+const mockGetCurrentAppUser = vi.fn().mockResolvedValue(null)
+const mockGetAiChatAccess = vi.fn().mockResolvedValue({
+  allowed: false,
+  title: "Chat com IA exclusivo do plano PRO",
+  message: "Upgrade required",
+  code: "PRO_PLAN_REQUIRED",
+})
 
 vi.mock("@clerk/nextjs/server", () => ({
   currentUser: () => mockCurrentUser(),
 }))
 
 vi.mock("@/lib/auth/app-user", () => ({
-  getCurrentAppUser: vi.fn().mockResolvedValue(null),
+  getCurrentAppUser: () => mockGetCurrentAppUser(),
 }))
 
-vi.mock("@/lib/asaas/optional-billing-info", () => ({
-  loadOptionalBillingInfo: vi.fn().mockResolvedValue({ billingInfo: null }),
+vi.mock("@/lib/billing/ai-chat-access.server", () => ({
+  getAiChatAccess: () => mockGetAiChatAccess(),
 }))
 
 vi.mock("@/lib/auth/e2e-auth", () => ({
@@ -29,22 +36,28 @@ vi.mock("@/lib/auth/e2e-auth", () => ({
 
 vi.mock("@/components/dashboard/resume-workspace", () => ({
   ResumeWorkspace: ({
+    canAccessAiChat,
     initialSessionId,
     userName,
     activeRecurringPlan,
     currentCredits,
+    aiChatAccessTitle,
   }: {
+    canAccessAiChat?: boolean
     initialSessionId?: string
     userName?: string
     activeRecurringPlan?: string | null
     currentCredits?: number
+    aiChatAccessTitle?: string
   }) => (
     <div
       data-testid="resume-workspace"
+      data-can-access-ai-chat={String(canAccessAiChat ?? false)}
       data-session-id={initialSessionId ?? ""}
       data-user-name={userName ?? ""}
       data-plan={activeRecurringPlan ?? ""}
       data-credits={currentCredits ?? 0}
+      data-chat-title={aiChatAccessTitle ?? ""}
     />
   ),
 }))
@@ -56,13 +69,43 @@ describe("ChatPage", () => {
   })
 
   it("renders safely without a session query param", async () => {
+    mockGetCurrentAppUser.mockResolvedValueOnce(null)
     const jsx = await ChatPage({})
     render(jsx)
 
     const workspace = screen.getByTestId("resume-workspace")
+    expect(workspace).toHaveAttribute("data-can-access-ai-chat", "false")
     expect(workspace).toHaveAttribute("data-session-id", "")
     expect(workspace).toHaveAttribute("data-user-name", "Fabio")
     expect(workspace).toHaveAttribute("data-credits", "0")
+  })
+
+  it("passes through an active recurring monthly plan for blocked paid users", async () => {
+    mockGetCurrentAppUser.mockResolvedValueOnce({
+      id: "usr_123",
+      creditAccount: {
+        id: "cred_123",
+        userId: "usr_123",
+        creditsRemaining: 7,
+      },
+    })
+    mockGetAiChatAccess.mockResolvedValueOnce({
+      allowed: false,
+      plan: "monthly",
+      status: "active",
+      asaasSubscriptionId: "sub_monthly_123",
+      title: "Chat com IA exclusivo do plano PRO",
+      message: "Upgrade required",
+      code: "PRO_PLAN_REQUIRED",
+      upgradeUrl: "/precos?checkoutPlan=pro",
+    })
+
+    const jsx = await ChatPage({})
+    render(jsx)
+
+    expect(screen.getByTestId("resume-workspace")).toHaveAttribute("data-plan", "monthly")
+    expect(screen.getByTestId("resume-workspace")).toHaveAttribute("data-credits", "7")
+    expect(screen.getByTestId("resume-workspace")).toHaveAttribute("data-chat-title", "Chat com IA exclusivo do plano PRO")
   })
 
   it("passes through a valid-looking session id without server-side resolution", async () => {

@@ -386,7 +386,6 @@ describe('POST /api/profile/smart-generation', () => {
           message: 'O resumo otimizado menciona skills sem alinhamento com a experiência reescrita.',
         }],
       },
-      targetRole: 'Vaga Alvo',
       targetRoleConfidence: 'low',
     })
     expect(dispatchToolWithContext).not.toHaveBeenCalled()
@@ -511,10 +510,11 @@ describe('POST /api/profile/smart-generation', () => {
     }))
 
     expect(validationResponse.status).toBe(422)
-    expect(await validationResponse.json()).toEqual(expect.objectContaining({
-      targetRole: 'Vaga Alvo',
+    const validationPayload = await validationResponse.json()
+    expect(validationPayload).toEqual(expect.objectContaining({
       targetRoleConfidence: 'low',
     }))
+    expect(validationPayload).not.toHaveProperty('targetRole')
   })
 
   it('rejects cross-origin smart generation requests', async () => {

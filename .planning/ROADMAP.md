@@ -738,3 +738,23 @@ Plans:
 
 Plans:
 - [x] 101-01-PLAN.md - Extend `resume_generations` with history metadata, expose the latest 6 owned records through a protected paginated API, adapt the existing history UI to real data and actions, and add focused service/API/UI regression coverage
+
+### Phase 102: Restrict AI chat access to active Pro subscribers across UI and API
+
+**Goal:** Guarantee that only authenticated users with active Pro entitlement can access the AI chat UI and API surfaces, using server-side authorization over the existing billing metadata.
+**Requirements**: [CHAT-PRO-UI-01, CHAT-PRO-API-01, CHAT-PRO-TEST-01]
+**Depends on:** Phase 101
+**Plans:** 1 plan
+
+Plans:
+- [x] 102-01-PLAN.md - Restrict AI chat access to active Pro subscribers across UI and API with one centralized authorization seam, blocked-state UI, protected session/history routes, and focused regression coverage
+
+### Phase 103: Alinhar preço e créditos dos planos Mensal e Pro entre UI, billing e testes
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 102
+**Plans:** 1 plan
+
+Plans:
+- [ ] 103-01-PLAN.md - Align canonical Monthly and Pro values, localize displayed price formatting, remove pricing-table drift, and refresh focused billing and UI regressions

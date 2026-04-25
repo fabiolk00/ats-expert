@@ -20,7 +20,12 @@ import {
   isGeneratedOutputReady,
   manualEditBaseSection,
 } from "@/lib/dashboard/workspace-client"
+import {
+  AI_CHAT_PRO_REQUIRED_MESSAGE,
+  AI_CHAT_PRO_REQUIRED_TITLE,
+} from "@/lib/billing/ai-chat-access"
 import type { PlanSlug } from "@/lib/plans"
+import { getDisplayableTargetRole, isSuspiciousTargetRole } from "@/lib/target-role"
 import type {
   JobStatusSnapshot,
   ManualEditInput,
@@ -35,6 +40,7 @@ import {
 } from "@/components/ui/resizable"
 
 import { ChatInterface } from "./chat-interface"
+import { AiChatAccessCard } from "./ai-chat-access-card"
 import { ManualEditDialog } from "./manual-edit-dialog"
 import { PlanUpdateDialog } from "./plan-update-dialog"
 import { PreviewPanel } from "./preview-panel"
@@ -52,6 +58,10 @@ type MutationKind =
   | null
 
 type ResumeWorkspaceProps = {
+  canAccessAiChat?: boolean
+  aiChatAccessTitle?: string
+  aiChatAccessMessage?: string
+  aiChatUpgradeUrl?: string
   initialSessionId?: string
   userName?: string
   missingContactInfo?: {
@@ -97,24 +107,6 @@ function resolveGenerationFailureMessage(job: JobStatusSnapshot | null): string 
   }
 
     return "Não foi possível concluir a geração dos arquivos."
-}
-
-function normalizeRoleForReview(value?: string): string {
-  return (value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase()
-}
-
-function isSuspiciousTargetRole(value?: string): boolean {
-  const normalized = normalizeRoleForReview(value)
-
-  if (!normalized) {
-    return false
-  }
-
-  return /^(responsabilidades?(?:\s+e\s+atribuicoes)?|atribuicoes|requisitos(?:\s+e\s+qualificacoes)?|qualificacoes|descricao|atividades|about\s+the\s+job|about\s+the\s+role|job\s+description|responsibilities|requirements|qualifications|vaga\s+alvo)$/.test(normalized)
 }
 
 function formatValidationSectionLabel(section?: string): string {
@@ -215,6 +207,10 @@ function getManualEditSectionValue(
 }
 
 export function ResumeWorkspace({
+  canAccessAiChat = true,
+  aiChatAccessTitle,
+  aiChatAccessMessage,
+  aiChatUpgradeUrl,
   initialSessionId,
   userName,
   missingContactInfo,
@@ -251,13 +247,20 @@ export function ResumeWorkspace({
     setAvailableCredits(currentCredits)
   }, [currentCredits])
 
-  // Sync initialSessionId prop changes to internal state
-  // This handles URL changes like when Nova Conversa clears the session param.
-  // The parent component updates initialSessionId based on the current URL searchParams,
-  // and this effect ensures the workspace state stays in sync with navigation changes.
   useEffect(() => {
+    if (!canAccessAiChat) {
+      setSessionId(undefined)
+      setWorkspace(null)
+      setActiveMutation(null)
+      setErrorMessage(null)
+      setStatusMessage(null)
+      setActiveGenerationJobId(null)
+      closePreview()
+      return
+    }
+
     setSessionId(initialSessionId)
-  }, [initialSessionId])
+  }, [canAccessAiChat, closePreview, initialSessionId])
 
   useEffect(() => {
     const handleNewConversation = (): void => {
@@ -305,6 +308,7 @@ export function ResumeWorkspace({
   const rewriteValidationIssues = workspace?.session.agentState.rewriteValidation?.issues ?? []
   const suspiciousTargetRole = workspace?.session.agentState.targetingPlan?.targetRoleConfidence === "low"
     || isSuspiciousTargetRole(workspace?.session.agentState.targetingPlan?.targetRole)
+  const displayTargetRole = getDisplayableTargetRole(workspace?.session.agentState.targetingPlan?.targetRole)
   const rewriteFailureCopy = getRewriteFailureCopy(workspace)
   const activeGenerationJob = activeGenerationJobId
     ? workspace?.jobs.find((job) => job.jobId === activeGenerationJobId) ?? null
@@ -338,6 +342,13 @@ export function ResumeWorkspace({
   }, [])
 
   useEffect(() => {
+    if (!canAccessAiChat) {
+      setWorkspace(null)
+      setActiveMutation(null)
+      setActiveGenerationJobId(null)
+      return
+    }
+
     if (!sessionId) {
       setWorkspace(null)
       setActiveMutation(null)
@@ -346,7 +357,7 @@ export function ResumeWorkspace({
     }
 
     void refreshWorkspace(sessionId)
-  }, [refreshWorkspace, sessionId])
+  }, [canAccessAiChat, refreshWorkspace, sessionId])
 
   useEffect(() => {
     if (!sessionId || !activeGenerationJobId) {
@@ -510,6 +521,27 @@ export function ResumeWorkspace({
     </div>
   ) : null
 
+  if (!canAccessAiChat) {
+    return (
+      <div
+        data-testid="resume-workspace"
+        data-active-generation-job-id=""
+        data-active-generation-status=""
+        data-base-output-ready="false"
+        data-busy="false"
+        data-session-id=""
+        data-target-count="0"
+        className="flex h-[calc(107svh-4rem)] items-center justify-center bg-[#faf9f5] px-4 py-8"
+      >
+        <AiChatAccessCard
+          title={aiChatAccessTitle ?? AI_CHAT_PRO_REQUIRED_TITLE}
+          message={aiChatAccessMessage ?? AI_CHAT_PRO_REQUIRED_MESSAGE}
+          ctaHref={aiChatUpgradeUrl}
+        />
+      </div>
+    )
+  }
+
   return (
     <>
       {isPreviewOverlay ? (
@@ -617,10 +649,19 @@ export function ResumeWorkspace({
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
                 <p className="font-medium text-rose-900">Possível bug de leitura da vaga</p>
                 <p className="mt-2">
-                  Detectamos um cargo-alvo suspeito na vaga analisada:
-                  {" "}
-                  <span className="font-medium">{workspace?.session.agentState.targetingPlan?.targetRole}</span>.
-                  Isso parece mais um título de seção da vaga do que o cargo real. Se isso não fizer sentido para você, trate como erro do sistema e tente reenviar a vaga.
+                  {displayTargetRole ? (
+                    <>
+                      Detectamos um cargo-alvo suspeito na vaga analisada:
+                      {" "}
+                      <span className="font-medium">{displayTargetRole}</span>.
+                      Isso parece mais um título de seção da vaga do que o cargo real. Se isso não fizer sentido para você, trate como erro do sistema e tente reenviar a vaga.
+                    </>
+                  ) : (
+                    <>
+                      Não conseguimos identificar com confiança o cargo-alvo da vaga analisada.
+                      Isso sugere erro de leitura da vaga ou uso de um placeholder interno, não do cargo real. Se isso não fizer sentido para você, trate como erro do sistema e tente reenviar a vaga.
+                    </>
+                  )}
                 </p>
               </div>
             ) : (

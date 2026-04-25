@@ -2,9 +2,10 @@ import React from "react"
 import { currentUser } from "@clerk/nextjs/server"
 
 import { ResumeWorkspace } from "@/components/dashboard/resume-workspace"
-import { loadOptionalBillingInfo } from "@/lib/asaas/optional-billing-info"
 import { getCurrentAppUser } from "@/lib/auth/app-user"
+import { getAiChatAccess } from "@/lib/billing/ai-chat-access.server"
 import { isE2EAuthEnabled } from "@/lib/auth/e2e-auth"
+import type { PlanSlug } from "@/lib/plans"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -25,14 +26,17 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     getCurrentAppUser(),
     isE2EAuthEnabled() ? Promise.resolve(null) : currentUser(),
   ])
-  let billingInfo = null
-  if (appUser) {
-    const result = await loadOptionalBillingInfo(appUser.id, "chat_page")
-    billingInfo = result.billingInfo
-  }
+  const aiChatAccess = appUser
+    ? await getAiChatAccess(appUser.id)
+    : null
 
   const currentCredits = appUser?.creditAccount.creditsRemaining ?? 0
-  const activeRecurringPlan = billingInfo?.hasActiveRecurringSubscription ? billingInfo.plan : null
+  const activeRecurringPlan: PlanSlug | null =
+    aiChatAccess?.plan === "monthly" || aiChatAccess?.plan === "pro"
+      ? aiChatAccess.status === "active" && Boolean(aiChatAccess.asaasSubscriptionId)
+        ? aiChatAccess.plan
+        : null
+      : null
   const missingContactInfo = {
     missingEmail: !clerkUser?.primaryEmailAddress?.emailAddress?.trim(),
     missingPhone: !clerkUser?.primaryPhoneNumber?.phoneNumber?.trim(),
@@ -45,6 +49,10 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   return (
     <ResumeWorkspace
+      canAccessAiChat={aiChatAccess?.allowed ?? false}
+      aiChatAccessTitle={aiChatAccess && !aiChatAccess.allowed ? aiChatAccess.title : undefined}
+      aiChatAccessMessage={aiChatAccess && !aiChatAccess.allowed ? aiChatAccess.message : undefined}
+      aiChatUpgradeUrl={aiChatAccess && !aiChatAccess.allowed ? aiChatAccess.upgradeUrl : undefined}
       initialSessionId={initialSessionId || undefined}
       userName={displayName}
       missingContactInfo={missingContactInfo}

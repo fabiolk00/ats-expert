@@ -1,5 +1,6 @@
 import { Check, Sparkles, X } from "lucide-react"
 
+import { PLANS, formatPrice, type PlanSlug } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
 function BoolCell({ value, highlight }: { value: "Sim" | "Não"; highlight?: boolean }) {
@@ -23,12 +24,16 @@ function BoolCell({ value, highlight }: { value: "Sim" | "Não"; highlight?: boo
   )
 }
 
-const plans = [
+const plans: Array<{
+  slug: PlanSlug
+  ats: string
+  pdf: "Sim" | "Não"
+  chatIA: "Sim" | "Não"
+  historico: "Sim" | "Não"
+  highlight: "black" | "gold" | null
+}> = [
   {
-    name: "Grátis",
-    price: "R$ 0",
-    period: null,
-    curriculos: "1",
+    slug: "free",
     ats: "Básico",
     pdf: "Não",
     chatIA: "Não",
@@ -36,10 +41,7 @@ const plans = [
     highlight: null,
   },
   {
-    name: "Unitário",
-    price: "R$ 19,90",
-    period: null,
-    curriculos: "3",
+    slug: "unit",
     ats: "Completo",
     pdf: "Sim",
     chatIA: "Não",
@@ -47,10 +49,7 @@ const plans = [
     highlight: null,
   },
   {
-    name: "Mensal",
-    price: "R$ 39,90",
-    period: "/mês",
-    curriculos: "12",
+    slug: "monthly",
     ats: "Completo",
     pdf: "Sim",
     chatIA: "Não",
@@ -58,10 +57,7 @@ const plans = [
     highlight: "black",
   },
   {
-    name: "Pro",
-    price: "R$ 69,90",
-    period: "/mês",
-    curriculos: "30",
+    slug: "pro",
     ats: "Completo",
     pdf: "Sim",
     chatIA: "Sim",
@@ -114,12 +110,15 @@ export default function PricingComparisonTable() {
 
           <div className="divide-y divide-neutral-100">
             {plans.map((plan) => {
+              const config = PLANS[plan.slug]
               const isBlack = plan.highlight === "black"
               const isGold = plan.highlight === "gold"
+              const period = config.billing === "monthly" ? "/mês" : null
+              const curriculos = String(config.credits)
 
               return (
                 <div
-                  key={plan.name}
+                  key={config.name}
                   className={cn(
                     "group grid grid-cols-7 items-center px-6 py-5 transition-all duration-200",
                     "hover:bg-neutral-50/50",
@@ -130,13 +129,13 @@ export default function PricingComparisonTable() {
                 >
                   <div className="col-span-1 flex items-center gap-2.5">
                     {isBlack ? (
-                      <strong className="text-sm font-semibold text-white">{plan.name}</strong>
+                      <strong className="text-sm font-semibold text-white">{config.name}</strong>
                     ) : isGold ? (
                       <span className="text-sm font-semibold" style={{ color: "#92700C" }}>
-                        {plan.name}
+                        {config.name}
                       </span>
                     ) : (
-                      <span className="text-sm font-medium text-neutral-700">{plan.name}</span>
+                      <span className="text-sm font-medium text-neutral-700">{config.name}</span>
                     )}
 
                     {isBlack ? (
@@ -162,10 +161,10 @@ export default function PricingComparisonTable() {
                         isBlack ? "text-white" : isGold ? "text-amber-900" : "text-neutral-900",
                       )}
                     >
-                      {plan.price}
+                      {formatPrice(config.price)}
                     </span>
-                    {plan.period ? (
-                      <span className="text-xs font-normal text-neutral-400">{plan.period}</span>
+                    {period ? (
+                      <span className="text-xs font-normal text-neutral-400">{period}</span>
                     ) : null}
                   </div>
 
@@ -180,7 +179,7 @@ export default function PricingComparisonTable() {
                             : "bg-neutral-100 text-neutral-700",
                       )}
                     >
-                      {plan.curriculos}
+                      {curriculos}
                     </span>
                   </div>
 

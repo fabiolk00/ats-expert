@@ -250,6 +250,26 @@ describe("ResumeWorkspace", () => {
     })
   })
 
+  it("shows a Pro-only lock state and skips workspace fetches when chat access is blocked", async () => {
+    renderWorkspace(
+      <ResumeWorkspace
+        canAccessAiChat={false}
+        aiChatAccessTitle="Chat com IA exclusivo do plano PRO"
+        aiChatAccessMessage="Este recurso está disponível apenas para usuários do plano PRO. Faça upgrade para acessar o chat com IA."
+        aiChatUpgradeUrl="/precos?checkoutPlan=pro"
+        initialSessionId="sess_blocked"
+        userName="Fabio"
+      />,
+    )
+
+    expect(mockGetSessionWorkspace).not.toHaveBeenCalled()
+    expect(screen.getByTestId("resume-workspace")).toHaveAttribute("data-session-id", "")
+    expect(screen.getByTestId("resume-workspace")).toHaveAttribute("data-busy", "false")
+    expect(screen.getByTestId("ai-chat-access-card")).toBeInTheDocument()
+    expect(screen.getByText("Chat com IA exclusivo do plano PRO")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /fazer upgrade/i })).toHaveAttribute("href", "/precos?checkoutPlan=pro")
+  })
+
   it("keeps local credits unchanged after creating a free new session", async () => {
     renderWorkspace(
       <ResumeWorkspace
@@ -550,6 +570,7 @@ describe("ResumeWorkspace", () => {
     renderWorkspace(<ResumeWorkspace initialSessionId="sess_failed_low_confidence_role" userName="Fabio" />)
 
     expect(await screen.findByText(/bug de leitura da vaga/i)).toBeInTheDocument()
-    expect(screen.getByText(/Vaga Alvo/)).toBeInTheDocument()
+    expect(screen.getByText(/não conseguimos identificar com confiança o cargo-alvo/i)).toBeInTheDocument()
+    expect(screen.queryByText("Vaga Alvo")).not.toBeInTheDocument()
   })
 })

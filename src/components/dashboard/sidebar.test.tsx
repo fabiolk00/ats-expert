@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { DashboardSidebar } from "./sidebar"
 import { NEW_CONVERSATION_EVENT } from "./events"
+import { AI_CHAT_UPGRADE_URL } from "@/lib/billing/ai-chat-access"
 
 const mockReplace = vi.fn()
 const mockPush = vi.fn()
@@ -73,7 +74,7 @@ describe("DashboardSidebar", () => {
   })
 
   it("keeps the desktop sidebar collapsed with Curriculos before Nova conversa", async () => {
-    render(<DashboardSidebar />)
+    render(<DashboardSidebar canAccessAiChat />)
 
     const profileLink = screen.getByRole("link", { name: "Perfil" })
     const sessionsLink = screen.getByRole("link", { name: "Sessões" })
@@ -108,7 +109,7 @@ describe("DashboardSidebar", () => {
   it("opens the existing account dropdown on avatar click in collapsed desktop mode", async () => {
     const user = userEvent.setup()
 
-    render(<DashboardSidebar />)
+    render(<DashboardSidebar canAccessAiChat />)
 
     await user.click(screen.getByRole("button", { name: "Abrir menu da conta" }))
 
@@ -121,12 +122,30 @@ describe("DashboardSidebar", () => {
     const onNewConversation = vi.fn()
     window.addEventListener(NEW_CONVERSATION_EVENT, onNewConversation)
 
-    render(<DashboardSidebar />)
+    render(<DashboardSidebar canAccessAiChat />)
 
     await user.click(screen.getByRole("button", { name: "Nova conversa" }))
 
     expect(mockReplace).toHaveBeenCalledWith("/chat")
     expect(onNewConversation).toHaveBeenCalledTimes(1)
+
+    window.removeEventListener(NEW_CONVERSATION_EVENT, onNewConversation)
+  })
+
+  it("hides the sessions nav item and routes non-Pro users to upgrade when they click Nova conversa", async () => {
+    const user = userEvent.setup()
+    const onNewConversation = vi.fn()
+    window.addEventListener(NEW_CONVERSATION_EVENT, onNewConversation)
+
+    render(<DashboardSidebar canAccessAiChat={false} />)
+
+    expect(screen.queryByRole("link", { name: "SessÃµes" })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Nova conversa" }))
+
+    expect(mockPush).toHaveBeenCalledWith(AI_CHAT_UPGRADE_URL)
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(onNewConversation).not.toHaveBeenCalled()
 
     window.removeEventListener(NEW_CONVERSATION_EVENT, onNewConversation)
   })

@@ -89,7 +89,7 @@ describe('quota credit source of truth', () => {
     creditAccountUpsert.mockResolvedValue({ error: null })
     creditAccountSingle.mockResolvedValue({ data: { credits_remaining: 3 } })
     creditAccountMaybeSingle.mockResolvedValue({
-      data: { credits_remaining: 20 },
+      data: { credits_remaining: 12 },
       error: null,
     })
     creditAccountUpdateSelect.mockResolvedValue({ data: [{ credits_remaining: 2 }], error: null })
@@ -106,7 +106,7 @@ describe('quota credit source of truth', () => {
     userQuotaMaybeSingle.mockResolvedValue({
       data: {
         plan: 'monthly',
-        credits_remaining: 20,
+        credits_remaining: 12,
         renews_at: '2026-04-30T00:00:00.000Z',
         status: 'active',
         asaas_subscription_id: 'sub_123',
@@ -381,8 +381,8 @@ describe('quota credit source of truth', () => {
   it('returns the full billing view model when metadata and credits exist', async () => {
     await expect(getUserBillingInfo('usr_123')).resolves.toEqual({
       plan: 'monthly',
-      creditsRemaining: 20,
-      maxCredits: 20,
+      creditsRemaining: 12,
+      maxCredits: 12,
       renewsAt: '2026-04-30T00:00:00.000Z',
       status: 'active',
       asaasSubscriptionId: 'sub_123',
@@ -405,7 +405,12 @@ describe('quota credit source of truth', () => {
       },
       error: null,
     })
-
+    userQuotaMaybeSingle.mockResolvedValueOnce({
+      data: {
+        credits_remaining: 4,
+      },
+      error: null,
+    })
     await expect(getUserBillingInfo('usr_123')).resolves.toEqual({
       plan: 'unit',
       creditsRemaining: 4,

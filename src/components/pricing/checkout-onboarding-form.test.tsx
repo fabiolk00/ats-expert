@@ -49,6 +49,8 @@ describe('CheckoutOnboardingForm', () => {
     expect(screen.getByLabelText('Rua / Avenida')).toHaveValue('Rua das Flores')
     expect(screen.getByLabelText('Número')).toHaveValue('123')
     expect(screen.getByLabelText('Estado (UF)')).toHaveValue('SP')
+    expect(screen.getByText('R$ 39,90')).toBeInTheDocument()
+    expect(screen.getByText('R$ 59,90')).toBeInTheDocument()
   })
 
   it('submits normalized billing data to the checkout route and redirects to the returned url', async () => {

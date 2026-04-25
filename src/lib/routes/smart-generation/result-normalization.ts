@@ -1,5 +1,6 @@
 import { getHttpStatusForToolError } from '@/lib/agent/tool-errors'
 import { sanitizeGeneratedCvStateForClient } from '@/lib/generated-preview/locked-preview'
+import { getDisplayableTargetRole } from '@/lib/target-role'
 
 import { assertPreviewAccessConsistency, resolvePersistedGeneratedOutput, resolvePreviewLockSummary } from './preview-access'
 import type {
@@ -52,6 +53,8 @@ export function normalizeSmartGenerationPipelineFailure(input: {
   patchedSession: SmartGenerationWorkflowState['patchedSession']
 }): Extract<SmartGenerationDecision, { kind: 'validation_error' }> {
   if (input.pipeline.validation && !input.pipeline.validation.valid) {
+    const targetRole = getDisplayableTargetRole(input.patchedSession.agentState.targetingPlan?.targetRole)
+
     return {
       kind: 'validation_error',
       status: 422,
@@ -60,7 +63,7 @@ export function normalizeSmartGenerationPipelineFailure(input: {
         sessionId: input.sessionId,
         workflowMode: input.workflow.workflowMode,
         rewriteValidation: input.pipeline.validation,
-        targetRole: input.patchedSession.agentState.targetingPlan?.targetRole,
+        targetRole: targetRole ?? undefined,
         targetRoleConfidence: input.patchedSession.agentState.targetingPlan?.targetRoleConfidence as
           | string
           | number

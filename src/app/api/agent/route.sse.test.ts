@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 
 import { POST } from './route'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
+import { getAiChatAccess } from '@/lib/billing/ai-chat-access.server'
 import { appendAssistantTurn } from '@/lib/agent/agent-persistence'
 import { runAgentLoop } from '@/lib/agent/agent-loop'
 import {
@@ -17,6 +18,10 @@ import { agentLimiter } from '@/lib/rate-limit'
 
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn(),
+}))
+
+vi.mock('@/lib/billing/ai-chat-access.server', () => ({
+  getAiChatAccess: vi.fn(),
 }))
 
 vi.mock('@/lib/rate-limit', () => ({
@@ -113,6 +118,15 @@ function buildSession(overrides?: Record<string, unknown>) {
 describe('/api/agent SSE contract', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getAiChatAccess).mockResolvedValue({
+      allowed: true,
+      feature: 'ai_chat',
+      reason: 'active_pro',
+      plan: 'pro',
+      status: 'active',
+      renewsAt: '2026-05-20T00:00:00.000Z',
+      asaasSubscriptionId: 'sub_123',
+    })
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
       status: 'active',

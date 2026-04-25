@@ -171,4 +171,48 @@ describe('Asaas checkout link creation', () => {
       externalReference: 'curria:v1:u:usr_123:c:chk_monthly',
     })
   })
+
+  it('creates recurring Pro hosted checkouts with the updated monthly amount', async () => {
+    mockPost.mockResolvedValueOnce({ id: 'checkout_pro_123' })
+
+    await expect(createCheckoutLink({
+      appUserId: 'usr_123',
+      userName: 'Test User',
+      userEmail: 'test@example.com',
+      plan: 'pro',
+      checkoutReference: 'chk_pro',
+      externalReference: 'curria:v1:u:usr_123:c:chk_pro',
+      successUrl: 'https://curria.test/profile-setup',
+      cancelUrl: 'https://curria.test/precos',
+      expiredUrl: 'https://curria.test/precos',
+    })).resolves.toBe('https://sandbox.asaas.com/checkoutSession/show?id=checkout_pro_123')
+
+    expect(mockPost).toHaveBeenCalledWith('/checkouts', {
+      billingTypes: ['CREDIT_CARD'],
+      chargeTypes: ['RECURRENT'],
+      minutesToExpire: 60,
+      callback: {
+        successUrl: 'https://curria.test/profile-setup',
+        cancelUrl: 'https://curria.test/precos',
+        expiredUrl: 'https://curria.test/precos',
+      },
+      customerData: {
+        name: 'Test User',
+        email: 'test@example.com',
+      },
+      items: [
+        {
+          name: `CurrIA - ${PLANS.pro.name}`,
+          description: PLANS.pro.description,
+          quantity: 1,
+          value: 59.90,
+        },
+      ],
+      subscription: {
+        cycle: 'MONTHLY',
+        nextDueDate: expect.any(String),
+      },
+      externalReference: 'curria:v1:u:usr_123:c:chk_pro',
+    })
+  })
 })
