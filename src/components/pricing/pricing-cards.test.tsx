@@ -63,6 +63,15 @@ describe("PricingCards", () => {
     expect(screen.getAllByLabelText("Recurso indisponível")).toHaveLength(1)
   })
 
+  it("renders the overview variant as a compact summary instead of the full feature list", () => {
+    render(<PricingCards variant="overview" />)
+
+    expect(screen.getByTestId("pricing-cards")).toHaveAttribute("data-variant", "overview")
+    expect(screen.getByText("ATS básico")).toBeInTheDocument()
+    expect(screen.getByText("Chat com IA")).toBeInTheDocument()
+    expect(screen.queryByText("Lista de palavras-chave")).not.toBeInTheDocument()
+  })
+
   it("redirects signed-out users to signup when they choose the free plan", async () => {
     const user = userEvent.setup()
 

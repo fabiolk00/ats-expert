@@ -7,7 +7,7 @@ current_phase_name: restrict ai chat access to active pro subscribers across ui 
 current_plan: 01 complete
 status: phase_complete
 stopped_at: Completed 102-01-PLAN.md
-last_updated: "2026-04-25T01:00:00.0000000-03:00"
+last_updated: "2026-04-25T12:26:00.0000000-03:00"
 last_activity: 2026-04-25
 progress:
   total_phases: 57
@@ -36,7 +36,7 @@ Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-25
-Last Activity Description: Completed 102-01-PLAN.md restricting AI chat access to active Pro subscribers across UI and API.
+Last Activity Description: Completed quick task 260425-gy2 merging the pricing comparison table and plan cards into one continuous pricing experience.
 
 Progress: [##########] 100%
 
@@ -182,6 +182,8 @@ Baseline carried forward from earlier shipped milestones:
 | 260424-f9w | remove all spacing below resume section titles | 2026-04-24 | working-tree | Validated | [260424-f9w-remove-all-spacing-below-resume-section-](./quick/260424-f9w-remove-all-spacing-below-resume-section-/) |
 | 260424-fgc | set resume section top padding to 1.5 | 2026-04-24 | working-tree | Validated | [260424-fgc-set-resume-section-top-padding-to-1-5](./quick/260424-fgc-set-resume-section-top-padding-to-1-5/) |
 | 260425-gsl | Remove the "Dúvidas? Fale conosco" phrase from the pricing comparison frontend | 2026-04-25 | working-tree | Validated | [260425-gsl-remove-the-d-vidas-fale-conosco-phrase-f](./quick/260425-gsl-remove-the-d-vidas-fale-conosco-phrase-f/) |
+
+| 260425-gy2 | Merge the plan comparison table and pricing cards into a continuous hybrid pricing experience | 2026-04-25 | working-tree | Validated | [260425-gy2-merge-plan-comparison-table-with-pricing](./quick/260425-gy2-merge-plan-comparison-table-with-pricing/) |
 
 ## Session Continuity
 
