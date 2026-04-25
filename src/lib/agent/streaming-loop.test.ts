@@ -2126,6 +2126,165 @@ describe('runAgentLoop streaming', () => {
     expect((session.agentState as { phaseMeta?: { careerFitOverrideTargetJobDescription?: string } }).phaseMeta?.careerFitOverrideTargetJobDescription).toContain('Senior Platform Engineer')
   })
 
+  it('continues generation in one turn when the user chooses "Continuar mesmo assim"', async () => {
+    const session = {
+      ...buildSession(),
+      phase: 'dialog' as const,
+      internalHeuristicAtsScore: {
+        total: 54,
+        breakdown: {
+          format: 70,
+          structure: 58,
+          keywords: 45,
+          contact: 95,
+          impact: 30,
+        },
+        issues: [],
+        suggestions: [],
+      },
+      agentState: {
+        parseStatus: 'parsed' as const,
+        rewriteHistory: {},
+        sourceResumeText: 'Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.',
+        targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go e Terraform.',
+        targetFitAssessment: {
+          level: 'weak' as const,
+          summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento.',
+          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
+          assessedAt: '2026-04-12T12:00:00.000Z',
+        },
+        gapAnalysis: {
+          result: {
+            matchScore: 34,
+            missingSkills: ['Kubernetes', 'Go', 'Terraform'],
+            weakAreas: ['experience', 'summary'],
+            improvementSuggestions: ['Build infrastructure projects before targeting this level.'],
+          },
+          analyzedAt: '2026-04-12T12:00:00.000Z',
+        },
+        phaseMeta: {
+          careerFitWarningIssuedAt: '2026-04-12T12:05:00.000Z',
+          careerFitWarningTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go e Terraform.',
+        },
+      },
+    }
+
+    mockDispatchToolWithContext.mockImplementation(async (toolName) => {
+      if (toolName === 'set_phase') {
+        return {
+          output: { success: true, phase: 'generation' },
+          outputJson: JSON.stringify({ success: true, phase: 'generation' }),
+          persistedPatch: {
+            phase: 'generation',
+          },
+        }
+      }
+
+      if (toolName === 'create_target_resume') {
+        return {
+          output: {
+            success: true,
+            targetId: 'target_weak_fit',
+            targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go e Terraform.',
+            derivedCvState: {
+              ...session.cvState,
+              summary: 'Profissional de dados em transição para infraestrutura com estudos em Kubernetes, Go e Terraform.',
+              skills: ['SQL', 'Power BI', 'Kubernetes', 'Terraform'],
+            },
+          },
+          outputJson: JSON.stringify({ success: true, targetId: 'target_weak_fit' }),
+          persistedPatch: {
+            agentState: {
+              targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go e Terraform.',
+            },
+          },
+        }
+      }
+
+      if (toolName === 'generate_file') {
+        return {
+          output: {
+            success: true,
+            pdfUrl: 'https://example.com/resume.pdf',
+          },
+          outputJson: JSON.stringify({ success: true, pdfUrl: 'https://example.com/resume.pdf' }),
+          persistedPatch: {
+            generatedOutput: {
+              status: 'ready',
+              pdfPath: 'usr_123/sess_123/resume.pdf',
+            },
+          },
+        }
+      }
+
+      if (toolName === 'score_ats') {
+        return {
+          output: {
+            success: true,
+            result: {
+              total: 63,
+              breakdown: {
+                format: 70,
+                structure: 65,
+                keywords: 58,
+                contact: 95,
+                impact: 40,
+              },
+              issues: [],
+              suggestions: [],
+            },
+          },
+          outputJson: JSON.stringify({ success: true, result: { total: 63 } }),
+          persistedPatch: {
+            internalHeuristicAtsScore: {
+              total: 63,
+              breakdown: {
+                format: 70,
+                structure: 65,
+                keywords: 58,
+                contact: 95,
+                impact: 40,
+              },
+              issues: [],
+              suggestions: [],
+            },
+          },
+        }
+      }
+
+      throw new Error(`Unexpected tool call: ${toolName}`)
+    })
+
+    const events = []
+    for await (const event of runAgentLoop({
+      session,
+      userMessage: 'Continuar mesmo assim',
+      appUserId: 'usr_123',
+      requestId: 'req_weak_fit_continue_generation',
+      isNewSession: false,
+      requestStartedAt: Date.now(),
+    })) {
+      events.push(event)
+    }
+
+    const finalText = events
+      .filter((event) => event.type === 'text')
+      .map((event) => event.content)
+      .join('')
+
+    expect(finalText).toContain('Seu currículo ATS-otimizado em PDF está pronto.')
+    expect(finalText).not.toContain('Preciso ser honesto')
+    expect((session.agentState as { phaseMeta?: { careerFitOverrideConfirmedAt?: string } }).phaseMeta?.careerFitOverrideConfirmedAt).toBeDefined()
+    expect(mockDispatchToolWithContext).toHaveBeenCalledWith(
+      'generate_file',
+      expect.objectContaining({
+        cv_state: expect.any(Object),
+      }),
+      expect.objectContaining({ id: 'sess_123' }),
+      undefined,
+    )
+  })
+
   it('generates files directly from dialog when Aceito arrives after a saved vacancy is already in context', async () => {
     const session = {
       ...buildSession(),

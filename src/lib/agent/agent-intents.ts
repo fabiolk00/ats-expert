@@ -95,4 +95,19 @@ export function isCareerFitOverrideConfirmation(message: string): boolean {
   )
 }
 
+export function isWeakFitContinueRequest(message: string): boolean {
+  const normalized = normalizeText(message)
+
+  if (!normalized || /\b(nao|not|cancel|depois)\b/.test(normalized)) {
+    return false
+  }
+
+  return (
+    normalized === 'continuar mesmo assim'
+    || normalized === 'quero continuar mesmo assim'
+    || normalized === 'quero prosseguir mesmo assim'
+    || normalized === 'prosseguir mesmo assim'
+  )
+}
+
 export { looksLikeJobDescription }

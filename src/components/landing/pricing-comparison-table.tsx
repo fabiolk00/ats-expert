@@ -212,18 +212,6 @@ export default function PricingComparisonTable() {
           </div>
         </div>
       </div>
-
-      <div className="mt-10 text-center">
-        <p className="text-sm text-neutral-500">
-          Dúvidas?{" "}
-          <a
-            href="#"
-            className="font-medium text-neutral-900 underline-offset-4 transition-all hover:underline"
-          >
-            Fale conosco
-          </a>
-        </p>
-      </div>
     </section>
   )
 }

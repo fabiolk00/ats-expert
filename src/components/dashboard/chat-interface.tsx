@@ -5,12 +5,22 @@ import { useUser } from "@clerk/nextjs"
 import { FileText, Send, Upload, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import { AGENT_CONFIG } from "@/lib/agent/config"
 import type { AtsReadinessScoreContract } from "@/lib/ats/scoring/types"
 import { cn } from "@/lib/utils"
-import type { AgentDoneChunk, AgentStreamChunk, Phase } from "@/types/agent"
+import type { AgentDoneChunk, AgentStreamChunk, CareerFitCheckpoint, Phase } from "@/types/agent"
 import type { CVState } from "@/types/cv"
 
 import { ChatMessage } from "./chat-message"
@@ -395,6 +405,7 @@ function mergeFetchedTranscriptMessages(
 interface ChatInterfaceProps {
   sessionId?: string
   userName?: string
+  weakFitCheckpoint?: CareerFitCheckpoint
   missingContactInfo?: MissingContactInfo
   disabled?: boolean
   currentCredits?: number
@@ -408,6 +419,9 @@ type SessionSnapshotResponse = {
   session?: {
     phase?: Phase
     atsReadiness?: AtsReadinessScoreContract
+    agentState?: {
+      careerFitCheckpoint?: CareerFitCheckpoint | null
+    }
     // Legacy raw heuristic diagnostic field; main product UI must read atsReadiness instead.
     atsScore?: {
       total?: number
@@ -444,6 +458,7 @@ export function ChatInterface({
   sessionId: initialSessionId,
   missingContactInfo,
   userName = "Você",
+  weakFitCheckpoint: initialWeakFitCheckpoint,
   disabled = false,
   currentCredits,
   onSessionChange,
@@ -474,6 +489,8 @@ export function ChatInterface({
   const [activeAssistantMessageId, setActiveAssistantMessageId] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>("intake")
   const [atsReadiness, setAtsReadiness] = useState<AtsReadinessScoreContract | undefined>()
+  const [weakFitCheckpoint, setWeakFitCheckpoint] = useState<CareerFitCheckpoint | undefined>(initialWeakFitCheckpoint)
+  const [weakFitModalOpen, setWeakFitModalOpen] = useState(false)
   const [messageCount, setMessageCount] = useState(0)
   const [maxMessages] = useState(AGENT_CONFIG.maxMessagesPerSession)
   const [sessionLimitReached, setSessionLimitReached] = useState(false)
@@ -484,6 +501,9 @@ export function ChatInterface({
   const displayedReadinessScore = getDisplayedReadinessScore(atsReadiness)
   const displayedReadinessLabel = getDisplayedReadinessLabel(atsReadiness)
   const showGenerationApproval = phase === "confirm" || (phase === "dialog" && displayedReadinessScore !== undefined)
+  const shouldConfirmWeakFitBeforeGenerate = showGenerationApproval
+    && weakFitCheckpoint?.status === "pending_confirmation"
+    && Boolean(weakFitCheckpoint.targetJobDescription.trim())
 
   const applySessionState = (nextSessionId: string | undefined): void => {
     setSessionId(nextSessionId)
@@ -537,6 +557,8 @@ export function ChatInterface({
         setAtsReadiness(data.session.atsReadiness)
       }
 
+      setWeakFitCheckpoint(data.session.agentState?.careerFitCheckpoint ?? undefined)
+
       if (data.session.messageCount !== undefined) {
         setMessageCount(data.session.messageCount)
       }
@@ -546,6 +568,16 @@ export function ChatInterface({
   }
 
   useEffect(() => {
+    setWeakFitCheckpoint(initialWeakFitCheckpoint)
+  }, [initialWeakFitCheckpoint])
+
+  useEffect(() => {
+    if (!shouldConfirmWeakFitBeforeGenerate && weakFitModalOpen) {
+      setWeakFitModalOpen(false)
+    }
+  }, [shouldConfirmWeakFitBeforeGenerate, weakFitModalOpen])
+
+  useEffect(() => {
     setSessionId(initialSessionId)
     setSessionExpired(false)
     setSessionLimitReached(false)
@@ -553,6 +585,7 @@ export function ChatInterface({
     if (!initialSessionId) {
       setPhase("intake")
       setAtsReadiness(undefined)
+      setWeakFitCheckpoint(undefined)
       setMessageCount(0)
       setUploadedFile(null)
       setMessages((previous) => (hasConversationMessages(previous) ? previous : welcomeMessages))
@@ -842,6 +875,9 @@ export function ChatInterface({
                   if (chunk.atsReadiness) {
                     setAtsReadiness(chunk.atsReadiness)
                   }
+                  if ("careerFitCheckpoint" in chunk) {
+                    setWeakFitCheckpoint(chunk.careerFitCheckpoint ?? undefined)
+                  }
                   if (chunk.messageCount !== undefined) {
                     setMessageCount(chunk.messageCount)
                   }
@@ -924,7 +960,17 @@ export function ChatInterface({
   }
 
   const handleApproveGeneration = async (): Promise<void> => {
+    if (shouldConfirmWeakFitBeforeGenerate) {
+      setWeakFitModalOpen(true)
+      return
+    }
+
     await handleSend({ message: "Aceito" })
+  }
+
+  const handleContinueWeakFitGeneration = async (): Promise<void> => {
+    setWeakFitModalOpen(false)
+    await handleSend({ message: "Continuar mesmo assim" })
   }
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>): void => {
@@ -1057,6 +1103,46 @@ export function ChatInterface({
               </Button>
             </div>
           ) : null}
+          <AlertDialog open={weakFitModalOpen} onOpenChange={setWeakFitModalOpen}>
+            <AlertDialogContent data-testid="weak-fit-confirmation-modal">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Essa vaga parece ter pouco match com o seu perfil</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {weakFitCheckpoint?.summary ?? "Ainda existe um desalinhamento relevante entre o seu histórico atual e a vaga salva."}{" "}
+                  Tem certeza que quer gerar mesmo assim?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {weakFitCheckpoint?.reasons.length ? (
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  {weakFitCheckpoint.reasons.map((reason) => (
+                    <p key={reason}>{reason}</p>
+                  ))}
+                </div>
+              ) : null}
+              {weakFitCheckpoint?.nextSteps.length ? (
+                <div className="space-y-2 rounded-2xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
+                  {weakFitCheckpoint.nextSteps.map((step) => (
+                    <p key={step}>{step}</p>
+                  ))}
+                </div>
+              ) : null}
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="weak-fit-cancel" disabled={isInputDisabled}>
+                  Cancelar
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  data-testid="weak-fit-continue"
+                  disabled={isInputDisabled}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    void handleContinueWeakFitGeneration()
+                  }}
+                >
+                  Continuar mesmo assim
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           {copy.allowFileUpload && uploadedFile && (
             <div className="flex w-fit items-center gap-2 rounded-lg bg-muted px-3 py-2">
               <FileText className="h-4 w-4 text-primary" />

@@ -34,6 +34,7 @@ vi.mock("./chat-interface", () => ({
     onAgentTurnCompleted,
     currentCredits,
     sessionId,
+    weakFitCheckpoint,
   }: {
     onCreditsExhausted?: () => void
     onSessionChange?: (sessionId: string) => void
@@ -44,6 +45,10 @@ vi.mock("./chat-interface", () => ({
     }) => void
     currentCredits?: number
     sessionId?: string
+    weakFitCheckpoint?: {
+      status: string
+      summary: string
+    } | null
   }) => (
     <>
       <button type="button" onClick={() => onCreditsExhausted?.()}>
@@ -64,6 +69,7 @@ vi.mock("./chat-interface", () => ({
       </button>
       <div data-testid="chat-session-id">{sessionId ?? "none"}</div>
       <div data-testid="chat-current-credits">{currentCredits ?? 0}</div>
+      <div data-testid="chat-weak-fit-checkpoint">{weakFitCheckpoint?.summary ?? "none"}</div>
     </>
   ),
 }))
@@ -268,6 +274,36 @@ describe("ResumeWorkspace", () => {
     expect(screen.getByTestId("ai-chat-access-card")).toBeInTheDocument()
     expect(screen.getByText("Chat com IA exclusivo do plano PRO")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: /fazer upgrade/i })).toHaveAttribute("href", "/precos?checkoutPlan=pro")
+  })
+
+  it("passes the snapshot-derived weak-fit checkpoint down to ChatInterface", async () => {
+    mockGetSessionWorkspace.mockResolvedValue({
+      ...buildWorkspace(),
+      session: {
+        ...buildWorkspace().session,
+        agentState: {
+          ...buildWorkspace().session.agentState,
+          careerFitCheckpoint: {
+            status: "pending_confirmation",
+            targetJobDescription: "Senior Platform Engineer",
+            summary: "A vaga atual parece um match fraco para o seu histórico.",
+            reasons: ["Skill ausente ou pouco evidenciada: Kubernetes"],
+            nextSteps: ["Cancelar para revisar a vaga."],
+            assessedAt: "2026-04-25T10:00:00.000Z",
+          },
+        },
+      },
+    })
+
+    renderWorkspace(<ResumeWorkspace initialSessionId="sess_123" userName="Fabio" />)
+
+    await waitFor(() => {
+      expect(mockGetSessionWorkspace).toHaveBeenCalledWith("sess_123")
+    })
+
+    expect(screen.getByTestId("chat-weak-fit-checkpoint")).toHaveTextContent(
+      "A vaga atual parece um match fraco para o seu histórico.",
+    )
   })
 
   it("keeps local credits unchanged after creating a free new session", async () => {

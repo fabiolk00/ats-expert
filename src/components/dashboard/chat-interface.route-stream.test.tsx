@@ -2,6 +2,7 @@ import React from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import "@testing-library/jest-dom"
 
 import { ChatInterface } from "./chat-interface"
@@ -17,6 +18,7 @@ const {
   mockCreateSessionWithCredit,
   mockGetMessages,
   mockAppendMessage,
+  mockApplyToolPatchWithVersion,
   mockCheckUserQuota,
   mockIncrementMessageCount,
   mockUpdateSession,
@@ -32,6 +34,7 @@ const {
   mockCreateSessionWithCredit: vi.fn(),
   mockGetMessages: vi.fn(),
   mockAppendMessage: vi.fn(),
+  mockApplyToolPatchWithVersion: vi.fn(),
   mockCheckUserQuota: vi.fn(),
   mockIncrementMessageCount: vi.fn(),
   mockUpdateSession: vi.fn(),
@@ -96,6 +99,7 @@ vi.mock("@/lib/db/sessions", () => ({
   createSessionWithCredit: mockCreateSessionWithCredit,
   getMessages: mockGetMessages,
   appendMessage: mockAppendMessage,
+  applyToolPatchWithVersion: mockApplyToolPatchWithVersion,
   checkUserQuota: mockCheckUserQuota,
   incrementMessageCount: mockIncrementMessageCount,
   updateSession: mockUpdateSession,
@@ -170,6 +174,15 @@ function buildDialogSession(overrides?: {
     createdAt: new Date(),
     updatedAt: new Date(),
   }
+}
+
+const pendingWeakFitCheckpoint = {
+  status: "pending_confirmation" as const,
+  targetJobDescription: "Senior Platform Engineer com foco em Kubernetes, Go e Terraform.",
+  summary: "A vaga atual parece um match fraco para o seu histórico.",
+  reasons: ["Skill ausente ou pouco evidenciada: Kubernetes"],
+  nextSteps: ["Cancelar para revisar a vaga antes de gerar."],
+  assessedAt: "2026-04-25T10:00:00.000Z",
 }
 
 async function* emptyStopStream() {
@@ -257,6 +270,38 @@ describe("ChatInterface real /api/agent transcript integration", () => {
         content,
         createdAt: new Date(),
       })
+    })
+    mockApplyToolPatchWithVersion.mockImplementation(async (session, patch) => {
+      if (patch?.phase) {
+        session.phase = patch.phase
+      }
+
+      if (patch?.cvState) {
+        session.cvState = {
+          ...session.cvState,
+          ...patch.cvState,
+        }
+      }
+
+      if (patch?.generatedOutput) {
+        session.generatedOutput = {
+          ...session.generatedOutput,
+          ...patch.generatedOutput,
+        }
+      }
+
+      if (patch?.agentState) {
+        session.agentState = {
+          ...session.agentState,
+          ...patch.agentState,
+          phaseMeta: patch.agentState.phaseMeta
+            ? {
+              ...session.agentState.phaseMeta,
+              ...patch.agentState.phaseMeta,
+            }
+            : session.agentState.phaseMeta,
+        }
+      }
     })
     mockCheckUserQuota.mockResolvedValue(true)
     mockCreateSessionWithCredit.mockResolvedValue(null)
@@ -462,5 +507,257 @@ describe("ChatInterface real /api/agent transcript integration", () => {
         "Recebi a vaga e ela já ficou salva como referência para o seu currículo.",
       )
     })
+  }, 10000)
+
+  it('reaches real generation from the weak-fit modal continue action without a second manual Aceito', async () => {
+    const session = {
+      ...buildDialogSession({
+        id: "sess_route_weak_fit_continue",
+        targetJobDescription: "Senior Platform Engineer com foco em Kubernetes, Go e Terraform.",
+      }),
+      internalHeuristicAtsScore: {
+        total: 54,
+        breakdown: {
+          format: 70,
+          structure: 58,
+          keywords: 45,
+          contact: 95,
+          impact: 30,
+        },
+        issues: [],
+        suggestions: [],
+      },
+      agentState: {
+        parseStatus: "parsed" as const,
+        rewriteHistory: {},
+        sourceResumeText: "Fabio Silva\nResumo\nExperiencia com Power BI, SQL e ETL.",
+        targetJobDescription: "Senior Platform Engineer com foco em Kubernetes, Go e Terraform.",
+        targetFitAssessment: {
+          level: "weak" as const,
+          summary: "O perfil atual parece pouco alinhado com a vaga-alvo neste momento.",
+          reasons: ["Skill ausente ou pouco evidenciada: Kubernetes"],
+          assessedAt: "2026-04-25T10:00:00.000Z",
+        },
+        gapAnalysis: {
+          result: {
+            matchScore: 34,
+            missingSkills: ["Kubernetes", "Go", "Terraform"],
+            weakAreas: ["experience", "summary"],
+            improvementSuggestions: ["Fortalecer projetos de infraestrutura antes de insistir nessa trilha."],
+          },
+          analyzedAt: "2026-04-25T10:00:00.000Z",
+        },
+        phaseMeta: {
+          careerFitWarningIssuedAt: "2026-04-25T10:05:00.000Z",
+          careerFitWarningTargetJobDescription: "Senior Platform Engineer com foco em Kubernetes, Go e Terraform.",
+        },
+      },
+    }
+
+    const { POST } = await loadRoute()
+    mockGetSession.mockResolvedValue(session)
+    mockDispatchToolWithContext.mockImplementation(async (toolName) => {
+      if (toolName === "set_phase") {
+        return {
+          output: { success: true, phase: "generation" },
+          outputJson: JSON.stringify({ success: true, phase: "generation" }),
+          persistedPatch: {
+            phase: "generation",
+          },
+        }
+      }
+
+      if (toolName === "create_target_resume") {
+        return {
+          output: {
+            success: true,
+            targetId: "target_weak_fit",
+            targetJobDescription: "Senior Platform Engineer com foco em Kubernetes, Go e Terraform.",
+            derivedCvState: {
+              ...session.cvState,
+              summary: "Profissional de dados em transição para infraestrutura com estudos em Kubernetes, Go e Terraform.",
+              skills: ["SQL", "Power BI", "Kubernetes", "Terraform"],
+            },
+          },
+          outputJson: JSON.stringify({ success: true, targetId: "target_weak_fit" }),
+          persistedPatch: {
+            agentState: {
+              targetJobDescription: "Senior Platform Engineer com foco em Kubernetes, Go e Terraform.",
+            },
+          },
+        }
+      }
+
+      if (toolName === "generate_file") {
+        return {
+          output: {
+            success: true,
+            pdfUrl: "https://example.com/resume.pdf",
+          },
+          outputJson: JSON.stringify({ success: true, pdfUrl: "https://example.com/resume.pdf" }),
+          persistedPatch: {
+            generatedOutput: {
+              status: "ready",
+              pdfPath: "usr_123/sess_route_weak_fit_continue/resume.pdf",
+            },
+          },
+        }
+      }
+
+      if (toolName === "score_ats") {
+        return {
+          output: {
+            success: true,
+            result: {
+              total: 63,
+              breakdown: {
+                format: 70,
+                structure: 65,
+                keywords: 58,
+                contact: 95,
+                impact: 40,
+              },
+              issues: [],
+              suggestions: [],
+            },
+          },
+          outputJson: JSON.stringify({ success: true, result: { total: 63 } }),
+          persistedPatch: {
+            internalHeuristicAtsScore: {
+              total: 63,
+              breakdown: {
+                format: 70,
+                structure: 65,
+                keywords: 58,
+                contact: 95,
+                impact: 40,
+              },
+              issues: [],
+              suggestions: [],
+            },
+          },
+        }
+      }
+
+      throw new Error(`Unexpected tool call: ${toolName}`)
+    })
+
+    const fakeInitialPayload = [
+      { type: "patch", patch: { phase: "confirm" }, phase: "confirm" },
+      { type: "text", content: 'Quando fizer sentido, clique em "Aceito" para gerar seu currículo.' },
+      { type: "done", sessionId: session.id, phase: "confirm", messageCount: 3, careerFitCheckpoint: pendingWeakFitCheckpoint },
+    ].map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")
+
+    let agentCallCount = 0
+    const agentBodies: Array<Record<string, unknown>> = []
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      if (typeof url === "string" && url === "/api/profile") {
+        return new Response(JSON.stringify({ profile: { profilePhotoUrl: null } }), { status: 200 })
+      }
+
+      if (typeof url === "string" && url === `/api/session/${session.id}/messages`) {
+        return new Response(
+          JSON.stringify({
+            messages: persistedMessages.map((message) => ({
+              ...message,
+              createdAt: message.createdAt.toISOString(),
+            })),
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        )
+      }
+
+      if (typeof url === "string" && url === `/api/session/${session.id}`) {
+        return new Response(
+          JSON.stringify({
+            session: {
+              phase: agentCallCount > 1 ? "generation" : "confirm",
+              agentState: {
+                careerFitCheckpoint: agentCallCount > 1 ? null : pendingWeakFitCheckpoint,
+              },
+              messageCount: agentCallCount > 1 ? 4 : 3,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        )
+      }
+
+      if (typeof url === "string" && url === "/api/agent") {
+        agentCallCount += 1
+        if (init?.body && typeof init.body === "string") {
+          agentBodies.push(JSON.parse(init.body) as Record<string, unknown>)
+        }
+
+        if (agentCallCount === 1) {
+          return toBrowserSseResponse(
+            new Response(null, {
+              status: 200,
+              headers: { "Content-Type": "text/event-stream", "X-Session-Id": session.id },
+            }),
+            fakeInitialPayload,
+          )
+        }
+
+        const routeResponse = await POST(new NextRequest("http://localhost/api/agent", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: init?.body as BodyInit,
+        }))
+        const routePayload = await routeResponse.text()
+        const routeHeaders = new Headers(routeResponse.headers)
+
+        return toBrowserSseResponse(
+          new Response(null, {
+            status: routeResponse.status,
+            headers: routeHeaders,
+          }),
+          routePayload,
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(
+      <ChatInterface
+        sessionId={session.id}
+        userName="Fabio"
+        weakFitCheckpoint={pendingWeakFitCheckpoint}
+      />,
+    )
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    fireEvent.change(textarea, { target: { value: "gere o arquivo" } })
+    fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" })
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-accept-generate")).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByTestId("chat-accept-generate"))
+
+    await waitFor(() => {
+      expect(screen.getByTestId("weak-fit-confirmation-modal")).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByTestId("weak-fit-continue"))
+
+    await waitFor(() => {
+      const assistantMessages = screen.getAllByTestId("message-assistant")
+      expect(assistantMessages[assistantMessages.length - 1]).toHaveTextContent("Seu currículo ATS-otimizado em PDF está pronto.")
+    })
+
+    expect(agentBodies[1]?.message).toBe("Continuar mesmo assim")
+    expect(mockDispatchToolWithContext.mock.calls.some(([toolName, toolInput, toolSession]) => (
+      toolName === "generate_file"
+      && typeof toolInput === "object"
+      && toolInput !== null
+      && "cv_state" in (toolInput as Record<string, unknown>)
+      && typeof toolSession === "object"
+      && toolSession !== null
+      && "id" in (toolSession as Record<string, unknown>)
+      && (toolSession as { id?: string }).id === session.id
+    ))).toBe(true)
   }, 10000)
 })

@@ -485,6 +485,7 @@ export function ResumeWorkspace({
       <ChatInterface
         sessionId={sessionId}
         userName={userName}
+        weakFitCheckpoint={workspace?.session.agentState.careerFitCheckpoint ?? undefined}
         missingContactInfo={missingContactInfo}
         disabled={activeMutation !== null}
         currentCredits={availableCredits}

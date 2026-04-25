@@ -1,5 +1,6 @@
 import { appendMessage, applyToolPatchWithVersion } from '@/lib/db/sessions'
 import { recordAtsReadinessCompatFieldEmission } from '@/lib/ats/scoring'
+import { buildCareerFitCheckpoint } from '@/lib/agent/profile-review'
 import type { AgentDoneChunk, AgentPatchChunk, Session } from '@/types/agent'
 
 type SessionPatch = NonNullable<Parameters<typeof applyToolPatchWithVersion>[1]>
@@ -67,6 +68,7 @@ export function buildDoneChunk(params: {
     // Legacy compatibility alias for older consumers. Product UI must use atsReadiness.
     atsScore: params.session.internalHeuristicAtsScore,
     atsReadiness: params.session.agentState.atsReadiness,
+    careerFitCheckpoint: buildCareerFitCheckpoint(params.session),
     messageCount: params.session.messageCount + 1,
     maxMessages: params.maxMessages,
     isNewSession: params.isNewSession,

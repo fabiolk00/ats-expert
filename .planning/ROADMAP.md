@@ -758,3 +758,13 @@ Plans:
 
 Plans:
 - [ ] 103-01-PLAN.md - Align canonical Monthly and Pro values, localize displayed price formatting, remove pricing-table drift, and refresh focused billing and UI regressions
+
+### Phase 104: Warn before job target generation when vacancy match is weak and require user confirmation to continue
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 103
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 104 to break down)

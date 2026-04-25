@@ -136,6 +136,7 @@ describe('agent persistence helpers', () => {
       internalHeuristicAtsScore: session.internalHeuristicAtsScore,
       atsScore: session.internalHeuristicAtsScore,
       atsReadiness: undefined,
+      careerFitCheckpoint: null,
       messageCount: 5,
       maxMessages: 30,
       isNewSession: false,

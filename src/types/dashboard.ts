@@ -4,6 +4,7 @@ import type {
   GeneratedOutput,
   JobProgress,
   JobStatusSnapshot,
+  CareerFitCheckpoint,
   Phase,
   PreviewAccessReason,
   ResumeGenerationType,
@@ -156,6 +157,7 @@ export type SessionWorkspace = {
         reasons: string[]
         assessedAt: string
       }
+      careerFitCheckpoint?: CareerFitCheckpoint | null
       gapAnalysis?: {
         result: GapAnalysisResult
         analyzedAt: string

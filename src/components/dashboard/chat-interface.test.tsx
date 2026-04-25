@@ -132,6 +132,15 @@ function submitComposer(textarea: HTMLElement, value: string) {
   fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" })
 }
 
+const pendingWeakFitCheckpoint = {
+  status: "pending_confirmation" as const,
+  targetJobDescription: "Senior Platform Engineer com foco em Kubernetes, Go e Terraform.",
+  summary: "A vaga atual parece um match fraco para o seu histórico.",
+  reasons: ["Skill ausente ou pouco evidenciada: Kubernetes"],
+  nextSteps: ["Cancelar para revisar a vaga antes de gerar."],
+  assessedAt: "2026-04-25T10:00:00.000Z",
+}
+
 describe("ChatInterface", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -475,6 +484,155 @@ describe("ChatInterface", () => {
     const [, secondInit] = fetchSpy.mock.calls[1] as [string, RequestInit]
     const secondBody = JSON.parse(secondInit.body as string) as Record<string, unknown>
     expect(secondBody.message).toBe("Aceito")
+  })
+
+  it('opens the weak-fit modal on Aceito and keeps the transcript untouched when the user cancels', async () => {
+    const fetchSpy = vi.fn()
+    let agentCallCount = 0
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        agentCallCount += 1
+        fetchSpy(url, init)
+
+        return new Response(
+          createSSEStream([
+            { type: "patch", patch: { phase: "confirm" }, phase: "confirm" },
+            { type: "text", content: 'Quando fizer sentido, clique em "Aceito" para gerar seu currículo.' },
+            { type: "done", sessionId: "sess_weak_fit", phase: "confirm", messageCount: 3, careerFitCheckpoint: pendingWeakFitCheckpoint },
+          ]),
+          { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_weak_fit" } },
+        )
+      }
+
+      if (typeof url === "string" && url === "/api/session/sess_weak_fit") {
+        return new Response(
+          JSON.stringify({
+            session: {
+              phase: "confirm",
+              agentState: {
+                careerFitCheckpoint: pendingWeakFitCheckpoint,
+              },
+              messageCount: 3,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(
+      <ChatInterface
+        sessionId="sess_weak_fit"
+        userName="Fabio"
+        weakFitCheckpoint={pendingWeakFitCheckpoint}
+      />,
+    )
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    submitComposer(textarea, "gere o arquivo")
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-accept-generate")).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByTestId("chat-accept-generate"))
+
+    await waitFor(() => {
+      expect(screen.getByTestId("weak-fit-confirmation-modal")).toBeInTheDocument()
+    })
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    await userEvent.click(screen.getByTestId("weak-fit-cancel"))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("weak-fit-confirmation-modal")).not.toBeInTheDocument()
+    })
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(agentCallCount).toBe(1)
+  })
+
+  it('sends one explicit continue message from the weak-fit modal', async () => {
+    const fetchSpy = vi.fn()
+    let agentCallCount = 0
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      if (typeof url === "string" && url.includes("/api/agent")) {
+        agentCallCount += 1
+        fetchSpy(url, init)
+
+        if (agentCallCount === 1) {
+          return new Response(
+            createSSEStream([
+              { type: "patch", patch: { phase: "confirm" }, phase: "confirm" },
+              { type: "text", content: 'Quando fizer sentido, clique em "Aceito" para gerar seu currículo.' },
+              { type: "done", sessionId: "sess_weak_fit_continue", phase: "confirm", messageCount: 3, careerFitCheckpoint: pendingWeakFitCheckpoint },
+            ]),
+            { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_weak_fit_continue" } },
+          )
+        }
+
+        return new Response(
+          createSSEStream([
+            { type: "text", content: "Segui com a geração mesmo com o warning." },
+            { type: "done", sessionId: "sess_weak_fit_continue", phase: "generation", messageCount: 4, careerFitCheckpoint: null },
+          ]),
+          { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_weak_fit_continue" } },
+        )
+      }
+
+      if (typeof url === "string" && url === "/api/session/sess_weak_fit_continue") {
+        return new Response(
+          JSON.stringify({
+            session: {
+              phase: agentCallCount > 1 ? "generation" : "confirm",
+              agentState: {
+                careerFitCheckpoint: agentCallCount > 1 ? null : pendingWeakFitCheckpoint,
+              },
+              messageCount: agentCallCount > 1 ? 4 : 3,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        )
+      }
+
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 })
+    })
+
+    render(
+      <ChatInterface
+        sessionId="sess_weak_fit_continue"
+        userName="Fabio"
+        weakFitCheckpoint={pendingWeakFitCheckpoint}
+      />,
+    )
+
+    const textarea = screen.getByPlaceholderText(/Cole a descri.*vaga aqui/i)
+    submitComposer(textarea, "gere o arquivo")
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-accept-generate")).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByTestId("chat-accept-generate"))
+
+    await waitFor(() => {
+      expect(screen.getByTestId("weak-fit-confirmation-modal")).toBeInTheDocument()
+    })
+
+    await userEvent.click(screen.getByTestId("weak-fit-continue"))
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+    })
+
+    const [, secondInit] = fetchSpy.mock.calls[1] as [string, RequestInit]
+    const secondBody = JSON.parse(secondInit.body as string) as Record<string, unknown>
+    expect(secondBody.message).toBe("Continuar mesmo assim")
   })
 
   it('shows the Aceito button in dialog after ATS context is available', async () => {

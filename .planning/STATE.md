@@ -51,6 +51,7 @@ Baseline carried forward from earlier shipped milestones:
 
 ### Roadmap Evolution
 
+- Phase 104 added: Warn before job target generation when vacancy match is weak and require user confirmation to continue.
 - Phase 103 added: Align Monthly and Pro plan price and credit limits across UI, billing, and tests.
 - Phase 102 added: Restrict AI chat access to active Pro subscribers across UI and API.
 - Phase 101 completed: the existing resume history UI now renders live protected generation history with latest-6 pagination and download/open actions.
@@ -180,6 +181,7 @@ Baseline carried forward from earlier shipped milestones:
 | 260424-f7v | fix cross-platform path normalization in copy audit baseline matching | 2026-04-24 | working-tree | Validated | [260424-f7v-fix-cross-platform-path-normalization-in](./quick/260424-f7v-fix-cross-platform-path-normalization-in/) |
 | 260424-f9w | remove all spacing below resume section titles | 2026-04-24 | working-tree | Validated | [260424-f9w-remove-all-spacing-below-resume-section-](./quick/260424-f9w-remove-all-spacing-below-resume-section-/) |
 | 260424-fgc | set resume section top padding to 1.5 | 2026-04-24 | working-tree | Validated | [260424-fgc-set-resume-section-top-padding-to-1-5](./quick/260424-fgc-set-resume-section-top-padding-to-1-5/) |
+| 260425-gsl | Remove the "Dúvidas? Fale conosco" phrase from the pricing comparison frontend | 2026-04-25 | working-tree | Validated | [260425-gsl-remove-the-d-vidas-fale-conosco-phrase-f](./quick/260425-gsl-remove-the-d-vidas-fale-conosco-phrase-f/) |
 
 ## Session Continuity
 

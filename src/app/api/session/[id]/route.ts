@@ -7,6 +7,7 @@ import {
   recordAtsReadinessCompatFieldEmission,
   resolveSessionAtsReadiness,
 } from '@/lib/ats/scoring'
+import { buildCareerFitCheckpoint } from '@/lib/agent/profile-review'
 import { getResumeTargetsForSession } from '@/lib/db/resume-targets'
 import { getSession } from '@/lib/db/sessions'
 import {
@@ -117,6 +118,7 @@ export async function GET(
             parseConfidenceScore: session.agentState.parseConfidenceScore,
             targetJobDescription: session.agentState.targetJobDescription,
             targetFitAssessment: session.agentState.targetFitAssessment,
+            careerFitCheckpoint: buildCareerFitCheckpoint(session),
             gapAnalysis: session.agentState.gapAnalysis,
             targetingPlan: session.agentState.targetingPlan,
             atsAnalysis: session.agentState.atsAnalysis,

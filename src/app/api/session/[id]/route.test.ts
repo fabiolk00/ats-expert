@@ -109,6 +109,140 @@ describe('session route', () => {
     }))
   })
 
+  it('returns a derived careerFitCheckpoint when the current target still requires confirmation', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({ id: 'usr_123' } as never)
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_checkpoint',
+      userId: 'usr_123',
+      phase: 'dialog',
+      stateVersion: 1,
+      cvState: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        linkedin: 'https://linkedin.com/in/ana',
+        location: 'Sao Paulo',
+        summary: 'Analista de BI com foco em SQL, dashboards e automacao.',
+        experience: [{
+          title: 'Analista de BI',
+          company: 'Acme',
+          startDate: '2022',
+          endDate: '2024',
+          bullets: ['Criei dashboards executivos com SQL e Power BI.'],
+        }],
+        skills: ['SQL', 'Power BI', 'ETL'],
+        education: [],
+        certifications: [],
+      },
+      agentState: {
+        workflowMode: 'job_targeting',
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+        targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+        targetFitAssessment: {
+          level: 'weak',
+          summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento.',
+          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
+          assessedAt: '2026-04-22T10:00:00.000Z',
+        },
+        gapAnalysis: {
+          result: {
+            matchScore: 34,
+            missingSkills: ['Kubernetes', 'Go', 'Terraform'],
+            weakAreas: ['experience', 'summary'],
+            improvementSuggestions: ['Fortalecer projetos de infraestrutura antes de insistir nessa trilha.'],
+          },
+          analyzedAt: '2026-04-22T10:00:00.000Z',
+        },
+        phaseMeta: {
+          careerFitWarningIssuedAt: '2026-04-22T10:05:00.000Z',
+          careerFitWarningTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+        },
+      },
+      generatedOutput: {
+        status: 'idle',
+      },
+      messageCount: 2,
+      creditConsumed: false,
+      createdAt: '2026-04-21T00:00:00.000Z',
+      updatedAt: '2026-04-22T10:05:00.000Z',
+    } as never)
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_checkpoint'),
+      { params: { id: 'sess_checkpoint' } },
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.session.agentState.careerFitCheckpoint).toMatchObject({
+      status: 'pending_confirmation',
+      targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+      summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento.',
+      assessedAt: '2026-04-22T10:00:00.000Z',
+    })
+    expect(body.session.agentState.careerFitCheckpoint.reasons).toEqual(expect.arrayContaining([
+      'Skill ausente ou pouco evidenciada: Kubernetes',
+      'Principais gaps hoje: Kubernetes, Go, Terraform.',
+    ]))
+  })
+
+  it('omits the careerFitCheckpoint after the current target was already explicitly confirmed', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({ id: 'usr_123' } as never)
+    vi.mocked(getSession).mockResolvedValue({
+      id: 'sess_confirmed_checkpoint',
+      userId: 'usr_123',
+      phase: 'dialog',
+      stateVersion: 1,
+      cvState: {
+        fullName: 'Ana Silva',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        linkedin: 'https://linkedin.com/in/ana',
+        location: 'Sao Paulo',
+        summary: 'Analista de BI com foco em SQL.',
+        experience: [],
+        skills: ['SQL'],
+        education: [],
+        certifications: [],
+      },
+      agentState: {
+        workflowMode: 'job_targeting',
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+        targetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+        targetFitAssessment: {
+          level: 'weak',
+          summary: 'O perfil atual parece pouco alinhado com a vaga-alvo neste momento.',
+          reasons: ['Skill ausente ou pouco evidenciada: Kubernetes'],
+          assessedAt: '2026-04-22T10:00:00.000Z',
+        },
+        phaseMeta: {
+          careerFitWarningIssuedAt: '2026-04-22T10:05:00.000Z',
+          careerFitWarningTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+          careerFitOverrideConfirmedAt: '2026-04-22T10:06:00.000Z',
+          careerFitOverrideTargetJobDescription: 'Senior Platform Engineer com foco em Kubernetes, Go, Terraform e arquitetura distribuida.',
+        },
+      },
+      generatedOutput: {
+        status: 'idle',
+      },
+      messageCount: 2,
+      creditConsumed: false,
+      createdAt: '2026-04-21T00:00:00.000Z',
+      updatedAt: '2026-04-22T10:06:00.000Z',
+    } as never)
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/session/sess_confirmed_checkpoint'),
+      { params: { id: 'sess_confirmed_checkpoint' } },
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.session.agentState.careerFitCheckpoint).toBeNull()
+  })
+
   it('returns the canonical ATS Readiness contract for ATS enhancement sessions', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({ id: 'usr_123' } as never)
     vi.mocked(getSession).mockResolvedValue({

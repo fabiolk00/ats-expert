@@ -8,6 +8,7 @@ import {
   isDialogRewriteRequest,
   isGenerationApproval,
   isGenerationRequest,
+  isWeakFitContinueRequest,
   looksLikeJobDescription,
   normalizeText,
   resolveRewriteFocus,
@@ -1559,6 +1560,51 @@ export async function* runAgentLoop(
   )
 
   try {
+    if (pendingCareerFitOverride && isWeakFitContinueRequest(userMessage)) {
+      const patch = await confirmCareerFitOverride(session)
+      if (patch) {
+        yield createPatchChunk(session, patch)
+      }
+
+      const generationAssistantText = resolveGenerationPrerequisiteMessage(session)
+        ?? (yield* handleConfirmedGeneration({
+          session,
+          requestId,
+          signal,
+        }))
+
+      yield {
+        type: 'text',
+        content: generationAssistantText,
+      }
+
+      assistantResponded = true
+      await appendAssistantTurn(session.id, generationAssistantText)
+
+      logInfo('agent.stream.completed', {
+        ...releaseMetadata,
+        requestId,
+        sessionId: session.id,
+        appUserId,
+        phase: session.phase,
+        stateVersion: session.stateVersion,
+        isNewSession,
+        messageCountAfter: session.messageCount + 1,
+        toolLoopsUsed: toolIterations,
+        success: true,
+        latencyMs: Date.now() - requestStartedAt,
+      })
+
+      yield buildDoneChunk({
+        requestId,
+        session,
+        isNewSession,
+        toolIterations,
+        maxMessages: AGENT_CONFIG.maxMessagesPerSession,
+      })
+      return
+    }
+
     if (pendingCareerFitOverride && isCareerFitOverrideConfirmation(userMessage)) {
       const patch = await confirmCareerFitOverride(session)
       if (patch) {

@@ -545,6 +545,7 @@ export type AgentDoneChunk = {
   // Deprecated compatibility field. Do not use as the ATS Readiness product score.
   atsScore?: ATSScoreResult
   atsReadiness?: AtsReadinessScoreContract
+  careerFitCheckpoint?: CareerFitCheckpoint | null
   messageCount?: number
   maxMessages?: number
   isNewSession?: boolean
