@@ -493,7 +493,7 @@ describe('POST /api/profile/smart-generation', () => {
           issues: [{
             severity: 'high',
             section: 'summary',
-            message: 'O resumo otimizado menciona skills sem alinhamento com a experiÃªncia reescrita.',
+            message: 'O resumo otimizado menciona skills sem alinhamento com a experiência reescrita.',
           }],
         },
         error: 'Job targeting rewrite validation failed.',

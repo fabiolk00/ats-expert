@@ -581,7 +581,7 @@ describe("ResumeWorkspace", () => {
             issues: [{
               severity: "medium",
               section: "skills",
-              message: "A lista de skills otimizada introduziu habilidade ou ferramenta sem base no currÃ­culo original.",
+              message: "A lista de skills otimizada introduziu habilidade ou ferramenta sem base no currículo original.",
             }],
           },
           targetingPlan: {

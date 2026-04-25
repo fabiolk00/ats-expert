@@ -39,37 +39,17 @@ const plans = [
 ] as const
 
 type DisplayPlan = (typeof plans)[number]["slug"]
-type PricingCardsVariant = "default" | "overview"
-
-type PricingCardsProps = {
-  variant?: PricingCardsVariant
-}
 
 function getSignupRedirectPath(plan: PaidPlanSlug): string {
   return `/criar-conta?redirect_to=${encodeURIComponent(buildCheckoutResumePath(plan))}`
 }
 
-function getOverviewHighlights(plan: DisplayPlan): string[] {
-  const config = PLANS[plan]
-
-  return [
-    `${config.credits} ${config.credits === 1 ? "currículo" : "currículos"}`,
-    plan === "free" ? "ATS básico" : "ATS completo",
-    plan === "pro"
-      ? "Chat com IA"
-      : plan === "free"
-        ? "Entrada gratuita"
-        : "PDF + DOCX",
-  ]
-}
-
-export default function PricingCards({ variant = "default" }: PricingCardsProps) {
+export default function PricingCards() {
   const { isLoaded, isSignedIn } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState<string | null>(null)
   const autoCheckoutStartedRef = useRef(false)
-  const isOverview = variant === "overview"
 
   const redirectToAuth = useCallback(
     (plan: PaidPlanSlug) => {
@@ -136,28 +116,17 @@ export default function PricingCards({ variant = "default" }: PricingCardsProps)
   }, [isLoaded, isSignedIn, router, searchParams])
 
   return (
-    <div
-      data-testid="pricing-cards"
-      data-variant={variant}
-      className={cn(
-        "mx-auto grid max-w-7xl md:grid-cols-2 xl:grid-cols-4",
-        isOverview ? "gap-4 lg:gap-5" : "gap-8",
-      )}
-    >
+    <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-2 xl:grid-cols-4">
       {plans.map((plan) => {
         const config = PLANS[plan.slug]
         const period = config.billing === "monthly" ? "/mês" : ""
         const hasJobManagement = plan.slug !== "free"
-        const overviewHighlights = getOverviewHighlights(plan.slug)
 
         return (
           <Card
             key={config.name}
             className={cn(
-              "relative flex h-full flex-col border border-border/60 py-0 transition-all",
-              isOverview
-                ? "rounded-[1.75rem] bg-background/88 shadow-[0_22px_70px_-52px_oklch(var(--foreground)/0.7)] backdrop-blur"
-                : "rounded-[2rem] bg-card/85 shadow-[0_28px_90px_-65px_oklch(var(--foreground)/0.8)]",
+              "relative flex h-full flex-col rounded-[2rem] border border-border/60 bg-card/85 py-0 shadow-[0_28px_90px_-65px_oklch(var(--foreground)/0.8)] transition-all",
               plan.popular
                 ? "border-primary/70 lg:scale-[1.03]"
                 : "hover:-translate-y-1 hover:border-border hover:shadow-xl",
@@ -169,62 +138,40 @@ export default function PricingCards({ variant = "default" }: PricingCardsProps)
               </Badge>
             ) : null}
 
-            <CardHeader className={cn("text-center", isOverview ? "pb-3 pt-7" : "pb-2 pt-8")}>
+            <CardHeader className="pb-2 pt-8 text-center">
               <CardTitle className="text-2xl">{config.name}</CardTitle>
-              <CardDescription className={cn(isOverview ? "mx-auto max-w-[20ch]" : undefined)}>
-                {config.description}
-              </CardDescription>
+              <CardDescription>{config.description}</CardDescription>
             </CardHeader>
 
             <CardContent className="flex flex-1 flex-col justify-between text-center">
-              <div className={cn(isOverview ? "mb-5" : "mb-8")}>
-                <span className={cn("font-black tracking-tight", isOverview ? "text-4xl" : "text-5xl")}>
-                  {formatPrice(config.price)}
-                </span>
+              <div className="mb-8">
+                <span className="text-5xl font-black tracking-tight">{formatPrice(config.price)}</span>
                 <span className="text-muted-foreground">{period}</span>
               </div>
 
-              {isOverview ? (
-                <div className="flex flex-1 flex-wrap justify-center gap-2">
-                  {overviewHighlights.map((highlight) => (
-                    <span
-                      key={highlight}
-                      className={cn(
-                        "inline-flex rounded-full border px-3 py-1 text-xs font-semibold tracking-[0.02em]",
-                        plan.popular
-                          ? "border-primary/25 bg-primary/8 text-primary"
-                          : "border-border/70 bg-muted/40 text-muted-foreground",
-                      )}
-                    >
-                      {highlight}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <ul className="space-y-4 text-left">
-                  {config.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3">
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
-                      <span className="text-sm font-medium">{feature}</span>
-                    </li>
-                  ))}
-                  <li key="job-management" className="flex items-start gap-3">
-                    {hasJobManagement ? (
-                      <Check aria-label="Recurso incluído" className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
-                    ) : (
-                      <X aria-label="Recurso indisponível" className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
-                    )}
-                    <span className={cn("text-sm font-medium", hasJobManagement ? undefined : "text-muted-foreground")}>
-                      Gerenciamento de vagas
-                    </span>
+              <ul className="space-y-4 text-left">
+                {config.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3">
+                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
+                    <span className="text-sm font-medium">{feature}</span>
                   </li>
-                </ul>
-              )}
+                ))}
+                <li key="job-management" className="flex items-start gap-3">
+                  {hasJobManagement ? (
+                    <Check aria-label="Recurso incluído" className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
+                  ) : (
+                    <X aria-label="Recurso indisponível" className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
+                  )}
+                  <span className={cn("text-sm font-medium", hasJobManagement ? undefined : "text-muted-foreground")}>
+                    Gerenciamento de vagas
+                  </span>
+                </li>
+              </ul>
             </CardContent>
 
-            <CardFooter className={cn(isOverview ? "pb-6 pt-4" : "pb-8")}>
+            <CardFooter className="pb-8">
               <Button
-                className={cn("w-full rounded-full font-semibold", isOverview ? "h-11" : "h-12")}
+                className="h-12 w-full rounded-full font-semibold"
                 variant={plan.popular ? "default" : "outline"}
                 onClick={() => void handlePlanAction(plan.slug)}
                 disabled={!isLoaded || loading !== null}

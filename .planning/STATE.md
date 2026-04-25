@@ -7,7 +7,7 @@ current_phase_name: restrict ai chat access to active pro subscribers across ui 
 current_plan: 01 complete
 status: phase_complete
 stopped_at: Completed 102-01-PLAN.md
-last_updated: "2026-04-25T12:26:00.0000000-03:00"
+last_updated: "2026-04-25T12:35:00.0000000-03:00"
 last_activity: 2026-04-25
 progress:
   total_phases: 57
@@ -36,7 +36,7 @@ Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-25
-Last Activity Description: Completed quick task 260425-gy2 merging the pricing comparison table and plan cards into one continuous pricing experience.
+Last Activity Description: Completed quick task 260425-heh adapting the landing responsiveness branch patterns to the landing hero and current pricing page changes.
 
 Progress: [##########] 100%
 
@@ -184,6 +184,11 @@ Baseline carried forward from earlier shipped milestones:
 | 260425-gsl | Remove the "Dúvidas? Fale conosco" phrase from the pricing comparison frontend | 2026-04-25 | working-tree | Validated | [260425-gsl-remove-the-d-vidas-fale-conosco-phrase-f](./quick/260425-gsl-remove-the-d-vidas-fale-conosco-phrase-f/) |
 
 | 260425-gy2 | Merge the plan comparison table and pricing cards into a continuous hybrid pricing experience | 2026-04-25 | working-tree | Validated | [260425-gy2-merge-plan-comparison-table-with-pricing](./quick/260425-gy2-merge-plan-comparison-table-with-pricing/) |
+| 260425-h8b | Fix new mojibake regressions that broke the copy audit baseline | 2026-04-25 | working-tree | Validated | [260425-h8b-fix-copy-regression-audit-failures-cause](./quick/260425-h8b-fix-copy-regression-audit-failures-cause/) |
+
+| 260425-h9z | Revert the pricing hybrid rewrite and keep only a scroll cue above the comparison table | 2026-04-25 | working-tree | Validated | [260425-h9z-revert-pricing-hybrid-rewrite-and-add-on](./quick/260425-h9z-revert-pricing-hybrid-rewrite-and-add-on/) |
+
+| 260425-heh | Analyze the landing-page-responsiveness branch and adapt its responsive patterns to the current pricing work | 2026-04-25 | working-tree | Validated | [260425-heh-analyze-branch-responsiveness-pull-its-l](./quick/260425-heh-analyze-branch-responsiveness-pull-its-l/) |
 
 ## Session Continuity
 

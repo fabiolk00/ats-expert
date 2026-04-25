@@ -17,12 +17,4 @@ describe("PricingComparisonTable", () => {
     expect(screen.getByText(String(PLANS.pro.credits))).toBeInTheDocument()
     expect(screen.queryByText("R$ 69,90")).not.toBeInTheDocument()
   })
-
-  it("supports an embedded variant without the standalone hero copy", () => {
-    render(<PricingComparisonTable variant="embedded" />)
-
-    expect(screen.getByTestId("pricing-comparison-table")).toHaveAttribute("data-variant", "embedded")
-    expect(screen.queryByText("Escolha o plano ideal")).not.toBeInTheDocument()
-    expect(screen.getByText(formatPrice(PLANS.monthly.price))).toBeInTheDocument()
-  })
 })

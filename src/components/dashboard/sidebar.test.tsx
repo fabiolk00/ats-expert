@@ -139,7 +139,7 @@ describe("DashboardSidebar", () => {
 
     render(<DashboardSidebar canAccessAiChat={false} />)
 
-    expect(screen.queryByRole("link", { name: "SessÃµes" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("link", { name: "Sessões" })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Nova conversa" }))
 
