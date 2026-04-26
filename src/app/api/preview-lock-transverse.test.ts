@@ -8,6 +8,8 @@ const {
   mockCheckUserQuota,
   mockApplyToolPatchWithVersion,
   mockGetSession,
+  mockGetSessionLookupResult,
+  mockGetUserSessions,
   mockRunAtsEnhancementPipeline,
   mockRunJobTargetingPipeline,
   mockDispatchToolWithContext,
@@ -38,6 +40,8 @@ const {
   mockCheckUserQuota: vi.fn(),
   mockApplyToolPatchWithVersion: vi.fn(),
   mockGetSession: vi.fn(),
+  mockGetSessionLookupResult: vi.fn(),
+  mockGetUserSessions: vi.fn(),
   mockRunAtsEnhancementPipeline: vi.fn(),
   mockRunJobTargetingPipeline: vi.fn(),
   mockDispatchToolWithContext: vi.fn(),
@@ -76,6 +80,8 @@ vi.mock('@/lib/db/sessions', () => ({
   checkUserQuota: mockCheckUserQuota,
   applyToolPatchWithVersion: mockApplyToolPatchWithVersion,
   getSession: mockGetSession,
+  getSessionLookupResult: mockGetSessionLookupResult,
+  getUserSessions: mockGetUserSessions,
 }))
 
 vi.mock('@/lib/agent/ats-enhancement-pipeline', () => ({
@@ -299,6 +305,11 @@ describe('preview lock transverse regression flow', () => {
     mockCheckUserQuota.mockResolvedValue(true)
     mockApplyToolPatchWithVersion.mockResolvedValue(undefined)
     mockGetSession.mockImplementation(async () => sharedSession)
+    mockGetSessionLookupResult.mockImplementation(async () => ({
+      kind: 'found',
+      session: sharedSession,
+    }))
+    mockGetUserSessions.mockResolvedValue([])
     mockRunJobTargetingPipeline.mockResolvedValue({
       success: false,
     })

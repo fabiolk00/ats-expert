@@ -7,7 +7,7 @@ current_phase_name: harden highlight de job targeting com origem rastreavel e ga
 current_plan: 01 completed
 status: in_progress
 stopped_at: Completed Phase 107 highlight hardening implementation and verification
-last_updated: "2026-04-26T18:53:00.0000000-03:00"
+last_updated: "2026-04-26T19:39:00.0000000-03:00"
 last_activity: 2026-04-26
 progress:
   total_phases: 57
@@ -36,7 +36,7 @@ Current Plan: 01 completed
 Total Plans in Phase: 1
 Status: In progress
 Last activity: 2026-04-26
-Last Activity Description: Propagated real gap-analysis repair attempts into the job_targeting trace and removed the vacuous fourth ATS validateRewrite fallback pass.
+Last Activity Description: Fixed the preview-lock transverse architecture proof by updating the test sessions mock to expose getSessionLookupResult and getUserSessions.
 
 Progress: [##########] 100%
 
@@ -210,6 +210,8 @@ Baseline carried forward from earlier shipped milestones:
 | 260426-hjh | Hardening final do highlight compartilhado: auditoria ATS, compatibilidade legada e thresholds nomeados | 2026-04-26 | working-tree | Validated | [260426-hjh-hardening-final-highlight-job-targeting-ats-](./quick/260426-hjh-hardening-final-highlight-job-targeting-ats-/) |
 | 260426-hat | Hardening arquitetural: trace consolidado de job_targeting e documentação das quatro validações ATS | 2026-04-26 | working-tree | Validated | [260426-hat-hardening-arquitetural-observabilidade-validacao-ats-](./quick/260426-hat-hardening-arquitetural-observabilidade-validacao-ats-/) |
 | 260426-hrv | Hardening do trace `repairAttempted` e remoção da quarta validação ATS vacuamente redundante | 2026-04-26 | working-tree | Validated | [260426-hrv-hardening-trace-repairattempted-e-validacao-ats-](./quick/260426-hrv-hardening-trace-repairattempted-e-validacao-ats-/) |
+
+| 260426-qfa | Fix preview-lock transverse test sessions mock to match file-access lookup contract | 2026-04-26 | working-tree | Validated | [260426-qfa-fix-preview-lock-transverse-sessions-mock-for-architecture-proof-pack](./quick/260426-qfa-fix-preview-lock-transverse-sessions-mock-for-architecture-proof-pack/) |
 
 ## Session Continuity
 
