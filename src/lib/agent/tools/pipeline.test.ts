@@ -1473,6 +1473,13 @@ describe('ATS enhancement reliability hardening', () => {
       highlightStateResolvedItemCount: 1,
       highlightStateResolvedRangeCount: 1,
     }))
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.generation_gate', expect.objectContaining({
+      workflowMode: 'job_targeting',
+      highlightGenerationDecision: 'allowed',
+      jobKeywordsCount: 1,
+      validationValid: true,
+      optimizedChanged: true,
+    }))
     expect(mockLogInfo).toHaveBeenCalledWith('agent.job_targeting.completed', expect.objectContaining({
       workflowMode: 'job_targeting',
       success: true,
@@ -1631,7 +1638,93 @@ describe('ATS enhancement reliability hardening', () => {
       expect.any(Object),
       expect.objectContaining({
         workflowMode: 'job_targeting',
-        jobKeywords: [],
+        jobKeywords: ['SQL', 'Power BI'],
+      }),
+    )
+  })
+
+  it('falls back from missingSkills to targetingPlan emphasis when deriving job keywords', async () => {
+    const session = buildSession()
+    session.agentState.workflowMode = 'job_targeting'
+    session.agentState.targetJobDescription = [
+      'Cargo: Analytics Engineer',
+      'Responsabilidades: construir dashboards e automacoes de dados.',
+      'Requisitos: SQL, Power BI e comunicacao com negocio.',
+    ].join('\n')
+
+    mockAnalyzeGap.mockResolvedValue({
+      output: {
+        success: true,
+        result: {
+          matchScore: 82,
+          missingSkills: [],
+          weakAreas: ['summary'],
+          improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
+        },
+      },
+      result: {
+        matchScore: 82,
+        missingSkills: [],
+        weakAreas: ['summary'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
+      },
+    })
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput({
+        ...buildCvState(),
+        summary: 'Analytics engineer com foco em SQL, Power BI e automacao analitica para negocio.',
+      }, section),
+    }))
+
+    const result = await runJobTargetingPipeline(session)
+
+    expect(result.success).toBe(true)
+    expect(mockGenerateCvHighlightState).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        workflowMode: 'job_targeting',
+        jobKeywords: ['SQL', 'Power BI'],
+      }),
+    )
+  })
+
+  it('falls back to targetJobDescription-derived keywords when gap and stronger targeting signals are empty', async () => {
+    const session = buildSession()
+    session.agentState.workflowMode = 'job_targeting'
+    session.agentState.targetJobDescription = 'Role with analytics and stakeholder communication.'
+
+    mockAnalyzeGap.mockResolvedValue({
+      output: {
+        success: true,
+        result: {
+          matchScore: 60,
+          missingSkills: [],
+          weakAreas: [],
+          improvementSuggestions: [],
+        },
+      },
+      result: {
+        matchScore: 60,
+        missingSkills: [],
+        weakAreas: [],
+        improvementSuggestions: [],
+      },
+    })
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput({
+        ...buildCvState(),
+        summary: 'Analytics profile with stakeholder communication and business translation.',
+      }, section),
+    }))
+
+    const result = await runJobTargetingPipeline(session)
+
+    expect(result.success).toBe(true)
+    expect(mockGenerateCvHighlightState).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        workflowMode: 'job_targeting',
+        jobKeywords: ['with', 'analytics', 'stakeholder', 'communication.'],
       }),
     )
   })
@@ -1850,6 +1943,12 @@ describe('ATS enhancement reliability hardening', () => {
       highlightStatePersisted: false,
       highlightStatePersistedReason: 'not_generated_for_unchanged_cv_state',
     }))
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.generation_gate', expect.objectContaining({
+      workflowMode: 'job_targeting',
+      highlightGenerationDecision: 'blocked_unchanged_cv_state',
+      validationValid: true,
+      optimizedChanged: false,
+    }))
   })
 
   it('logs the exact validation issues when job_targeting validation fails', async () => {
@@ -1894,6 +1993,11 @@ describe('ATS enhancement reliability hardening', () => {
       issueSections: 'summary',
       issueMessages: expect.stringContaining('O resumo targetizado passou a se apresentar diretamente como o cargo alvo'),
       targetRole: 'Analista De BI',
+    }))
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.generation_gate', expect.objectContaining({
+      workflowMode: 'job_targeting',
+      highlightGenerationDecision: 'blocked_validation_failed',
+      validationValid: false,
     }))
   })
 

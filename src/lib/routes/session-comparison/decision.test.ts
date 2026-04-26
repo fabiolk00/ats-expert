@@ -281,6 +281,70 @@ describe('session-comparison decision', () => {
     }))
   })
 
+  it('returns highlightState for job_targeting flows without ATS-specific gating', async () => {
+    const decision = await decideSessionComparison({
+      request: new Request('https://example.com/api/session/sess_job_highlight/comparison') as never,
+      params: { id: 'sess_job_highlight' },
+      appUser: { id: 'usr_1' } as never,
+      session: {
+        id: 'sess_job_highlight',
+        userId: 'usr_1',
+        cvState: {
+          fullName: 'Ana',
+          email: 'ana@example.com',
+          phone: '1',
+          summary: 'base summary',
+          experience: [],
+          skills: ['SQL'],
+          education: [],
+        },
+        agentState: {
+          workflowMode: 'job_targeting',
+          lastRewriteMode: 'job_targeting',
+          targetJobDescription: 'Data role',
+          highlightState: {
+            source: 'rewritten_cv_state',
+            version: 2,
+            generatedAt: '2026-04-22T12:00:00.000Z',
+            resolvedHighlights: [{
+              itemId: 'summary_0',
+              section: 'summary',
+              ranges: [{ start: 0, end: 9, reason: 'ats_strength' }],
+            }],
+          },
+          optimizedCvState: {
+            fullName: 'Ana',
+            email: 'ana@example.com',
+            phone: '1',
+            summary: 'optimized summary',
+            experience: [],
+            skills: ['SQL', 'Python'],
+            education: [],
+          },
+        },
+        generatedOutput: {
+          status: 'ready',
+        },
+      } as never,
+    })
+
+    expect(decision.kind).toBe('success')
+    if (decision.kind !== 'success') {
+      throw new Error('expected success decision')
+    }
+
+    expect(decision.body.generationType).toBe('JOB_TARGETING')
+    expect(decision.body.highlightState).toBeDefined()
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.response_evaluated', expect.objectContaining({
+      surface: 'session_comparison',
+      previewLocked: false,
+      highlightStateResponseKind: 'present_non_empty',
+      highlightStateReturned: true,
+      highlightStateVisibleRangeCount: 1,
+      highlightStateRendererMismatch: false,
+    }))
+  })
+
   it('flags non-renderable comparison highlights when the artifact is present but resolves to zero visible spans', async () => {
     const decision = await decideSessionComparison({
       request: new Request('https://example.com/api/session/sess_mismatch/comparison') as never,

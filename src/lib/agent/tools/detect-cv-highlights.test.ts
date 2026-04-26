@@ -146,6 +146,68 @@ describe('detectCvHighlights', () => {
     expect(systemPrompt).toContain('Vacancy keyword overlap is a tie-breaker only.')
   })
 
+  it('still accepts a stronger non-keyword semantic nucleus even when job keywords are provided', async () => {
+    const cvState = buildCvState()
+    const items = flattenCvStateForHighlight(cvState)
+    const text = cvState.experience[0].bullets[0]
+    const fragment = 'Reduced processing time by 40%'
+    const itemId = createExperienceBulletHighlightItemId(
+      cvState.experience[0],
+      text,
+    )
+
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      items: [
+        {
+          itemId,
+          ranges: [{ fragment, reason: 'metric_impact' }],
+        },
+      ],
+    })))
+
+    await expect(detectCvHighlights(items, {
+      workflowMode: 'job_targeting',
+      jobKeywords: ['Databricks'],
+    })).resolves.toEqual([
+      {
+        itemId,
+        section: 'experience',
+        ranges: [buildResolvedRange(text, fragment, 'metric_impact')],
+      },
+    ])
+  })
+
+  it('accepts a keyword-aligned fragment when the model chooses that tie-breaker path', async () => {
+    const cvState = buildCvState()
+    const items = flattenCvStateForHighlight(cvState)
+    const text = cvState.experience[0].bullets[0]
+    const fragment = 'Azure Databricks'
+    const itemId = createExperienceBulletHighlightItemId(
+      cvState.experience[0],
+      text,
+    )
+
+    createCompletion.mockResolvedValue(buildOpenAIResponse(JSON.stringify({
+      items: [
+        {
+          itemId,
+          ranges: [{ fragment, reason: 'tool_context' }],
+        },
+      ],
+    })))
+
+    await expect(detectCvHighlights(items, {
+      workflowMode: 'job_targeting',
+      jobKeywords: ['Databricks'],
+    })).resolves.toEqual([
+      {
+        itemId,
+        section: 'experience',
+        ranges: [buildResolvedRange(text, fragment, 'tool_context')],
+      },
+    ])
+  })
+
   it('hardens the detector prompt around semantic closure and weak generic starts', async () => {
     // Prompt string inspection is documentation only. The real gate for prompt hardening
     // lives in the response-fixture tests below, which run the resolver against model output.

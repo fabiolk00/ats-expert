@@ -75,12 +75,85 @@ function logHighlightStatePersistence(params: {
   })
 }
 
-function extractJobKeywords(session: Session): string[] {
+function uniqueKeywords(values: string[]): string[] {
   return Array.from(new Set(
-    (session.agentState.gapAnalysis?.result?.missingSkills ?? [])
+    values
       .map((value) => value.trim())
       .filter(Boolean),
   )).slice(0, 20)
+}
+
+function extractReasonKeywords(reasons: string[]): string[] {
+  return uniqueKeywords(
+    reasons
+      .map((reason) => reason.split(':').slice(1).join(':').trim() || reason.trim())
+      .filter((reason) => reason.split(/\s+/u).length <= 4),
+  )
+}
+
+function extractJobDescriptionKeywords(targetJobDescription?: string): string[] {
+  if (!targetJobDescription?.trim()) {
+    return []
+  }
+
+  return uniqueKeywords(
+    targetJobDescription
+      .split(/[\n,;|]/u)
+      .flatMap((part) => part.split(/\b(?:and|e|with|com)\b/iu))
+      .map((part) => part.replace(/^(?:cargo|responsabilidades|requisitos)\s*:\s*/iu, '').trim())
+      .filter((part) => part.length >= 2 && part.split(/\s+/u).length <= 4),
+  )
+}
+
+function extractJobKeywords(params: {
+  gapAnalysis?: Session['agentState']['gapAnalysis']
+  targetingPlan?: Session['agentState']['targetingPlan']
+  targetFitAssessment?: Session['agentState']['targetFitAssessment']
+  targetJobDescription?: string
+}): string[] {
+  const preferredSources = [
+    uniqueKeywords(params.gapAnalysis?.result?.missingSkills ?? []),
+    uniqueKeywords(params.targetingPlan?.mustEmphasize ?? []),
+    uniqueKeywords(params.targetingPlan?.focusKeywords ?? []),
+    extractReasonKeywords(params.targetFitAssessment?.reasons ?? []),
+    extractJobDescriptionKeywords(params.targetJobDescription),
+  ]
+
+  return preferredSources.find((source) => source.length > 0) ?? []
+}
+
+function classifyHighlightGenerationGate(params: {
+  validationValid: boolean
+  optimizedChanged: boolean
+}): 'allowed' | 'blocked_validation_failed' | 'blocked_unchanged_cv_state' {
+  if (!params.validationValid) {
+    return 'blocked_validation_failed'
+  }
+
+  if (!params.optimizedChanged) {
+    return 'blocked_unchanged_cv_state'
+  }
+
+  return 'allowed'
+}
+
+function logHighlightGenerationGate(params: {
+  session: Session
+  gate: 'allowed' | 'blocked_validation_failed' | 'blocked_unchanged_cv_state'
+  jobKeywordsCount: number
+  validationValid: boolean
+  optimizedChanged: boolean
+}): void {
+  logInfo('agent.highlight_state.generation_gate', {
+    workflowMode: 'job_targeting',
+    sessionId: params.session.id,
+    userId: params.session.userId,
+    stage: 'highlight_generation_gate',
+    highlightGenerationDecision: params.gate,
+    jobKeywordsCount: params.jobKeywordsCount,
+    validationValid: params.validationValid,
+    optimizedChanged: params.optimizedChanged,
+  })
 }
 
 export async function runJobTargetingPipeline(session: Session): Promise<{
@@ -314,10 +387,27 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     targetingPlan,
   })
   const optimizedAt = new Date().toISOString()
-  const jobKeywords = extractJobKeywords(session)
+  const optimizedChanged = !cvStatesMatch(rewriteResult.optimizedCvState, session.cvState)
+  const jobKeywords = extractJobKeywords({
+    gapAnalysis,
+    targetingPlan,
+    targetFitAssessment,
+    targetJobDescription,
+  })
   const validationIssueMessages = validation.issues.map((issue) => issue.message)
   const validationIssueSections = Array.from(new Set(validation.issues.map((issue) => issue.section).filter(Boolean)))
-  const shouldGenerateHighlights = validation.valid && !cvStatesMatch(rewriteResult.optimizedCvState, session.cvState)
+  const highlightGenerationGate = classifyHighlightGenerationGate({
+    validationValid: validation.valid,
+    optimizedChanged,
+  })
+  logHighlightGenerationGate({
+    session,
+    gate: highlightGenerationGate,
+    jobKeywordsCount: jobKeywords.length,
+    validationValid: validation.valid,
+    optimizedChanged,
+  })
+  const shouldGenerateHighlights = highlightGenerationGate === 'allowed'
   let nextHighlightState = shouldGenerateHighlights ? previousHighlightState : undefined
   let highlightDetectionOutcome: HighlightDetectionOutcome | undefined
 
