@@ -826,12 +826,17 @@ describe('agent tool dispatch', () => {
     const execution = await executeTool('generate_file', {
       cv_state: session.cvState,
     }, session)
+    const output = execution.output as {
+      success: boolean
+      code: string
+      error: string
+    }
 
-    expect(execution.output).toMatchObject({
+    expect(output).toMatchObject({
       success: false,
       code: 'GENERATE_FILE_LATEST_VERSION_MISSING',
     })
-    expect(execution.output.error).toContain('Gere uma nova')
+    expect(output.error).toContain('Gere uma nova')
     expect(generateBillableResume).not.toHaveBeenCalled()
     expect(recordMetricCounter).toHaveBeenCalledWith('architecture.generate_file.latest_version_missing')
     expect(recordMetricCounter).toHaveBeenCalledWith('architecture.generate_file.precondition_failed')
