@@ -23,6 +23,8 @@ import { resetOpenAICircuitBreakerForTest } from '@/lib/openai/chat'
 const {
   mockAnalyzeAtsGeneral,
   mockAnalyzeGap,
+  mockBuildTargetingPlan,
+  mockDeriveTargetFitAssessment,
   mockRewriteSection,
   mockValidateRewrite,
   mockGenerateCvHighlightState,
@@ -36,6 +38,8 @@ const {
 } = vi.hoisted(() => ({
   mockAnalyzeAtsGeneral: vi.fn(),
   mockAnalyzeGap: vi.fn(),
+  mockBuildTargetingPlan: vi.fn(),
+  mockDeriveTargetFitAssessment: vi.fn(),
   mockRewriteSection: vi.fn(),
   mockValidateRewrite: vi.fn(),
   mockGenerateCvHighlightState: vi.fn(),
@@ -54,6 +58,14 @@ vi.mock('@/lib/agent/tools/ats-analysis', () => ({
 
 vi.mock('@/lib/agent/tools/gap-analysis', () => ({
   analyzeGap: mockAnalyzeGap,
+}))
+
+vi.mock('@/lib/agent/tools/build-targeting-plan', () => ({
+  buildTargetingPlan: mockBuildTargetingPlan,
+}))
+
+vi.mock('@/lib/agent/target-fit', () => ({
+  deriveTargetFitAssessment: mockDeriveTargetFitAssessment,
 }))
 
 vi.mock('@/lib/agent/tools/rewrite-section', () => ({
@@ -150,6 +162,25 @@ function buildSession(): Session {
   }
 }
 
+function buildDefaultTargetingPlan(overrides: Record<string, unknown> = {}) {
+  return {
+    targetRole: 'Analytics Engineer',
+    targetRoleConfidence: 'high',
+    focusKeywords: ['sql', 'bigquery'],
+    mustEmphasize: ['SQL', 'BigQuery'],
+    shouldDeemphasize: [],
+    missingButCannotInvent: ['BigQuery'],
+    sectionStrategy: {
+      summary: ['Aproxime o posicionamento da vaga sem inventar experiencia.'],
+      experience: ['Priorize stack e contexto relevantes.'],
+      skills: ['Reordene por aderencia ao alvo.'],
+      education: ['Mantenha factual.'],
+      certifications: ['Destaque apenas o que agrega.'],
+    },
+    ...overrides,
+  }
+}
+
 function buildSuccessfulRewriteOutput(cvState: CVState, section: string) {
   switch (section) {
     case 'summary':
@@ -240,6 +271,14 @@ describe('ATS enhancement reliability hardening', () => {
       }
     })
     mockValidateRewrite.mockReturnValue({ valid: true, issues: [] })
+    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan())
+    mockDeriveTargetFitAssessment.mockReturnValue({
+      level: 'medium',
+      scoreLabel: 'Moderately aligned',
+      confidence: 'high',
+      reasons: ['Lacunas relevantes: BigQuery'],
+      generatedAt: '2026-04-22T12:00:00.000Z',
+    })
     mockAnalyzeGap.mockResolvedValue({
       output: {
         success: true,
@@ -1598,7 +1637,7 @@ describe('ATS enhancement reliability hardening', () => {
     )
   })
 
-  it('keeps job_targeting highlight generation working when missingSkills is empty', async () => {
+  it('falls back to targetingPlan.mustEmphasize when gapAnalysis.missingSkills is empty', async () => {
     const session = buildSession()
     session.agentState.workflowMode = 'job_targeting'
     session.agentState.targetJobDescription = [
@@ -1624,6 +1663,10 @@ describe('ATS enhancement reliability hardening', () => {
         improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
       },
     })
+    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+      mustEmphasize: ['SQL', 'Power BI'],
+      focusKeywords: ['sql', 'power bi'],
+    }))
     mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
       output: buildSuccessfulRewriteOutput({
         ...buildCvState(),
@@ -1643,7 +1686,7 @@ describe('ATS enhancement reliability hardening', () => {
     )
   })
 
-  it('falls back from missingSkills to targetingPlan emphasis when deriving job keywords', async () => {
+  it('falls back to targetingPlan.focusKeywords when mustEmphasize is empty', async () => {
     const session = buildSession()
     session.agentState.workflowMode = 'job_targeting'
     session.agentState.targetJobDescription = [
@@ -1669,6 +1712,10 @@ describe('ATS enhancement reliability hardening', () => {
         improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
       },
     })
+    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+      mustEmphasize: [],
+      focusKeywords: ['sql', 'power bi'],
+    }))
     mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
       output: buildSuccessfulRewriteOutput({
         ...buildCvState(),
@@ -1683,12 +1730,12 @@ describe('ATS enhancement reliability hardening', () => {
       expect.any(Object),
       expect.objectContaining({
         workflowMode: 'job_targeting',
-        jobKeywords: ['SQL', 'Power BI'],
+        jobKeywords: ['sql', 'power bi'],
       }),
     )
   })
 
-  it('falls back to targetJobDescription-derived keywords when gap and stronger targeting signals are empty', async () => {
+  it('falls back to targetFitAssessment reasons when gap and targetingPlan keywords are empty', async () => {
     const session = buildSession()
     session.agentState.workflowMode = 'job_targeting'
     session.agentState.targetJobDescription = 'Role with analytics and stakeholder communication.'
@@ -1710,6 +1757,17 @@ describe('ATS enhancement reliability hardening', () => {
         improvementSuggestions: [],
       },
     })
+    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+      mustEmphasize: [],
+      focusKeywords: [],
+    }))
+    mockDeriveTargetFitAssessment.mockReturnValue({
+      level: 'medium',
+      scoreLabel: 'Moderately aligned',
+      confidence: 'high',
+      reasons: ['Lacunas relevantes: SQL', 'Sem cobertura: Power BI'],
+      generatedAt: '2026-04-22T12:00:00.000Z',
+    })
     mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
       output: buildSuccessfulRewriteOutput({
         ...buildCvState(),
@@ -1724,7 +1782,59 @@ describe('ATS enhancement reliability hardening', () => {
       expect.any(Object),
       expect.objectContaining({
         workflowMode: 'job_targeting',
-        jobKeywords: ['with', 'analytics', 'stakeholder', 'communication.'],
+        jobKeywords: ['SQL', 'Power BI'],
+      }),
+    )
+  })
+
+  it('falls back to targetJobDescription terms when gap, targeting plan and fit reasons are empty', async () => {
+    const session = buildSession()
+    session.agentState.workflowMode = 'job_targeting'
+    session.agentState.targetJobDescription = 'Role with analytics and stakeholder communication.'
+
+    mockAnalyzeGap.mockResolvedValue({
+      output: {
+        success: true,
+        result: {
+          matchScore: 60,
+          missingSkills: [],
+          weakAreas: [],
+          improvementSuggestions: [],
+        },
+      },
+      result: {
+        matchScore: 60,
+        missingSkills: [],
+        weakAreas: [],
+        improvementSuggestions: [],
+      },
+    })
+    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+      mustEmphasize: [],
+      focusKeywords: [],
+    }))
+    mockDeriveTargetFitAssessment.mockReturnValue({
+      level: 'medium',
+      scoreLabel: 'Moderately aligned',
+      confidence: 'high',
+      reasons: [],
+      generatedAt: '2026-04-22T12:00:00.000Z',
+    })
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput({
+        ...buildCvState(),
+        summary: 'Analytics profile with stakeholder communication and business translation.',
+      }, section),
+    }))
+
+    const result = await runJobTargetingPipeline(session)
+
+    expect(result.success).toBe(true)
+    expect(mockGenerateCvHighlightState).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        workflowMode: 'job_targeting',
+        jobKeywords: ['Role', 'analytics', 'stakeholder communication.'],
       }),
     )
   })
@@ -1992,7 +2102,7 @@ describe('ATS enhancement reliability hardening', () => {
       issueCount: 1,
       issueSections: 'summary',
       issueMessages: expect.stringContaining('O resumo targetizado passou a se apresentar diretamente como o cargo alvo'),
-      targetRole: 'Analista De BI',
+      targetRole: 'Analytics Engineer',
     }))
     expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.generation_gate', expect.objectContaining({
       workflowMode: 'job_targeting',
@@ -2068,6 +2178,10 @@ describe('ATS enhancement reliability hardening', () => {
 
     mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
       output: buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+      targetRole: 'Vaga Alvo',
+      targetRoleConfidence: 'low',
     }))
 
     const result = await runJobTargetingPipeline(session)

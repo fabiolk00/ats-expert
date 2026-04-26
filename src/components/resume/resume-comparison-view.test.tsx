@@ -4,7 +4,7 @@ import '@testing-library/jest-dom'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 
 import { ARTIFACT_REFRESH_EVENT } from '@/components/dashboard/events'
-import { getDownloadUrls } from '@/lib/dashboard/workspace-client'
+import { getDownloadUrls, isRetryableDownloadLookupError } from '@/lib/dashboard/workspace-client'
 import {
   CV_HIGHLIGHT_ARTIFACT_VERSION,
   createExperienceBulletHighlightItemId,
@@ -39,6 +39,7 @@ vi.mock('@/components/logo', () => ({
 
 vi.mock('@/lib/dashboard/workspace-client', () => ({
   getDownloadUrls: vi.fn(),
+  isRetryableDownloadLookupError: vi.fn(() => false),
 }))
 
 vi.mock('@/components/dashboard/resume-editor-modal', () => ({
@@ -108,6 +109,7 @@ function buildHighlightState(): CvHighlightState {
 describe('ResumeComparisonView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(isRetryableDownloadLookupError).mockReturnValue(false)
     vi.mocked(getDownloadUrls).mockResolvedValue({
       available: true,
       docxUrl: null,
@@ -330,5 +332,29 @@ describe('ResumeComparisonView', () => {
     expect(fetchMock).toHaveBeenCalledWith('https://example.com/resume-after.pdf')
     expect(createObjectUrl).toHaveBeenCalledTimes(1)
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:resume')
+  })
+
+  it('keeps the user oriented when download lookup is temporarily unavailable', async () => {
+    vi.mocked(getDownloadUrls).mockRejectedValueOnce(new Error('temporary lookup failure'))
+    vi.mocked(isRetryableDownloadLookupError).mockReturnValue(true)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(
+      <ResumeComparisonView
+        originalCvState={buildCvState('Original summary')}
+        optimizedCvState={buildCvState('Optimized summary')}
+        generationType="ATS_ENHANCEMENT"
+        sessionId="sess_123"
+        onContinue={vi.fn()}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('optimized-download-status')).toHaveTextContent(
+        'Atualizando o PDF salvo para download.',
+      )
+    })
+
+    expect(screen.getByTitle('Baixar PDF')).toBeDisabled()
   })
 })

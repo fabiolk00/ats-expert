@@ -6,7 +6,7 @@ import type { Session } from '@/types/agent'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { createSignedResumeArtifactUrls } from '@/lib/agent/tools/generate-file'
 import { getResumeTargetForSession } from '@/lib/db/resume-targets'
-import { getSession, updateSession } from '@/lib/db/sessions'
+import { getSession, getSessionLookupResult, updateSession } from '@/lib/db/sessions'
 import { listJobsForSession } from '@/lib/jobs/repository'
 import { logError, logInfo } from '@/lib/observability/structured-log'
 import { recordQuery } from '@/lib/observability/request-query-context'
@@ -19,6 +19,7 @@ vi.mock('@/lib/auth/app-user', () => ({
 
 vi.mock('@/lib/db/sessions', () => ({
   getSession: vi.fn(),
+  getSessionLookupResult: vi.fn(),
   updateSession: vi.fn(),
 }))
 
@@ -77,11 +78,22 @@ function buildSession(): Session {
   }
 }
 
+function buildFoundSessionLookupResult(session: Session) {
+  return {
+    kind: 'found' as const,
+    session,
+  }
+}
+
 describe('GET /api/file/[sessionId]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getResumeTargetForSession).mockResolvedValue(null)
     vi.mocked(listJobsForSession).mockResolvedValue([])
+    vi.mocked(getSessionLookupResult).mockImplementation(async (sessionId, appUserId) => {
+      const session = await vi.mocked(getSession)(sessionId, appUserId)
+      return session ? buildFoundSessionLookupResult(session) : { kind: 'not_found' }
+    })
   })
 
   it('returns 401 before any session or storage lookup when unauthenticated', async () => {
@@ -94,10 +106,150 @@ describe('GET /api/file/[sessionId]', () => {
 
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ error: 'Unauthorized' })
-    expect(getSession).not.toHaveBeenCalled()
+    expect(getSessionLookupResult).not.toHaveBeenCalled()
     expect(getResumeTargetForSession).not.toHaveBeenCalled()
     expect(createSignedResumeArtifactUrls).not.toHaveBeenCalled()
     expect(updateSession).not.toHaveBeenCalled()
+  })
+
+  it('retries a transient session miss and recovers when the row becomes visible', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSessionLookupResult)
+      .mockResolvedValueOnce({ kind: 'not_found' })
+      .mockResolvedValueOnce(buildFoundSessionLookupResult(buildSession()))
+    vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
+      docxUrl: 'https://cdn.example.com/signed/docx',
+      pdfUrl: 'https://cdn.example.com/signed/pdf',
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123?trigger=post_generation'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(200)
+    expect(getSessionLookupResult).toHaveBeenCalledTimes(2)
+    expect(logInfo).toHaveBeenCalledWith(
+      'api.file.session_lookup_recovered_after_retry',
+      expect.objectContaining({
+        requestedSessionId: 'sess_123',
+        downloadTrigger: 'post_generation',
+        lookupAttempts: 2,
+      }),
+    )
+  })
+
+  it('returns a retryable not-ready payload when post-generation lookup still misses after retries', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSessionLookupResult).mockResolvedValue({ kind: 'not_found' })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123?trigger=post_generation'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({
+      error: 'Download session not visible yet.',
+      code: 'DOWNLOAD_SESSION_NOT_READY',
+      retryable: true,
+      retryAfterMs: 750,
+    })
+    expect(getSessionLookupResult).toHaveBeenCalledTimes(3)
+  })
+
+  it('returns 503 when the session lookup fails at the database layer', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSessionLookupResult).mockResolvedValue({
+      kind: 'lookup_error',
+      error: Object.assign(new Error('statement timeout'), {
+        name: 'SessionLookupError',
+        code: '57014',
+        dbDetails: 'canceling statement due to statement timeout',
+        sessionId: 'sess_123',
+        appUserId: 'usr_123',
+      }),
+    })
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_123'),
+      { params: { sessionId: 'sess_123' } },
+    )
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({
+      error: 'Download session lookup temporarily unavailable.',
+      code: 'DOWNLOAD_SESSION_LOOKUP_FAILED',
+      retryable: true,
+      retryAfterMs: 750,
+    })
+    expect(logError).toHaveBeenCalledWith(
+      'api.file.session_lookup_failed',
+      expect.objectContaining({
+        requestedSessionId: 'sess_123',
+        errorMessage: 'statement timeout',
+      }),
+    )
   })
 
   it('emits a request query summary for successful file access resolution', async () => {
@@ -122,9 +274,9 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockImplementation(async () => {
+    vi.mocked(getSessionLookupResult).mockImplementation(async () => {
       recordQuery('GET /rest/v1/sessions?id=eq.sess_123')
-      return buildSession() as never
+      return buildFoundSessionLookupResult(buildSession()) as never
     })
     vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
       docxUrl: 'https://cdn.example.com/signed/docx',
@@ -169,7 +321,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(getSessionLookupResult).mockResolvedValue(buildFoundSessionLookupResult(buildSession()))
     vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
       docxUrl: 'https://cdn.example.com/signed/docx',
       pdfUrl: 'https://cdn.example.com/signed/pdf',
@@ -189,7 +341,7 @@ describe('GET /api/file/[sessionId]', () => {
       generationStatus: 'ready',
       reconciliation: undefined,
     })
-    expect(getSession).toHaveBeenCalledWith('sess_123', 'usr_123')
+    expect(getSessionLookupResult).toHaveBeenCalledWith('sess_123', 'usr_123')
     expect(createSignedResumeArtifactUrls).toHaveBeenCalledWith(
       undefined,
       'usr_123/sess_123/resume.pdf',
@@ -228,7 +380,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(getSessionLookupResult).mockResolvedValue(buildFoundSessionLookupResult(buildSession()))
     vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
       docxUrl: 'https://cdn.example.com/signed/docx',
       pdfUrl: 'https://cdn.example.com/signed/pdf',
@@ -458,7 +610,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(getSessionLookupResult).mockResolvedValue(buildFoundSessionLookupResult(buildSession()))
     vi.mocked(listJobsForSession).mockResolvedValue([
       {
         jobId: 'job_failed_123',
@@ -626,7 +778,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(getSessionLookupResult).mockResolvedValue(buildFoundSessionLookupResult(buildSession()))
     vi.mocked(listJobsForSession).mockResolvedValue([
       {
         jobId: 'job_reconcile_123',
@@ -762,7 +914,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(getSessionLookupResult).mockResolvedValue(buildFoundSessionLookupResult(buildSession()))
     vi.mocked(getResumeTargetForSession).mockResolvedValue({
       id: 'target_123',
       sessionId: 'sess_123',
@@ -823,7 +975,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(null)
+    vi.mocked(getSessionLookupResult).mockResolvedValue({ kind: 'not_found' })
 
     const response = await GET(
       new NextRequest('https://example.com/api/file/sess_123'),
@@ -858,7 +1010,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(getSessionLookupResult).mockResolvedValue(buildFoundSessionLookupResult(buildSession()))
     vi.mocked(getResumeTargetForSession).mockResolvedValue(null)
 
     const response = await GET(
@@ -988,7 +1140,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(getSessionLookupResult).mockResolvedValue(buildFoundSessionLookupResult(buildSession()))
     vi.mocked(getResumeTargetForSession).mockResolvedValue({
       id: 'target_123',
       sessionId: 'sess_123',
@@ -1040,7 +1192,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(getSessionLookupResult).mockResolvedValue(buildFoundSessionLookupResult(buildSession()))
     vi.mocked(createSignedResumeArtifactUrls).mockResolvedValue({
       docxUrl: 'https://cdn.example.com/signed/docx',
       pdfUrl: 'https://cdn.example.com/signed/pdf',
@@ -1077,7 +1229,7 @@ describe('GET /api/file/[sessionId]', () => {
         updatedAt: new Date(),
       },
     })
-    vi.mocked(getSession).mockResolvedValue(buildSession())
+    vi.mocked(getSessionLookupResult).mockResolvedValue(buildFoundSessionLookupResult(buildSession()))
     vi.mocked(createSignedResumeArtifactUrls).mockRejectedValue(new Error('signing failed'))
 
     const response = await GET(

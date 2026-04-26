@@ -25,6 +25,15 @@ function buildPdfFileName(context: FileAccessContext): string {
   })
 }
 
+function buildFileAccessLogContext(context: FileAccessContext) {
+  return {
+    downloadTrigger: context.downloadTrigger,
+    sessionLookupAttempts: context.sessionLookupAttempts,
+    sessionCreatedAgeMs: context.sessionCreatedAgeMs,
+    sessionUpdatedAgeMs: context.sessionUpdatedAgeMs,
+  }
+}
+
 export async function toFileAccessResponse(
   context: FileAccessContext,
   decision: FileAccessDecision,
@@ -41,6 +50,7 @@ export async function toFileAccessResponse(
         lifecycleStatus: decision.log.lifecycleStatus,
         stage: decision.log.stage,
         jobId: decision.log.jobId,
+        ...buildFileAccessLogContext(context),
       })
       logInfo('api.file.download_urls_unavailable', {
         requestMethod: context.request.method,
@@ -56,6 +66,7 @@ export async function toFileAccessResponse(
         stage: decision.log.stage,
         success: true,
         latencyMs: Date.now() - context.requestStartedAt,
+        ...buildFileAccessLogContext(context),
       })
       return NextResponse.json(
         {
@@ -86,6 +97,7 @@ export async function toFileAccessResponse(
             resumeTargetId: context.target?.id ?? null,
             staleReason: decision.body.artifactStale.reason,
             pendingJobId: decision.body.artifactStale.pendingJobId,
+            ...buildFileAccessLogContext(context),
           })
         }
 
@@ -95,6 +107,7 @@ export async function toFileAccessResponse(
           resumeTargetId: context.target?.id ?? null,
           generationStatus: decision.log.generationStatus,
           stage: decision.log.stage,
+          ...buildFileAccessLogContext(context),
         })
 
         logInfo('api.file.download_urls_ready', {
@@ -111,6 +124,7 @@ export async function toFileAccessResponse(
           stage: decision.log.stage,
           success: true,
           latencyMs: Date.now() - context.requestStartedAt,
+          ...buildFileAccessLogContext(context),
         })
 
         if (isDirectPdfDownloadRequest(context)) {
@@ -144,6 +158,7 @@ export async function toFileAccessResponse(
           stage: decision.log.stage,
           success: false,
           latencyMs: Date.now() - context.requestStartedAt,
+          ...buildFileAccessLogContext(context),
           ...serializeError(error),
         })
 

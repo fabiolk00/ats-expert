@@ -17,13 +17,26 @@ class DashboardApiError extends Error {
   status: number
   code?: string
   payload?: unknown
+  retryable?: boolean
+  retryAfterMs?: number
 
-  constructor(message: string, status: number, options?: { code?: string; payload?: unknown }) {
+  constructor(
+    message: string,
+    status: number,
+    options?: {
+      code?: string
+      payload?: unknown
+      retryable?: boolean
+      retryAfterMs?: number
+    },
+  ) {
     super(message)
     this.name = 'DashboardApiError'
     this.status = status
     this.code = options?.code
     this.payload = options?.payload
+    this.retryable = options?.retryable
+    this.retryAfterMs = options?.retryAfterMs
   }
 }
 
@@ -38,9 +51,17 @@ async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T
     const code = typeof payload === 'object' && payload !== null && 'code' in payload
       ? String((payload as { code: unknown }).code)
       : undefined
+    const retryable = typeof payload === 'object' && payload !== null && 'retryable' in payload
+      ? (payload as { retryable: unknown }).retryable === true
+      : undefined
+    const retryAfterMs = typeof payload === 'object' && payload !== null && 'retryAfterMs' in payload
+      ? Number((payload as { retryAfterMs: unknown }).retryAfterMs)
+      : undefined
     throw new DashboardApiError(message, response.status, {
       code,
       payload,
+      retryable,
+      retryAfterMs: Number.isFinite(retryAfterMs) ? retryAfterMs : undefined,
     })
   }
 
@@ -49,6 +70,17 @@ async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T
 
 export function isExportAlreadyProcessingError(error: unknown): error is DashboardApiError {
   return error instanceof DashboardApiError && error.code === 'EXPORT_ALREADY_PROCESSING'
+}
+
+export type DownloadLookupTrigger =
+  | 'post_generation'
+  | 'preview_panel'
+  | 'profile_last_generated'
+
+export function isRetryableDownloadLookupError(error: unknown): error is DashboardApiError {
+  return error instanceof DashboardApiError
+    && error.retryable === true
+    && (error.code === 'DOWNLOAD_SESSION_LOOKUP_FAILED' || error.code === 'DOWNLOAD_SESSION_NOT_READY')
 }
 
 export async function getSessionWorkspace(sessionId: string): Promise<SessionWorkspace> {
@@ -124,8 +156,19 @@ export async function generateResume(
 export async function getDownloadUrls(
   sessionId: string,
   targetId?: string,
+  options?: { trigger?: DownloadLookupTrigger },
 ): Promise<DownloadUrlsResponse> {
-  const suffix = targetId ? `?targetId=${encodeURIComponent(targetId)}` : ''
+  const searchParams = new URLSearchParams()
+
+  if (targetId) {
+    searchParams.set('targetId', targetId)
+  }
+
+  if (options?.trigger) {
+    searchParams.set('trigger', options.trigger)
+  }
+
+  const suffix = searchParams.size > 0 ? `?${searchParams.toString()}` : ''
   return requestJson<DownloadUrlsResponse>(
     `/api/file/${sessionId}${suffix}`,
   )

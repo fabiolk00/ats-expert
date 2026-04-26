@@ -24,6 +24,48 @@ import {
   type SessionRow,
 } from '@/lib/db/session-normalization'
 
+type PostgrestErrorLike = {
+  code?: string
+  message?: string
+  details?: string
+  hint?: string
+}
+
+export class SessionLookupError extends Error {
+  readonly code?: string
+  readonly dbDetails?: string
+  readonly dbHint?: string
+  readonly sessionId: string
+  readonly appUserId: string
+
+  constructor(input: {
+    sessionId: string
+    appUserId: string
+    message: string
+    cause?: unknown
+    code?: string
+    dbDetails?: string
+    dbHint?: string
+  }) {
+    super(input.message, input.cause ? { cause: input.cause } : undefined)
+    this.name = 'SessionLookupError'
+    this.code = input.code
+    this.dbDetails = input.dbDetails
+    this.dbHint = input.dbHint
+    this.sessionId = input.sessionId
+    this.appUserId = input.appUserId
+  }
+}
+
+export type SessionLookupResult =
+  | { kind: 'found'; session: Session }
+  | { kind: 'not_found' }
+  | { kind: 'lookup_error'; error: SessionLookupError }
+
+function isSessionNotFoundError(error: PostgrestErrorLike | null | undefined): boolean {
+  return error?.code === 'PGRST116'
+}
+
 export async function getUserSessions(appUserId: string, limit = 20): Promise<Session[]> {
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
@@ -38,7 +80,10 @@ export async function getUserSessions(appUserId: string, limit = 20): Promise<Se
   return data.map((row) => mapSessionRow(row as SessionRow))
 }
 
-export async function getSession(sessionId: string, appUserId: string): Promise<Session | null> {
+export async function getSessionLookupResult(
+  sessionId: string,
+  appUserId: string,
+): Promise<SessionLookupResult> {
   const supabase = getSupabaseAdminClient()
   const { data, error } = await supabase
     .from('sessions')
@@ -47,9 +92,55 @@ export async function getSession(sessionId: string, appUserId: string): Promise<
     .eq('user_id', appUserId)
     .single()
 
-  if (error || !data) return null
+  if (error) {
+    if (isSessionNotFoundError(error)) {
+      return { kind: 'not_found' }
+    }
 
-  return mapSessionRow(data as SessionRow)
+    return {
+      kind: 'lookup_error',
+      error: new SessionLookupError({
+        sessionId,
+        appUserId,
+        message: `Failed to load session: ${error.message ?? 'Unknown lookup error'}`,
+        cause: error,
+        code: error.code,
+        dbDetails: error.details,
+        dbHint: error.hint,
+      }),
+    }
+  }
+
+  if (!data) {
+    return { kind: 'not_found' }
+  }
+
+  try {
+    return {
+      kind: 'found',
+      session: mapSessionRow(data as SessionRow),
+    }
+  } catch (error) {
+    return {
+      kind: 'lookup_error',
+      error: new SessionLookupError({
+        sessionId,
+        appUserId,
+        message: error instanceof Error ? error.message : 'Failed to normalize session row.',
+        cause: error,
+      }),
+    }
+  }
+}
+
+export async function getSession(sessionId: string, appUserId: string): Promise<Session | null> {
+  const result = await getSessionLookupResult(sessionId, appUserId)
+
+  if (result.kind !== 'found') {
+    return null
+  }
+
+  return result.session
 }
 
 async function seedCvStateFromProfile(appUserId: string): Promise<CVState> {

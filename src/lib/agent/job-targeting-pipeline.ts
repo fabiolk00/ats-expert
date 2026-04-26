@@ -75,7 +75,7 @@ function logHighlightStatePersistence(params: {
   })
 }
 
-function uniqueKeywords(values: string[]): string[] {
+function normalizeKeywords(values: string[]): string[] {
   return Array.from(new Set(
     values
       .map((value) => value.trim())
@@ -84,11 +84,9 @@ function uniqueKeywords(values: string[]): string[] {
 }
 
 function extractReasonKeywords(reasons: string[]): string[] {
-  return uniqueKeywords(
-    reasons
-      .map((reason) => reason.split(':').slice(1).join(':').trim() || reason.trim())
-      .filter((reason) => reason.split(/\s+/u).length <= 4),
-  )
+  return reasons
+    .map((reason) => reason.split(':').slice(1).join(':').trim() || reason.trim())
+    .filter((reason) => reason.split(/\s+/u).length <= 4)
 }
 
 function extractJobDescriptionKeywords(targetJobDescription?: string): string[] {
@@ -96,13 +94,11 @@ function extractJobDescriptionKeywords(targetJobDescription?: string): string[] 
     return []
   }
 
-  return uniqueKeywords(
-    targetJobDescription
-      .split(/[\n,;|]/u)
-      .flatMap((part) => part.split(/\b(?:and|e|with|com)\b/iu))
-      .map((part) => part.replace(/^(?:cargo|responsabilidades|requisitos)\s*:\s*/iu, '').trim())
-      .filter((part) => part.length >= 2 && part.split(/\s+/u).length <= 4),
-  )
+  return targetJobDescription
+    .split(/[\n,;|]/u)
+    .flatMap((part) => part.split(/\b(?:and|e|with|com)\b/iu))
+    .map((part) => part.replace(/^(?:cargo|responsabilidades|requisitos)\s*:\s*/iu, '').trim())
+    .filter((part) => part.length >= 2 && part.split(/\s+/u).length <= 4)
 }
 
 function extractJobKeywords(params: {
@@ -112,14 +108,16 @@ function extractJobKeywords(params: {
   targetJobDescription?: string
 }): string[] {
   const preferredSources = [
-    uniqueKeywords(params.gapAnalysis?.result?.missingSkills ?? []),
-    uniqueKeywords(params.targetingPlan?.mustEmphasize ?? []),
-    uniqueKeywords(params.targetingPlan?.focusKeywords ?? []),
+    params.gapAnalysis?.result?.missingSkills ?? [],
+    params.targetingPlan?.mustEmphasize ?? [],
+    params.targetingPlan?.focusKeywords ?? [],
     extractReasonKeywords(params.targetFitAssessment?.reasons ?? []),
     extractJobDescriptionKeywords(params.targetJobDescription),
   ]
 
-  return preferredSources.find((source) => source.length > 0) ?? []
+  const selectedSource = preferredSources.find((source) => source.length > 0) ?? []
+
+  return normalizeKeywords(selectedSource)
 }
 
 function classifyHighlightGenerationGate(params: {

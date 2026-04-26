@@ -4,7 +4,11 @@ import '@testing-library/jest-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { usePreviewPanel } from '@/context/preview-panel-context'
-import { getDownloadUrls, getSessionWorkspace } from '@/lib/dashboard/workspace-client'
+import {
+  getDownloadUrls,
+  getSessionWorkspace,
+  isRetryableDownloadLookupError,
+} from '@/lib/dashboard/workspace-client'
 
 import { PreviewPanel } from './preview-panel'
 
@@ -19,6 +23,7 @@ vi.mock('@/hooks/use-preview-panel-overlay', () => ({
 vi.mock('@/lib/dashboard/workspace-client', () => ({
   getDownloadUrls: vi.fn(),
   getSessionWorkspace: vi.fn(),
+  isRetryableDownloadLookupError: vi.fn(() => false),
 }))
 
 vi.mock('./resume-editor-modal', () => ({
@@ -50,6 +55,7 @@ describe('PreviewPanel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(isRetryableDownloadLookupError).mockReturnValue(false)
     vi.mocked(usePreviewPanel).mockReturnValue({
       isOpen: false,
       file: null,
@@ -263,5 +269,30 @@ describe('PreviewPanel', () => {
 
     expect(screen.getByTestId('preview-download-pdf')).toBeInTheDocument()
     expect(screen.getByTestId('preview-panel-frame')).toHaveAttribute('src', 'https://example.com/resume-stale.pdf')
+  })
+
+  it('falls back to a syncing state when file lookup fails transiently', async () => {
+    vi.mocked(getDownloadUrls).mockRejectedValueOnce(new Error('lookup failed'))
+    vi.mocked(isRetryableDownloadLookupError).mockReturnValue(true)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(
+      <PreviewPanel
+        inline
+        showCloseButton={false}
+        fileOverride={{
+          sessionId: 'sess_123',
+          targetId: null,
+          type: 'pdf',
+          label: 'Resume',
+        }}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('preview-panel')).toHaveAttribute('data-state', 'generating')
+    })
+
+    expect(screen.getByText('Estamos sincronizando o PDF desta sessão.')).toBeInTheDocument()
   })
 })

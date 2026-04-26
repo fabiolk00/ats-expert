@@ -218,7 +218,18 @@ describe('session-comparison decision', () => {
     }))
   })
 
-  it('classifies visible comparison highlights as present_non_empty', async () => {
+  it('returns renderable highlightState for ATS enhancement flows', async () => {
+    const highlightState = {
+      source: 'rewritten_cv_state',
+      version: 2,
+      generatedAt: '2026-04-22T12:00:00.000Z',
+      resolvedHighlights: [{
+        itemId: 'summary_0',
+        section: 'summary',
+        ranges: [{ start: 0, end: 9, reason: 'ats_strength' }],
+      }],
+    }
+
     const decision = await decideSessionComparison({
       request: new Request('https://example.com/api/session/sess_visible/comparison') as never,
       params: { id: 'sess_visible' },
@@ -238,16 +249,7 @@ describe('session-comparison decision', () => {
         agentState: {
           workflowMode: 'ats_enhancement',
           lastRewriteMode: 'ats_enhancement',
-          highlightState: {
-            source: 'rewritten_cv_state',
-            version: 2,
-            generatedAt: '2026-04-22T12:00:00.000Z',
-            resolvedHighlights: [{
-              itemId: 'summary_0',
-              section: 'summary',
-              ranges: [{ start: 0, end: 9, reason: 'ats_strength' }],
-            }],
-          },
+          highlightState,
           optimizedCvState: {
             fullName: 'Ana',
             email: 'ana@example.com',
@@ -269,7 +271,7 @@ describe('session-comparison decision', () => {
       throw new Error('expected success decision')
     }
 
-    expect(decision.body.highlightState).toBeDefined()
+    expect(decision.body.highlightState).toEqual(highlightState)
     expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.response_evaluated', expect.objectContaining({
       surface: 'session_comparison',
       highlightStateResponseKind: 'present_non_empty',
@@ -281,7 +283,18 @@ describe('session-comparison decision', () => {
     }))
   })
 
-  it('returns highlightState for job_targeting flows without ATS-specific gating', async () => {
+  it('returns renderable highlightState for job_targeting flows', async () => {
+    const highlightState = {
+      source: 'rewritten_cv_state',
+      version: 2,
+      generatedAt: '2026-04-22T12:00:00.000Z',
+      resolvedHighlights: [{
+        itemId: 'summary_0',
+        section: 'summary',
+        ranges: [{ start: 0, end: 9, reason: 'ats_strength' }],
+      }],
+    }
+
     const decision = await decideSessionComparison({
       request: new Request('https://example.com/api/session/sess_job_highlight/comparison') as never,
       params: { id: 'sess_job_highlight' },
@@ -302,16 +315,7 @@ describe('session-comparison decision', () => {
           workflowMode: 'job_targeting',
           lastRewriteMode: 'job_targeting',
           targetJobDescription: 'Data role',
-          highlightState: {
-            source: 'rewritten_cv_state',
-            version: 2,
-            generatedAt: '2026-04-22T12:00:00.000Z',
-            resolvedHighlights: [{
-              itemId: 'summary_0',
-              section: 'summary',
-              ranges: [{ start: 0, end: 9, reason: 'ats_strength' }],
-            }],
-          },
+          highlightState,
           optimizedCvState: {
             fullName: 'Ana',
             email: 'ana@example.com',
@@ -334,7 +338,7 @@ describe('session-comparison decision', () => {
     }
 
     expect(decision.body.generationType).toBe('JOB_TARGETING')
-    expect(decision.body.highlightState).toBeDefined()
+    expect(decision.body.highlightState).toEqual(highlightState)
     expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.response_evaluated', expect.objectContaining({
       surface: 'session_comparison',
       previewLocked: false,

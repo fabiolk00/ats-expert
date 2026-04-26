@@ -7,7 +7,11 @@ import { Download, ExternalLink, Loader2, Pencil, X } from 'lucide-react'
 import type { PreviewFile } from '@/context/preview-panel-context'
 import { usePreviewPanel } from '@/context/preview-panel-context'
 import { usePreviewPanelOverlay } from '@/hooks/use-preview-panel-overlay'
-import { getDownloadUrls, getSessionWorkspace } from '@/lib/dashboard/workspace-client'
+import {
+  getDownloadUrls,
+  getSessionWorkspace,
+  isRetryableDownloadLookupError,
+} from '@/lib/dashboard/workspace-client'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import type { PreviewLockSummary } from '@/types/dashboard'
 
@@ -21,6 +25,8 @@ type PreviewPanelProps = {
 
 type GenerationStatus = 'idle' | 'generating' | 'ready' | 'failed'
 type ArtifactStaleSummary = NonNullable<Awaited<ReturnType<typeof getDownloadUrls>>['artifactStale']>
+
+const TRANSIENT_PREVIEW_LOOKUP_MESSAGE = 'Estamos sincronizando o PDF desta sessão.'
 
 export function PreviewPanel({
   inline = false,
@@ -112,7 +118,9 @@ function PreviewPanelContent({
     }
 
     try {
-      const urls = await getDownloadUrls(file.sessionId, file.targetId ?? undefined)
+      const urls = await getDownloadUrls(file.sessionId, file.targetId ?? undefined, {
+        trigger: 'preview_panel',
+      })
       setGenerationStatus(urls.generationStatus)
       setArtifactStale(urls.artifactStale ?? null)
 
@@ -132,6 +140,12 @@ function PreviewPanelContent({
       setCachedUrl(cacheKey, urls.pdfUrl)
     } catch (fetchError) {
       console.error('[preview-panel] failed to load signed urls', fetchError)
+      if (isRetryableDownloadLookupError(fetchError)) {
+        setGenerationStatus('generating')
+        setError(null)
+        return
+      }
+
       setError('Falha ao carregar o arquivo. Tente novamente.')
     } finally {
       setIsLoading(false)
@@ -333,7 +347,9 @@ function PreviewPanelContent({
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Atualizando o PDF com a versão salva.
+              {artifactStale
+                ? 'Atualizando o PDF com a versão salva.'
+                : TRANSIENT_PREVIEW_LOOKUP_MESSAGE}
             </p>
           </div>
         ) : null}

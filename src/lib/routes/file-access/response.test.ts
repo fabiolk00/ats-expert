@@ -25,6 +25,7 @@ function buildContext(): FileAccessContext {
     requestPath: '/api/file/sess_1',
     params: { sessionId: 'sess_1' },
     targetId: null,
+    downloadTrigger: null,
     appUser: { id: 'usr_1' } as never,
     session: {
       id: 'sess_1',
@@ -40,6 +41,9 @@ function buildContext(): FileAccessContext {
     target: null,
     artifactMetadata: { status: 'ready', pdfPath: 'file.pdf' },
     latestArtifactJob: null,
+    sessionLookupAttempts: 1,
+    sessionCreatedAgeMs: 100,
+    sessionUpdatedAgeMs: 100,
   }
 }
 

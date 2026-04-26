@@ -16,7 +16,7 @@ import {
   type CvHighlightState,
   type CvHighlightTextSegment,
 } from "@/lib/resume/cv-highlight-artifact"
-import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
+import { getDownloadUrls, isRetryableDownloadLookupError } from "@/lib/dashboard/workspace-client"
 import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
 import type { AtsReadinessScoreContract } from "@/lib/ats/scoring/types"
@@ -55,6 +55,8 @@ const EMPTY_DOWNLOAD_STATE: DownloadState = {
   artifactStale: undefined,
   errorMessage: undefined,
 }
+
+const TRANSIENT_DOWNLOAD_LOOKUP_MESSAGE = "Estamos sincronizando o PDF desta sessão. Tente novamente em alguns segundos."
 
 function hasTextChanged(original: string, optimized: string): boolean {
   return original?.trim() !== optimized?.trim()
@@ -458,7 +460,7 @@ export function ResumeComparisonView({
   const refreshDownloadState = useCallback(async (): Promise<DownloadUrlsResponse | null> => {
     try {
       setIsRefreshingDownloadState(true)
-      const urls = await getDownloadUrls(sessionId)
+      const urls = await getDownloadUrls(sessionId, undefined, { trigger: "post_generation" })
       setDownloadState({
         pdfUrl: urls.pdfUrl ?? null,
         pdfFileName: urls.pdfFileName ?? null,
@@ -469,6 +471,22 @@ export function ResumeComparisonView({
       return urls
     } catch (error) {
       console.error("Falha ao sincronizar o status do PDF:", error)
+      if (isRetryableDownloadLookupError(error)) {
+        setDownloadState((current) => ({
+          ...current,
+          pdfUrl: current.pdfUrl ?? null,
+          pdfFileName: current.pdfFileName ?? null,
+          generationStatus: "generating",
+          errorMessage: TRANSIENT_DOWNLOAD_LOOKUP_MESSAGE,
+        }))
+        return null
+      }
+
+      setDownloadState((current) => ({
+        ...current,
+        generationStatus: "failed",
+        errorMessage: "Não foi possível sincronizar o PDF agora.",
+      }))
       return null
     } finally {
       setIsRefreshingDownloadState(false)
@@ -541,7 +559,12 @@ export function ResumeComparisonView({
       }
 
       if (!pdfUrl) {
-        throw new Error("O PDF ainda não está disponível para download.")
+        setDownloadState((current) => ({
+          ...current,
+          generationStatus: "generating",
+          errorMessage: current.errorMessage ?? TRANSIENT_DOWNLOAD_LOOKUP_MESSAGE,
+        }))
+        return
       }
 
       const response = await fetch(pdfUrl)
@@ -562,6 +585,11 @@ export function ResumeComparisonView({
       URL.revokeObjectURL(objectUrl)
     } catch (error) {
       console.error("Falha ao baixar o PDF:", error)
+      setDownloadState((current) => ({
+        ...current,
+        generationStatus: "failed",
+        errorMessage: error instanceof Error ? error.message : "Falha ao baixar o PDF.",
+      }))
     } finally {
       setIsDownloading(false)
     }

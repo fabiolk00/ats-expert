@@ -5,17 +5,26 @@ import type { JobStatusSnapshot } from '@/types/jobs'
 import type { PreviewLockSummary } from '@/types/dashboard'
 import type { RouteHttpResponse } from '@/lib/routes/shared/types'
 
+export type FileDownloadTrigger =
+  | 'post_generation'
+  | 'preview_panel'
+  | 'profile_last_generated'
+
 export type FileAccessContext = {
   request: NextRequest
   requestStartedAt: number
   requestPath: string
   params: { sessionId: string }
   targetId: string | null
+  downloadTrigger: FileDownloadTrigger | null
   appUser: NonNullable<Awaited<ReturnType<typeof import('@/lib/auth/app-user').getCurrentAppUser>>>
   session: Session
   target: ResumeTarget | null
   artifactMetadata: GeneratedOutput
   latestArtifactJob: JobStatusSnapshot | null
+  sessionLookupAttempts: number
+  sessionCreatedAgeMs: number
+  sessionUpdatedAgeMs: number
 }
 
 export type FileAccessContextResult =

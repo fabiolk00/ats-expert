@@ -9,6 +9,7 @@ import {
   createSession,
   CURRENT_SESSION_STATE_VERSION,
   getSession,
+  getSessionLookupResult,
   mergeToolPatch,
   normalizeStateVersion,
 } from './sessions'
@@ -403,6 +404,40 @@ describe('session state versioning', () => {
     })
   })
 
+  it('distinguishes a missing session from a real lookup failure', async () => {
+    single.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: 'PGRST116',
+        message: 'not found',
+      },
+    })
+
+    expect(await getSessionLookupResult('sess_missing', 'usr_123')).toEqual({
+      kind: 'not_found',
+    })
+
+    single.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: '57014',
+        message: 'statement timeout',
+        details: 'canceling statement due to statement timeout',
+      },
+    })
+
+    const result = await getSessionLookupResult('sess_timeout', 'usr_123')
+
+    expect(result.kind).toBe('lookup_error')
+    if (result.kind !== 'lookup_error') {
+      throw new Error('Expected a lookup error result.')
+    }
+
+    expect(result.error.message).toContain('Failed to load session')
+    expect(result.error.code).toBe('57014')
+    expect(result.error.dbDetails).toBe('canceling statement due to statement timeout')
+  })
+
   it('rejects malformed persisted cv_state rows instead of returning weak session data', async () => {
     single.mockResolvedValue({
       data: {
@@ -434,6 +469,9 @@ describe('session state versioning', () => {
       error: null,
     })
 
-    await expect(getSession('sess_invalid', 'usr_123')).rejects.toThrow()
+    const lookupResult = await getSessionLookupResult('sess_invalid', 'usr_123')
+
+    expect(lookupResult.kind).toBe('lookup_error')
+    await expect(getSession('sess_invalid', 'usr_123')).resolves.toBeNull()
   })
 })

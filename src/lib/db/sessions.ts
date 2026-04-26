@@ -6,7 +6,10 @@ import {
   applyToolPatchWithVersion,
   createSession,
   getSession,
+  getSessionLookupResult,
   getUserSessions,
+  SessionLookupError,
+  type SessionLookupResult,
   updateSession,
 } from '@/lib/db/session-lifecycle'
 import {
@@ -49,9 +52,12 @@ export {
   CURRENT_SESSION_STATE_VERSION,
   getMessages,
   getSession,
+  getSessionLookupResult,
   incrementMessageCount,
   mergeToolPatch,
   normalizeGeneratedOutput,
   normalizeStateVersion,
+  SessionLookupError,
+  type SessionLookupResult,
   updateSession,
 }
