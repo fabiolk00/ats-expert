@@ -6,9 +6,9 @@ import type { Session } from '@/types/agent'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { createSignedResumeArtifactUrls } from '@/lib/agent/tools/generate-file'
 import { getResumeTargetForSession } from '@/lib/db/resume-targets'
-import { getSession, getSessionLookupResult, updateSession } from '@/lib/db/sessions'
+import { getSession, getSessionLookupResult, getUserSessions, updateSession } from '@/lib/db/sessions'
 import { listJobsForSession } from '@/lib/jobs/repository'
-import { logError, logInfo } from '@/lib/observability/structured-log'
+import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
 import { recordQuery } from '@/lib/observability/request-query-context'
 
 import { GET } from './route'
@@ -20,6 +20,7 @@ vi.mock('@/lib/auth/app-user', () => ({
 vi.mock('@/lib/db/sessions', () => ({
   getSession: vi.fn(),
   getSessionLookupResult: vi.fn(),
+  getUserSessions: vi.fn(),
   updateSession: vi.fn(),
 }))
 
@@ -90,6 +91,7 @@ describe('GET /api/file/[sessionId]', () => {
     vi.clearAllMocks()
     vi.mocked(getResumeTargetForSession).mockResolvedValue(null)
     vi.mocked(listJobsForSession).mockResolvedValue([])
+    vi.mocked(getUserSessions).mockResolvedValue([])
     vi.mocked(getSessionLookupResult).mockImplementation(async (sessionId, appUserId) => {
       const session = await vi.mocked(getSession)(sessionId, appUserId)
       return session ? buildFoundSessionLookupResult(session) : { kind: 'not_found' }
@@ -196,6 +198,64 @@ describe('GET /api/file/[sessionId]', () => {
       retryAfterMs: 750,
     })
     expect(getSessionLookupResult).toHaveBeenCalledTimes(3)
+  })
+
+  it('returns a stale-reference payload when the request points to an older session for the same user', async () => {
+    vi.mocked(getCurrentAppUser).mockResolvedValue({
+      id: 'usr_123',
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authIdentity: {
+        id: 'identity_123',
+        userId: 'usr_123',
+        provider: 'clerk',
+        providerSubject: 'user_123',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      creditAccount: {
+        id: 'cred_usr_123',
+        userId: 'usr_123',
+        creditsRemaining: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    })
+    vi.mocked(getSessionLookupResult).mockResolvedValue({ kind: 'not_found' })
+    vi.mocked(getUserSessions).mockResolvedValue([
+      {
+        ...buildSession(),
+        id: 'sess_fresh_456',
+        generatedOutput: {
+          status: 'generating',
+          generatedAt: '2026-03-27T12:15:00.000Z',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ])
+
+    const response = await GET(
+      new NextRequest('https://example.com/api/file/sess_stale_123?trigger=post_generation'),
+      { params: { sessionId: 'sess_stale_123' } },
+    )
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({
+      error: 'Download session reference is stale.',
+      code: 'DOWNLOAD_SESSION_STALE_REFERENCE',
+      retryable: true,
+      suggestedSessionId: 'sess_fresh_456',
+    })
+    expect(logWarn).toHaveBeenCalledWith(
+      'api.file.download_urls_stale_reference',
+      expect.objectContaining({
+        requestedSessionId: 'sess_stale_123',
+        suggestedSessionId: 'sess_fresh_456',
+        downloadTrigger: 'post_generation',
+      }),
+    )
   })
 
   it('returns 503 when the session lookup fails at the database layer', async () => {

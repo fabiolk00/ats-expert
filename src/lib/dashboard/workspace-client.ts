@@ -19,6 +19,7 @@ class DashboardApiError extends Error {
   payload?: unknown
   retryable?: boolean
   retryAfterMs?: number
+  suggestedSessionId?: string
 
   constructor(
     message: string,
@@ -28,6 +29,7 @@ class DashboardApiError extends Error {
       payload?: unknown
       retryable?: boolean
       retryAfterMs?: number
+      suggestedSessionId?: string
     },
   ) {
     super(message)
@@ -37,6 +39,7 @@ class DashboardApiError extends Error {
     this.payload = options?.payload
     this.retryable = options?.retryable
     this.retryAfterMs = options?.retryAfterMs
+    this.suggestedSessionId = options?.suggestedSessionId
   }
 }
 
@@ -57,11 +60,15 @@ async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T
     const retryAfterMs = typeof payload === 'object' && payload !== null && 'retryAfterMs' in payload
       ? Number((payload as { retryAfterMs: unknown }).retryAfterMs)
       : undefined
+    const suggestedSessionId = typeof payload === 'object' && payload !== null && 'suggestedSessionId' in payload
+      ? String((payload as { suggestedSessionId: unknown }).suggestedSessionId)
+      : undefined
     throw new DashboardApiError(message, response.status, {
       code,
       payload,
       retryable,
       retryAfterMs: Number.isFinite(retryAfterMs) ? retryAfterMs : undefined,
+      suggestedSessionId: suggestedSessionId?.trim() ? suggestedSessionId : undefined,
     })
   }
 
@@ -80,7 +87,38 @@ export type DownloadLookupTrigger =
 export function isRetryableDownloadLookupError(error: unknown): error is DashboardApiError {
   return error instanceof DashboardApiError
     && error.retryable === true
-    && (error.code === 'DOWNLOAD_SESSION_LOOKUP_FAILED' || error.code === 'DOWNLOAD_SESSION_NOT_READY')
+    && (
+      error.code === 'DOWNLOAD_SESSION_LOOKUP_FAILED'
+      || error.code === 'DOWNLOAD_SESSION_NOT_READY'
+      || error.code === 'DOWNLOAD_SESSION_STALE_REFERENCE'
+    )
+}
+
+function buildDownloadUrlsPath(
+  sessionId: string,
+  targetId?: string,
+  trigger?: DownloadLookupTrigger,
+): string {
+  const searchParams = new URLSearchParams()
+
+  if (targetId) {
+    searchParams.set('targetId', targetId)
+  }
+
+  if (trigger) {
+    searchParams.set('trigger', trigger)
+  }
+
+  const suffix = searchParams.size > 0 ? `?${searchParams.toString()}` : ''
+  return `/api/file/${sessionId}${suffix}`
+}
+
+async function requestDownloadUrls(
+  sessionId: string,
+  targetId?: string,
+  trigger?: DownloadLookupTrigger,
+): Promise<DownloadUrlsResponse> {
+  return requestJson<DownloadUrlsResponse>(buildDownloadUrlsPath(sessionId, targetId, trigger))
 }
 
 export async function getSessionWorkspace(sessionId: string): Promise<SessionWorkspace> {
@@ -156,22 +194,35 @@ export async function generateResume(
 export async function getDownloadUrls(
   sessionId: string,
   targetId?: string,
-  options?: { trigger?: DownloadLookupTrigger },
+  options?: {
+    trigger?: DownloadLookupTrigger
+    onSessionIdRecovered?: (sessionId: string) => void
+  },
 ): Promise<DownloadUrlsResponse> {
-  const searchParams = new URLSearchParams()
+  try {
+    return await requestDownloadUrls(sessionId, targetId, options?.trigger)
+  } catch (error) {
+    if (
+      targetId
+      || !(error instanceof DashboardApiError)
+      || error.code !== 'DOWNLOAD_SESSION_STALE_REFERENCE'
+    ) {
+      throw error
+    }
 
-  if (targetId) {
-    searchParams.set('targetId', targetId)
+    const suggestedSessionId = error.suggestedSessionId?.trim()
+    if (!suggestedSessionId || suggestedSessionId === sessionId) {
+      throw error
+    }
+
+    const recoveredUrls = await requestDownloadUrls(
+      suggestedSessionId,
+      targetId,
+      options?.trigger,
+    )
+    options?.onSessionIdRecovered?.(suggestedSessionId)
+    return recoveredUrls
   }
-
-  if (options?.trigger) {
-    searchParams.set('trigger', options.trigger)
-  }
-
-  const suffix = searchParams.size > 0 ? `?${searchParams.toString()}` : ''
-  return requestJson<DownloadUrlsResponse>(
-    `/api/file/${sessionId}${suffix}`,
-  )
 }
 
 export async function getBillingHistory(limit = 10): Promise<BillingHistoryResponse> {

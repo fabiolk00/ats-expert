@@ -832,10 +832,92 @@ describe("UserDataPage", () => {
       expect(fetchMock).toHaveBeenLastCalledWith("https://files.curria.test/cv.pdf")
     })
 
-    expect(mockGetDownloadUrls).toHaveBeenNthCalledWith(1, "sess_download_123")
-    expect(mockGetDownloadUrls).toHaveBeenNthCalledWith(2, "sess_download_123")
+    expect(mockGetDownloadUrls).toHaveBeenNthCalledWith(
+      1,
+      "sess_download_123",
+      undefined,
+      expect.objectContaining({
+        trigger: "profile_last_generated",
+        onSessionIdRecovered: expect.any(Function),
+      }),
+    )
+    expect(mockGetDownloadUrls).toHaveBeenNthCalledWith(
+      2,
+      "sess_download_123",
+      undefined,
+      expect.objectContaining({
+        trigger: "profile_last_generated",
+        onSessionIdRecovered: expect.any(Function),
+      }),
+    )
     expect(mockAnchorClick).toHaveBeenCalled()
     expect(mockCreateObjectURL).toHaveBeenCalled()
     expect(mockRevokeObjectURL).toHaveBeenCalled()
+  })
+
+  it("auto-heals a stale stored session id before enabling the profile PDF download", async () => {
+    const user = userEvent.setup()
+    window.localStorage.setItem("curria:last-profile-generation-session-id", "sess_stale_123")
+    mockGetDownloadUrls
+      .mockImplementationOnce(async (_sessionId: string, _targetId: unknown, options?: {
+        trigger?: string
+        onSessionIdRecovered?: (sessionId: string) => void
+      }) => {
+        options?.onSessionIdRecovered?.("sess_fresh_456")
+
+        return {
+          available: true,
+          docxUrl: null,
+          pdfUrl: "https://files.curria.test/cv-fresh.pdf",
+          pdfFileName: "Curriculo-Ana-Atualizado.pdf",
+          generationStatus: "ready",
+        }
+      })
+      .mockResolvedValueOnce({
+        available: true,
+        docxUrl: null,
+        pdfUrl: "https://files.curria.test/cv-fresh.pdf",
+        pdfFileName: "Curriculo-Ana-Atualizado.pdf",
+        generationStatus: "ready",
+      })
+    const fetchMock = buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createBlobResponse(),
+    )
+
+    render(<UserDataPage currentCredits={2} />)
+
+    const downloadButton = await screen.findByRole("button", { name: /Download PDF/i })
+
+    await waitFor(() => {
+      expect(downloadButton).toBeEnabled()
+    })
+
+    expect(window.localStorage.getItem("curria:last-profile-generation-session-id")).toBe("sess_fresh_456")
+
+    await user.click(downloadButton)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenLastCalledWith("https://files.curria.test/cv-fresh.pdf")
+    })
+
+    expect(mockGetDownloadUrls).toHaveBeenNthCalledWith(
+      1,
+      "sess_stale_123",
+      undefined,
+      expect.objectContaining({
+        trigger: "profile_last_generated",
+        onSessionIdRecovered: expect.any(Function),
+      }),
+    )
+    expect(mockGetDownloadUrls).toHaveBeenNthCalledWith(
+      2,
+      "sess_fresh_456",
+      undefined,
+      expect.objectContaining({
+        trigger: "profile_last_generated",
+        onSessionIdRecovered: expect.any(Function),
+      }),
+    )
   })
 })

@@ -141,6 +141,12 @@ const EMPTY_DOWNLOAD_STATE: ProfileDownloadState = {
   message: "Disponível depois que você gerar uma versão otimizada.",
 }
 
+function storeLastGeneratedProfileSessionId(sessionId: string): void {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY, sessionId)
+  }
+}
+
 const PROFILE_SECTION_META: Record<EditableResumeSection, {
   label: string
   heading: string
@@ -575,7 +581,15 @@ export default function UserDataPage({
       })
 
       try {
-        const urls = await getDownloadUrls(storedSessionId)
+        const urls = await getDownloadUrls(storedSessionId, undefined, {
+          trigger: "profile_last_generated",
+          onSessionIdRecovered: (recoveredSessionId) => {
+            storeLastGeneratedProfileSessionId(recoveredSessionId)
+            if (!cancelled) {
+              setLastGeneratedSessionId(recoveredSessionId)
+            }
+          },
+        })
         if (!cancelled) {
           setProfileDownloadState(resolveProfileDownloadState(urls))
         }
@@ -787,9 +801,7 @@ export default function UserDataPage({
         throw new Error(extractErrorMessage(data.error, generationCopy.failure))
       }
 
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY, data.sessionId)
-      }
+      storeLastGeneratedProfileSessionId(data.sessionId)
       setLastGeneratedSessionId(data.sessionId)
       setProfileDownloadState({
         status: "unavailable",
@@ -830,7 +842,13 @@ export default function UserDataPage({
     setIsDownloadingPdf(true)
 
     try {
-      const urls = await getDownloadUrls(lastGeneratedSessionId)
+      const urls = await getDownloadUrls(lastGeneratedSessionId, undefined, {
+        trigger: "profile_last_generated",
+        onSessionIdRecovered: (recoveredSessionId) => {
+          storeLastGeneratedProfileSessionId(recoveredSessionId)
+          setLastGeneratedSessionId(recoveredSessionId)
+        },
+      })
       const nextState = resolveProfileDownloadState(urls)
       setProfileDownloadState(nextState)
 

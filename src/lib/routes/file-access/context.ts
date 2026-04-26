@@ -1,8 +1,9 @@
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { getResumeTargetForSession } from '@/lib/db/resume-targets'
-import { getSessionLookupResult } from '@/lib/db/sessions'
+import { getSessionLookupResult, getUserSessions } from '@/lib/db/sessions'
 import { listJobsForSession } from '@/lib/jobs/repository'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
+import type { Session } from '@/types/agent'
 
 import type { FileAccessContextResult, FileDownloadTrigger } from './types'
 
@@ -11,6 +12,8 @@ const RETRYABLE_NOT_FOUND_TRIGGERS = new Set<FileDownloadTrigger>([
   'post_generation',
   'profile_last_generated',
 ])
+const STALE_REFERENCE_SESSION_SCAN_LIMIT = 6
+const POST_GENERATION_STALE_REFERENCE_MAX_AGE_MS = 15 * 60_000
 
 function isFileDownloadTrigger(value: string | null): value is FileDownloadTrigger {
   return value === 'post_generation'
@@ -22,6 +25,48 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
+}
+
+function isRecentDownloadableSession(session: Session): boolean {
+  return session.generatedOutput.status === 'ready'
+    || session.generatedOutput.status === 'generating'
+    || Boolean(session.generatedOutput.pdfPath)
+    || Boolean(session.generatedOutput.generatedAt)
+    || Boolean(session.agentState.optimizedCvState)
+    || session.agentState.rewriteStatus === 'completed'
+    || session.agentState.rewriteStatus === 'running'
+    || Boolean(session.agentState.lastRewriteMode)
+}
+
+async function findSuggestedSessionIdForStaleReference(input: {
+  requestedSessionId: string
+  appUserId: string
+  downloadTrigger: FileDownloadTrigger | null
+  now: number
+}): Promise<string | null> {
+  if (!input.downloadTrigger || !RETRYABLE_NOT_FOUND_TRIGGERS.has(input.downloadTrigger)) {
+    return null
+  }
+
+  const recentSessions = await getUserSessions(input.appUserId, STALE_REFERENCE_SESSION_SCAN_LIMIT)
+  const candidateSessions = recentSessions.filter(
+    (session) => session.id !== input.requestedSessionId && isRecentDownloadableSession(session),
+  )
+
+  if (input.downloadTrigger === 'post_generation') {
+    const freshCandidate = candidateSessions.find((session) => {
+      const sessionAgeMs = input.now - Math.max(
+        session.updatedAt.getTime(),
+        session.createdAt.getTime(),
+      )
+
+      return sessionAgeMs <= POST_GENERATION_STALE_REFERENCE_MAX_AGE_MS
+    })
+
+    return freshCandidate?.id ?? null
+  }
+
+  return candidateSessions[0]?.id ?? null
 }
 
 async function resolveSessionWithRetry(input: {
@@ -114,6 +159,41 @@ export async function resolveFileAccessContext(
   }
 
   if (sessionLookup.result.kind === 'not_found') {
+    const suggestedSessionId = await findSuggestedSessionIdForStaleReference({
+      requestedSessionId: params.sessionId,
+      appUserId: appUser.id,
+      downloadTrigger,
+      now: requestStartedAt,
+    })
+
+    if (suggestedSessionId) {
+      logWarn('api.file.download_urls_stale_reference', {
+        requestMethod: request.method,
+        requestPath,
+        requestedSessionId: params.sessionId,
+        suggestedSessionId,
+        targetId,
+        downloadTrigger,
+        appUserId: appUser.id,
+        lookupAttempts: sessionLookup.attempts,
+        success: false,
+        latencyMs: Date.now() - requestStartedAt,
+      })
+
+      return {
+        kind: 'blocked',
+        response: {
+          status: 404,
+          body: {
+            error: 'Download session reference is stale.',
+            code: 'DOWNLOAD_SESSION_STALE_REFERENCE',
+            retryable: true,
+            suggestedSessionId,
+          },
+        },
+      }
+    }
+
     const retryableClientFallback = downloadTrigger
       ? RETRYABLE_NOT_FOUND_TRIGGERS.has(downloadTrigger)
       : false

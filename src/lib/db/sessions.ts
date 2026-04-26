@@ -53,6 +53,7 @@ export {
   getMessages,
   getSession,
   getSessionLookupResult,
+  getUserSessions,
   incrementMessageCount,
   mergeToolPatch,
   normalizeGeneratedOutput,
