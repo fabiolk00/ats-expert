@@ -337,13 +337,13 @@ describe('POST /api/profile/smart-generation', () => {
         hardIssues: [{
           severity: 'high',
           section: 'summary',
-          message: 'O resumo otimizado menciona skill sem evid�ncia no curr�culo original.',
+          message: 'O resumo otimizado menciona skill sem evidência no currículo original.',
         }],
         softWarnings: [],
         issues: [{
           severity: 'high',
           section: 'summary',
-          message: 'O resumo otimizado menciona skill sem evid�ncia no curr�culo original.',
+          message: 'O resumo otimizado menciona skill sem evidência no currículo original.',
         }],
       },
       error: 'Job targeting rewrite validation failed.',
@@ -392,13 +392,13 @@ describe('POST /api/profile/smart-generation', () => {
         hardIssues: [{
           severity: 'high',
           section: 'summary',
-          message: 'O resumo otimizado menciona skill sem evid�ncia no curr�culo original.',
+          message: 'O resumo otimizado menciona skill sem evidência no currículo original.',
         }],
         softWarnings: [],
         issues: [{
           severity: 'high',
           section: 'summary',
-          message: 'O resumo otimizado menciona skill sem evid�ncia no curr�culo original.',
+          message: 'O resumo otimizado menciona skill sem evidência no currículo original.',
         }],
       },
       targetRoleConfidence: 'low',
@@ -510,13 +510,13 @@ describe('POST /api/profile/smart-generation', () => {
           hardIssues: [{
             severity: 'high',
             section: 'summary',
-            message: 'O resumo otimizado menciona skill sem evid�ncia no curr�culo original.',
+          message: 'O resumo otimizado menciona skill sem evidência no currículo original.',
           }],
           softWarnings: [],
           issues: [{
             severity: 'high',
             section: 'summary',
-            message: 'O resumo otimizado menciona skill sem evid�ncia no curr�culo original.',
+          message: 'O resumo otimizado menciona skill sem evidência no currículo original.',
           }],
         },
         error: 'Job targeting rewrite validation failed.',
@@ -679,3 +679,9 @@ describe('POST /api/profile/smart-generation', () => {
     })
   })
 })
+
+
+
+
+
+

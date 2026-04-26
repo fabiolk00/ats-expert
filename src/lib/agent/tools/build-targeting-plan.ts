@@ -84,9 +84,9 @@ function extractSemanticSignals(targetJobDescription: string): string[] {
     /\bdata\s+warehouse\b/gi,
     /\bdata\s+analytics\b/gi,
     /\bmodelagem\s+de\s+dados\b/gi,
-    /\bvisualiza(?:c|Ã§)(?:a|Ã£)o\s+de\s+dados\b/gi,
+    /\bvisualiza(?:c|ç)(?:a|ã)o\s+de\s+dados\b/gi,
     /\bpipelines?\s+de\s+dados\b/gi,
-    /\borquestra(?:c|Ã§)(?:a|Ã£)o\b/gi,
+    /\borquestra(?:c|ç)(?:a|ã)o\b/gi,
     /\bpower\s+automate\b/gi,
     /\bpython\b/gi,
     /\bpyspark\b/gi,
@@ -383,8 +383,8 @@ export async function buildTargetingPlan(params: {
 
   const missingButCannotInvent = takeRelevant(gapAnalysis.missingSkills)
   const roleAwareSummaryInstruction = extractedRole.confidence !== 'low'
-    ? `Posicione o candidato para ${targetRole} sem alegar experiÃªncia nÃ£o comprovada.`
-    : 'Use os requisitos, responsabilidades e stack da vaga como Ã¢ncora sem forÃ§ar um cargo-alvo literal nÃ£o confiÃ¡vel.'
+    ? `Posicione o candidato para ${targetRole} sem alegar experiência não comprovada.`
+    : 'Use os requisitos, responsabilidades e stack da vaga como âncora sem forçar um cargo-alvo literal não confiável.'
 
   return {
     targetRole,
@@ -400,35 +400,55 @@ export async function buildTargetingPlan(params: {
         mustEmphasize.length > 0
           ? `Priorize ${mustEmphasize.join(', ')} quando houver suporte factual.`
           : focusKeywords.length > 0
-            ? `Priorize os sinais semÃ¢nticos da vaga jÃ¡ presentes no currÃ­culo, como ${focusKeywords.join(', ')}.`
-            : 'Priorize termos e contextos da vaga que jÃ¡ aparecem no currÃ­culo.',
+            ? `Priorize os sinais semânticos da vaga já presentes no currículo, como ${focusKeywords.join(', ')}.`
+            : 'Priorize termos e contextos da vaga que já aparecem no currículo.',
         missingButCannotInvent.length > 0
-          ? `NÃ£o esconda gaps como ${missingButCannotInvent.join(', ')}.`
+          ? `Não esconda gaps como ${missingButCannotInvent.join(', ')}.`
           : 'Evite parecer um encaixe perfeito quando houver lacunas reais.',
       ],
       experience: [
-        'Reordene a narrativa dos bullets para destacar contexto, stack e impacto mais prÃ³ximos da vaga.',
+        'Reordene a narrativa dos bullets para destacar contexto, stack e impacto mais próximos da vaga.',
         'Mantenha empresas, cargos, datas e escopo factual intactos.',
         shouldDeemphasize.length > 0
-          ? `Reduza Ãªnfase em ${shouldDeemphasize.join(', ')} quando nÃ£o forem centrais para a vaga.`
+          ? `Reduza ênfase em ${shouldDeemphasize.join(', ')} quando não forem centrais para a vaga.`
           : 'Remova redundancias e preserve apenas o que ajuda na leitura ATS.',
       ],
       skills: [
         mustEmphasize.length > 0
           ? `Suba para o topo skills aderentes como ${mustEmphasize.join(', ')}.`
           : focusKeywords.length > 0
-            ? `Ordene skills pela relevÃ¢ncia semÃ¢ntica da vaga, como ${focusKeywords.join(', ')}.`
-            : 'Ordene skills pela relevÃ¢ncia para a vaga.',
-        'NÃ£o adicione skills ausentes do currÃ­culo original.',
+            ? `Ordene skills pela relevância semântica da vaga, como ${focusKeywords.join(', ')}.`
+            : 'Ordene skills pela relevância para a vaga.',
+        'Não adicione skills ausentes do currículo original.',
       ],
       education: [
-        'Mantenha formaÃ§Ã£o totalmente factual.',
+        'Mantenha formação totalmente factual.',
         'Apenas padronize formato e leitura ATS.',
       ],
       certifications: [
-        'Destaque certificaÃ§Ãµes mais prÃ³ximas da vaga, mantendo nomes, emissores e anos.',
-        'NÃ£o crie alinhamento artificial com certificaÃ§Ãµes inexistentes.',
+        'Destaque certificações mais próximas da vaga, mantendo nomes, emissores e anos.',
+        'Não crie alinhamento artificial com certificações inexistentes.',
       ],
     },
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

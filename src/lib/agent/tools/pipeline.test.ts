@@ -996,7 +996,7 @@ describe('ATS enhancement reliability hardening', () => {
         valid: false,
         issues: [
           { severity: 'medium', message: 'A lista de skills otimizada introduziu habilidade ou ferramenta sem base no currículo original.', section: 'skills' },
-          { severity: 'medium', message: 'O resumo otimizado menciona skill sem evid�ncia no curr�culo original.', section: 'summary' },
+      { severity: 'medium', message: 'O resumo otimizado menciona skill sem evidência no currículo original.', section: 'summary' },
         ],
       })
       .mockReturnValueOnce({
@@ -1771,7 +1771,7 @@ describe('ATS enhancement reliability hardening', () => {
     session.agentState.workflowMode = 'job_targeting'
     session.agentState.targetJobDescription = [
       'About The Job',
-      'Buscamos profissionais com forte experiÃªncia em Power BI e anÃ¡lise de dados.',
+      'Buscamos profissionais com forte experiência em Power BI e análise de dados.',
       'Requisitos: SQL, BI e dashboards executivos.',
     ].join('\n')
 
@@ -2473,3 +2473,5 @@ describe('ATS enhancement reliability hardening', () => {
     })
   })
 })
+
+

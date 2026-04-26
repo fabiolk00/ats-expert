@@ -82,7 +82,7 @@ export function validateRewrite(
     if (!originalCompanies.has(company) || !originalTitleCompanyPairs.has(titleCompany)) {
       issues.push({
         severity: 'high',
-        message: 'A experiÃƒÂªncia otimizada introduziu empresa ou combinaÃƒÂ§ÃƒÂ£o cargo/empresa inexistente no currÃƒÂ­culo original.',
+        message: 'A experiência otimizada introduziu empresa ou combinação cargo/empresa inexistente no currículo original.',
         section: 'experience',
       })
     }
@@ -98,7 +98,7 @@ export function validateRewrite(
     if (normalize(originalMatch.startDate) !== normalize(entry.startDate) || normalize(originalMatch.endDate) !== normalize(entry.endDate)) {
       issues.push({
         severity: 'high',
-        message: 'A experiÃƒÂªncia otimizada alterou datas de inÃƒÂ­cio ou tÃƒÂ©rmino sem base no currÃƒÂ­culo original.',
+        message: 'A experiência otimizada alterou datas de início ou término sem base no currículo original.',
         section: 'experience',
       })
     }
@@ -108,7 +108,7 @@ export function validateRewrite(
     if (optimizedNumbers.some((value) => !originalNumbers.has(value))) {
       issues.push({
         severity: 'medium',
-        message: 'A experiÃƒÂªncia otimizada adicionou claims numÃƒÂ©ricos que nÃƒÂ£o aparecem no currÃƒÂ­culo original.',
+        message: 'A experiência otimizada adicionou claims numéricos que não aparecem no currículo original.',
         section: 'experience',
       })
     }
@@ -122,7 +122,7 @@ export function validateRewrite(
     if (!originalCertificationSet.has(key)) {
       issues.push({
         severity: 'high',
-        message: 'A versÃƒÂ£o otimizada incluiu certificaÃƒÂ§ÃƒÂ£o nÃƒÂ£o comprovada no currÃƒÂ­culo original.',
+        message: 'A versão otimizada incluiu certificação não comprovada no currículo original.',
         section: 'certifications',
       })
     }
@@ -133,7 +133,7 @@ export function validateRewrite(
   if (Array.from(optimizedSkillSet).some((skill) => !originalSkillSet.has(skill))) {
     issues.push({
       severity: 'medium',
-      message: 'A lista de skills otimizada introduziu habilidade ou ferramenta sem base no currÃƒÂ­culo original.',
+      message: 'A lista de skills otimizada introduziu habilidade ou ferramenta sem base no currículo original.',
       section: 'skills',
     })
   }
@@ -143,7 +143,7 @@ export function validateRewrite(
   if (summaryNumbers.some((value) => !originalNumbers.has(value))) {
     issues.push({
       severity: 'medium',
-      message: 'O resumo otimizado adicionou claim numÃƒÂ©rico sem suporte no currÃƒÂ­culo original.',
+      message: 'O resumo otimizado adicionou claim numérico sem suporte no currículo original.',
       section: 'summary',
     })
   }
@@ -181,7 +181,7 @@ export function validateRewrite(
     ) {
       issues.push({
         severity: 'medium',
-        message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidÃƒÂªncia equivalente no currÃƒÂ­culo original.',
+        message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidência equivalente no currículo original.',
         section: 'summary',
       })
     }
@@ -198,7 +198,7 @@ export function validateRewrite(
     if (newlyClaimedMissingItems.length > 0) {
       issues.push({
         severity: 'high',
-        message: 'A versÃƒÂ£o targetizada tentou apagar gaps reais adicionando alinhamento nÃƒÂ£o comprovado com a vaga.',
+        message: 'A versão targetizada tentou apagar gaps reais adicionando alinhamento não comprovado com a vaga.',
         section: 'summary',
       })
     }

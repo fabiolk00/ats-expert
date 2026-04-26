@@ -58,7 +58,7 @@ const gapAnalysis: GapAnalysisResult = {
   matchScore: 72,
   missingSkills: ['Airflow'],
   weakAreas: ['summary'],
-  improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiÃªncia.'],
+  improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
 }
 
 describe('buildTargetingPlan', () => {
@@ -72,8 +72,8 @@ describe('buildTargetingPlan', () => {
     const plan = await buildTargetingPlan({
       cvState: buildCvState(),
       targetJobDescription: [
-        'Requisitos ObrigatÃ³rios',
-        'SQL avanÃ§ado e modelagem de dados.',
+        'Requisitos Obrigatórios',
+        'SQL avançado e modelagem de dados.',
         'Estamos contratando uma pessoa Engenheira de Dados para atuar com pipelines e analytics.',
       ].join('\n'),
       gapAnalysis,
@@ -90,7 +90,7 @@ describe('buildTargetingPlan', () => {
       cvState: buildCvState(),
       targetJobDescription: [
         'Cargo: Analytics Engineer',
-        'Requisitos ObrigatÃ³rios',
+        'Requisitos Obrigatórios',
         'SQL e BigQuery.',
       ].join('\n'),
       gapAnalysis,
@@ -195,3 +195,7 @@ describe('buildTargetingPlan', () => {
     expect(plan.missingButCannotInvent).toEqual(['Airflow'])
   })
 })
+
+
+
+

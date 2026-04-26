@@ -520,7 +520,7 @@ function startsWithWeakLeadVerb(value: string): boolean {
 }
 
 function startsWithPrepositionOrConjunction(value: string): boolean {
-  return /^(?:and|or|but|e|ou|mas|para|com|de|do|da|dos|das|em|no|na|nos|nas|ao|aos|a|Ã )\b/i.test(value.trim())
+  return /^(?:and|or|but|e|ou|mas|para|com|de|do|da|dos|das|em|no|na|nos|nas|ao|aos|a|à)\b/i.test(value.trim())
 }
 
 function hasActionOrMetricLead(value: string): boolean {
@@ -1644,3 +1644,4 @@ export function normalizeCvHighlightState(
     highlightGeneratedAt: result.data.highlightGeneratedAt ?? result.data.generatedAt,
   }
 }
+

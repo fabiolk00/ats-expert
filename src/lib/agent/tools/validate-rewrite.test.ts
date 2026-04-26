@@ -63,7 +63,7 @@ describe('validateRewrite', () => {
       buildCvState(),
       {
         ...buildCvState(),
-        summary: 'Profissional de dados com foco em BI e SQL. Requisitos obrigatorios atendidos com base na experiencia.',
+        summary: 'Profissional de dados com foco em BI e SQL. Requisitos obrigatórios atendidos com base na experiência.',
       },
       {
         mode: 'job_targeting',
