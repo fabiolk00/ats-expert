@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next"
 
-import { getAppOrigin } from "@/lib/config/app-url"
+import { getSiteUrl } from "@/lib/seo/site-config"
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = getAppOrigin()
+  const baseUrl = getSiteUrl()
 
   return {
     rules: {

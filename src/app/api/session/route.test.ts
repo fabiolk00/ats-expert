@@ -90,7 +90,7 @@ describe('GET /api/session', () => {
       code: 'PRO_PLAN_REQUIRED',
       title: 'Chat com IA exclusivo do plano PRO',
       message: 'Este recurso está disponível apenas para usuários do plano PRO. Faça upgrade para acessar o chat com IA.',
-      upgradeUrl: '/precos?checkoutPlan=pro',
+      upgradeUrl: '/finalizar-compra?plan=pro',
     })
 
     const response = await GET(new NextRequest('https://example.com/api/session'))
@@ -100,7 +100,7 @@ describe('GET /api/session', () => {
       error: 'Este recurso está disponível apenas para usuários do plano PRO. Faça upgrade para acessar o chat com IA.',
       title: 'Chat com IA exclusivo do plano PRO',
       code: 'PRO_PLAN_REQUIRED',
-      upgradeUrl: '/precos?checkoutPlan=pro',
+      upgradeUrl: '/finalizar-compra?plan=pro',
     })
     expect(db.getUserSessions).not.toHaveBeenCalled()
     expect(logWarn).toHaveBeenCalledWith('api.session.list_forbidden', expect.objectContaining({

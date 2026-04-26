@@ -106,6 +106,34 @@ describe('cv versions', () => {
     expect(version.snapshot).toEqual(insertedSnapshot)
   })
 
+  it('persists job-targeting snapshots with the dedicated source value', async () => {
+    const rpc = vi.fn(async (_fn: string, args: { p_source: string; p_snapshot: CVState }) => ({
+      data: {
+        id: 'ver_job_targeting_123',
+        session_id: 'sess_123',
+        snapshot: args.p_snapshot,
+        source: args.p_source,
+        created_at: '2026-04-26T02:00:00.000Z',
+      },
+      error: null,
+    }))
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      rpc,
+    } as unknown as ReturnType<typeof getSupabaseAdminClient>)
+
+    const version = await createCvVersion({
+      sessionId: 'sess_123',
+      snapshot: buildSnapshot({ summary: 'Resumo targetizado para a vaga.' }),
+      source: 'job-targeting',
+    })
+
+    expect(rpc).toHaveBeenCalledWith('create_cv_version_record', expect.objectContaining({
+      p_source: 'job-targeting',
+    }))
+    expect(version.source).toBe('job-targeting')
+  })
+
   it('skips an identical consecutive base snapshot', () => {
     const versions = [
       buildVersion({

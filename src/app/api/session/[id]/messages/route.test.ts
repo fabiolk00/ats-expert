@@ -58,7 +58,7 @@ describe('GET /api/session/[id]/messages', () => {
       code: 'PRO_PLAN_REQUIRED',
       title: 'Chat com IA exclusivo do plano PRO',
       message: 'Este recurso está disponível apenas para usuários do plano PRO. Faça upgrade para acessar o chat com IA.',
-      upgradeUrl: '/precos?checkoutPlan=pro',
+      upgradeUrl: '/finalizar-compra?plan=pro',
     })
 
     const response = await GET(
@@ -71,7 +71,7 @@ describe('GET /api/session/[id]/messages', () => {
       error: 'Este recurso está disponível apenas para usuários do plano PRO. Faça upgrade para acessar o chat com IA.',
       title: 'Chat com IA exclusivo do plano PRO',
       code: 'PRO_PLAN_REQUIRED',
-      upgradeUrl: '/precos?checkoutPlan=pro',
+      upgradeUrl: '/finalizar-compra?plan=pro',
     })
     expect(getSession).not.toHaveBeenCalled()
     expect(getMessages).not.toHaveBeenCalled()

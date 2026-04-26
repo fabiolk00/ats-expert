@@ -1,43 +1,43 @@
 import Link from "next/link"
-import { Check, Gift, ShieldCheck } from "lucide-react"
+import { Check, Gift, ShieldCheck, X } from "lucide-react"
 
 import PricingComparisonTable from "@/components/landing/pricing-comparison-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { PLANS, formatPrice } from "@/lib/plans"
+import { PLAN_DISPLAY_ORDER, getPlanComparisonRows } from "@/lib/pricing/plan-comparison"
+import { PLANS, formatPrice, type PlanSlug } from "@/lib/plans"
+import { cn } from "@/lib/utils"
 
-const plans = [
-  {
-    slug: "free" as const,
-    cta: "Ver meu score ATS",
+const planActions: Record<PlanSlug, { cta: string; href: string }> = {
+  free: {
+    cta: "Começar agora",
     href: "/criar-conta",
   },
-  {
-    slug: "unit" as const,
-    cta: "Ver o que está incluído",
-    href: "/precos",
+  unit: {
+    cta: "Começar agora",
+    href: "/criar-conta",
   },
-  {
-    slug: "monthly" as const,
-    cta: "Ver o que está incluído",
-    href: "/precos",
+  monthly: {
+    cta: "Começar agora",
+    href: "/criar-conta",
   },
-  {
-    slug: "pro" as const,
-    cta: "Ver o que está incluído",
-    href: "/precos",
+  pro: {
+    cta: "Começar agora",
+    href: "/criar-conta",
   },
-]
+}
 
 export default function PricingSection() {
   return (
     <section id="pricing" className="bg-background py-24">
-      <PricingComparisonTable />
+      <div data-testid="landing-pricing-comparison" className="hidden md:block">
+        <PricingComparisonTable />
+      </div>
 
       <div className="container mx-auto mt-24 px-4">
         <div className="mb-16 text-center">
-          <h2 className="mb-4 text-3xl font-bold text-balance md:text-4xl">
+          <h2 className="mb-4 text-balance text-3xl font-bold md:text-4xl">
             Preços simples para melhorar seu currículo
           </h2>
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
@@ -46,12 +46,14 @@ export default function PricingSection() {
         </div>
 
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
-          {plans.map((plan) => {
-            const config = PLANS[plan.slug]
+          {PLAN_DISPLAY_ORDER.map((slug) => {
+            const config = PLANS[slug]
+            const planAction = planActions[slug]
+            const comparisonRows = getPlanComparisonRows(slug)
 
             return (
               <Card
-                key={plan.slug}
+                key={slug}
                 className={`relative flex h-full flex-col transition-all duration-200 ${
                   config.highlighted
                     ? "z-10 border-primary bg-card shadow-xl shadow-primary/10 xl:scale-105"
@@ -83,11 +85,61 @@ export default function PricingSection() {
                 </CardHeader>
 
                 <CardContent className="flex flex-1 flex-col justify-between space-y-8">
-                  <ul className="space-y-4">
-                    {config.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3">
-                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
-                        <span className="text-sm font-medium">{feature}</span>
+                  <ul className="space-y-3">
+                    {comparisonRows.map((row) => (
+                      <li
+                        key={row.label}
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 bg-muted/20 px-3 py-3"
+                      >
+                        {row.type === "value" ? (
+                          <>
+                            <span className="text-sm font-medium text-foreground">{row.label}</span>
+                            <span
+                              className={cn(
+                                "inline-flex min-w-[72px] items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold",
+                                row.label === "ATS Expert"
+                                  ? row.value === "Completo"
+                                    ? "bg-primary/10 text-primary"
+                                    : "bg-muted text-muted-foreground"
+                                  : "bg-muted text-foreground",
+                              )}
+                            >
+                              {row.value}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-3">
+                              {row.included ? (
+                                <Check
+                                  aria-label={`${row.label}: incluído`}
+                                  className="h-4 w-4 shrink-0 text-emerald-500"
+                                />
+                              ) : (
+                                <X
+                                  aria-label={`${row.label}: não incluído`}
+                                  className="h-4 w-4 shrink-0 text-red-500"
+                                />
+                              )}
+                              <span
+                                className={cn(
+                                  "text-sm font-medium",
+                                  row.included ? "text-foreground" : "text-muted-foreground",
+                                )}
+                              >
+                                {row.label}
+                              </span>
+                            </div>
+                            <span
+                              className={cn(
+                                "text-xs font-semibold uppercase tracking-wide",
+                                row.included ? "text-emerald-600" : "text-red-500",
+                              )}
+                            >
+                              {row.included ? "Incluído" : "Não"}
+                            </span>
+                          </>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -98,7 +150,7 @@ export default function PricingSection() {
                     variant={config.highlighted ? "default" : "outline"}
                     size="lg"
                   >
-                    <Link href={plan.href}>{plan.cta}</Link>
+                    <Link href={planAction.href}>{planAction.cta}</Link>
                   </Button>
                 </CardContent>
               </Card>

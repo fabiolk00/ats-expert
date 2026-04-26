@@ -13,6 +13,7 @@ enum CVVersionSource {
   rewrite
   manual
   atsEnhancement @map("ats-enhancement")
+  jobTargeting  @map("job-targeting")
   targetDerived @map("target-derived")
 
   @@map("cv_version_source")

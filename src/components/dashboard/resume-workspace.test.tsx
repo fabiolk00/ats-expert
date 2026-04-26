@@ -262,7 +262,7 @@ describe("ResumeWorkspace", () => {
         canAccessAiChat={false}
         aiChatAccessTitle="Chat com IA exclusivo do plano PRO"
         aiChatAccessMessage="Este recurso está disponível apenas para usuários do plano PRO. Faça upgrade para acessar o chat com IA."
-        aiChatUpgradeUrl="/precos?checkoutPlan=pro"
+        aiChatUpgradeUrl="/finalizar-compra?plan=pro"
         initialSessionId="sess_blocked"
         userName="Fabio"
       />,
@@ -273,7 +273,7 @@ describe("ResumeWorkspace", () => {
     expect(screen.getByTestId("resume-workspace")).toHaveAttribute("data-busy", "false")
     expect(screen.getByTestId("ai-chat-access-card")).toBeInTheDocument()
     expect(screen.getByText("Chat com IA exclusivo do plano PRO")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: /fazer upgrade/i })).toHaveAttribute("href", "/precos?checkoutPlan=pro")
+    expect(screen.getByRole("link", { name: /fazer upgrade/i })).toHaveAttribute("href", "/finalizar-compra?plan=pro")
   })
 
   it("passes the snapshot-derived weak-fit checkpoint down to ChatInterface", async () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import SEOPageTemplate from "@/components/landing/seo-pages/seo-page-template";
+import { dataEngineerSeoFaqItems } from "@/lib/seo/seo-page-faqs";
 import { DatabaseZap } from "lucide-react";
 import { motion as Motion } from "motion/react";
 
@@ -165,11 +166,7 @@ export default function DataEngineerPage() {
           { step: "Destaque a Orquestração", detail: "Certifique-se de que Airflow, dbt ou Prefect sejam apresentados de forma proeminente na sua experiência." },
           { step: "Formate para Parsing", detail: "Garanta que o ATS possa extrair facilmente a sua stack de ferramentas sem travar em colunas ou logotipos." }
         ],
-        faq: [
-          { q: "Preciso saber Scala se eu sei Python?", a: "Python é o padrão, mas Scala é altamente valorizado para otimizações profundas no Spark. Liste ambos se souber, mas adapte à vaga." },
-          { q: "Devo incluir habilidades de Data Science ou ML?", a: "Apenas se for relevante para a função (ex: MLOps). Caso contrário, mantenha o foco estritamente na movimentação, armazenamento e confiabilidade de dados." },
-          { q: "Como demonstro impacto nos negócios?", a: "Foque em custo (ex: 'Otimizou jobs no Spark, economizando $15k/mês em custos na AWS') ou capacitação (ex: 'Reduziu a latência dos relatórios, viabilizando dashboards executivos em tempo real')." }
-        ]
+        faq: dataEngineerSeoFaqItems
       }}
     />
   );

@@ -5,7 +5,7 @@ import { CheckoutOnboardingForm } from "@/components/pricing/checkout-onboarding
 import { getCurrentAppUser } from "@/lib/auth/app-user"
 import { getBillingInfo } from "@/lib/billing/customer-info"
 import { buildCheckoutResumePath, isPaidPlanSlug } from "@/lib/billing/checkout-navigation"
-import { PUBLIC_ROUTES } from "@/lib/routes/public"
+import { PUBLIC_ROUTES, PUBLIC_SECTION_ROUTES } from "@/lib/routes/public"
 import { buildPublicPageMetadata } from "@/lib/seo/public-metadata"
 
 export const metadata: Metadata = buildPublicPageMetadata({
@@ -28,7 +28,7 @@ function readPlan(planParam: string | string[] | undefined) {
 export default async function FinalizarCompraPage({ searchParams }: CheckoutPageProps) {
   const selectedPlan = readPlan(searchParams?.plan)
   if (!selectedPlan) {
-    redirect(PUBLIC_ROUTES.pricing)
+    redirect(PUBLIC_SECTION_ROUTES.pricing)
   }
 
   const appUser = await getCurrentAppUser()

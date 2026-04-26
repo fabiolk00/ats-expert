@@ -1,4 +1,9 @@
 import { PLANS } from "@/lib/plans"
+import {
+  buildFaqPageJsonLd,
+  type FaqPageJsonLd,
+  type SeoFaqItem,
+} from "@/lib/seo/json-ld"
 
 type SchemaContactPoint = {
   "@type": "ContactPoint"
@@ -28,19 +33,6 @@ interface SchemaSoftwareApplication {
     priceCurrency: string
     availability: string
     description: string
-  }>
-}
-
-interface SchemaFAQPage {
-  "@context": string
-  "@type": "FAQPage"
-  mainEntity: Array<{
-    "@type": "Question"
-    name: string
-    acceptedAnswer: {
-      "@type": "Answer"
-      text: string
-    }
   }>
 }
 
@@ -84,18 +76,7 @@ export function buildSoftwareApplicationSchema(baseUrl: string): SchemaSoftwareA
 }
 
 export function buildFAQSchema(
-  faqs: ReadonlyArray<{ question: string; answer: string }>,
-): SchemaFAQPage {
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((faq) => ({
-      "@type": "Question",
-      name: faq.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: faq.answer,
-      },
-    })),
-  }
+  faqs: ReadonlyArray<SeoFaqItem>,
+): FaqPageJsonLd {
+  return buildFaqPageJsonLd(faqs)
 }

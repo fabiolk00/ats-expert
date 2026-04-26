@@ -1,6 +1,7 @@
 "use client";
 
 import SEOPageTemplate from "@/components/landing/seo-pages/seo-page-template";
+import { financeSeoFaqItems } from "@/lib/seo/seo-page-faqs";
 import { Building2 } from "lucide-react";
 import { motion as Motion } from "motion/react";
 
@@ -213,20 +214,7 @@ export default function FinancePage() {
             detail: "Muitos analistas tentam colocar o currículo em tabelas de Excel. Converta para um PDF limpo, de coluna única, em A4.",
           },
         ],
-        faq: [
-          {
-            q: "Devo incluir certificações como CFA, CPA ou CGA?",
-            a: "Absolutamente, sim. Adicione a certificação no topo (logo ao lado do seu nome ou abaixo do título) e em uma seção de Educação dedicada, pois o ATS buscará essas siglas.",
-          },
-          {
-            q: "O nível de detalhe contábil importa?",
-            a: "Sim, especialmente para Controladoria. O recrutador pode não entender de 'US GAAP' vs 'IFRS', mas o sistema está programado para verificar a conformidade regulatória específica.",
-          },
-          {
-            q: "Como colocar projetos confidenciais?",
-            a: "Especifique a indústria e o valor sem o nome: 'Conduziu a due diligence financeira para uma aquisição de US$ 25M de uma startup de logística SaaS (Confidencial)'.",
-          },
-        ],
+        faq: financeSeoFaqItems,
       }}
     />
   );

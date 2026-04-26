@@ -29,6 +29,7 @@ import { buildAppUrl } from '@/lib/config/app-url'
 import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
 import { getPlan } from '@/lib/plans'
 import { PROFILE_SETUP_PATH } from '@/lib/routes/app'
+import { PUBLIC_SECTION_ROUTES } from '@/lib/routes/public'
 import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
 
 export const runtime = 'nodejs'
@@ -239,7 +240,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const userName = user?.fullName ?? user?.firstName ?? 'Usuario CurrIA'
     const userEmail = user?.emailAddresses[0]?.emailAddress ?? null
     const successUrl = buildAppUrl(PROFILE_SETUP_PATH)
-    const pricingUrl = buildAppUrl('/precos')
+    const pricingUrl = buildAppUrl(PUBLIC_SECTION_ROUTES.pricing)
     const checkout = await createCheckoutRecordPending(appUser.id, plan.slug, plan.price)
     checkoutReference = checkout.checkoutReference
 

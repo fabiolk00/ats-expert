@@ -147,13 +147,13 @@ describe("SignupForm", () => {
   it("redirects authenticated visitors away from signup using the requested path", async () => {
     mockIsSignedIn.mockReturnValue(true)
     mockSearchParamsGet.mockImplementation((key: string) =>
-      key === "redirect_to" ? "/precos?checkoutPlan=pro" : null,
+      key === "redirect_to" ? "/finalizar-compra?plan=pro" : null,
     )
 
     render(<SignupForm />)
 
     await waitFor(() => {
-      expect(mockNavigateToUrl).toHaveBeenCalledWith("/precos?checkoutPlan=pro")
+      expect(mockNavigateToUrl).toHaveBeenCalledWith("/finalizar-compra?plan=pro")
     })
   })
 

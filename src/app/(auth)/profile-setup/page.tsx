@@ -19,6 +19,7 @@ export default async function ProfileSetupPage() {
   return (
     <UserDataPage
       currentCredits={appUser?.creditAccount.creditsRemaining ?? 0}
+      currentAppUserId={appUser?.id ?? null}
       userImageUrl={clerkUser?.imageUrl ?? null}
     />
   )

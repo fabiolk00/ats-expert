@@ -7,7 +7,7 @@ current_phase_name: restrict ai chat access to active pro subscribers across ui 
 current_plan: 01 complete
 status: phase_complete
 stopped_at: Completed 102-01-PLAN.md
-last_updated: "2026-04-26T00:00:00.0000000-03:00"
+last_updated: "2026-04-26T02:11:00.0000000-03:00"
 last_activity: 2026-04-26
 progress:
   total_phases: 57
@@ -36,7 +36,7 @@ Current Plan: 01 complete
 Total Plans in Phase: 1
 Status: Phase complete - verified locally
 Last activity: 2026-04-26
-Last Activity Description: Completed quick task 260425-vsz recovering stale download session ids and hardening post-generation file lookup.
+Last Activity Description: Completed quick task 260425-wdg tightening sitemap, robots, and canonical SEO URL handling.
 
 Progress: [##########] 100%
 
@@ -200,6 +200,9 @@ Baseline carried forward from earlier shipped milestones:
 | 260425-po6 | Hide the pricing comparison section on mobile and align pricing cards with the comparison matrix | 2026-04-25 | working-tree | Validated | [260425-po6-hide-the-pricing-comparison-section-on-m](./quick/260425-po6-hide-the-pricing-comparison-section-on-m/) |
 | 260425-u7m | Add symmetric session-comparison highlightState return/log coverage for ATS and job_targeting flows | 2026-04-25 | working-tree | Validated | [260425-u7m-add-session-comparison-decision-tests-fo](./quick/260425-u7m-add-session-comparison-decision-tests-fo/) |
 | 260425-vsz | Recover stale download session ids and harden post-generation file lookup | 2026-04-26 | working-tree | Validated | [260425-vsz-recover-from-stale-download-session-ids-](./quick/260425-vsz-recover-from-stale-download-session-ids-/) |
+| 260425-w1z | Fix missing job-targeting cv_version_source enum value | 2026-04-26 | working-tree | Validated | [260425-w1z-fix-missing-job-targeting-cv-version-sou](./quick/260425-w1z-fix-missing-job-targeting-cv-version-sou/) |
+| 260425-w5l | Analyze and eliminate unexpected stale download session warnings | 2026-04-26 | working-tree | Validated | [260425-w5l-analyze-and-eliminate-unexpected-stale-d](./quick/260425-w5l-analyze-and-eliminate-unexpected-stale-d/) |
+| 260425-wdg | Ajustar sitemap.xml e indexacao SEO do CurrIA | 2026-04-26 | working-tree | Scoped Validated | [260425-wdg-ajustar-sitemap-xml-e-indexacao-seo-do-c](./quick/260425-wdg-ajustar-sitemap-xml-e-indexacao-seo-do-c/) |
 
 ## Session Continuity
 

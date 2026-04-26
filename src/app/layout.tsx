@@ -7,12 +7,12 @@ import { embeddedClerkLocalizationPtBr } from "@/components/auth/clerk-localizat
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
-import { getAppOrigin } from "@/lib/config/app-url"
+import { getSiteUrl } from "@/lib/seo/site-config"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
-const baseUrl = getAppOrigin()
+const baseUrl = getSiteUrl()
 const imageUrl = `${baseUrl}/og-image.svg`
 
 export const metadata: Metadata = {

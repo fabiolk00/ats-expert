@@ -1,6 +1,7 @@
 "use client";
 
 import SEOPageTemplate from "@/components/landing/seo-pages/seo-page-template";
+import { customerSuccessSeoFaqItems } from "@/lib/seo/seo-page-faqs";
 import { HeartHandshake, ShieldCheck, Activity } from "lucide-react";
 import { motion as Motion } from "motion/react";
 
@@ -157,15 +158,10 @@ export default function CustomerSuccessPage() {
           { step: "Distancie-se do Suporte", detail: "Limite (ou elimine) referências a 'tickets' e 'SLA de resposta'. Troque por 'planejamento estratégico', 'Mapeamento de Sucesso' e 'Adoção'." },
           { step: "Formatado para Leitura Limpa", detail: "Evite colunas duplas e caixas de texto com o seu 'perfil empático'. Use uma estrutura tradicional com resultados concretos." }
         ],
-        faq: [
-          { q: "E se a minha empresa não usava o termo 'ARR' ou NRR?", a: "Adapte para o contexto comercial da sua empresa (Ticket Médio, Volume de Contratos Renovados, Valor de Carteira), mas certifique-se de mostrar uma métrica de Retenção Financeira clara." },
-          { q: "Devo colocar as ferramentas de Suporte Técnico (Ex: Zendesk, Intercom)?", a: "Apenas como secundárias. É mais importante listar as ferramentas de CRM e Sucesso do Cliente (Salesforce, HubSpot, Gainsight) que validam que você faz um trabalho pró-ativo, não reativo." },
-          { q: "CSM B2C vs B2B: Faz diferença?", a: "Total diferença. O processo B2B envolve contas muito mais caras e engajamento executivo, o que recruta as vagas mais altas. Se foi B2B, declare o B2B explicitamente." }
-        ]
+        faq: customerSuccessSeoFaqItems
       }}
     />
   );
 }
-
 
 

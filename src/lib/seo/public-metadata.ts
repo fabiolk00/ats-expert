@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 
-import { getAppOrigin } from "@/lib/config/app-url"
+import { getSiteUrl } from "@/lib/seo/site-config"
 
 type PublicMetadataInput = {
   title: string
@@ -13,7 +13,7 @@ export function buildPublicPageMetadata({
   description,
   canonicalPath,
 }: PublicMetadataInput): Metadata {
-  const baseUrl = getAppOrigin()
+  const baseUrl = getSiteUrl()
   const canonical = `${baseUrl}${canonicalPath}`
 
   return {

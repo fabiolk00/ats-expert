@@ -14,6 +14,7 @@ import ProblemSection from "@/components/landing/seo-pages/sections/problem-sect
 import RelatedSeoPagesCarousel from "@/components/landing/seo-pages/sections/related-seo-pages-carousel"
 import SenioritySection from "@/components/landing/seo-pages/sections/seniority-section"
 import SpecializationsSection from "@/components/landing/seo-pages/sections/specializations-section"
+import type { SeoFaqItem } from "@/lib/seo/json-ld"
 
 export interface SEOPageProps {
   slug: string
@@ -36,7 +37,7 @@ export interface SEOPageProps {
     specializations: Array<{ title: string; desc: string; tags: string[] }>
     seniority: Array<{ level: string; tips: string[] }>
     roadmap?: Array<{ step: string; detail: string }>
-    faq: Array<{ q: string; a: string }>
+    faq: readonly SeoFaqItem[]
   }
 }
 

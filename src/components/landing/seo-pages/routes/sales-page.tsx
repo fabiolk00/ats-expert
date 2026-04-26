@@ -1,6 +1,7 @@
 "use client";
 
 import SEOPageTemplate from "@/components/landing/seo-pages/seo-page-template";
+import { salesSeoFaqItems } from "@/lib/seo/seo-page-faqs";
 import { BadgeDollarSign, Handshake, BarChart4, ChevronRight } from "lucide-react";
 import { motion as Motion } from "motion/react";
 
@@ -144,11 +145,7 @@ export default function SalesPage() {
           { step: "Mostre o Método", detail: "Vender não é sorte. O ATS busca palavras como SPIN, BANT ou MEDDIC para validar sua senioridade." },
           { step: "Simplifique o Layout", detail: "Vendedores adoram currículos chamativos. Recrutadores e o ATS preferem texto alinhado, limpo e direto ao ponto." }
         ],
-        faq: [
-          { q: "Devo colocar o nome dos clientes que fechei?", a: "Depende de NDA (Acordo de Sigilo). Para grandes marcas, você pode usar termos como 'Top 5 Bancos Nacionais' ou 'Gigante do Varejo' se não puder dizer o nome." },
-          { q: "Como mostro que bati a meta se minha empresa faliu / não tinha produto?", a: "Seja honesto. Foque no pipeline gerado ou na métrica de atividade: 'Gerou US$ 500k em pipeline qualificado nos primeiros 3 meses antes da reestruturação da empresa.'" },
-          { q: "A ordem das informações importa?", a: "Sim. A primeira coisa sob o título do cargo deve ser o seu Atingimento de Cota (Quota Attainment). Vá direto ao dinheiro." }
-        ]
+        faq: salesSeoFaqItems
       }}
     />
   );

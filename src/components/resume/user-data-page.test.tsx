@@ -795,6 +795,18 @@ describe("UserDataPage", () => {
     expect(mockGetDownloadUrls).not.toHaveBeenCalled()
   })
 
+  it("ignores the legacy global last-generated session key when a scoped app user id is provided", async () => {
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
+    window.localStorage.setItem("curria:last-profile-generation-session-id", "sess_legacy_other_user")
+
+    render(<UserDataPage currentCredits={2} currentAppUserId="usr_current" />)
+
+    const downloadButton = await screen.findByRole("button", { name: /Download PDF/i })
+
+    expect(downloadButton).toBeDisabled()
+    expect(mockGetDownloadUrls).not.toHaveBeenCalled()
+  })
+
   it("uses the existing file download flow when a generated PDF is available", async () => {
     const user = userEvent.setup()
     window.localStorage.setItem("curria:last-profile-generation-session-id", "sess_download_123")
@@ -919,5 +931,32 @@ describe("UserDataPage", () => {
         onSessionIdRecovered: expect.any(Function),
       }),
     )
+  })
+
+  it("stores the last generated session id in a user-scoped key when appUserId is available", async () => {
+    const user = userEvent.setup()
+    const fetchMock = buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse({
+        success: true,
+        sessionId: "sess_scoped_123",
+      }),
+    )
+
+    render(<UserDataPage currentCredits={2} currentAppUserId="usr_scoped" />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/resume/compare/sess_scoped_123")
+    })
+
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/profile/ats-enhancement", expect.objectContaining({
+      method: "POST",
+    }))
+    expect(window.localStorage.getItem("curria:last-profile-generation-session-id:usr_scoped")).toBe("sess_scoped_123")
+    expect(window.localStorage.getItem("curria:last-profile-generation-session-id")).toBeNull()
   })
 })

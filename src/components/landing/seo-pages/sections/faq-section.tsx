@@ -1,10 +1,11 @@
-import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
-import type { SEOPageProps } from "../seo-page-template";
+import { AnimatePresence, motion } from "motion/react"
+import { ChevronDown } from "lucide-react"
+import { useState } from "react"
 
-export default function FaqSection({ faq }: { faq: SEOPageProps['content']['faq'] }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+import type { SeoFaqItem } from "@/lib/seo/json-ld"
+
+export default function FaqSection({ faq }: { faq: readonly SeoFaqItem[] }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(0)
 
   return (
     <section className="py-32 bg-[#FAFAFA] border-b border-zinc-200/50">
@@ -20,17 +21,17 @@ export default function FaqSection({ faq }: { faq: SEOPageProps['content']['faq'
 
         <div className="space-y-4">
           {faq.map((item, i) => {
-            const isOpen = openIndex === i;
+            const isOpen = openIndex === i
             return (
               <div 
-                key={i} 
+                key={item.question}
                 className={`rounded-2xl transition-all duration-300 overflow-hidden ${isOpen ? 'bg-white shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-zinc-200' : 'bg-transparent border border-zinc-200/80 hover:border-zinc-300 hover:bg-white/50'}`}
               >
                 <button
                   onClick={() => setOpenIndex(isOpen ? null : i)}
                   className="w-full px-8 py-6 flex items-center justify-between text-left focus:outline-none group"
                 >
-                  <span className="font-bold text-lg text-zinc-900 tracking-tight pr-8">{item.q}</span>
+                  <span className="font-bold text-lg text-zinc-900 tracking-tight pr-8">{item.question}</span>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 shadow-sm border ${isOpen ? 'rotate-180 bg-zinc-100 border-zinc-200' : 'bg-white border-zinc-200/80 group-hover:border-zinc-300'}`}>
                     <ChevronDown className={`w-4 h-4 ${isOpen ? 'text-zinc-700' : 'text-zinc-500'}`} />
                   </div>
@@ -45,18 +46,18 @@ export default function FaqSection({ faq }: { faq: SEOPageProps['content']['faq'
                       className="px-8 pb-8 pt-0"
                     >
                       <p className="text-zinc-500 leading-relaxed font-medium text-[15px]">
-                        {item.a}
+                        {item.answer}
                       </p>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-            );
+            )
           })}
         </div>
       </div>
     </section>
-  );
+  )
 }
 
 

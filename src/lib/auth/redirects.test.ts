@@ -9,8 +9,8 @@ describe("getSafeRedirectPath", () => {
   })
 
   it("keeps internal non-legacy routes untouched", () => {
-    expect(getSafeRedirectPath("/precos?checkoutPlan=pro", "/profile-setup")).toBe(
-      "/precos?checkoutPlan=pro",
+    expect(getSafeRedirectPath("/finalizar-compra?plan=pro", "/profile-setup")).toBe(
+      "/finalizar-compra?plan=pro",
     )
   })
 

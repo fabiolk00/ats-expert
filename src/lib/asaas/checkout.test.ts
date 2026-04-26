@@ -30,9 +30,9 @@ describe('Asaas checkout link creation', () => {
       plan: 'unit',
       checkoutReference: 'chk_unit',
       externalReference: 'curria:v1:u:usr_123:c:chk_unit',
-      successUrl: 'https://curria.test/precos',
-      cancelUrl: 'https://curria.test/precos',
-      expiredUrl: 'https://curria.test/precos',
+      successUrl: 'https://curria.test/#pricing',
+      cancelUrl: 'https://curria.test/#pricing',
+      expiredUrl: 'https://curria.test/#pricing',
       billingInfo: {
         cpfCnpj: '12345678901234',
         phoneNumber: '11999999999',
@@ -49,9 +49,9 @@ describe('Asaas checkout link creation', () => {
       minutesToExpire: 60,
       externalReference: 'curria:v1:u:usr_123:c:chk_unit',
       callback: {
-        successUrl: 'https://curria.test/precos',
-        cancelUrl: 'https://curria.test/precos',
-        expiredUrl: 'https://curria.test/precos',
+        successUrl: 'https://curria.test/#pricing',
+        cancelUrl: 'https://curria.test/#pricing',
+        expiredUrl: 'https://curria.test/#pricing',
       },
       customerData: {
         name: 'Test User',
@@ -84,9 +84,9 @@ describe('Asaas checkout link creation', () => {
       plan: 'unit',
       checkoutReference: 'chk_unit_2',
       externalReference: 'curria:v1:u:usr_123:c:chk_unit_2',
-      successUrl: 'https://curria.test/precos',
-      cancelUrl: 'https://curria.test/precos',
-      expiredUrl: 'https://curria.test/precos',
+      successUrl: 'https://curria.test/#pricing',
+      cancelUrl: 'https://curria.test/#pricing',
+      expiredUrl: 'https://curria.test/#pricing',
     })).resolves.toBe('https://sandbox.asaas.com/checkoutSession/show?id=checkout_unit_456')
 
     expect(mockPost).toHaveBeenCalledWith('/checkouts', {
@@ -95,9 +95,9 @@ describe('Asaas checkout link creation', () => {
       minutesToExpire: 60,
       externalReference: 'curria:v1:u:usr_123:c:chk_unit_2',
       callback: {
-        successUrl: 'https://curria.test/precos',
-        cancelUrl: 'https://curria.test/precos',
-        expiredUrl: 'https://curria.test/precos',
+        successUrl: 'https://curria.test/#pricing',
+        cancelUrl: 'https://curria.test/#pricing',
+        expiredUrl: 'https://curria.test/#pricing',
       },
       customerData: {
         name: 'Test User',
@@ -125,8 +125,8 @@ describe('Asaas checkout link creation', () => {
       checkoutReference: 'chk_monthly',
       externalReference: 'curria:v1:u:usr_123:c:chk_monthly',
       successUrl: 'https://curria.test/profile-setup',
-      cancelUrl: 'https://curria.test/precos',
-      expiredUrl: 'https://curria.test/precos',
+      cancelUrl: 'https://curria.test/#pricing',
+      expiredUrl: 'https://curria.test/#pricing',
       billingInfo: {
         cpfCnpj: '12345678901234',
         phoneNumber: '11999999999',
@@ -143,8 +143,8 @@ describe('Asaas checkout link creation', () => {
       minutesToExpire: 60,
       callback: {
         successUrl: 'https://curria.test/profile-setup',
-        cancelUrl: 'https://curria.test/precos',
-        expiredUrl: 'https://curria.test/precos',
+        cancelUrl: 'https://curria.test/#pricing',
+        expiredUrl: 'https://curria.test/#pricing',
       },
       customerData: {
         name: 'Test User',
@@ -183,8 +183,8 @@ describe('Asaas checkout link creation', () => {
       checkoutReference: 'chk_pro',
       externalReference: 'curria:v1:u:usr_123:c:chk_pro',
       successUrl: 'https://curria.test/profile-setup',
-      cancelUrl: 'https://curria.test/precos',
-      expiredUrl: 'https://curria.test/precos',
+      cancelUrl: 'https://curria.test/#pricing',
+      expiredUrl: 'https://curria.test/#pricing',
     })).resolves.toBe('https://sandbox.asaas.com/checkoutSession/show?id=checkout_pro_123')
 
     expect(mockPost).toHaveBeenCalledWith('/checkouts', {
@@ -193,8 +193,8 @@ describe('Asaas checkout link creation', () => {
       minutesToExpire: 60,
       callback: {
         successUrl: 'https://curria.test/profile-setup',
-        cancelUrl: 'https://curria.test/precos',
-        expiredUrl: 'https://curria.test/precos',
+        cancelUrl: 'https://curria.test/#pricing',
+        expiredUrl: 'https://curria.test/#pricing',
       },
       customerData: {
         name: 'Test User',

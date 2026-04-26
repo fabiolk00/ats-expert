@@ -1,6 +1,7 @@
 "use client";
 
 import SEOPageTemplate from "@/components/landing/seo-pages/seo-page-template";
+import { productManagerSeoFaqItems } from "@/lib/seo/seo-page-faqs";
 import { Target, Lightbulb, TrendingUp } from "lucide-react";
 
 export default function ProductManagerPage() {
@@ -126,15 +127,10 @@ export default function ProductManagerPage() {
           { step: "Destaque a Colaboração", detail: "Mencione explicitamente o trabalho com engenharia, design, marketing e vendas." },
           { step: "Quantifique a Vitória", detail: "Termine todo grande bullet point com uma métrica (receita, adoção, retenção, eficiência)." }
         ],
-        faq: [
-          { q: "Devo incluir projetos paralelos se não tiver experiência formal como PM?", a: "Sim. Construir e lançar um projeto paralelo mostra iniciativa, empatia pelo usuário e compreensão técnica — características fundamentais de um PM." },
-          { q: "Quão técnico meu currículo precisa ser?", a: "Adapte à vaga. Para um PM padrão, foque no 'o quê' e no 'porquê'. Para um PM Técnico, aprofunde-se no 'como' e no design do sistema." },
-          { q: "Vale a pena listar uma certificação de Scrum Master (CSM)?", a: "Sim, liste na seção de habilidades, mas garanta que os marcadores da sua experiência mostrem que você realmente aplicou os princípios Ágeis." }
-        ]
+        faq: productManagerSeoFaqItems
       }}
     />
   );
 }
-
 
 

@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import SEOPageTemplate from "@/components/landing/seo-pages/seo-page-template";
+import { developerSeoFaqItems } from "@/lib/seo/seo-page-faqs";
 import { Code2 } from "lucide-react";
 
 export default function DeveloperPage() {
@@ -107,16 +108,11 @@ export default function DeveloperPage() {
           { step: "Quantifique o Código", detail: "Adicione números reais: linhas de código refatoradas, latência reduzida, usuários suportados ou custos economizados." },
           { step: "Formate para a Máquina", detail: "Remova colunas, tabelas complexas e gráficos. Atenha-se a uma coluna única e parsing padrão de PDF." }
         ],
-        faq: [
-          { q: "Devo incluir um link para o meu GitHub?", a: "Sim, sempre inclua seu GitHub e LinkedIn na seção de contato. Embora o ATS possa não ler seus repositórios, os recrutadores humanos que aprovarem você certamente o farão." },
-          { q: "O ATS lê trechos código se eu os colocar?", a: "Não coloque trechos de código no seu currículo. Isso confundirá o parser e parecerá bagunçado. Atenha-se a explicar a arquitetura e o impacto nos negócios em texto simples." },
-          { q: "E se eu conhecer um framework mas ele não estiver listado na vaga?", a: "Liste-o na sua seção dedicada de 'Habilidades', mas priorize a stack de tecnologia exigida nos bullet points reais de experiência para garantir uma alta taxa de correspondência." }
-        ]
+        faq: developerSeoFaqItems
       }}
     />
   );
 }
-
 
 
 

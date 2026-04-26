@@ -4,9 +4,9 @@ import {
   buildOrganizationSchema,
   buildSoftwareApplicationSchema,
 } from "@/lib/seo/schema-builder"
-import { getAppOrigin } from "@/lib/config/app-url"
+import { getSiteUrl } from "@/lib/seo/site-config"
 
-const baseUrl = getAppOrigin()
+const baseUrl = getSiteUrl()
 
 function JsonLdScript({ data }: { data: unknown }) {
   return (

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 
-import { getAppOrigin } from "@/lib/config/app-url"
 import { getRoleLandingConfigBySlug } from "@/lib/seo/role-landing-config"
+import { getSiteUrl } from "@/lib/seo/site-config"
 
 export function buildRoleLandingMetadata(slug: string): Metadata {
   const config = getRoleLandingConfigBySlug(slug)
@@ -10,7 +10,7 @@ export function buildRoleLandingMetadata(slug: string): Metadata {
     throw new Error(`Missing SEO config for slug: ${slug}`)
   }
 
-  const baseUrl = getAppOrigin()
+  const baseUrl = getSiteUrl()
 
   return {
     title: config.meta.title,

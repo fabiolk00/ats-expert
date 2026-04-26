@@ -1,6 +1,7 @@
 "use client";
 
 import SEOPageTemplate from "@/components/landing/seo-pages/seo-page-template";
+import { marketingSeoFaqItems } from "@/lib/seo/seo-page-faqs";
 import { Megaphone, Mail, Share2, MousePointerClick } from "lucide-react";
 import { motion as Motion } from "motion/react";
 
@@ -147,11 +148,7 @@ export default function MarketingPage() {
           { step: "Estruture o Funil", detail: "Descreva a jornada do cliente que você influenciou, desde a atração até a retenção." },
           { step: "Evite Design Excessivo", detail: "Embora você seja criativo, o currículo deve ser em texto limpo para o ATS. Guarde o design para o portfólio." }
         ],
-        faq: [
-          { q: "Onde coloco meu portfólio de campanhas/design?", a: "Inclua um link de hipertexto simples na seção de contato (cabeçalho) apontando para o seu site pessoal ou Behance." },
-          { q: "Devo focar em criatividade ou dados?", a: "Dados. O ATS não avalia criatividade. Você passa pela máquina com palavras-chave analíticas (ROI, SEO, HubSpot) e mostra a criatividade na entrevista." },
-          { q: "Qual a diferença entre MQL e SQL no currículo?", a: "Usar MQL (Marketing Qualified Lead) mostra que você sabe qualificar o topo do funil. Mencionar que eles viraram SQLs mostra alinhamento com a equipe de Vendas." }
-        ]
+        faq: marketingSeoFaqItems
       }}
     />
   );

@@ -87,7 +87,7 @@ describe("LoginForm", () => {
 
   it("respects redirect_to after password login", async () => {
     mockSearchParamsGet.mockImplementation((key: string) =>
-      key === "redirect_to" ? "/precos?checkoutPlan=pro" : null,
+      key === "redirect_to" ? "/finalizar-compra?plan=pro" : null,
     )
     const user = userEvent.setup()
 
@@ -98,7 +98,7 @@ describe("LoginForm", () => {
     await user.click(screen.getByRole("button", { name: /^Continuar$/i }))
 
     await waitFor(() => {
-      expect(mockNavigateToUrl).toHaveBeenCalledWith("/precos?checkoutPlan=pro")
+      expect(mockNavigateToUrl).toHaveBeenCalledWith("/finalizar-compra?plan=pro")
     })
   })
 

@@ -97,7 +97,7 @@ describe("ChatPage", () => {
       title: "Chat com IA exclusivo do plano PRO",
       message: "Upgrade required",
       code: "PRO_PLAN_REQUIRED",
-      upgradeUrl: "/precos?checkoutPlan=pro",
+      upgradeUrl: "/finalizar-compra?plan=pro",
     })
 
     const jsx = await ChatPage({})

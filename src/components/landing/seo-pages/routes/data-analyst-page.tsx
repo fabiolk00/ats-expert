@@ -1,6 +1,7 @@
 "use client";
 
 import SEOPageTemplate from "@/components/landing/seo-pages/seo-page-template";
+import { dataAnalystSeoFaqItems } from "@/lib/seo/seo-page-faqs";
 import { Database, LineChart, TrendingUp } from "lucide-react";
 
 export default function DataAnalystPage() {
@@ -114,15 +115,10 @@ export default function DataAnalystPage() {
           { step: "Quantifique a Escala", detail: "Adicione números reais: linhas de dados, número de dashboards ou porcentagens de melhoria." },
           { step: "Limpe a Formatação", detail: "Garanta que o ATS consiga extrair facilmente o seu histórico de trabalho sem travar em gráficos ou tabelas." }
         ],
-        faq: [
-          { q: "Devo incluir um link para o meu portfólio?", a: "Sim, adicione um link para o seu GitHub, perfil do Tableau Public ou site pessoal. Certifique-se de que os URLs sejam clicáveis." },
-          { q: "Preciso saber tanto Python quanto R?", a: "Geralmente, conhecer um dos dois muito bem é suficiente. Adapte o seu currículo à linguagem solicitada na descrição da vaga." },
-          { q: "Como demonstro impacto nos negócios se eu apenas puxei os dados?", a: "Pergunte a si mesmo para que os dados foram usados. Se a sua consulta ajudou o marketing a lançar uma campanha, declare que sua extração de dados viabilizou uma campanha que gerou X leads." }
-        ]
+        faq: dataAnalystSeoFaqItems
       }}
     />
   );
 }
-
 
 

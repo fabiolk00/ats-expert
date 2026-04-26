@@ -62,6 +62,7 @@ type ProfileResponse = {
 type UserDataPageProps = {
   currentCredits?: number
   userImageUrl?: string | null
+  currentAppUserId?: string | null
 }
 
 type AtsFeature = {
@@ -132,7 +133,7 @@ type ProfileDownloadState = {
   message: string | null
 }
 
-const LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY = "curria:last-profile-generation-session-id"
+const LEGACY_LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY = "curria:last-profile-generation-session-id"
 
 const EMPTY_DOWNLOAD_STATE: ProfileDownloadState = {
   status: "unavailable",
@@ -141,10 +142,41 @@ const EMPTY_DOWNLOAD_STATE: ProfileDownloadState = {
   message: "Disponível depois que você gerar uma versão otimizada.",
 }
 
-function storeLastGeneratedProfileSessionId(sessionId: string): void {
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY, sessionId)
+function getLastGeneratedProfileSessionStorageKey(appUserId?: string | null): string | null {
+  const normalizedUserId = appUserId?.trim()
+  if (!normalizedUserId) {
+    return LEGACY_LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY
   }
+
+  return `${LEGACY_LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY}:${normalizedUserId}`
+}
+
+function storeLastGeneratedProfileSessionId(sessionId: string, appUserId?: string | null): void {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  const scopedStorageKey = getLastGeneratedProfileSessionStorageKey(appUserId)
+  if (scopedStorageKey) {
+    window.localStorage.setItem(scopedStorageKey, sessionId)
+  }
+
+  if (appUserId?.trim()) {
+    window.localStorage.removeItem(LEGACY_LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY)
+  }
+}
+
+function readLastGeneratedProfileSessionId(appUserId?: string | null): string | null {
+  if (typeof window === "undefined") {
+    return null
+  }
+
+  const scopedStorageKey = getLastGeneratedProfileSessionStorageKey(appUserId)
+  const storedSessionId = scopedStorageKey
+    ? window.localStorage.getItem(scopedStorageKey)?.trim()
+    : null
+
+  return storedSessionId || null
 }
 
 const PROFILE_SECTION_META: Record<EditableResumeSection, {
@@ -485,6 +517,7 @@ function ProfileSectionCard({
 
 export default function UserDataPage({
   currentCredits = 0,
+  currentAppUserId = null,
 }: UserDataPageProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -562,7 +595,7 @@ export default function UserDataPage({
       return
     }
 
-    const storedSessionId = window.localStorage.getItem(LAST_GENERATED_PROFILE_SESSION_STORAGE_KEY)?.trim()
+    const storedSessionId = readLastGeneratedProfileSessionId(currentAppUserId)
     if (!storedSessionId) {
       setLastGeneratedSessionId(null)
       setProfileDownloadState(EMPTY_DOWNLOAD_STATE)
@@ -584,7 +617,7 @@ export default function UserDataPage({
         const urls = await getDownloadUrls(storedSessionId, undefined, {
           trigger: "profile_last_generated",
           onSessionIdRecovered: (recoveredSessionId) => {
-            storeLastGeneratedProfileSessionId(recoveredSessionId)
+            storeLastGeneratedProfileSessionId(recoveredSessionId, currentAppUserId)
             if (!cancelled) {
               setLastGeneratedSessionId(recoveredSessionId)
             }
@@ -610,7 +643,7 @@ export default function UserDataPage({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [currentAppUserId])
 
   useEffect(() => {
     if (activeView !== "editor" || !requestedEditorSection) {
@@ -801,7 +834,7 @@ export default function UserDataPage({
         throw new Error(extractErrorMessage(data.error, generationCopy.failure))
       }
 
-      storeLastGeneratedProfileSessionId(data.sessionId)
+      storeLastGeneratedProfileSessionId(data.sessionId, currentAppUserId)
       setLastGeneratedSessionId(data.sessionId)
       setProfileDownloadState({
         status: "unavailable",
@@ -845,7 +878,7 @@ export default function UserDataPage({
       const urls = await getDownloadUrls(lastGeneratedSessionId, undefined, {
         trigger: "profile_last_generated",
         onSessionIdRecovered: (recoveredSessionId) => {
-          storeLastGeneratedProfileSessionId(recoveredSessionId)
+          storeLastGeneratedProfileSessionId(recoveredSessionId, currentAppUserId)
           setLastGeneratedSessionId(recoveredSessionId)
         },
       })
