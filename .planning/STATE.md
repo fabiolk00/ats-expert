@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: milestone
-current_phase: 107
-current_phase_name: harden highlight de job targeting com origem rastreavel e gate auditado
+current_phase: 108
+current_phase_name: adicionar camada dinamica de evidencia semantica para targeted rewrite de job_targeting
 current_plan: 01 completed
 status: in_progress
-stopped_at: Completed Phase 107 highlight hardening implementation and verification
-last_updated: "2026-04-26T21:10:00.0000000-03:00"
-last_activity: 2026-04-26
+stopped_at: Completed Phase 108 semantic evidence classification for targeted rewrite
+last_updated: "2026-04-27T09:31:30.0000000-03:00"
+last_activity: 2026-04-27
 progress:
   total_phases: 57
   completed_phases: 11
@@ -28,15 +28,15 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Phase: 107 (harden highlight de job targeting com origem rastreavel e gate auditado) - IN PROGRESS
+Phase: 108 (adicionar camada dinamica de evidencia semantica para targeted rewrite de job_targeting) - IN PROGRESS
 Plan: 01 completed
-Current Phase: 107
-Current Phase Name: harden highlight de job targeting com origem rastreavel e gate auditado
+Current Phase: 108
+Current Phase Name: adicionar camada dinamica de evidencia semantica para targeted rewrite de job_targeting
 Current Plan: 01 completed
 Total Plans in Phase: 1
 Status: In progress
-Last activity: 2026-04-26
-Last Activity Description: Removed ATS Readiness from the chat surface and chat-generated messages while preserving the current approval gate behavior.
+Last activity: 2026-04-27
+Last Activity Description: Locked Phase 108 semantic evidence to the enriched targeted-rewrite entrypoint with explicit contract comments, fail-fast wrapper semantics, trace regression proof, and acronym-context tests.
 
 Progress: [##########] 100%
 
@@ -50,6 +50,8 @@ Baseline carried forward from earlier shipped milestones:
 ## Accumulated Context
 
 ### Roadmap Evolution
+
+- Phase 108 added: Dynamic semantic evidence classification for targeted rewrite only inside job_targeting.
 
 - Phase 107 added: Harden highlight de job_targeting com origem rastreável, gate auditado e keywords defensivas.
 - Phase 106 completed: job_targeting now blocks only on hard validation issues, persists soft warnings, and falls back to semantic target-role extraction while shared ATS validation compatibility remains intact.
@@ -218,6 +220,8 @@ Baseline carried forward from earlier shipped milestones:
 | 260426-qrx | Remove ATS Readiness scoring and final/estimated side badges from the resume comparison surface | 2026-04-26 | working-tree | Validated | [260426-qrx-remover-ats-readiness-da-comparacao-de-curriculo](./quick/260426-qrx-remover-ats-readiness-da-comparacao-de-curriculo/) |
 
 | 260426-qct | Remove ATS Readiness from the chat header and chat-generated assistant messages while preserving the current approval gate | 2026-04-26 | working-tree | Scoped Validated | [260426-qct-remover-ats-readiness-do-chat](./quick/260426-qct-remover-ats-readiness-do-chat/) |
+| 260427-qse | Harden semantic evidence isolation so enrichment runs only in job_targeting targeted rewrite, with acronym, grounding, and cross-domain safeguards | 2026-04-27 | working-tree | Validated | [260427-qse-hardening-semantic-evidence-targeted-rewrite-isolation](./quick/260427-qse-hardening-semantic-evidence-targeted-rewrite-isolation/) |
+| 260427-qtr | Final hardening to lock semantic evidence to the enriched targeted-rewrite entrypoint with explicit contract, trace semantics, and acronym-context regression proof | 2026-04-27 | working-tree | Validated | [260427-qtr-final-hardening-semantic-evidence-targeted-rewrite-regression-safety](./quick/260427-qtr-final-hardening-semantic-evidence-targeted-rewrite-regression-safety/) |
 
 ## Session Continuity
 

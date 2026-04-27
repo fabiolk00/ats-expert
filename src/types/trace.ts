@@ -1,3 +1,5 @@
+import type { EvidenceLevel } from '@/types/agent'
+
 export type JobTargetingTrace = {
   sessionId: string
   userId: string
@@ -10,6 +12,8 @@ export type JobTargetingTrace = {
     targetRoleSource: 'heuristic' | 'llm' | 'fallback'
     extractionWarning?: 'low_confidence_role'
     jobKeywordsCount: number
+    targetEvidenceCount?: number
+    evidenceLevelCounts?: Partial<Record<EvidenceLevel, number>>
   }
   gapAnalysis?: {
     matchScore: number

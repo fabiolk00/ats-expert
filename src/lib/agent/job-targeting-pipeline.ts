@@ -1,5 +1,5 @@
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
-import { buildTargetingPlan } from '@/lib/agent/tools/build-targeting-plan'
+import { buildTargetedRewritePlan } from '@/lib/agent/tools/build-targeting-plan'
 import { summarizeHighlightState } from '@/lib/agent/highlight-observability'
 import { evaluateCareerFitRisk } from '@/lib/agent/profile-review'
 import {
@@ -215,6 +215,13 @@ function summarizeValidationIssues(
   }))
 }
 
+function countEvidenceLevels(targetEvidence: NonNullable<Session['agentState']['targetingPlan']>['targetEvidence']): Partial<Record<NonNullable<NonNullable<Session['agentState']['targetingPlan']>['targetEvidence']>[number]['evidenceLevel'], number>> {
+  return (targetEvidence ?? []).reduce<Partial<Record<NonNullable<NonNullable<Session['agentState']['targetingPlan']>['targetEvidence']>[number]['evidenceLevel'], number>>>((counts, evidence) => {
+    counts[evidence.evidenceLevel] = (counts[evidence.evidenceLevel] ?? 0) + 1
+    return counts
+  }, {})
+}
+
 export async function runJobTargetingPipeline(session: Session): Promise<{
   success: boolean
   optimizedCvState?: Session['agentState']['optimizedCvState']
@@ -387,12 +394,14 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     })
   }
 
-  const targetingPlan = await buildTargetingPlan({
+  const targetingPlan = await buildTargetedRewritePlan({
     cvState: session.cvState,
     targetJobDescription,
     gapAnalysis: gapAnalysisResult,
     userId: session.userId,
     sessionId: session.id,
+    mode: 'job_targeting',
+    rewriteIntent: 'targeted_rewrite',
   })
   const jobKeywords = extractJobKeywords({
     gapAnalysis,
@@ -408,6 +417,12 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
       ? 'low_confidence_role'
       : undefined,
     jobKeywordsCount: jobKeywords.length,
+    targetEvidenceCount: targetingPlan.targetEvidence
+      ? targetingPlan.targetEvidence.length
+      : undefined,
+    evidenceLevelCounts: targetingPlan.targetEvidence
+      ? countEvidenceLevels(targetingPlan.targetEvidence)
+      : undefined,
   }
 
   await persistAgentState(session, {
@@ -453,6 +468,7 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
       targetRoleSource: targetingPlan.targetRoleSource,
       emphasizeCount: targetingPlan.mustEmphasize.length,
       missingCount: targetingPlan.missingButCannotInvent.length,
+      targetEvidenceCount: targetingPlan.targetEvidence?.length,
     }),
   )
 

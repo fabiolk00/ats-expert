@@ -12,6 +12,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Session } from '@/types/agent'
+import type { TargetingPlan } from '@/types/agent'
 import type { CVState } from '@/types/cv'
 
 import { runAtsEnhancementPipeline } from '@/lib/agent/ats-enhancement-pipeline'
@@ -24,6 +25,7 @@ const {
   mockAnalyzeAtsGeneral,
   mockAnalyzeGap,
   mockBuildTargetingPlan,
+  mockBuildTargetedRewritePlan,
   mockDeriveTargetFitAssessment,
   mockRewriteSection,
   mockValidateRewrite,
@@ -39,6 +41,7 @@ const {
   mockAnalyzeAtsGeneral: vi.fn(),
   mockAnalyzeGap: vi.fn(),
   mockBuildTargetingPlan: vi.fn(),
+  mockBuildTargetedRewritePlan: vi.fn(),
   mockDeriveTargetFitAssessment: vi.fn(),
   mockRewriteSection: vi.fn(),
   mockValidateRewrite: vi.fn(),
@@ -62,6 +65,7 @@ vi.mock('@/lib/agent/tools/gap-analysis', () => ({
 
 vi.mock('@/lib/agent/tools/build-targeting-plan', () => ({
   buildTargetingPlan: mockBuildTargetingPlan,
+  buildTargetedRewritePlan: mockBuildTargetedRewritePlan,
 }))
 
 vi.mock('@/lib/agent/target-fit', () => ({
@@ -162,7 +166,7 @@ function buildSession(): Session {
   }
 }
 
-function buildDefaultTargetingPlan(overrides: Record<string, unknown> = {}) {
+function buildDefaultTargetingPlan(overrides: Partial<TargetingPlan> = {}): TargetingPlan {
   return {
     targetRole: 'Analytics Engineer',
     targetRoleConfidence: 'high',
@@ -171,6 +175,42 @@ function buildDefaultTargetingPlan(overrides: Record<string, unknown> = {}) {
     mustEmphasize: ['SQL', 'BigQuery'],
     shouldDeemphasize: [],
     missingButCannotInvent: ['BigQuery'],
+    targetEvidence: [
+      {
+        jobSignal: 'SQL',
+        canonicalSignal: 'SQL',
+        evidenceLevel: 'explicit',
+        rewritePermission: 'can_claim_directly',
+        matchedResumeTerms: ['SQL'],
+        supportingResumeSpans: ['SQL'],
+        rationale: 'O termo aparece explicitamente no curriculo.',
+        confidence: 1,
+        allowedRewriteForms: ['SQL'],
+        forbiddenRewriteForms: [],
+        validationSeverityIfViolated: 'none',
+      },
+      {
+        jobSignal: 'BigQuery',
+        canonicalSignal: 'BigQuery',
+        evidenceLevel: 'unsupported_gap',
+        rewritePermission: 'must_not_claim',
+        matchedResumeTerms: [],
+        supportingResumeSpans: [],
+        rationale: 'Nao ha evidencia suficiente no curriculo.',
+        confidence: 0.95,
+        allowedRewriteForms: [],
+        forbiddenRewriteForms: ['BigQuery'],
+        validationSeverityIfViolated: 'critical',
+      },
+    ],
+    rewritePermissions: {
+      directClaimsAllowed: ['SQL'],
+      normalizedClaimsAllowed: [],
+      bridgeClaimsAllowed: [],
+      relatedButNotClaimable: [],
+      forbiddenClaims: ['BigQuery'],
+      skillsSurfaceAllowed: ['SQL'],
+    },
     sectionStrategy: {
       summary: ['Aproxime o posicionamento da vaga sem inventar experiência.'],
       experience: ['Priorize stack e contexto relevantes.'],
@@ -302,6 +342,7 @@ describe('ATS enhancement reliability hardening', () => {
     })
     mockValidateRewrite.mockReturnValue(buildRewriteValidationResult())
     mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan())
+    mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan())
     mockDeriveTargetFitAssessment.mockReturnValue({
       level: 'medium',
       scoreLabel: 'Moderately aligned',
@@ -1401,6 +1442,210 @@ describe('ATS enhancement reliability hardening', () => {
     })
   })
 
+  it('does not inject targeted semantic permission buckets into generic ATS rewrite instructions', async () => {
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    await rewriteResumeFull({
+      mode: 'ats_enhancement',
+      cvState: buildCvState(),
+      atsAnalysis: {
+        overallScore: 78,
+        structureScore: 80,
+        clarityScore: 77,
+        impactScore: 74,
+        keywordCoverageScore: 79,
+        atsReadabilityScore: 82,
+        issues: [],
+        recommendations: ['Clareza', 'Power BI', 'SQL'],
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_ats_123',
+    })
+
+    const summaryCall = mockRewriteSection.mock.calls.find(([input]: [{ section: string }]) => input.section === 'summary')
+    expect(summaryCall?.[0].instructions).not.toContain('Direct claims allowed:')
+    expect(summaryCall?.[0].instructions).not.toContain('Forbidden claims:')
+    expect(summaryCall?.[0].instructions).not.toContain('Bridge carefully only when anchored in real evidence:')
+  })
+
+  it('keeps ATS highlight generation isolated from the targeted semantic layer', async () => {
+    const session = buildSession()
+
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    const result = await runAtsEnhancementPipeline(session)
+
+    expect(result.success).toBe(true)
+    expect(mockBuildTargetingPlan).not.toHaveBeenCalled()
+    expect(mockBuildTargetedRewritePlan).not.toHaveBeenCalled()
+    expect(mockGenerateCvHighlightState).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.not.objectContaining({
+        jobKeywords: expect.anything(),
+      }),
+    )
+  })
+
+  it('passes evidence-aware permission buckets into the targeted rewrite prompt', async () => {
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    await rewriteResumeFull({
+      mode: 'job_targeting',
+      cvState: buildCvState(),
+      targetJobDescription: [
+        'Cargo: Analytics Engineer',
+        'Requisitos: SQL, BigQuery e comunicacao com negocio.',
+      ].join('\n'),
+      gapAnalysis: {
+        matchScore: 68,
+        missingSkills: ['BigQuery'],
+        weakAreas: ['summary'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
+      },
+      targetingPlan: buildDefaultTargetingPlan(),
+      userId: 'usr_123',
+      sessionId: 'sess_job_123',
+    })
+
+    const summaryCall = mockRewriteSection.mock.calls.find(([input]: [{ section: string }]) => input.section === 'summary')
+    expect(summaryCall?.[0].instructions).toContain('Direct claims allowed: SQL.')
+    expect(summaryCall?.[0].instructions).toContain('Forbidden claims: BigQuery.')
+    expect(summaryCall?.[0].instructions).toContain('Skills section is strict.')
+  })
+
+  it('uses the enriched targeted plan builder for job_targeting rewrite fallback only', async () => {
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    const result = await rewriteResumeFull({
+      mode: 'job_targeting',
+      cvState: buildCvState(),
+      targetJobDescription: [
+        'Cargo: Analytics Engineer',
+        'Requisitos: SQL, BigQuery e comunicacao com negocio.',
+      ].join('\n'),
+      gapAnalysis: {
+        matchScore: 68,
+        missingSkills: ['BigQuery'],
+        weakAreas: ['summary'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_job_123',
+    })
+
+    expect(result.success).toBe(true)
+    expect(mockBuildTargetedRewritePlan).toHaveBeenCalledTimes(1)
+    expect(mockBuildTargetingPlan).not.toHaveBeenCalled()
+    expect(mockBuildTargetedRewritePlan).toHaveBeenCalledWith(expect.objectContaining({
+      mode: 'job_targeting',
+      rewriteIntent: 'targeted_rewrite',
+    }))
+  })
+
+  it('does not use the enriched targeted plan builder in ATS rewrite mode', async () => {
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    const result = await rewriteResumeFull({
+      mode: 'ats_enhancement',
+      cvState: buildCvState(),
+      atsAnalysis: {
+        overallScore: 78,
+        structureScore: 80,
+        clarityScore: 77,
+        impactScore: 74,
+        keywordCoverageScore: 79,
+        atsReadabilityScore: 82,
+        issues: [],
+        recommendations: ['Clareza', 'Power BI', 'SQL'],
+      },
+      userId: 'usr_123',
+      sessionId: 'sess_ats_123',
+    })
+
+    expect(result.success).toBe(true)
+    expect(mockBuildTargetedRewritePlan).not.toHaveBeenCalled()
+    expect(mockBuildTargetingPlan).not.toHaveBeenCalled()
+  })
+
+  it('allows a normalized/equivalent targeted skill to survive sanitization when the plan explicitly permits it', async () => {
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => {
+      if (section === 'skills') {
+        return {
+          output: {
+            success: true,
+            rewritten_content: 'star schema, snowflake schema, modelagem dimensional',
+            section_data: ['star schema', 'snowflake schema', 'modelagem dimensional'],
+            keywords_added: ['modelagem dimensional'],
+            changes_made: ['Skills normalizadas para a vaga'],
+          },
+        }
+      }
+
+      return {
+        output: buildSuccessfulRewriteOutput({
+          ...buildCvState(),
+          skills: ['star schema', 'snowflake schema'],
+        }, section),
+      }
+    })
+
+    const result = await rewriteResumeFull({
+      mode: 'job_targeting',
+      cvState: {
+        ...buildCvState(),
+        skills: ['star schema', 'snowflake schema'],
+      },
+      targetJobDescription: 'Requisitos: modelagem dimensional',
+      gapAnalysis: {
+        matchScore: 68,
+        missingSkills: [],
+        weakAreas: [],
+        improvementSuggestions: [],
+      },
+      targetingPlan: buildDefaultTargetingPlan({
+        focusKeywords: ['modelagem dimensional'],
+        mustEmphasize: ['modelagem dimensional'],
+        missingButCannotInvent: [],
+        targetEvidence: [{
+          jobSignal: 'modelagem dimensional',
+          canonicalSignal: 'modelagem dimensional',
+          evidenceLevel: 'technical_equivalent',
+          rewritePermission: 'can_claim_normalized',
+          matchedResumeTerms: ['star schema', 'snowflake schema'],
+          supportingResumeSpans: ['star schema', 'snowflake schema'],
+          rationale: 'Esquemas star e snowflake sustentam o conceito.',
+          confidence: 0.88,
+          allowedRewriteForms: ['modelagem dimensional', 'star schema', 'snowflake schema'],
+          forbiddenRewriteForms: [],
+          validationSeverityIfViolated: 'none',
+        }],
+        rewritePermissions: {
+          directClaimsAllowed: [],
+          normalizedClaimsAllowed: ['modelagem dimensional'],
+          bridgeClaimsAllowed: [],
+          relatedButNotClaimable: [],
+          forbiddenClaims: [],
+          skillsSurfaceAllowed: ['modelagem dimensional'],
+        },
+      }),
+      userId: 'usr_123',
+      sessionId: 'sess_job_123',
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.optimizedCvState?.skills).toEqual(['modelagem dimensional', 'star schema', 'snowflake schema'])
+  })
+
   it('does not apply the ATS-only summary noise gate to job_targeting summaries', async () => {
     const targetedSummary = [
       'Analytics Engineer com foco em SQL, Power BI e BigQuery.',
@@ -1554,6 +1799,11 @@ describe('ATS enhancement reliability hardening', () => {
         targetRoleConfidence: 'high',
         targetRoleSource: 'heuristic',
         jobKeywordsCount: 1,
+        targetEvidenceCount: 2,
+        evidenceLevelCounts: expect.objectContaining({
+          explicit: 1,
+          unsupported_gap: 1,
+        }),
       }),
       gapAnalysis: expect.objectContaining({
         matchScore: 68,
@@ -1603,6 +1853,41 @@ describe('ATS enhancement reliability hardening', () => {
     expect(result.success).toBe(true)
     expect(session.agentState.highlightState?.highlightSource).toBe('job_targeting')
     expect(session.agentState.highlightState?.highlightGeneratedAt).toBe('2026-04-22T12:00:00.000Z')
+  })
+
+  it('preserves trace semantics: zero evidence means executed, not skipped', async () => {
+    const session = buildSession()
+    session.agentState.workflowMode = 'job_targeting'
+    session.agentState.targetJobDescription = [
+      'Cargo: Analytics Engineer',
+      'Responsabilidades: construir dashboards e automacoes de dados.',
+      'Requisitos: SQL e Power BI.',
+    ].join('\n')
+
+    mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan({
+      targetEvidence: [],
+      rewritePermissions: {
+        directClaimsAllowed: [],
+        normalizedClaimsAllowed: [],
+        bridgeClaimsAllowed: [],
+        relatedButNotClaimable: [],
+        forbiddenClaims: [],
+        skillsSurfaceAllowed: [],
+      },
+    }))
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput(buildCvState(), section),
+    }))
+
+    const result = await runJobTargetingPipeline(session)
+
+    expect(result.success).toBe(true)
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.job_targeting.pipeline_trace', expect.objectContaining({
+      extraction: expect.objectContaining({
+        targetEvidenceCount: 0,
+        evidenceLevelCounts: {},
+      }),
+    }))
   })
 
   it('passes gap-derived job keywords into job_targeting highlight generation with a max of 20 unique terms', async () => {
@@ -1743,7 +2028,7 @@ describe('ATS enhancement reliability hardening', () => {
         improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
       },
     })
-    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+    mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan({
       mustEmphasize: ['SQL', 'Power BI'],
       focusKeywords: ['sql', 'power bi'],
     }))
@@ -1757,6 +2042,8 @@ describe('ATS enhancement reliability hardening', () => {
     const result = await runJobTargetingPipeline(session)
 
     expect(result.success).toBe(true)
+    expect(mockBuildTargetedRewritePlan).toHaveBeenCalledTimes(1)
+    expect(mockBuildTargetingPlan).not.toHaveBeenCalled()
     expect(mockGenerateCvHighlightState).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
@@ -1792,7 +2079,7 @@ describe('ATS enhancement reliability hardening', () => {
         improvementSuggestions: [],
       },
     })
-    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+    mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan({
       targetRole: 'Vaga Alvo',
       targetRoleConfidence: 'low',
       mustEmphasize: ['Vaga Alvo', 'SQL', 'sql', 'BI'],
@@ -1843,7 +2130,7 @@ describe('ATS enhancement reliability hardening', () => {
         improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiência.'],
       },
     })
-    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+    mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan({
       mustEmphasize: [],
       focusKeywords: ['sql', 'power bi'],
     }))
@@ -1888,7 +2175,7 @@ describe('ATS enhancement reliability hardening', () => {
         improvementSuggestions: [],
       },
     })
-    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+    mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan({
       mustEmphasize: [],
       focusKeywords: [],
     }))
@@ -1940,7 +2227,7 @@ describe('ATS enhancement reliability hardening', () => {
         improvementSuggestions: [],
       },
     })
-    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+    mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan({
       mustEmphasize: [],
       focusKeywords: [],
     }))
@@ -2459,7 +2746,7 @@ describe('ATS enhancement reliability hardening', () => {
     mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
       output: buildSuccessfulRewriteOutput(buildCvState(), section),
     }))
-    mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan({
+    mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan({
       targetRole: 'Vaga Alvo',
       targetRoleConfidence: 'low',
     }))
@@ -2473,5 +2760,3 @@ describe('ATS enhancement reliability hardening', () => {
     })
   })
 })
-
-

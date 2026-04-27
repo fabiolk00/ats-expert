@@ -1,4 +1,6 @@
 import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
+import { classifyTargetEvidence } from '@/lib/agent/job-targeting/evidence-classifier'
+import { buildTargetedRewritePermissions } from '@/lib/agent/job-targeting/rewrite-permissions'
 import { MAX_TARGETING_PLAN_ITEMS, shapeTargetJobDescription } from '@/lib/agent/job-targeting-retry'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
 import { openai } from '@/lib/openai/client'
@@ -74,46 +76,94 @@ function matchesSemanticSignal(value: string, semanticSignals: string[]): boolea
 
 function extractSemanticSignals(targetJobDescription: string): string[] {
   const shapedTargetJob = shapeTargetJobDescription(targetJobDescription).content
-  const lowerText = shapedTargetJob.toLowerCase()
-  const phrasePatterns = [
-    /\bpower\s+bi\b/gi,
-    /\bqlik(?:\s+sense|\s+cloud)?\b/gi,
-    /\bbigquery\b/gi,
-    /\bdatabricks\b/gi,
-    /\bdata\s+factory\b/gi,
-    /\bdata\s+warehouse\b/gi,
-    /\bdata\s+analytics\b/gi,
-    /\bmodelagem\s+de\s+dados\b/gi,
-    /\bvisualiza(?:c|ç)(?:a|ã)o\s+de\s+dados\b/gi,
-    /\bpipelines?\s+de\s+dados\b/gi,
-    /\borquestra(?:c|ç)(?:a|ã)o\b/gi,
-    /\bpower\s+automate\b/gi,
-    /\bpython\b/gi,
-    /\bpyspark\b/gi,
-    /\bspark\b/gi,
-    /\bsql\b/gi,
-    /\betl\b/gi,
-    /\bazure\b/gi,
-    /\bcloud\b/gi,
-  ]
-
-  const phraseMatches = phrasePatterns.flatMap((pattern) =>
-    Array.from(lowerText.matchAll(pattern), (match) => match[0]),
-  )
-
-  const tokenMatches = lowerText.match(/[a-z0-9+#.]{3,}/gi) ?? []
+  const segments = shapedTargetJob
+    .split(/[\n,;|]/u)
+    .map((segment) => segment.replace(/^[^:]{0,32}:\s*/u, '').trim())
+    .filter(Boolean)
   const stopWords = new Set([
     'para', 'com', 'uma', 'das', 'dos', 'que', 'and', 'the', 'this', 'role',
     'vaga', 'sera', 'will', 'you', 'your', 'como', 'mais', 'sobre',
     'responsabilidades', 'responsibilities', 'requisitos', 'requirements',
     'qualificacoes', 'qualifications', 'experience', 'experiencia', 'job',
     'about', 'looking', 'buscamos', 'procuramos', 'profissionais',
+    'build', 'create', 'manage', 'using', 'used', 'atuar', 'atuacao', 'atuando',
+    'realizar', 'realize', 'strong',
   ])
+
+  const phraseCandidates = segments.flatMap((segment) => {
+    const tokens = (segment.toLowerCase().match(/[\p{L}\p{N}+#./-]{2,}/gu) ?? [])
+      .filter((token) => !stopWords.has(token))
+
+    const phrases: string[] = []
+    for (let size = 2; size <= 3; size += 1) {
+      for (let index = 0; index <= tokens.length - size; index += 1) {
+        phrases.push(tokens.slice(index, index + size).join(' '))
+      }
+    }
+
+    return phrases
+  })
+
+  const phraseMatches = segments
+    .map((segment) => segment.toLowerCase())
+    .filter((segment) => segment.split(/\s+/u).length <= 4)
+    .filter((segment) => {
+      const tokens = segment.match(/[\p{L}\p{N}+#./-]{3,}/gu) ?? []
+      return tokens.length > 0 && tokens.some((token) => !stopWords.has(token))
+    })
+
+  const tokenMatches = shapedTargetJob
+    .toLowerCase()
+    .match(/[\p{L}\p{N}+#./-]{3,}/gu) ?? []
 
   return Array.from(new Set([
     ...phraseMatches,
+    ...phraseCandidates,
     ...tokenMatches.filter((token) => !stopWords.has(token)),
   ]))
+}
+
+/**
+ * Legacy targeting plan builder.
+ *
+ * IMPORTANT:
+ * This function intentionally does NOT run semantic evidence classification.
+ * It must remain safe for highlight-only, ATS, generic rewrite, job analysis,
+ * and other non-targeted-rewrite flows.
+ *
+ * Use buildTargetedRewritePlan() exclusively for job_targeting targeted rewrite,
+ * where TargetEvidence and TargetedRewritePermissions are required.
+ */
+export async function buildTargetingPlan(params: BuildTargetingPlanParams): Promise<TargetingPlan> {
+  return buildBaseTargetingPlan(params)
+}
+
+/**
+ * Enriched targeting plan builder for job_targeting targeted rewrite only.
+ *
+ * This is the only allowed entry point for TargetEvidence and
+ * TargetedRewritePermissions generation.
+ */
+export async function buildTargetedRewritePlan(params: BuildTargetedRewritePlanInput): Promise<TargetingPlan> {
+  if (!params.targetJobDescription.trim()) {
+    throw new Error('buildTargetedRewritePlan requires a target job description for targeted rewrite.')
+  }
+
+  const basePlan = await buildBaseTargetingPlan(params)
+
+  const targetEvidence = await classifyTargetEvidence({
+    cvState: params.cvState,
+    targetingPlan: basePlan,
+    gapAnalysis: params.gapAnalysis,
+    userId: params.userId,
+    sessionId: params.sessionId,
+  })
+
+  return {
+    ...basePlan,
+    targetEvidence,
+    rewritePermissions: buildTargetedRewritePermissions(targetEvidence),
+  }
 }
 
 function extractTargetRole(targetJobDescription: string): { targetRole: string; confidence: 'high' | 'medium' | 'low' } {
@@ -329,13 +379,20 @@ function takeRelevant(values: string[]): string[] {
     .slice(0, MAX_TARGETING_PLAN_ITEMS)
 }
 
-export async function buildTargetingPlan(params: {
+type BuildTargetingPlanParams = {
   cvState: CVState
   targetJobDescription: string
   gapAnalysis: GapAnalysisResult
   userId?: string
   sessionId?: string
-}): Promise<TargetingPlan> {
+}
+
+export type BuildTargetedRewritePlanInput = BuildTargetingPlanParams & {
+  mode: 'job_targeting'
+  rewriteIntent: 'targeted_rewrite'
+}
+
+async function buildBaseTargetingPlan(params: BuildTargetingPlanParams): Promise<TargetingPlan> {
   const { cvState, targetJobDescription, gapAnalysis } = params
   const heuristic = extractTargetRole(targetJobDescription)
 
@@ -432,9 +489,6 @@ export async function buildTargetingPlan(params: {
     },
   }
 }
-
-
-
 
 
 

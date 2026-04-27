@@ -1,3 +1,4 @@
+import { buildTargetedRewritePermissionIssues } from '@/lib/agent/job-targeting/validation-policy'
 import type { RewriteValidationResult, TargetingPlan, ValidationIssue, WorkflowMode } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
 
@@ -17,6 +18,33 @@ function isUsableTargetRole(value: string): boolean {
   }
 
   return /\b(analista|engenheir[oa]|developer|desenvolvedor(?:a)?|cientista|gerente|coordenador(?:a)?|consultor(?:a)?|product manager|designer|arquiteto(?:a)?|devops|sre|qa|analytics engineer|data engineer|data analyst|business intelligence|bi)\b/i.test(value)
+}
+
+function extractLeadingRoleClaim(summary: string): string | null {
+  const match = summary.trim().match(/^([^\n.,;:]{3,80})/u)
+  const candidate = normalize(match?.[1])
+
+  return isUsableTargetRole(candidate) ? candidate : null
+}
+
+function extractRoleClaimsFromSummary(summary: string): string[] {
+  return summary
+    .split(/(?<=[.!?])\s+/u)
+    .map(extractLeadingRoleClaim)
+    .filter((value): value is string => Boolean(value))
+}
+
+function extractLikelySummaryClaimTerms(summary: string): string[] {
+  const cues = Array.from(summary.matchAll(/(?:foco\s+em|com\s+foco\s+em|experiencia\s+em|experiência\s+em|experience\s+with|experience\s+in)\s+([^.!?]+)/giu))
+
+  return Array.from(new Set(
+    cues
+      .flatMap((match) => (match[1] ?? '').split(/\b(?:e|and)\b|,/iu))
+      .map((term) => term.split(/\b(?:para|for|with|using|com)\b/iu)[0] ?? term)
+      .map((term) => normalize(term).replace(/^[^a-z0-9]+|[^a-z0-9+#./ -]+$/giu, '').trim())
+      .map((term) => term.split(/\s+/u).slice(0, 3).join(' '))
+      .filter((term) => term.length >= 3 && !isLikelySectionHeading(term)),
+  ))
 }
 
 function extractNumbers(text: string): string[] {
@@ -130,7 +158,9 @@ export function validateRewrite(
 
   const originalSkillSet = toSkillSet(originalCvState)
   const optimizedSkillSet = toSkillSet(optimizedCvState)
-  if (Array.from(optimizedSkillSet).some((skill) => !originalSkillSet.has(skill))) {
+  const hasTargetEvidence = context?.mode === 'job_targeting' && (context.targetingPlan?.targetEvidence?.length ?? 0) > 0
+
+  if (!hasTargetEvidence && Array.from(optimizedSkillSet).some((skill) => !originalSkillSet.has(skill))) {
     issues.push({
       severity: 'medium',
       message: 'A lista de skills otimizada introduziu habilidade ou ferramenta sem base no currículo original.',
@@ -148,13 +178,28 @@ export function validateRewrite(
     })
   }
 
-  const summarySkillMentionsWithoutOriginalEvidence = optimizedCvState.skills.filter((skill) => {
+  const explicitlyAllowedSummaryClaims = new Set(
+    (context?.targetingPlan?.targetEvidence ?? [])
+      .flatMap((evidence) => [
+        evidence.jobSignal,
+        evidence.canonicalSignal,
+        ...evidence.allowedRewriteForms,
+      ])
+      .map(normalize)
+      .filter(Boolean),
+  )
+  const summaryClaimCandidates = Array.from(new Set([
+    ...optimizedCvState.skills,
+    ...extractLikelySummaryClaimTerms(optimizedCvState.summary),
+  ]))
+  const summarySkillMentionsWithoutOriginalEvidence = summaryClaimCandidates.filter((skill) => {
     const normalizedSkill = normalize(skill)
     const alreadyClaimedInOriginalSummary = originalSummary.includes(normalizedSkill)
 
     return optimizedSummary.includes(normalizedSkill)
       && !alreadyClaimedInOriginalSummary
       && !originalEvidenceText.includes(normalizedSkill)
+      && !explicitlyAllowedSummaryClaims.has(normalizedSkill)
   })
   if (
     summarySkillMentionsWithoutOriginalEvidence.length > 0
@@ -172,6 +217,40 @@ export function validateRewrite(
       originalCvState.summary,
       ...originalCvState.experience.map((entry) => entry.title),
     ].map(normalize)
+
+    if (hasTargetEvidence) {
+      issues.push(...buildTargetedRewritePermissionIssues({
+        originalCvState,
+        optimizedCvState,
+        targetingPlan: context.targetingPlan,
+      }))
+
+      const claimedRoles = extractRoleClaimsFromSummary(optimizedCvState.summary)
+      const normalizedAllowedRoleClaims = new Set(
+        (context.targetingPlan?.targetEvidence ?? [])
+          .filter((evidence) =>
+            evidence.rewritePermission === 'can_claim_directly'
+            || evidence.rewritePermission === 'can_claim_normalized')
+          .flatMap((evidence) => [evidence.jobSignal, evidence.canonicalSignal])
+          .map(normalize),
+      )
+
+      const unsupportedRoleClaim = claimedRoles.find((claimedRole) =>
+        !normalizedAllowedRoleClaims.has(claimedRole)
+        && !originalTitlesAndSummary.some((value) => value.includes(claimedRole) || claimedRole.includes(value)),
+      )
+
+      if (unsupportedRoleClaim) {
+        issues.push({
+          severity: 'medium',
+          message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidÃªncia equivalente no currÃ­culo original.',
+          section: 'summary',
+        })
+      }
+
+      return buildValidationResult(issues)
+    }
+
     const targetRole = normalize(context.targetingPlan?.targetRole)
 
     if (

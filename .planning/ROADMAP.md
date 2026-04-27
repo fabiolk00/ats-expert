@@ -815,3 +815,19 @@ Plans:
 
 Plans:
 - [ ] 107-01-PLAN.md - Auditar o fluxo atual do highlight, adicionar metadado de origem ao artefato compartilhado, endurecer gate e keywords do job_targeting, e provar por testes que o ATS continua intacto
+
+### Phase 108: Adicionar camada dinamica de evidencia semantica para targeted rewrite de job_targeting
+
+**Goal:** Enriquecer o rewrite direcionado por target com uma classificacao dinamica e domain-agnostic de evidencia semantica, permitindo normalizacao, equivalencia e pontes honestas sem inventar experiencia.
+**Requirements**: [JOB-TARGET-EVIDENCE-01, JOB-TARGET-EVIDENCE-REWRITE-01, JOB-TARGET-EVIDENCE-ISO-01, JOB-TARGET-EVIDENCE-TEST-01]
+**Depends on:** Phase 107
+**Plans:** 1 plan
+
+**Success Criteria** (what must be TRUE):
+  1. O `job_targeting` com target ativo deixa de operar apenas no binario presente/ausente e passa a distinguir evidencias explicitas, alias normalizados, equivalentes tecnicos, inferencias contextuais fortes, pontes semanticas e gaps sem suporte.
+  2. O prompt de rewrite direcionado usa permissoes por superficie para melhorar aderencia com honestidade factual, sem alterar ATS, rewrite generico, highlight-only ou fluxos sem target.
+  3. A validacao targetizada reconhece normalizacoes e pontes permitidas, mas continua bloqueando claims diretas sem suporte e sobre-elevacao de senioridade.
+  4. O plano persistido e os logs mantem explicabilidade compacta com rationale e spans curtos, e a suite prova isolamento dos fluxos nao alvo.
+
+Plans:
+- [x] 108-01-PLAN.md - Adicionar classificacao de evidencia semantica compacta ao targeting plan, integrar permissoes no targeted rewrite e na validacao, e provar isolamento de ATS e fluxos sem target

@@ -9,9 +9,10 @@ import { buildBaseGuardrails } from '@/lib/agent/context/base/build-base-guardra
 import { buildBaseSystemContext } from '@/lib/agent/context/base/build-base-system-context'
 import { buildOutputContractContext } from '@/lib/agent/context/schemas/build-output-contract-context'
 import { buildWorkflowContext } from '@/lib/agent/context/workflows/build-workflow-context'
+import { buildTargetedRewritePermissions } from '@/lib/agent/job-targeting/rewrite-permissions'
 import { buildRewritePlan } from '@/lib/agent/tools/build-rewrite-plan'
 import { formatResumeRewriteGuardrails } from '@/lib/agent/tools/resume-rewrite-guidelines'
-import { buildTargetingPlan } from '@/lib/agent/tools/build-targeting-plan'
+import { buildTargetedRewritePlan } from '@/lib/agent/tools/build-targeting-plan'
 import { rewriteSection } from '@/lib/agent/tools/rewrite-section'
 import type { AtsAnalysisResult, RewriteSectionInput, TargetingPlan } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
@@ -99,6 +100,28 @@ function sanitizeJobTargetedSkills(
       rewrittenOrder.set(normalized, index)
     }
   })
+  const additionalAllowedSkills = new Map<string, string>()
+  ;(targetingPlan.rewritePermissions?.skillsSurfaceAllowed ?? []).forEach((skill) => {
+    const normalized = normalize(skill)
+    if (normalized && !additionalAllowedSkills.has(normalized)) {
+      additionalAllowedSkills.set(normalized, skill)
+    }
+  })
+
+  rewrittenSkills.forEach((skill) => {
+    const normalized = normalize(skill)
+    if (!normalized || !additionalAllowedSkills.has(normalized)) {
+      return
+    }
+
+    if (!originalEntries.some((entry) => entry.normalized === normalized)) {
+      originalEntries.push({
+        value: skill,
+        normalized,
+        originalIndex: Number.MAX_SAFE_INTEGER,
+      })
+    }
+  })
 
   const focusSignals = targetingPlan.mustEmphasize.length > 0
     ? targetingPlan.mustEmphasize
@@ -126,6 +149,46 @@ function sanitizeJobTargetedSkills(
       return left.originalIndex - right.originalIndex
     })
     .map((entry) => entry.value)
+}
+
+function buildTargetedPermissionInstructions(targetingPlan: TargetingPlan): string[] {
+  const permissions = targetingPlan.rewritePermissions
+    ?? buildTargetedRewritePermissions(targetingPlan.targetEvidence ?? [])
+
+  const lines: string[] = [
+    'Evidence-based targeted rewrite permissions apply only to this targeted rewrite.',
+    permissions.directClaimsAllowed.length > 0
+      ? `Direct claims allowed: ${permissions.directClaimsAllowed.join(', ')}.`
+      : 'Direct claims allowed: none beyond the original resume wording.',
+    permissions.normalizedClaimsAllowed.length > 0
+      ? `Normalized or equivalent claims allowed: ${permissions.normalizedClaimsAllowed.join(', ')}.`
+      : 'Normalized or equivalent claims allowed: none.',
+  ]
+
+  if (permissions.bridgeClaimsAllowed.length > 0) {
+    lines.push(
+      'Bridge carefully only when anchored in real evidence:',
+      ...permissions.bridgeClaimsAllowed.map((claim) => `- ${claim.safeBridge} Do not say: ${claim.doNotSay.join(', ') || claim.jobSignal}.`),
+    )
+  }
+
+  if (permissions.relatedButNotClaimable.length > 0) {
+    lines.push(`Related but not directly claimable: ${permissions.relatedButNotClaimable.join(', ')}.`)
+  }
+
+  if (permissions.forbiddenClaims.length > 0) {
+    lines.push(`Forbidden claims: ${permissions.forbiddenClaims.join(', ')}.`)
+  }
+
+  lines.push(
+    'Surface rules:',
+    `- Skills section is strict. Only use direct, normalized, or high-confidence equivalent claims from: ${permissions.skillsSurfaceAllowed.join(', ') || 'none'}.`,
+    '- Summary may use careful bridges, but never turn a bridge into a direct mastery claim.',
+    '- Experience bullets may use careful bridges only when anchored in real resume evidence.',
+    '- Never increase seniority, depth, ownership, certification, tool usage, or years of experience beyond the original resume.',
+  )
+
+  return lines
 }
 
 function buildAtsResumeStyleGuide(): string {
@@ -250,6 +313,7 @@ function buildTargetJobSectionInstructions(
       ? `These gaps exist and cannot be invented away: ${targetingPlan.missingButCannotInvent.join(', ')}.`
       : '',
     `Gap snapshot: match score ${gapAnalysis.matchScore}/100; missing skills ${gapAnalysis.missingSkills.join(', ') || 'none'}; weak areas ${gapAnalysis.weakAreas.join(', ') || 'none'}.`,
+    ...buildTargetedPermissionInstructions(targetingPlan),
   ].filter(Boolean)
 
   switch (section) {
@@ -599,12 +663,14 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
       ? buildRewritePlan(params.cvState, params.atsAnalysis)
       : undefined
     const targetingPlan = params.mode === 'job_targeting'
-      ? (params.targetingPlan ?? await buildTargetingPlan({
+      ? (params.targetingPlan ?? await buildTargetedRewritePlan({
           cvState: params.cvState,
           targetJobDescription: params.targetJobDescription,
           gapAnalysis: params.gapAnalysis,
           userId: params.userId,
           sessionId: params.sessionId,
+          mode: 'job_targeting',
+          rewriteIntent: 'targeted_rewrite',
         }))
       : undefined
 

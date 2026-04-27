@@ -100,6 +100,50 @@ export type RewriteValidationResult = {
   issues: ValidationIssue[]
 }
 
+export type EvidenceLevel =
+  | 'explicit'
+  | 'normalized_alias'
+  | 'technical_equivalent'
+  | 'strong_contextual_inference'
+  | 'semantic_bridge_only'
+  | 'unsupported_gap'
+
+export type RewritePermission =
+  | 'can_claim_directly'
+  | 'can_claim_normalized'
+  | 'can_bridge_carefully'
+  | 'can_mention_as_related_context'
+  | 'must_not_claim'
+
+export type TargetEvidence = {
+  jobSignal: string
+  canonicalSignal: string
+  evidenceLevel: EvidenceLevel
+  rewritePermission: RewritePermission
+  matchedResumeTerms: string[]
+  supportingResumeSpans: string[]
+  rationale: string
+  confidence: number
+  allowedRewriteForms: string[]
+  forbiddenRewriteForms: string[]
+  validationSeverityIfViolated: 'none' | 'warning' | 'major' | 'critical'
+}
+
+export type BridgeClaimInstruction = {
+  jobSignal: string
+  safeBridge: string
+  doNotSay: string[]
+}
+
+export type TargetedRewritePermissions = {
+  directClaimsAllowed: string[]
+  normalizedClaimsAllowed: string[]
+  bridgeClaimsAllowed: BridgeClaimInstruction[]
+  relatedButNotClaimable: string[]
+  forbiddenClaims: string[]
+  skillsSurfaceAllowed: string[]
+}
+
 export type TargetingPlan = {
   targetRole: string
   targetRoleConfidence: 'high' | 'medium' | 'low'
@@ -108,6 +152,8 @@ export type TargetingPlan = {
   mustEmphasize: string[]
   shouldDeemphasize: string[]
   missingButCannotInvent: string[]
+  targetEvidence?: TargetEvidence[]
+  rewritePermissions?: TargetedRewritePermissions
   sectionStrategy: {
     summary: string[]
     experience: string[]

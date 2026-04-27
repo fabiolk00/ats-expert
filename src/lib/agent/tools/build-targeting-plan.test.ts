@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { buildTargetingPlan } from '@/lib/agent/tools/build-targeting-plan'
+import * as evidenceClassifierModule from '@/lib/agent/job-targeting/evidence-classifier'
+import * as rewritePermissionsModule from '@/lib/agent/job-targeting/rewrite-permissions'
+import { buildTargetedRewritePlan, buildTargetingPlan } from '@/lib/agent/tools/build-targeting-plan'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
 
 const { mockOpenAICompletionCreate, mockCallOpenAIWithRetry, mockTrackApiUsage } = vi.hoisted(() => ({
@@ -68,6 +70,23 @@ describe('buildTargetingPlan', () => {
     mockTrackApiUsage.mockResolvedValue(undefined)
   })
 
+  it('does not run semantic evidence classification for the legacy targeting plan path', async () => {
+    const classifySpy = vi.spyOn(evidenceClassifierModule, 'classifyTargetEvidence')
+    const permissionsSpy = vi.spyOn(rewritePermissionsModule, 'buildTargetedRewritePermissions')
+
+    const plan = await buildTargetingPlan({
+      cvState: buildCvState(),
+      targetJobDescription: 'Cargo: Analytics Engineer\nRequisitos: SQL e Power BI.',
+      gapAnalysis,
+    })
+
+    expect(classifySpy).not.toHaveBeenCalled()
+    expect(permissionsSpy).not.toHaveBeenCalled()
+    expect(mockOpenAICompletionCreate).not.toHaveBeenCalled()
+    expect(plan.targetEvidence).toBeUndefined()
+    expect(plan.rewritePermissions).toBeUndefined()
+  })
+
   it('extracts a role from prose instead of promoting section headings', async () => {
     const plan = await buildTargetingPlan({
       cvState: buildCvState(),
@@ -131,7 +150,7 @@ describe('buildTargetingPlan', () => {
       }],
     })
 
-    const plan = await buildTargetingPlan({
+    const plan = await buildTargetedRewritePlan({
       cvState: buildCvState(),
       targetJobDescription: [
         'About The Job',
@@ -141,12 +160,14 @@ describe('buildTargetingPlan', () => {
       gapAnalysis,
       userId: 'usr_123',
       sessionId: 'sess_123',
+      mode: 'job_targeting',
+      rewriteIntent: 'targeted_rewrite',
     })
 
     expect(plan.targetRole).toBe('Product Manager')
     expect(plan.targetRoleConfidence).toBe('medium')
     expect(plan.targetRoleSource).toBe('llm')
-    expect(mockOpenAICompletionCreate).toHaveBeenCalledTimes(1)
+    expect(mockOpenAICompletionCreate).toHaveBeenCalledTimes(2)
     expect(mockTrackApiUsage).toHaveBeenCalled()
   })
 
@@ -162,7 +183,7 @@ describe('buildTargetingPlan', () => {
       }],
     })
 
-    const plan = await buildTargetingPlan({
+    const plan = await buildTargetedRewritePlan({
       cvState: buildCvState(),
       targetJobDescription: [
         'About The Job',
@@ -172,13 +193,29 @@ describe('buildTargetingPlan', () => {
         'Strong SQL and Power BI experience.',
       ].join('\n'),
       gapAnalysis,
+      mode: 'job_targeting',
+      rewriteIntent: 'targeted_rewrite',
     })
 
     expect(plan.targetRole).toBe('Vaga Alvo')
     expect(plan.targetRoleConfidence).toBe('low')
     expect(plan.targetRoleSource).toBe('fallback')
-    expect(plan.focusKeywords).toEqual(expect.arrayContaining(['power bi', 'sql']))
+    expect(plan.focusKeywords).toEqual(expect.arrayContaining(['power bi']))
     expect(plan.mustEmphasize).toEqual(expect.arrayContaining(['SQL']))
+    expect(plan.targetEvidence).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        jobSignal: 'SQL',
+        evidenceLevel: 'explicit',
+      }),
+      expect.objectContaining({
+        jobSignal: 'Airflow',
+        evidenceLevel: 'unsupported_gap',
+      }),
+    ]))
+    expect(plan.rewritePermissions).toEqual(expect.objectContaining({
+      directClaimsAllowed: expect.arrayContaining(['SQL']),
+      forbiddenClaims: expect.arrayContaining(['Airflow']),
+    }))
   })
 
   it('does not treat weak areas as invented missing requirements', async () => {
@@ -194,8 +231,14 @@ describe('buildTargetingPlan', () => {
 
     expect(plan.missingButCannotInvent).toEqual(['Airflow'])
   })
+
+  it('fails explicitly if the enriched targeted-rewrite builder is called without a target job description', async () => {
+    await expect(buildTargetedRewritePlan({
+      cvState: buildCvState(),
+      targetJobDescription: '   ',
+      gapAnalysis,
+      mode: 'job_targeting',
+      rewriteIntent: 'targeted_rewrite',
+    })).rejects.toThrow('buildTargetedRewritePlan requires a target job description')
+  })
 })
-
-
-
-
