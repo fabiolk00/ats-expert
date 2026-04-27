@@ -11,6 +11,14 @@ import type {
 } from './types'
 import { buildGenerationCopy } from './workflow-mode'
 
+function resolveRecoverableValidationBlock(
+  pipeline: SmartGenerationPipelineResult,
+) {
+  return 'recoverableBlock' in pipeline
+    ? pipeline.recoverableBlock
+    : undefined
+}
+
 export function normalizeSmartGenerationSuccess(input: {
   context: SmartGenerationContext
   sessionId: string
@@ -72,6 +80,7 @@ export function normalizeSmartGenerationPipelineFailure(input: {
           | string
           | number
           | undefined,
+        recoverableValidationBlock: resolveRecoverableValidationBlock(input.pipeline),
       },
     }
   }

@@ -104,7 +104,7 @@ describe('validateRewrite', () => {
     expect(result.issues.some((issue) => issue.message.includes('cargo alvo'))).toBe(false)
   })
 
-  it('still flags unsupported real target-role claims as soft warnings', () => {
+  it('blocks unsupported real target-role claims in targeted summaries', () => {
     const result = validateRewrite(
       buildCvState(),
       {
@@ -117,10 +117,11 @@ describe('validateRewrite', () => {
       },
     )
 
-    expect(result.blocked).toBe(false)
-    expect(result.softWarnings).toContainEqual(expect.objectContaining({
-      severity: 'medium',
+    expect(result.blocked).toBe(true)
+    expect(result.hardIssues).toContainEqual(expect.objectContaining({
+      severity: 'high',
       section: 'summary',
+      issueType: 'target_role_overclaim',
     }))
   })
 
@@ -516,7 +517,8 @@ describe('validateRewrite', () => {
 
     expect(result.blocked).toBe(true)
     expect(result.hardIssues).toContainEqual(expect.objectContaining({
-      message: expect.stringContaining('senioridade ou dominio nao comprovado'),
+      issueType: 'seniority_inflation',
+      message: expect.stringContaining('senioridade ou domínio não comprovado'),
     }))
   })
 

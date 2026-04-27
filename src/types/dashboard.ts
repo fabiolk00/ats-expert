@@ -10,6 +10,7 @@ import type {
   RewriteValidationResult,
   ResumeGenerationType,
   RewriteStatus,
+  RecoverableValidationBlock,
   TargetingPlan,
   WorkflowMode,
 } from '@/types/agent'
@@ -23,6 +24,7 @@ import type { BillingHistoryResponse as SerializedBillingHistoryResponse } from 
 import type { AtsReadinessScoreContract } from '@/lib/ats/scoring/types'
 import type { ResumeGenerationHistoryResponse as SerializedResumeGenerationHistoryResponse } from '@/lib/resume-history/resume-generation-history.types'
 import type { CvHighlightState } from '@/lib/resume/cv-highlight-artifact'
+import type { PlanSlug } from '@/lib/plans'
 
 export type PreviewLockSummary = {
   locked: true
@@ -181,6 +183,7 @@ export type SessionWorkspace = {
       }
       lastRewriteMode?: 'ats_enhancement' | 'job_targeting'
       rewriteValidation?: RewriteValidationResult
+      recoverableValidationBlock?: RecoverableValidationBlock
     }
     generatedOutput: GeneratedOutput
     atsReadiness?: AtsReadinessScoreContract
@@ -243,6 +246,14 @@ export type DownloadUrlsResponse = {
 
 export type BillingHistoryResponse = SerializedBillingHistoryResponse
 export type ResumeGenerationHistoryResponse = SerializedResumeGenerationHistoryResponse
+
+export type BillingSummaryResponse = {
+  currentCredits: number
+  maxCredits?: number
+  currentPlan?: PlanSlug | null
+  activeRecurringPlan?: PlanSlug | null
+  billingNotice?: string | null
+}
 
 export type ResumeComparisonResponse = {
   sessionId: string

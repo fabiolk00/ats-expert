@@ -406,6 +406,70 @@ describe('POST /api/profile/smart-generation', () => {
     expect(dispatchToolWithContext).not.toHaveBeenCalled()
   })
 
+  it('returns the recoverable validation block payload when the pipeline preserves an override draft', async () => {
+    vi.mocked(runJobTargetingPipeline).mockResolvedValue({
+      success: false,
+      validation: {
+        blocked: true,
+        valid: false,
+        hardIssues: [{
+          severity: 'high',
+          section: 'summary',
+          issueType: 'target_role_overclaim',
+          message: 'O resumo assumiu o cargo alvo diretamente.',
+        }],
+        softWarnings: [],
+        issues: [{
+          severity: 'high',
+          section: 'summary',
+          issueType: 'target_role_overclaim',
+          message: 'O resumo assumiu o cargo alvo diretamente.',
+        }],
+      },
+      recoverableBlock: {
+        status: 'validation_blocked_recoverable',
+        overrideToken: 'override_token_123',
+        expiresAt: '2099-04-27T15:20:00.000Z',
+        modal: {
+          title: 'Encontramos pontos que podem exagerar sua experiência',
+          description: 'A adaptação ficou mais agressiva do que o seu currículo original comprova.',
+          primaryProblem: 'O resumo tentou assumir diretamente o cargo alvo.',
+          problemBullets: ['People Analytics apareceu como experiência direta.'],
+          reassurance: 'Você ainda pode gerar o currículo, mas recomendamos revisar.',
+          actions: {
+            secondary: {
+              label: 'Fechar',
+              action: 'close',
+            },
+            primary: {
+              label: 'Gerar mesmo assim (1 crédito)',
+              action: 'override_generate',
+              creditCost: 1,
+            },
+          },
+        },
+      },
+      error: 'Job targeting rewrite validation failed.',
+    } as never)
+
+    const response = await POST(new NextRequest('https://example.com/api/profile/smart-generation', {
+      method: 'POST',
+      headers: buildTrustedHeaders(),
+      body: JSON.stringify({
+        ...buildCvState(),
+        targetJobDescription: 'Vaga para analista de dados senior com foco em produto e SQL.',
+      }),
+    }))
+
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual(expect.objectContaining({
+      recoverableValidationBlock: expect.objectContaining({
+        status: 'validation_blocked_recoverable',
+        overrideToken: 'override_token_123',
+      }),
+    }))
+  })
+
   it('reuses the pipeline-updated session when dispatching generation and validation responses', async () => {
     const optimizedCvState = {
       ...buildCvState(),
@@ -679,7 +743,6 @@ describe('POST /api/profile/smart-generation', () => {
     })
   })
 })
-
 
 
 

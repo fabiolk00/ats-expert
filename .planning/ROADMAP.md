@@ -831,3 +831,13 @@ Plans:
 
 Plans:
 - [x] 108-01-PLAN.md - Adicionar classificacao de evidencia semantica compacta ao targeting plan, integrar permissoes no targeted rewrite e na validacao, e provar isolamento de ATS e fluxos sem target
+
+### Phase 109: Recoverable job targeting validation: user modal, summary retry and paid override
+
+**Goal:** Transform blocked factual validation in `job_targeting` into a recoverable product flow with safe target-role positioning, automatic summary-only retry, a human validation modal, and a paid override path that preserves anti-hallucination guarantees while charging only on successful generation.
+**Requirements**: [JOB-TARGET-RECOVERABLE-01, JOB-TARGET-RETRY-01, JOB-TARGET-MODAL-01, JOB-TARGET-OVERRIDE-01, JOB-TARGET-ISO-01, JOB-TARGET-ENCODING-01]
+**Depends on:** Phase 108
+**Plans:** 1 plan
+
+Plans:
+- [ ] 109-01-PLAN.md - Add safe target-role positioning, summary-only retry, recoverable validation modal, override draft + endpoint, billing-safe paid generation, and focused regression proof without affecting ATS or non-target flows

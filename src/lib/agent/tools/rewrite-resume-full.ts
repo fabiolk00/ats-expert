@@ -154,6 +154,7 @@ function sanitizeJobTargetedSkills(
 function buildTargetedPermissionInstructions(targetingPlan: TargetingPlan): string[] {
   const permissions = targetingPlan.rewritePermissions
     ?? buildTargetedRewritePermissions(targetingPlan.targetEvidence ?? [])
+  const targetRolePositioning = targetingPlan.targetRolePositioning
 
   const lines: string[] = [
     'Evidence-based targeted rewrite permissions apply only to this targeted rewrite.',
@@ -164,6 +165,22 @@ function buildTargetedPermissionInstructions(targetingPlan: TargetingPlan): stri
       ? `Normalized or equivalent claims allowed: ${permissions.normalizedClaimsAllowed.join(', ')}.`
       : 'Normalized or equivalent claims allowed: none.',
   ]
+
+  if (targetRolePositioning?.permission === 'must_not_claim_target_role') {
+    lines.push(
+      'Target role positioning:',
+      `- Do not present the candidate directly as: "${targetRolePositioning.targetRole}".`,
+      '- The original profile does not provide enough equivalent evidence to claim this target role directly.',
+      `- Use this safer positioning instead: "${targetRolePositioning.safeRolePositioning}".`,
+      '- You may bridge toward the target context, but must preserve the candidate real professional identity.',
+    )
+  } else if (targetRolePositioning?.permission === 'can_bridge_to_target_role') {
+    lines.push(
+      'Target role positioning:',
+      `- You may bridge toward "${targetRolePositioning.targetRole}" carefully, but avoid presenting it as fully established professional identity unless the wording stays grounded.`,
+      `- Prefer safer positioning such as: "${targetRolePositioning.safeRolePositioning}".`,
+    )
+  }
 
   if (permissions.bridgeClaimsAllowed.length > 0) {
     lines.push(
@@ -322,7 +339,9 @@ function buildTargetJobSectionInstructions(
         ...shared,
         ...targetingPlan.sectionStrategy.summary,
         'Rewrite only the professional summary.',
-        targetingPlan.targetRoleConfidence !== 'low'
+        targetingPlan.targetRolePositioning?.permission === 'must_not_claim_target_role'
+          ? 'Use 4 to 6 concise lines aligned to the vacancy context without presenting the candidate as the literal target role.'
+          : targetingPlan.targetRoleConfidence !== 'low'
           ? 'Use 4 to 6 concise lines aligned to the target role without claiming skills or experiences the candidate does not have.'
           : 'Use 4 to 6 concise lines aligned to the vacancy context without claiming a literal role identity, skills, or experiences the candidate does not have.',
         'Preserve grounded technical scope, business context, and supported achievements that help the recruiter understand the real profile.',

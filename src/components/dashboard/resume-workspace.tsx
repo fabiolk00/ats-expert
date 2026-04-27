@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useDefaultLayout } from "react-resizable-panels"
 
 import { Button } from "@/components/ui/button"
@@ -16,21 +16,27 @@ import { usePreviewPanel } from "@/context/preview-panel-context"
 import { usePreviewPanelOverlay } from "@/hooks/use-preview-panel-overlay"
 import {
   generateResume,
+  getBillingSummary,
   getSessionWorkspace,
+  isInsufficientCreditsError,
   isGeneratedOutputReady,
   manualEditBaseSection,
+  overrideJobTargetingValidation,
 } from "@/lib/dashboard/workspace-client"
+import { resolveValidationOverrideCta } from "@/lib/dashboard/validation-override-cta"
 import {
   AI_CHAT_PRO_REQUIRED_MESSAGE,
   AI_CHAT_PRO_REQUIRED_TITLE,
 } from "@/lib/billing/ai-chat-access"
 import type { PlanSlug } from "@/lib/plans"
 import { getDisplayableTargetRole, isSuspiciousTargetRole } from "@/lib/target-role"
+import { trackAnalyticsEvent } from "@/components/analytics/track-event"
 import type {
   JobStatusSnapshot,
   ManualEditInput,
   ManualEditSection,
   ManualEditSectionData,
+  ValidationIssue,
 } from "@/types/agent"
 import type { SessionWorkspace } from "@/types/dashboard"
 import {
@@ -55,6 +61,7 @@ type MutationKind =
   | "workspace-refresh"
   | "manual-edit"
   | "generate"
+  | "override"
   | null
 
 type ResumeWorkspaceProps = {
@@ -164,12 +171,31 @@ function buildRewriteFailureKey(workspace: SessionWorkspace | null): string | nu
     updatedAt: session.updatedAt,
     workflowMode: session.agentState.workflowMode,
     targetRole: session.agentState.targetingPlan?.targetRole,
+    recoverableToken: session.agentState.recoverableValidationBlock?.overrideToken,
     issues: issues.map((issue) => ({
       severity: issue.severity,
       section: issue.section,
       message: issue.message,
     })),
   })
+}
+
+function buildWorkspaceValidationEventPayload(workspace: SessionWorkspace | null): Record<string, unknown> {
+  const issues = workspace?.session.agentState.rewriteValidation?.issues ?? []
+  const issueTypes = Array.from(new Set(
+    issues
+      .map((issue) => issue.issueType)
+      .filter((issueType): issueType is NonNullable<ValidationIssue["issueType"]> => Boolean(issueType)),
+  ))
+
+  return {
+    sessionId: workspace?.session.id,
+    targetRole: workspace?.session.agentState.targetingPlan?.targetRole,
+    issueCount: issues.length,
+    hardIssueCount: issues.filter((issue) => issue.severity === "high").length,
+    softWarningCount: issues.filter((issue) => issue.severity !== "high").length,
+    issueTypes: issueTypes.join(", ") || undefined,
+  }
 }
 
 function getManualEditSectionValue(
@@ -220,6 +246,7 @@ export function ResumeWorkspace({
   const [hasMounted, setHasMounted] = useState(false)
   const [sessionId, setSessionId] = useState<string | undefined>(initialSessionId)
   const [availableCredits, setAvailableCredits] = useState(currentCredits)
+  const [currentActiveRecurringPlan, setCurrentActiveRecurringPlan] = useState<PlanSlug | null>(activeRecurringPlan)
   const [workspace, setWorkspace] = useState<SessionWorkspace | null>(null)
   const [activeMutation, setActiveMutation] = useState<MutationKind>("workspace-refresh")
   const [isStreaming, setIsStreaming] = useState(false)
@@ -230,7 +257,10 @@ export function ResumeWorkspace({
   const [activeGenerationJobId, setActiveGenerationJobId] = useState<string | null>(null)
   const [planUpdateOpen, setPlanUpdateOpen] = useState(false)
   const [rewriteFailureDialogOpen, setRewriteFailureDialogOpen] = useState(false)
+  const [isOverrideGenerating, setIsOverrideGenerating] = useState(false)
   const [lastSeenRewriteFailureKey, setLastSeenRewriteFailureKey] = useState<string | null>(null)
+  const previousValidationOverrideActionRef = useRef<"override_generate" | "open_pricing_modal" | null>(null)
+  const lastPricingShownTokenRef = useRef<string | null>(null)
   const { isOpen: isPreviewOpen, file: previewFile, close: closePreview } = usePreviewPanel()
   const isPreviewOverlay = usePreviewPanelOverlay()
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
@@ -246,6 +276,10 @@ export function ResumeWorkspace({
   useEffect(() => {
     setAvailableCredits(currentCredits)
   }, [currentCredits])
+
+  useEffect(() => {
+    setCurrentActiveRecurringPlan(activeRecurringPlan)
+  }, [activeRecurringPlan])
 
   useEffect(() => {
     if (!canAccessAiChat) {
@@ -306,6 +340,16 @@ export function ResumeWorkspace({
   const targetCount = workspace?.targets.length ?? 0
   const rewriteFailureKey = buildRewriteFailureKey(workspace)
   const rewriteValidationIssues = workspace?.session.agentState.rewriteValidation?.issues ?? []
+  const recoverableValidationBlock = workspace?.session.agentState.recoverableValidationBlock
+  const recoverableModal = recoverableValidationBlock?.modal
+  const validationOverrideCreditCost = recoverableModal?.actions.primary?.creditCost ?? 1
+  const validationOverrideCta = recoverableModal?.actions.primary
+    ? resolveValidationOverrideCta({
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+        isOverrideLoading: isOverrideGenerating,
+      })
+    : null
   const suspiciousTargetRole = workspace?.session.agentState.targetingPlan?.targetRoleConfidence === "low"
     || isSuspiciousTargetRole(workspace?.session.agentState.targetingPlan?.targetRole)
   const displayTargetRole = getDisplayableTargetRole(workspace?.session.agentState.targetingPlan?.targetRole)
@@ -325,7 +369,101 @@ export function ResumeWorkspace({
 
     setRewriteFailureDialogOpen(true)
     setLastSeenRewriteFailureKey(rewriteFailureKey)
+    if (workspace?.session.agentState.recoverableValidationBlock) {
+      trackAnalyticsEvent(
+        "agent.job_targeting.validation_modal_shown",
+        buildWorkspaceValidationEventPayload(workspace),
+      )
+    }
   }, [lastSeenRewriteFailureKey, rewriteFailureKey])
+
+  const refreshBillingSummary = useCallback(async (): Promise<void> => {
+    try {
+      const billingSummary = await getBillingSummary()
+      setAvailableCredits(billingSummary.currentCredits)
+      setCurrentActiveRecurringPlan(billingSummary.activeRecurringPlan ?? null)
+    } catch {
+      // Keep the current state and let the override flow remain conservative.
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!recoverableValidationBlock) {
+      return
+    }
+
+    const handleVisibilityChange = (): void => {
+      if (document.visibilityState === "visible") {
+        void refreshBillingSummary()
+      }
+    }
+
+    const handleFocus = (): void => {
+      void refreshBillingSummary()
+    }
+
+    window.addEventListener("focus", handleFocus)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener("focus", handleFocus)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [recoverableValidationBlock, refreshBillingSummary])
+
+  useEffect(() => {
+    const overrideToken = recoverableValidationBlock?.overrideToken
+    if (!rewriteFailureDialogOpen || !overrideToken || !validationOverrideCta) {
+      previousValidationOverrideActionRef.current = null
+      lastPricingShownTokenRef.current = null
+      return
+    }
+
+    if (
+      validationOverrideCta.action === "open_pricing_modal"
+      && lastPricingShownTokenRef.current !== overrideToken
+    ) {
+      trackAnalyticsEvent("agent.job_targeting.validation_override_pricing_shown", {
+        ...buildWorkspaceValidationEventPayload(workspace),
+        source: "workspace",
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+      })
+      lastPricingShownTokenRef.current = overrideToken
+    }
+
+    if (
+      previousValidationOverrideActionRef.current === "open_pricing_modal"
+      && validationOverrideCta.action === "override_generate"
+    ) {
+      trackAnalyticsEvent("agent.job_targeting.validation_override_credit_added", {
+        ...buildWorkspaceValidationEventPayload(workspace),
+        source: "workspace",
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+      })
+    }
+
+    previousValidationOverrideActionRef.current = validationOverrideCta.action
+  }, [
+    availableCredits,
+    recoverableValidationBlock,
+    rewriteFailureDialogOpen,
+    validationOverrideCreditCost,
+    validationOverrideCta,
+    workspace,
+  ])
+
+  const closeRewriteFailureDialog = useCallback(() => {
+    if (workspace?.session.agentState.recoverableValidationBlock) {
+      trackAnalyticsEvent(
+        "agent.job_targeting.validation_override_closed",
+        buildWorkspaceValidationEventPayload(workspace),
+      )
+    }
+
+    setRewriteFailureDialogOpen(false)
+  }, [workspace])
 
   const refreshWorkspace = useCallback(async (targetSessionId: string): Promise<void> => {
     setActiveMutation("workspace-refresh")
@@ -340,6 +478,96 @@ export function ResumeWorkspace({
       setActiveMutation(null)
     }
   }, [])
+
+  const handleValidationOverride = useCallback(async (): Promise<void> => {
+    if (!sessionId || !recoverableValidationBlock) {
+      return
+    }
+
+    setActiveMutation("override")
+    setIsOverrideGenerating(true)
+    setErrorMessage(null)
+    trackAnalyticsEvent("agent.job_targeting.validation_override_clicked", {
+      ...buildWorkspaceValidationEventPayload(workspace),
+      source: "workspace",
+      creditCost: validationOverrideCreditCost,
+      availableCredits,
+    })
+
+    try {
+      const result = await overrideJobTargetingValidation(sessionId, {
+        overrideToken: recoverableValidationBlock.overrideToken,
+        consumeCredit: true,
+      })
+      trackAnalyticsEvent("agent.job_targeting.validation_override_succeeded", {
+        ...buildWorkspaceValidationEventPayload(workspace),
+        source: "workspace",
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+        creditCharged: (result.creditsUsed ?? 0) > 0,
+        cvVersionId: result.resumeGenerationId,
+        validationOverride: true,
+      })
+      setAvailableCredits((current) => Math.max(0, current - (result.creditsUsed ?? 0)))
+      setRewriteFailureDialogOpen(false)
+      setStatusMessage("Geramos a versão com sua confirmação.")
+      await refreshWorkspace(sessionId)
+    } catch (error) {
+      if (isInsufficientCreditsError(error)) {
+        trackAnalyticsEvent("agent.job_targeting.validation_override_insufficient_credits", {
+          ...buildWorkspaceValidationEventPayload(workspace),
+          source: "workspace",
+          creditCost: validationOverrideCreditCost,
+          availableCredits,
+        })
+        setPlanUpdateOpen(true)
+        return
+      }
+
+      trackAnalyticsEvent("agent.job_targeting.validation_override_failed", {
+        ...buildWorkspaceValidationEventPayload(workspace),
+        source: "workspace",
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+      })
+      setErrorMessage(getErrorMessage(error))
+    } finally {
+      setIsOverrideGenerating(false)
+      setActiveMutation(null)
+    }
+  }, [
+    availableCredits,
+    recoverableValidationBlock,
+    refreshWorkspace,
+    sessionId,
+    validationOverrideCreditCost,
+    workspace,
+  ])
+
+  const handleValidationOverridePrimaryAction = useCallback((): void => {
+    if (!validationOverrideCta) {
+      return
+    }
+
+    if (validationOverrideCta.action === "open_pricing_modal") {
+      trackAnalyticsEvent("agent.job_targeting.validation_override_pricing_clicked", {
+        ...buildWorkspaceValidationEventPayload(workspace),
+        source: "workspace",
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+      })
+      setPlanUpdateOpen(true)
+      return
+    }
+
+    void handleValidationOverride()
+  }, [
+    availableCredits,
+    handleValidationOverride,
+    validationOverrideCreditCost,
+    validationOverrideCta,
+    workspace,
+  ])
 
   useEffect(() => {
     if (!canAccessAiChat) {
@@ -620,33 +848,59 @@ export function ResumeWorkspace({
       <PlanUpdateDialog
         isOpen={planUpdateOpen}
         onOpenChange={setPlanUpdateOpen}
-        activeRecurringPlan={activeRecurringPlan}
+        activeRecurringPlan={currentActiveRecurringPlan}
         currentCredits={availableCredits}
       />
 
-      <Dialog open={rewriteFailureDialogOpen} onOpenChange={setRewriteFailureDialogOpen}>
+      <Dialog open={rewriteFailureDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          closeRewriteFailureDialog()
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{rewriteFailureCopy.title}</DialogTitle>
+            <DialogTitle>{recoverableModal?.title ?? rewriteFailureCopy.title}</DialogTitle>
             <DialogDescription>
-              {rewriteFailureCopy.description}
+              {recoverableModal?.description ?? rewriteFailureCopy.description}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm text-slate-700">
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <p className="font-medium text-amber-900">O que bloqueou automaticamente</p>
-              <ul className="mt-2 space-y-2">
-                {rewriteValidationIssues.map((issue, index) => (
-                  <li key={`${issue.section ?? "unknown"}-${index}`} className="list-none">
-                    <span className="font-medium">{formatValidationSectionLabel(issue.section)}:</span>{" "}
-                    {issue.message}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {recoverableModal ? (
+              <>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="font-medium text-amber-900">{recoverableModal.primaryProblem}</p>
+                  <ul className="mt-3 space-y-2">
+                    {recoverableModal.problemBullets.map((bullet, index) => (
+                      <li key={`recoverable-problem-${index}`} className="list-none">
+                        • {bullet}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-            {suspiciousTargetRole ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p>{recoverableModal.reassurance}</p>
+                  {recoverableModal.recommendation ? (
+                    <p className="mt-2 font-medium text-slate-900">{recoverableModal.recommendation}</p>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-medium text-amber-900">O que bloqueou automaticamente</p>
+                <ul className="mt-2 space-y-2">
+                  {rewriteValidationIssues.map((issue, index) => (
+                    <li key={`${issue.section ?? "unknown"}-${index}`} className="list-none">
+                      <span className="font-medium">{formatValidationSectionLabel(issue.section)}:</span>{" "}
+                      {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {!recoverableModal && suspiciousTargetRole ? (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
                 <p className="font-medium text-rose-900">Possível bug de leitura da vaga</p>
                 <p className="mt-2">
@@ -665,20 +919,33 @@ export function ResumeWorkspace({
                   )}
                 </p>
               </div>
-            ) : (
+            ) : !recoverableModal ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="font-medium text-slate-900">{rewriteFailureCopy.explanationTitle}</p>
                 <p className="mt-2">
                   {rewriteFailureCopy.explanationBody}
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
 
+          {validationOverrideCta?.helperText ? (
+            <p className="text-xs text-slate-500">{validationOverrideCta.helperText}</p>
+          ) : null}
+
           <DialogFooter>
-            <Button type="button" onClick={() => setRewriteFailureDialogOpen(false)}>
-              Entendi
+            <Button type="button" variant="outline" onClick={closeRewriteFailureDialog}>
+              {recoverableModal?.actions.secondary.label ?? "Entendi"}
             </Button>
+            {recoverableModal?.actions.primary ? (
+              <Button
+                type="button"
+                onClick={handleValidationOverridePrimaryAction}
+                disabled={validationOverrideCta?.disabled}
+              >
+                {validationOverrideCta?.label ?? recoverableModal.actions.primary.label}
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>

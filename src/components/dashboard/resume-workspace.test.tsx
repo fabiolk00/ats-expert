@@ -10,21 +10,41 @@ import { NEW_CONVERSATION_EVENT } from "./events"
 import { ResumeWorkspace } from "./resume-workspace"
 
 const {
+  mockGetBillingSummary,
   mockGetSessionWorkspace,
   mockGenerateResume,
   mockIsGeneratedOutputReady,
+  mockOverrideJobTargetingValidation,
+  mockTrackAnalyticsEvent,
 } = vi.hoisted(() => ({
+  mockGetBillingSummary: vi.fn(),
   mockGetSessionWorkspace: vi.fn(),
   mockGenerateResume: vi.fn(),
   mockIsGeneratedOutputReady: vi.fn(),
+  mockOverrideJobTargetingValidation: vi.fn(),
+  mockTrackAnalyticsEvent: vi.fn(),
 }))
 
 vi.mock("@/lib/dashboard/workspace-client", () => ({
+  getBillingSummary: mockGetBillingSummary,
   getSessionWorkspace: mockGetSessionWorkspace,
   isGeneratedOutputReady: mockIsGeneratedOutputReady,
   generateResume: mockGenerateResume,
+  overrideJobTargetingValidation: mockOverrideJobTargetingValidation,
+  isInsufficientCreditsError: (error: unknown) => {
+    return Boolean(
+      error
+      && typeof error === "object"
+      && "code" in error
+      && (error as { code?: string }).code === "INSUFFICIENT_CREDITS",
+    )
+  },
   getDownloadUrls: vi.fn().mockResolvedValue({ docxUrl: null, pdfUrl: null }),
   manualEditBaseSection: vi.fn(),
+}))
+
+vi.mock("@/components/analytics/track-event", () => ({
+  trackAnalyticsEvent: (...args: unknown[]) => mockTrackAnalyticsEvent(...args),
 }))
 
 vi.mock("./chat-interface", () => ({
@@ -169,6 +189,9 @@ function renderWorkspace(ui: React.ReactElement) {
 describe("ResumeWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetBillingSummary.mockReset()
+    mockOverrideJobTargetingValidation.mockReset()
+    mockTrackAnalyticsEvent.mockReset()
     mockIsGeneratedOutputReady.mockReturnValue(true)
     mockGetSessionWorkspace.mockResolvedValue(buildWorkspace())
     mockGenerateResume.mockResolvedValue({
@@ -565,6 +588,325 @@ describe("ResumeWorkspace", () => {
     expect(await screen.findByText("Possível bug de leitura da vaga")).toBeInTheDocument()
     expect(screen.getByText(/Responsabilidades E Atribuições/)).toBeInTheDocument()
   })
+  it("uses override generation when the recoverable modal has enough credits", async () => {
+    mockOverrideJobTargetingValidation.mockResolvedValue({
+      success: true,
+      sessionId: "sess_recoverable_override",
+      creditsUsed: 1,
+      resumeGenerationId: "gen_workspace_override",
+      generationType: "JOB_TARGETING",
+    })
+    mockGetSessionWorkspace.mockResolvedValue({
+      ...buildWorkspace(),
+      session: {
+        ...buildWorkspace().session,
+        id: "sess_recoverable_override",
+        updatedAt: "2026-04-27T16:00:00.000Z",
+        agentState: {
+          ...buildWorkspace().session.agentState,
+          workflowMode: "job_targeting",
+          rewriteStatus: "failed",
+          rewriteValidation: {
+            blocked: true,
+            valid: false,
+            hardIssues: [{
+              severity: "high",
+              section: "summary",
+              issueType: "target_role_overclaim",
+              message: "O resumo assumiu o cargo alvo diretamente.",
+            }],
+            softWarnings: [],
+            issues: [{
+              severity: "high",
+              section: "summary",
+              issueType: "target_role_overclaim",
+              message: "O resumo assumiu o cargo alvo diretamente.",
+            }],
+          },
+          recoverableValidationBlock: {
+            status: "validation_blocked_recoverable",
+            overrideToken: "workspace_override_token",
+            expiresAt: "2099-04-27T16:30:00.000Z",
+            modal: {
+              title: "Encontramos pontos que podem exagerar sua experiência",
+              description: "A adaptação para esta vaga ficou mais agressiva do que o seu currículo original comprova.",
+              primaryProblem: "O resumo tentou assumir diretamente o cargo alvo.",
+              problemBullets: ["A versão pode ter declarado requisitos da vaga como experiência direta."],
+              reassurance: "Você ainda pode gerar o currículo, mas recomendamos revisar.",
+              actions: {
+                secondary: { label: "Fechar", action: "close" },
+                primary: {
+                  label: "Gerar mesmo assim (1 crédito)",
+                  action: "override_generate",
+                  creditCost: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    renderWorkspace(
+      <ResumeWorkspace
+        initialSessionId="sess_recoverable_override"
+        userName="Fabio"
+        currentCredits={1}
+      />,
+    )
+
+    const overrideButton = await screen.findByRole("button", { name: "Gerar mesmo assim (1 crédito)" })
+    expect(screen.getByText("Você usará 1 crédito para gerar esta versão.")).toBeInTheDocument()
+
+    await userEvent.click(overrideButton)
+
+    await waitFor(() => {
+      expect(mockOverrideJobTargetingValidation).toHaveBeenCalledWith("sess_recoverable_override", {
+        overrideToken: "workspace_override_token",
+        consumeCredit: true,
+      })
+    })
+    expect(screen.getByTestId("plan-update-dialog")).toHaveAttribute("data-open", "false")
+  })
+
+  it("opens pricing instead of override when recoverable modal has no credits", async () => {
+    mockGetSessionWorkspace.mockResolvedValue({
+      ...buildWorkspace(),
+      session: {
+        ...buildWorkspace().session,
+        id: "sess_recoverable_pricing",
+        updatedAt: "2026-04-27T16:00:00.000Z",
+        agentState: {
+          ...buildWorkspace().session.agentState,
+          workflowMode: "job_targeting",
+          rewriteStatus: "failed",
+          rewriteValidation: {
+            blocked: true,
+            valid: false,
+            hardIssues: [{
+              severity: "high",
+              section: "summary",
+              issueType: "target_role_overclaim",
+              message: "O resumo assumiu o cargo alvo diretamente.",
+            }],
+            softWarnings: [],
+            issues: [{
+              severity: "high",
+              section: "summary",
+              issueType: "target_role_overclaim",
+              message: "O resumo assumiu o cargo alvo diretamente.",
+            }],
+          },
+          recoverableValidationBlock: {
+            status: "validation_blocked_recoverable",
+            overrideToken: "workspace_pricing_token",
+            expiresAt: "2099-04-27T16:30:00.000Z",
+            modal: {
+              title: "Encontramos pontos que podem exagerar sua experiência",
+              description: "A adaptação para esta vaga ficou mais agressiva do que o seu currículo original comprova.",
+              primaryProblem: "O resumo tentou assumir diretamente o cargo alvo.",
+              problemBullets: ["A versão pode ter declarado requisitos da vaga como experiência direta."],
+              reassurance: "Você ainda pode gerar o currículo, mas recomendamos revisar.",
+              actions: {
+                secondary: { label: "Fechar", action: "close" },
+                primary: {
+                  label: "Gerar mesmo assim (1 crédito)",
+                  action: "override_generate",
+                  creditCost: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    renderWorkspace(
+      <ResumeWorkspace
+        initialSessionId="sess_recoverable_pricing"
+        userName="Fabio"
+        currentCredits={0}
+      />,
+    )
+
+    const pricingButton = await screen.findByRole("button", { name: "Adicionar créditos" })
+    expect(screen.getByText("Você precisa de 1 crédito para gerar esta versão.")).toBeInTheDocument()
+
+    await userEvent.click(pricingButton)
+
+    expect(mockOverrideJobTargetingValidation).not.toHaveBeenCalled()
+    expect(screen.getByTestId("plan-update-dialog")).toHaveAttribute("data-open", "true")
+  })
+
+  it("updates the recoverable workspace CTA after credits are added without requesting a new targeting run", async () => {
+    mockOverrideJobTargetingValidation.mockResolvedValue({
+      success: true,
+      sessionId: "sess_recoverable_credit_refresh",
+      creditsUsed: 1,
+      resumeGenerationId: "gen_workspace_credit_refresh",
+      generationType: "JOB_TARGETING",
+    })
+    mockGetBillingSummary.mockResolvedValue({
+      currentCredits: 1,
+      currentPlan: "plus",
+      activeRecurringPlan: null,
+    })
+    mockGetSessionWorkspace.mockResolvedValue({
+      ...buildWorkspace(),
+      session: {
+        ...buildWorkspace().session,
+        id: "sess_recoverable_credit_refresh",
+        updatedAt: "2026-04-27T16:00:00.000Z",
+        agentState: {
+          ...buildWorkspace().session.agentState,
+          workflowMode: "job_targeting",
+          rewriteStatus: "failed",
+          rewriteValidation: {
+            blocked: true,
+            valid: false,
+            hardIssues: [{
+              severity: "high",
+              section: "summary",
+              issueType: "target_role_overclaim",
+              message: "O resumo assumiu o cargo alvo diretamente.",
+            }],
+            softWarnings: [],
+            issues: [{
+              severity: "high",
+              section: "summary",
+              issueType: "target_role_overclaim",
+              message: "O resumo assumiu o cargo alvo diretamente.",
+            }],
+          },
+          recoverableValidationBlock: {
+            status: "validation_blocked_recoverable",
+            overrideToken: "workspace_credit_refresh_token",
+            expiresAt: "2099-04-27T16:30:00.000Z",
+            modal: {
+              title: "Encontramos pontos que podem exagerar sua experiência",
+              description: "A adaptação para esta vaga ficou mais agressiva do que o seu currículo original comprova.",
+              primaryProblem: "O resumo tentou assumir diretamente o cargo alvo.",
+              problemBullets: ["A versão pode ter declarado requisitos da vaga como experiência direta."],
+              reassurance: "Você ainda pode gerar o currículo, mas recomendamos revisar.",
+              actions: {
+                secondary: { label: "Fechar", action: "close" },
+                primary: {
+                  label: "Gerar mesmo assim (1 crédito)",
+                  action: "override_generate",
+                  creditCost: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    renderWorkspace(
+      <ResumeWorkspace
+        initialSessionId="sess_recoverable_credit_refresh"
+        userName="Fabio"
+        currentCredits={0}
+      />,
+    )
+
+    expect(await screen.findByRole("button", { name: "Adicionar créditos" })).toBeInTheDocument()
+
+    window.dispatchEvent(new Event("focus"))
+
+    const overrideButton = await screen.findByRole("button", { name: "Gerar mesmo assim (1 crédito)" })
+    expect(screen.getByText("Você usará 1 crédito para gerar esta versão.")).toBeInTheDocument()
+
+    await userEvent.click(overrideButton)
+
+    await waitFor(() => {
+      expect(mockOverrideJobTargetingValidation).toHaveBeenCalledWith("sess_recoverable_credit_refresh", {
+        overrideToken: "workspace_credit_refresh_token",
+        consumeCredit: true,
+      })
+    })
+    expect(mockTrackAnalyticsEvent).toHaveBeenCalledWith(
+      "agent.job_targeting.validation_override_credit_added",
+      expect.objectContaining({
+        source: "workspace",
+        availableCredits: 1,
+      }),
+    )
+    expect(mockGenerateResume).not.toHaveBeenCalled()
+  })
+
+  it("opens pricing when override fallback returns insufficient credits", async () => {
+    mockOverrideJobTargetingValidation.mockRejectedValue({
+      code: "INSUFFICIENT_CREDITS",
+      message: "Você não tem créditos suficientes para gerar esta versão.",
+      openPricing: true,
+    })
+    mockGetSessionWorkspace.mockResolvedValue({
+      ...buildWorkspace(),
+      session: {
+        ...buildWorkspace().session,
+        id: "sess_recoverable_backend_pricing",
+        updatedAt: "2026-04-27T16:00:00.000Z",
+        agentState: {
+          ...buildWorkspace().session.agentState,
+          workflowMode: "job_targeting",
+          rewriteStatus: "failed",
+          rewriteValidation: {
+            blocked: true,
+            valid: false,
+            hardIssues: [{
+              severity: "high",
+              section: "summary",
+              issueType: "target_role_overclaim",
+              message: "O resumo assumiu o cargo alvo diretamente.",
+            }],
+            softWarnings: [],
+            issues: [{
+              severity: "high",
+              section: "summary",
+              issueType: "target_role_overclaim",
+              message: "O resumo assumiu o cargo alvo diretamente.",
+            }],
+          },
+          recoverableValidationBlock: {
+            status: "validation_blocked_recoverable",
+            overrideToken: "workspace_backend_pricing_token",
+            expiresAt: "2099-04-27T16:30:00.000Z",
+            modal: {
+              title: "Encontramos pontos que podem exagerar sua experiência",
+              description: "A adaptação para esta vaga ficou mais agressiva do que o seu currículo original comprova.",
+              primaryProblem: "O resumo tentou assumir diretamente o cargo alvo.",
+              problemBullets: ["A versão pode ter declarado requisitos da vaga como experiência direta."],
+              reassurance: "Você ainda pode gerar o currículo, mas recomendamos revisar.",
+              actions: {
+                secondary: { label: "Fechar", action: "close" },
+                primary: {
+                  label: "Gerar mesmo assim (1 crédito)",
+                  action: "override_generate",
+                  creditCost: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    renderWorkspace(
+      <ResumeWorkspace
+        initialSessionId="sess_recoverable_backend_pricing"
+        userName="Fabio"
+        currentCredits={1}
+      />,
+    )
+
+    await userEvent.click(await screen.findByRole("button", { name: "Gerar mesmo assim (1 crédito)" }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId("plan-update-dialog")).toHaveAttribute("data-open", "true")
+    })
+  })
+
   it("highlights a possible parsing bug when targetRole confidence is low", async () => {
     mockGetSessionWorkspace.mockResolvedValue({
       ...buildWorkspace(),

@@ -5,6 +5,7 @@ import type { CVState } from '@/types/cv'
 import type { PreviewLockSummary } from '@/types/dashboard'
 import type { RouteHttpResponse } from '@/lib/routes/shared/types'
 import type { SmartGenerationCopy, SmartGenerationWorkflowMode } from './workflow-mode'
+import type { RecoverableValidationBlock } from '@/types/agent'
 
 export type SmartGenerationRequestBody = CVState & {
   targetJobDescription?: string
@@ -35,6 +36,7 @@ export type SmartGenerationDecision =
         rewriteValidation?: Record<string, unknown>
         targetRole?: string
         targetRoleConfidence?: string | number
+        recoverableValidationBlock?: RecoverableValidationBlock
       }
     }
   | {

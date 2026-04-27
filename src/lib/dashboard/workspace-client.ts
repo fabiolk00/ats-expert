@@ -5,6 +5,7 @@ import type {
   ResumeEditorSaveOutput,
 } from '@/types/agent'
 import type {
+  BillingSummaryResponse,
   BillingHistoryResponse,
   DownloadUrlsResponse,
   GenerateResumeResponse,
@@ -43,14 +44,23 @@ class DashboardApiError extends Error {
   }
 }
 
+function readStringField(payload: unknown, field: string): string | undefined {
+  if (typeof payload !== 'object' || payload === null || !(field in payload)) {
+    return undefined
+  }
+
+  const value = (payload as Record<string, unknown>)[field]
+  return typeof value === 'string' ? value : undefined
+}
+
 async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init)
   const payload = await response.json() as unknown
 
   if (!response.ok) {
-    const message = typeof payload === 'object' && payload !== null && 'error' in payload
-      ? String((payload as { error: unknown }).error)
-      : 'Request failed.'
+    const message = readStringField(payload, 'message')
+      ?? readStringField(payload, 'error')
+      ?? 'Request failed.'
     const code = typeof payload === 'object' && payload !== null && 'code' in payload
       ? String((payload as { code: unknown }).code)
       : undefined
@@ -79,10 +89,37 @@ export function isExportAlreadyProcessingError(error: unknown): error is Dashboa
   return error instanceof DashboardApiError && error.code === 'EXPORT_ALREADY_PROCESSING'
 }
 
+export function isInsufficientCreditsError(error: unknown): error is DashboardApiError {
+  if (!(error instanceof DashboardApiError)) {
+    return false
+  }
+
+  const payload = error.payload
+  const payloadError = typeof payload === 'object' && payload !== null && 'error' in payload
+    ? String((payload as { error: unknown }).error)
+    : undefined
+  const openPricing = typeof payload === 'object' && payload !== null && 'openPricing' in payload
+    ? (payload as { openPricing: unknown }).openPricing === true
+    : false
+
+  return error.code === 'INSUFFICIENT_CREDITS'
+    || payloadError === 'insufficient_credits'
+    || openPricing
+}
+
 export type DownloadLookupTrigger =
   | 'post_generation'
   | 'preview_panel'
   | 'profile_last_generated'
+
+export type ValidationOverrideGenerateResponse = {
+  success: true
+  sessionId: string
+  creditsUsed: number
+  resumeGenerationId?: string
+  generationType: 'JOB_TARGETING'
+  warnings?: string[]
+}
 
 export function isRetryableDownloadLookupError(error: unknown): error is DashboardApiError {
   return error instanceof DashboardApiError
@@ -191,6 +228,25 @@ export async function generateResume(
   )
 }
 
+export async function overrideJobTargetingValidation(
+  sessionId: string,
+  input: {
+    overrideToken: string
+    consumeCredit: true
+  },
+): Promise<ValidationOverrideGenerateResponse> {
+  return requestJson<ValidationOverrideGenerateResponse>(
+    `/api/session/${sessionId}/job-targeting/override`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    },
+  )
+}
+
 export async function getDownloadUrls(
   sessionId: string,
   targetId?: string,
@@ -231,6 +287,10 @@ export async function getBillingHistory(limit = 10): Promise<BillingHistoryRespo
   })
 
   return requestJson<BillingHistoryResponse>(`/api/billing/history?${searchParams.toString()}`)
+}
+
+export async function getBillingSummary(): Promise<BillingSummaryResponse> {
+  return requestJson<BillingSummaryResponse>('/api/billing/summary')
 }
 
 export async function getResumeGenerationHistory(

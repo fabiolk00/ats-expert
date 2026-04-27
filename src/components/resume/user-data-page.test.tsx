@@ -7,6 +7,9 @@ import UserDataPage from "./user-data-page"
 
 const mockPush = vi.fn()
 const mockGetDownloadUrls = vi.fn()
+const mockGetBillingSummary = vi.fn()
+const mockOverrideJobTargetingValidation = vi.fn()
+const mockTrackAnalyticsEvent = vi.fn()
 const mockAnchorClick = vi.fn()
 const mockCreateObjectURL = vi.fn(() => "blob:curria-test")
 const mockRevokeObjectURL = vi.fn()
@@ -150,7 +153,45 @@ vi.mock("@/lib/dashboard/welcome-guide", () => ({
 }))
 
 vi.mock("@/lib/dashboard/workspace-client", () => ({
+  getBillingSummary: (...args: unknown[]) => mockGetBillingSummary(...args),
   getDownloadUrls: (...args: unknown[]) => mockGetDownloadUrls(...args),
+  overrideJobTargetingValidation: (...args: unknown[]) => mockOverrideJobTargetingValidation(...args),
+  isInsufficientCreditsError: (error: unknown) => {
+    return Boolean(
+      error
+      && typeof error === "object"
+      && "code" in error
+      && (error as { code?: string }).code === "INSUFFICIENT_CREDITS",
+    )
+  },
+}))
+
+vi.mock("@/lib/dashboard/validation-override-cta", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/dashboard/validation-override-cta")>(
+    "@/lib/dashboard/validation-override-cta",
+  )
+
+  return actual
+})
+
+vi.mock("@/components/analytics/track-event", () => ({
+  trackAnalyticsEvent: (...args: unknown[]) => mockTrackAnalyticsEvent(...args),
+}))
+
+vi.mock("@/components/dashboard/plan-update-dialog", () => ({
+  PlanUpdateDialog: ({
+    isOpen,
+    currentCredits,
+  }: {
+    isOpen: boolean
+    currentCredits: number
+  }) => (
+    <div
+      data-testid="plan-update-dialog"
+      data-open={String(isOpen)}
+      data-credits={String(currentCredits)}
+    />
+  ),
 }))
 
 vi.mock("./generation-loading", () => ({
@@ -350,6 +391,9 @@ describe("UserDataPage", () => {
     vi.unstubAllGlobals()
     mockPathname = "/profile-setup"
     mockGetDownloadUrls.mockReset()
+    mockGetBillingSummary.mockReset()
+    mockOverrideJobTargetingValidation.mockReset()
+    mockTrackAnalyticsEvent.mockReset()
     window.localStorage.clear()
 
     Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
@@ -766,6 +810,324 @@ describe("UserDataPage", () => {
     expect(screen.getByText(/bug de leitura da vaga/i)).toBeInTheDocument()
     expect(screen.getByText(/não conseguimos identificar com confiança o cargo-alvo/i)).toBeInTheDocument()
     expect(screen.queryByText("Vaga Alvo")).not.toBeInTheDocument()
+  })
+
+  it("uses override generation when the recoverable validation modal has enough credits", async () => {
+    const user = userEvent.setup()
+    mockOverrideJobTargetingValidation.mockResolvedValue({
+      success: true,
+      sessionId: "sess_override_123",
+      creditsUsed: 1,
+      resumeGenerationId: "gen_override_123",
+      generationType: "JOB_TARGETING",
+    })
+    buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse({
+        sessionId: "sess_override_123",
+        workflowMode: "job_targeting",
+        rewriteValidation: {
+          blocked: true,
+          valid: false,
+          hardIssues: [{
+            severity: "high",
+            section: "summary",
+            issueType: "target_role_overclaim",
+            message: "O resumo assumiu o cargo alvo diretamente.",
+          }],
+          softWarnings: [],
+          issues: [{
+            severity: "high",
+            section: "summary",
+            issueType: "target_role_overclaim",
+            message: "O resumo assumiu o cargo alvo diretamente.",
+          }],
+        },
+        recoverableValidationBlock: {
+          status: "validation_blocked_recoverable",
+          overrideToken: "override_token_123",
+          expiresAt: "2099-04-27T16:00:00.000Z",
+          modal: {
+            title: "Encontramos pontos que podem exagerar sua experiência",
+            description: "A adaptação para esta vaga ficou mais agressiva do que o seu currículo original comprova.",
+            primaryProblem: "O resumo tentou assumir diretamente o cargo alvo.",
+            problemBullets: ["A versão pode ter declarado requisitos da vaga como experiência direta."],
+            reassurance: "Você ainda pode gerar o currículo, mas recomendamos revisar.",
+            actions: {
+              secondary: { label: "Fechar", action: "close" },
+              primary: {
+                label: "Gerar mesmo assim (1 crédito)",
+                action: "override_generate",
+                creditCost: 1,
+              },
+            },
+          },
+        },
+      }, {
+        ok: false,
+        status: 422,
+      }),
+    )
+
+    render(<UserDataPage currentCredits={1} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+    await user.type(screen.getByTestId("target-job-description-input"), "Vaga para analista de dados.")
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    const overrideButton = await screen.findByRole("button", { name: "Gerar mesmo assim (1 crédito)" })
+    expect(screen.getByText("Você usará 1 crédito para gerar esta versão.")).toBeInTheDocument()
+
+    await user.click(overrideButton)
+
+    await waitFor(() => {
+      expect(mockOverrideJobTargetingValidation).toHaveBeenCalledWith("sess_override_123", {
+        overrideToken: "override_token_123",
+        consumeCredit: true,
+      })
+    })
+    expect(screen.getByTestId("plan-update-dialog")).toHaveAttribute("data-open", "false")
+  })
+
+  it("switches the recoverable validation CTA to pricing when credits are missing", async () => {
+    const user = userEvent.setup()
+    buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse({
+        sessionId: "sess_override_pricing_123",
+        workflowMode: "job_targeting",
+        rewriteValidation: {
+          blocked: true,
+          valid: false,
+          hardIssues: [{
+            severity: "high",
+            section: "summary",
+            issueType: "target_role_overclaim",
+            message: "O resumo assumiu o cargo alvo diretamente.",
+          }],
+          softWarnings: [],
+          issues: [{
+            severity: "high",
+            section: "summary",
+            issueType: "target_role_overclaim",
+            message: "O resumo assumiu o cargo alvo diretamente.",
+          }],
+        },
+        recoverableValidationBlock: {
+          status: "validation_blocked_recoverable",
+          overrideToken: "override_token_pricing_123",
+          expiresAt: "2099-04-27T16:00:00.000Z",
+          modal: {
+            title: "Encontramos pontos que podem exagerar sua experiência",
+            description: "A adaptação para esta vaga ficou mais agressiva do que o seu currículo original comprova.",
+            primaryProblem: "O resumo tentou assumir diretamente o cargo alvo.",
+            problemBullets: ["A versão pode ter declarado requisitos da vaga como experiência direta."],
+            reassurance: "Você ainda pode gerar o currículo, mas recomendamos revisar.",
+            actions: {
+              secondary: { label: "Fechar", action: "close" },
+              primary: {
+                label: "Gerar mesmo assim (1 crédito)",
+                action: "override_generate",
+                creditCost: 1,
+              },
+            },
+          },
+        },
+      }, {
+        ok: false,
+        status: 422,
+      }),
+    )
+
+    const view = render(<UserDataPage currentCredits={1} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+    await user.type(screen.getByTestId("target-job-description-input"), "Vaga para analista de dados.")
+    await user.click(screen.getByTestId("ats-panel-cta"))
+    await screen.findByRole("button", { name: "Gerar mesmo assim (1 crédito)" })
+
+    view.rerender(<UserDataPage currentCredits={0} />)
+
+    const pricingButton = await screen.findByRole("button", { name: "Adicionar créditos" })
+    expect(screen.getByText("Você precisa de 1 crédito para gerar esta versão.")).toBeInTheDocument()
+
+    await user.click(pricingButton)
+
+    expect(mockOverrideJobTargetingValidation).not.toHaveBeenCalled()
+    expect(screen.getByTestId("plan-update-dialog")).toHaveAttribute("data-open", "true")
+  })
+
+  it("updates the recoverable validation CTA after credits are added without rerunning targeting", async () => {
+    const user = userEvent.setup()
+    mockOverrideJobTargetingValidation.mockResolvedValue({
+      success: true,
+      sessionId: "sess_override_credit_refresh_123",
+      creditsUsed: 1,
+      resumeGenerationId: "gen_override_credit_refresh_123",
+      generationType: "JOB_TARGETING",
+    })
+    mockGetBillingSummary.mockResolvedValue({
+      currentCredits: 1,
+      currentPlan: "plus",
+      activeRecurringPlan: null,
+    })
+    const fetchMock = buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse({
+        sessionId: "sess_override_credit_refresh_123",
+        workflowMode: "job_targeting",
+        rewriteValidation: {
+          blocked: true,
+          valid: false,
+          hardIssues: [{
+            severity: "high",
+            section: "summary",
+            issueType: "target_role_overclaim",
+            message: "O resumo assumiu o cargo alvo diretamente.",
+          }],
+          softWarnings: [],
+          issues: [{
+            severity: "high",
+            section: "summary",
+            issueType: "target_role_overclaim",
+            message: "O resumo assumiu o cargo alvo diretamente.",
+          }],
+        },
+        recoverableValidationBlock: {
+          status: "validation_blocked_recoverable",
+          overrideToken: "override_token_credit_refresh_123",
+          expiresAt: "2099-04-27T16:00:00.000Z",
+          modal: {
+            title: "Encontramos pontos que podem exagerar sua experiência",
+            description: "A adaptação para esta vaga ficou mais agressiva do que o seu currículo original comprova.",
+            primaryProblem: "O resumo tentou assumir diretamente o cargo alvo.",
+            problemBullets: ["A versão pode ter declarado requisitos da vaga como experiência direta."],
+            reassurance: "Você ainda pode gerar o currículo, mas recomendamos revisar.",
+            actions: {
+              secondary: { label: "Fechar", action: "close" },
+              primary: {
+                label: "Gerar mesmo assim (1 crédito)",
+                action: "override_generate",
+                creditCost: 1,
+              },
+            },
+          },
+        },
+      }, {
+        ok: false,
+        status: 422,
+      }),
+    )
+
+    const view = render(<UserDataPage currentCredits={1} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+    await user.type(screen.getByTestId("target-job-description-input"), "Vaga para analista de dados.")
+    await user.click(screen.getByTestId("ats-panel-cta"))
+
+    expect(await screen.findByRole("button", { name: "Gerar mesmo assim (1 crédito)" })).toBeInTheDocument()
+
+    view.rerender(<UserDataPage currentCredits={0} />)
+
+    expect(await screen.findByRole("button", { name: "Adicionar créditos" })).toBeInTheDocument()
+
+    window.dispatchEvent(new Event("focus"))
+
+    const overrideButton = await screen.findByRole("button", { name: "Gerar mesmo assim (1 crédito)" })
+    expect(screen.getByText("Você usará 1 crédito para gerar esta versão.")).toBeInTheDocument()
+
+    await user.click(overrideButton)
+
+    await waitFor(() => {
+      expect(mockOverrideJobTargetingValidation).toHaveBeenCalledWith("sess_override_credit_refresh_123", {
+        overrideToken: "override_token_credit_refresh_123",
+        consumeCredit: true,
+      })
+    })
+    expect(mockTrackAnalyticsEvent).toHaveBeenCalledWith(
+      "agent.job_targeting.validation_override_credit_added",
+      expect.objectContaining({
+        source: "profile_setup",
+        availableCredits: 1,
+      }),
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it("opens pricing instead of redirecting when override returns insufficient credits", async () => {
+    const user = userEvent.setup()
+    mockOverrideJobTargetingValidation.mockRejectedValue({
+      code: "INSUFFICIENT_CREDITS",
+      message: "Você não tem créditos suficientes para gerar esta versão.",
+      openPricing: true,
+    })
+    buildFetchMock(
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse(buildProfileResponse()),
+      createJsonResponse({
+        sessionId: "sess_override_backend_credit_123",
+        workflowMode: "job_targeting",
+        rewriteValidation: {
+          blocked: true,
+          valid: false,
+          hardIssues: [{
+            severity: "high",
+            section: "summary",
+            issueType: "target_role_overclaim",
+            message: "O resumo assumiu o cargo alvo diretamente.",
+          }],
+          softWarnings: [],
+          issues: [{
+            severity: "high",
+            section: "summary",
+            issueType: "target_role_overclaim",
+            message: "O resumo assumiu o cargo alvo diretamente.",
+          }],
+        },
+        recoverableValidationBlock: {
+          status: "validation_blocked_recoverable",
+          overrideToken: "override_token_backend_credit_123",
+          expiresAt: "2099-04-27T16:00:00.000Z",
+          modal: {
+            title: "Encontramos pontos que podem exagerar sua experiência",
+            description: "A adaptação para esta vaga ficou mais agressiva do que o seu currículo original comprova.",
+            primaryProblem: "O resumo tentou assumir diretamente o cargo alvo.",
+            problemBullets: ["A versão pode ter declarado requisitos da vaga como experiência direta."],
+            reassurance: "Você ainda pode gerar o currículo, mas recomendamos revisar.",
+            actions: {
+              secondary: { label: "Fechar", action: "close" },
+              primary: {
+                label: "Gerar mesmo assim (1 crédito)",
+                action: "override_generate",
+                creditCost: 1,
+              },
+            },
+          },
+        },
+      }, {
+        ok: false,
+        status: 422,
+      }),
+    )
+
+    render(<UserDataPage currentCredits={1} />)
+
+    await openEnhancementMode(user)
+    await user.click(screen.getByTestId("enhancement-intent-target-job"))
+    await user.type(screen.getByTestId("target-job-description-input"), "Vaga para analista de dados.")
+    await user.click(screen.getByTestId("ats-panel-cta"))
+    await user.click(await screen.findByRole("button", { name: "Gerar mesmo assim (1 crédito)" }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId("plan-update-dialog")).toHaveAttribute("data-open", "true")
+    })
+    expect(mockPush).not.toHaveBeenCalledWith("/dashboard/resume/compare/sess_override_backend_credit_123")
   })
 
   it("contains long experience content inside a scrollable section card", async () => {

@@ -6,7 +6,15 @@ import {
   generateCvHighlightState,
   type HighlightDetectionOutcome,
 } from '@/lib/agent/tools/detect-cv-highlights'
+import {
+  buildSummaryRetryInstructions,
+  buildUserFacingValidationBlockModal,
+  createBlockedTargetedRewriteDraft,
+  isRecoverableValidationBlock,
+  isSummaryOnlyRecoverableValidation,
+} from '@/lib/agent/job-targeting/recoverable-validation'
 import { rewriteResumeFull } from '@/lib/agent/tools/rewrite-resume-full'
+import { rewriteSection } from '@/lib/agent/tools/rewrite-section'
 import { validateRewrite } from '@/lib/agent/tools/validate-rewrite'
 import { createCvVersion } from '@/lib/db/cv-versions'
 import { updateSession } from '@/lib/db/sessions'
@@ -122,6 +130,14 @@ function extractJobDescriptionKeywords(targetJobDescription?: string): string[] 
     .filter((part) => part.length >= 2 && part.split(/\s+/u).length <= 4)
 }
 
+function getIssueTypeList(issues: { issueType?: string }[]): string[] {
+  return Array.from(new Set(
+    issues
+      .map((issue) => issue.issueType)
+      .filter((issueType): issueType is string => Boolean(issueType)),
+  ))
+}
+
 function extractJobKeywords(params: {
   gapAnalysis?: Session['agentState']['gapAnalysis']
   targetingPlan?: Session['agentState']['targetingPlan']
@@ -227,6 +243,7 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
   optimizedCvState?: Session['agentState']['optimizedCvState']
   optimizationSummary?: Session['agentState']['optimizationSummary']
   validation?: Session['agentState']['rewriteValidation']
+  recoverableBlock?: Session['agentState']['recoverableValidationBlock']
   error?: string
 }> {
   const previousOptimizedCvState = session.agentState.optimizedCvState
@@ -402,6 +419,7 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     sessionId: session.id,
     mode: 'job_targeting',
     rewriteIntent: 'targeted_rewrite',
+    careerFitEvaluation: careerFitEvaluation ?? undefined,
   })
   const jobKeywords = extractJobKeywords({
     gapAnalysis,
@@ -534,19 +552,96 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     }
   }
 
-  const validation = validateRewrite(session.cvState, rewriteResult.optimizedCvState, {
+  let finalizedOptimizedCvState = rewriteResult.optimizedCvState
+  let finalizedOptimizationSummary = rewriteResult.summary
+  let validation = validateRewrite(session.cvState, finalizedOptimizedCvState, {
     mode: 'job_targeting',
     targetJobDescription,
     gapAnalysis: gapAnalysisResult,
     targetingPlan,
   })
+  let summaryRetryAttempted = false
+  let summaryRetrySucceeded = false
+  let summaryRetryReason: string | undefined
+
+  if (isSummaryOnlyRecoverableValidation(validation)) {
+    summaryRetryAttempted = true
+    summaryRetryReason = validation.hardIssues[0]?.issueType ?? 'summary_validation_failure'
+    logInfo('agent.job_targeting.summary_retry_attempted', {
+      sessionId: session.id,
+      userId: session.userId,
+      targetRole: targetingPlan.targetRole,
+      issueCount: validation.issues.length,
+      issueTypes: getIssueTypeList(validation.hardIssues).join(', ') || undefined,
+    })
+
+    const retryExecution = await rewriteSection({
+      section: 'summary',
+      current_content: finalizedOptimizedCvState.summary,
+      instructions: buildSummaryRetryInstructions(targetingPlan),
+      target_keywords: targetingPlan.mustEmphasize,
+    }, session.userId, session.id)
+
+    if ('success' in retryExecution.output && retryExecution.output.success && typeof retryExecution.output.section_data === 'string') {
+      finalizedOptimizedCvState = {
+        ...finalizedOptimizedCvState,
+        summary: retryExecution.output.section_data,
+      }
+      finalizedOptimizationSummary = {
+        changedSections: Array.from(new Set([
+          ...(finalizedOptimizationSummary?.changedSections ?? []),
+          'summary',
+        ])),
+        notes: [
+          ...(finalizedOptimizationSummary?.notes ?? []),
+          'Summary retried after targeted factual validation block.',
+        ],
+        keywordCoverageImprovement: finalizedOptimizationSummary?.keywordCoverageImprovement,
+      }
+      validation = validateRewrite(session.cvState, finalizedOptimizedCvState, {
+        mode: 'job_targeting',
+        targetJobDescription,
+        gapAnalysis: gapAnalysisResult,
+        targetingPlan,
+      })
+      summaryRetrySucceeded = !validation.blocked
+
+      logInfo(
+        summaryRetrySucceeded
+          ? 'agent.job_targeting.summary_retry_succeeded'
+          : 'agent.job_targeting.summary_retry_failed',
+        {
+          sessionId: session.id,
+          userId: session.userId,
+          targetRole: targetingPlan.targetRole,
+          issueCount: validation.issues.length,
+          hardIssueCount: validation.hardIssues.length,
+          issueTypes: getIssueTypeList(validation.hardIssues).join(', ') || undefined,
+        },
+      )
+    } else {
+      logWarn('agent.job_targeting.summary_retry_failed', {
+        sessionId: session.id,
+        userId: session.userId,
+        targetRole: targetingPlan.targetRole,
+        issueCount: validation.issues.length,
+        error: 'Summary retry rewrite did not produce a valid summary payload.',
+      })
+    }
+  }
   trace.rewrite = {
     sectionsAttempted: rewriteResult.diagnostics?.sectionAttempts
       ? Object.keys(rewriteResult.diagnostics.sectionAttempts)
       : [],
-    sectionsChanged: rewriteResult.summary?.changedSections ?? [],
-    sectionsRetried: rewriteResult.diagnostics?.retriedSections ?? [],
+    sectionsChanged: finalizedOptimizationSummary?.changedSections ?? [],
+    sectionsRetried: Array.from(new Set([
+      ...(rewriteResult.diagnostics?.retriedSections ?? []),
+      ...(summaryRetryAttempted ? ['summary'] : []),
+    ])),
     sectionsCompacted: rewriteResult.diagnostics?.compactedSections ?? [],
+    summaryRetryAttempted,
+    summaryRetrySucceeded,
+    summaryRetryReason,
   }
   trace.validation = {
     blocked: validation.blocked,
@@ -558,9 +653,10 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
   }
   const optimizedAt = new Date().toISOString()
   const optimizedChanged = !cvStatesMatch(
-    rewriteResult.optimizedCvState,
+    finalizedOptimizedCvState,
     previousOptimizedCvState ?? session.cvState,
   )
+  trace.validation.recoverable = validation.blocked ? optimizedChanged : undefined
   const validationIssueMessages = validation.issues.map((issue) => issue.message)
   const validationIssueSections = Array.from(new Set(validation.issues.map((issue) => issue.section).filter(Boolean)))
   const highlightGenerationGate = classifyHighlightGenerationGate({
@@ -582,7 +678,7 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
 
   if (shouldGenerateHighlights) {
     try {
-      nextHighlightState = await generateCvHighlightState(rewriteResult.optimizedCvState, {
+      nextHighlightState = await generateCvHighlightState(finalizedOptimizedCvState, {
         userId: session.userId,
         sessionId: session.id,
         workflowMode: 'job_targeting',
@@ -610,6 +706,33 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     jobKeywordsCount: jobKeywords.length,
   }
 
+  const blockedDraft = validation.blocked && optimizedChanged && isRecoverableValidationBlock(validation)
+    ? createBlockedTargetedRewriteDraft({
+      sessionId: session.id,
+      userId: session.userId,
+      optimizedCvState: finalizedOptimizedCvState,
+      originalCvState: session.cvState,
+      optimizationSummary: finalizedOptimizationSummary,
+      targetJobDescription,
+      targetRole: targetingPlan.targetRole,
+      validationIssues: validation.issues,
+      recoverable: true,
+    })
+    : undefined
+  const recoverableValidationBlock = blockedDraft
+    ? {
+      status: 'validation_blocked_recoverable' as const,
+      overrideToken: blockedDraft.token,
+      modal: buildUserFacingValidationBlockModal({
+        targetRole: targetingPlan.targetRole,
+        validationIssues: validation.issues,
+        targetEvidence: targetingPlan.targetEvidence,
+        originalProfileLabel: targetingPlan.targetRolePositioning?.safeRolePositioning.replace(/^Profissional com experiência em\s*/i, '').replace(/[.]$/u, ''),
+      }),
+      expiresAt: blockedDraft.expiresAt,
+    }
+    : undefined
+
   const nextAgentState: Session['agentState'] = {
     ...session.agentState,
     workflowMode: 'job_targeting',
@@ -619,12 +742,14 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     targetingPlan,
     extractionWarning: targetingPlan.targetRoleConfidence === 'low' ? 'low_confidence_role' : undefined,
     rewriteStatus: validation.blocked ? 'failed' : 'completed',
-    optimizedCvState: validation.blocked ? previousOptimizedCvState : rewriteResult.optimizedCvState,
+    optimizedCvState: validation.blocked ? previousOptimizedCvState : finalizedOptimizedCvState,
     highlightState: validation.blocked ? previousHighlightState : nextHighlightState,
     optimizedAt: validation.blocked ? previousOptimizedAt : optimizedAt,
-    optimizationSummary: validation.blocked ? previousOptimizationSummary : rewriteResult.summary,
+    optimizationSummary: validation.blocked ? previousOptimizationSummary : finalizedOptimizationSummary,
     lastRewriteMode: validation.blocked ? previousLastRewriteMode : 'job_targeting',
     rewriteValidation: validation,
+    blockedTargetedRewriteDraft: blockedDraft,
+    recoverableValidationBlock,
     atsWorkflowRun: buildWorkflowRun(session, {
       status: validation.blocked ? 'failed' : 'completed',
       currentStage: validation.blocked ? 'validation' : 'persist_version',
@@ -677,6 +802,7 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
         issueCount: validation.issues.length,
         hardIssueCount: validation.hardIssues.length,
         softWarningCount: validation.softWarnings.length,
+        recoverable: Boolean(recoverableValidationBlock),
         issueSections: validationIssueSections.join(', ') || undefined,
         issueMessages: validationIssueMessages.join(' | ') || undefined,
         targetRole: targetingPlan.targetRole,
@@ -684,6 +810,24 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
         targetRoleSource: targetingPlan.targetRoleSource,
       }),
     )
+    if (recoverableValidationBlock) {
+      logInfo('agent.job_targeting.validation_modal_shown', {
+        sessionId: session.id,
+        userId: session.userId,
+        targetRole: targetingPlan.targetRole,
+        issueCount: validation.issues.length,
+        hardIssueCount: validation.hardIssues.length,
+        softWarningCount: validation.softWarnings.length,
+        issueTypes: getIssueTypeList(validation.issues).join(', ') || undefined,
+        targetEvidenceCount: targetingPlan.targetEvidence?.length,
+        evidenceLevelCounts: targetingPlan.targetEvidence
+          ? countEvidenceLevels(targetingPlan.targetEvidence)
+          : undefined,
+        matchScore: gapAnalysisResult.matchScore,
+        riskLevel: careerFitEvaluation?.riskLevel,
+        familyDistance: careerFitEvaluation?.signals.familyDistance,
+      })
+    }
     logJobTargetingPipelineTrace(trace, 'blocked', {
       error: 'Job targeting rewrite validation failed.',
     })
@@ -691,11 +835,12 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     return {
       success: false,
       validation,
+      recoverableBlock: recoverableValidationBlock,
       error: 'Job targeting rewrite validation failed.',
     }
   }
 
-  const validatedOptimizedCvState = rewriteResult.optimizedCvState
+  const validatedOptimizedCvState = finalizedOptimizedCvState
 
   try {
     await executeWithStageRetry(
@@ -790,8 +935,8 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
 
   return {
     success: true,
-    optimizedCvState: rewriteResult.optimizedCvState,
-    optimizationSummary: rewriteResult.summary,
+    optimizedCvState: finalizedOptimizedCvState,
+    optimizationSummary: finalizedOptimizationSummary,
     validation,
   }
 }

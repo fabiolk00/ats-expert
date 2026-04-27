@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowLeft,
   ArrowRight,
@@ -34,15 +34,25 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { dashboardWelcomeGuideTargets, getDashboardGuideTargetProps } from "@/lib/dashboard/welcome-guide"
-import { getDownloadUrls } from "@/lib/dashboard/workspace-client"
+import {
+  getBillingSummary,
+  getDownloadUrls,
+  isInsufficientCreditsError,
+  overrideJobTargetingValidation,
+} from "@/lib/dashboard/workspace-client"
+import { resolveValidationOverrideCta } from "@/lib/dashboard/validation-override-cta"
 import { assessAtsEnhancementReadiness, getAtsEnhancementBlockingItems } from "@/lib/profile/ats-enhancement"
+import type { PlanSlug } from "@/lib/plans"
 import { PROFILE_SETUP_PATH, buildResumeComparisonPath } from "@/lib/routes/app"
 import { getDisplayableTargetRole, isSuspiciousTargetRole } from "@/lib/target-role"
 import { cvStateToTemplateData } from "@/lib/templates/cv-state-to-template-data"
 import { cn } from "@/lib/utils"
+import { trackAnalyticsEvent } from "@/components/analytics/track-event"
+import type { RecoverableValidationBlock, ValidationIssue } from "@/types/agent"
 import type { CVState } from "@/types/cv"
 
 import { GenerationLoading } from "./generation-loading"
+import { PlanUpdateDialog } from "@/components/dashboard/plan-update-dialog"
 import { ImportResumeModal, type ImportSource, type ResumeData } from "./resume-builder"
 import { VisualResumeEditor, normalizeResumeData } from "./visual-resume-editor"
 
@@ -60,6 +70,7 @@ type ProfileResponse = {
 }
 
 type UserDataPageProps = {
+  activeRecurringPlan?: PlanSlug | null
   currentCredits?: number
   userImageUrl?: string | null
   currentAppUserId?: string | null
@@ -100,6 +111,11 @@ type ValidationMessage = {
   severity: "high" | "medium"
   message: string
   section?: string
+  issueType?: ValidationIssue["issueType"]
+  offendingSignal?: string
+  suggestedReplacement?: string
+  userFacingTitle?: string
+  userFacingExplanation?: string
 }
 
 type SmartGenerationResponse = {
@@ -116,17 +132,24 @@ type SmartGenerationResponse = {
   targetRole?: string
   targetRoleConfidence?: "high" | "medium" | "low"
   error?: string
+  code?: string
   reasons?: string[]
   missingItems?: string[]
   warnings?: string[]
+  generationType?: "JOB_TARGETING" | "ATS_ENHANCEMENT"
+  creditsUsed?: number
+  resumeGenerationId?: string
+  recoverableValidationBlock?: RecoverableValidationBlock
 }
 
 type RewriteValidationFailure = {
+  sessionId?: string
   workflowMode: SetupGenerationMode
   hardIssues: ValidationMessage[]
   softWarnings: ValidationMessage[]
   targetRole?: string
   targetRoleConfidence?: "high" | "medium" | "low"
+  recoverableValidationBlock?: RecoverableValidationBlock
 }
 
 type ProfileDownloadState = {
@@ -432,6 +455,28 @@ function splitRewriteValidationIssues(
   }
 }
 
+function buildValidationEventPayload(
+  failure: RewriteValidationFailure,
+  currentAppUserId?: string | null,
+): Record<string, unknown> {
+  const issues = [...failure.hardIssues, ...failure.softWarnings]
+  const issueTypes = Array.from(new Set(
+    issues
+      .map((issue) => issue.issueType)
+      .filter((issueType): issueType is NonNullable<ValidationIssue["issueType"]> => Boolean(issueType)),
+  ))
+
+  return {
+    sessionId: failure.sessionId,
+    userId: currentAppUserId ?? undefined,
+    targetRole: failure.targetRole,
+    issueCount: issues.length,
+    hardIssueCount: failure.hardIssues.length,
+    softWarningCount: failure.softWarnings.length,
+    issueTypes: issueTypes.join(", ") || undefined,
+  }
+}
+
 function formatPeriod(startDate?: string, endDate?: string): string | null {
   const start = startDate?.trim()
   const end = endDate?.trim()
@@ -547,6 +592,7 @@ function ProfileSectionCard({
 }
 
 export default function UserDataPage({
+  activeRecurringPlan = null,
   currentCredits = 0,
   currentAppUserId = null,
 }: UserDataPageProps) {
@@ -569,10 +615,24 @@ export default function UserDataPage({
   const [isAtsRequirementsOpen, setIsAtsRequirementsOpen] = useState(false)
   const [atsMissingItems, setAtsMissingItems] = useState<string[]>([])
   const [rewriteValidationFailure, setRewriteValidationFailure] = useState<RewriteValidationFailure | null>(null)
+  const [isOverrideGenerating, setIsOverrideGenerating] = useState(false)
+  const [isPlanUpdateOpen, setIsPlanUpdateOpen] = useState(false)
+  const [availableCredits, setAvailableCredits] = useState(currentCredits)
+  const [currentActiveRecurringPlan, setCurrentActiveRecurringPlan] = useState<PlanSlug | null>(activeRecurringPlan)
   const [activeImportSource, setActiveImportSource] = useState<ImportSource | null>(null)
   const [lastGeneratedSessionId, setLastGeneratedSessionId] = useState<string | null>(null)
   const [profileDownloadState, setProfileDownloadState] = useState<ProfileDownloadState>(EMPTY_DOWNLOAD_STATE)
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
+  const previousValidationOverrideActionRef = useRef<"override_generate" | "open_pricing_modal" | null>(null)
+  const lastPricingShownTokenRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    setAvailableCredits(currentCredits)
+  }, [currentCredits])
+
+  useEffect(() => {
+    setCurrentActiveRecurringPlan(activeRecurringPlan)
+  }, [activeRecurringPlan])
 
   useEffect(() => {
     let isMounted = true
@@ -855,12 +915,28 @@ export default function UserDataPage({
         const { hardIssues, softWarnings } = splitRewriteValidationIssues(data.rewriteValidation)
 
         setRewriteValidationFailure({
+          sessionId: data.sessionId,
           workflowMode: data.workflowMode ?? generationMode,
           hardIssues,
           softWarnings,
           targetRole: data.targetRole,
           targetRoleConfidence: data.targetRoleConfidence,
+          recoverableValidationBlock: data.recoverableValidationBlock,
         })
+        if (data.recoverableValidationBlock) {
+          trackAnalyticsEvent(
+            "agent.job_targeting.validation_modal_shown",
+            buildValidationEventPayload({
+              sessionId: data.sessionId,
+              workflowMode: data.workflowMode ?? generationMode,
+              hardIssues,
+              softWarnings,
+              targetRole: data.targetRole,
+              targetRoleConfidence: data.targetRoleConfidence,
+              recoverableValidationBlock: data.recoverableValidationBlock,
+            }, currentAppUserId),
+          )
+        }
         return
       }
 
@@ -868,23 +944,12 @@ export default function UserDataPage({
         throw new Error(extractErrorMessage(data.error, generationCopy.failure))
       }
 
-      storeLastGeneratedProfileSessionId(data.sessionId, currentAppUserId)
-      setLastGeneratedSessionId(data.sessionId)
-      setProfileDownloadState({
-        status: "unavailable",
-        pdfUrl: null,
-        pdfFileName: null,
-        message: "O PDF da nova versão estará disponível assim que a geração terminar.",
-      })
-
-      toast.success(buildGenerationSuccessMessage(
+      applyGenerationSuccess(
+        data,
         generationMode === "job_targeting"
           ? "Versão adaptada para a vaga criada com sucesso."
           : "Versão ATS criada com sucesso.",
-        data.warnings,
-      ))
-
-      router.push(buildResumeComparisonPath(data.sessionId))
+      )
     } catch (error) {
       toast.error(extractErrorMessage(error, generationCopy.failure))
     } finally {
@@ -964,13 +1029,217 @@ export default function UserDataPage({
 
   const updatedLabel = formatUpdatedLabel(lastUpdatedAt)
   const isBusy = isLoadingProfile || isSaving || isRunningAtsEnhancement
-  const setupGenerationButtonDisabled = isBusy || currentCredits < 1
+  const setupGenerationButtonDisabled = isBusy || availableCredits < 1
   const suspiciousValidationTargetRole = rewriteValidationFailure?.workflowMode === "job_targeting"
     && (
       rewriteValidationFailure.targetRoleConfidence === "low"
       || isSuspiciousTargetRole(rewriteValidationFailure.targetRole)
     )
   const displayValidationTargetRole = getDisplayableTargetRole(rewriteValidationFailure?.targetRole)
+  const validationModalPayload = rewriteValidationFailure?.recoverableValidationBlock?.modal
+  const validationOverrideCreditCost = validationModalPayload?.actions.primary?.creditCost ?? 1
+  const validationOverrideCta = validationModalPayload?.actions.primary
+    ? resolveValidationOverrideCta({
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+        isOverrideLoading: isOverrideGenerating,
+      })
+    : null
+
+  const refreshBillingSummary = useCallback(async (): Promise<void> => {
+    try {
+      const billingSummary = await getBillingSummary()
+      setAvailableCredits(billingSummary.currentCredits)
+      setCurrentActiveRecurringPlan(billingSummary.activeRecurringPlan ?? null)
+    } catch {
+      // Keep the last known credit state; CTA will remain conservative.
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!rewriteValidationFailure?.recoverableValidationBlock) {
+      return
+    }
+
+    const handleVisibilityChange = (): void => {
+      if (document.visibilityState === "visible") {
+        void refreshBillingSummary()
+      }
+    }
+
+    const handleFocus = (): void => {
+      void refreshBillingSummary()
+    }
+
+    window.addEventListener("focus", handleFocus)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener("focus", handleFocus)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [refreshBillingSummary, rewriteValidationFailure])
+
+  useEffect(() => {
+    const overrideToken = rewriteValidationFailure?.recoverableValidationBlock?.overrideToken
+    if (!overrideToken || !validationOverrideCta) {
+      previousValidationOverrideActionRef.current = null
+      lastPricingShownTokenRef.current = null
+      return
+    }
+
+    if (
+      validationOverrideCta.action === "open_pricing_modal"
+      && lastPricingShownTokenRef.current !== overrideToken
+    ) {
+      trackAnalyticsEvent("agent.job_targeting.validation_override_pricing_shown", {
+        ...buildValidationEventPayload(rewriteValidationFailure, currentAppUserId),
+        source: "profile_setup",
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+      })
+      lastPricingShownTokenRef.current = overrideToken
+    }
+
+    if (
+      previousValidationOverrideActionRef.current === "open_pricing_modal"
+      && validationOverrideCta.action === "override_generate"
+    ) {
+      trackAnalyticsEvent("agent.job_targeting.validation_override_credit_added", {
+        ...buildValidationEventPayload(rewriteValidationFailure, currentAppUserId),
+        source: "profile_setup",
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+      })
+    }
+
+    previousValidationOverrideActionRef.current = validationOverrideCta.action
+  }, [
+    currentAppUserId,
+    availableCredits,
+    rewriteValidationFailure,
+    validationOverrideCreditCost,
+    validationOverrideCta,
+  ])
+
+  const applyGenerationSuccess = (
+    data: Pick<SmartGenerationResponse, "sessionId" | "warnings">,
+    successMessage: string,
+  ): void => {
+    if (!data.sessionId) {
+      return
+    }
+
+    storeLastGeneratedProfileSessionId(data.sessionId, currentAppUserId)
+    setLastGeneratedSessionId(data.sessionId)
+    setProfileDownloadState({
+      status: "unavailable",
+      pdfUrl: null,
+      pdfFileName: null,
+      message: "O PDF da nova versão estará disponível assim que a geração terminar.",
+    })
+
+    toast.success(buildGenerationSuccessMessage(successMessage, data.warnings))
+    router.push(buildResumeComparisonPath(data.sessionId))
+  }
+
+  const closeRewriteValidationFailure = (): void => {
+    if (rewriteValidationFailure?.recoverableValidationBlock) {
+      trackAnalyticsEvent(
+        "agent.job_targeting.validation_override_closed",
+        buildValidationEventPayload(rewriteValidationFailure, currentAppUserId),
+      )
+    }
+
+    setRewriteValidationFailure(null)
+  }
+
+  const handleValidationOverride = async (): Promise<void> => {
+    if (!rewriteValidationFailure?.sessionId || !rewriteValidationFailure.recoverableValidationBlock) {
+      return
+    }
+
+    setIsOverrideGenerating(true)
+    trackAnalyticsEvent(
+      "agent.job_targeting.validation_override_clicked",
+      {
+        ...buildValidationEventPayload(rewriteValidationFailure, currentAppUserId),
+        source: "profile_setup",
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+      },
+    )
+
+    try {
+      const result = await overrideJobTargetingValidation(
+        rewriteValidationFailure.sessionId,
+        {
+          overrideToken: rewriteValidationFailure.recoverableValidationBlock.overrideToken,
+          consumeCredit: true,
+        },
+      )
+      trackAnalyticsEvent(
+        "agent.job_targeting.validation_override_succeeded",
+        {
+          ...buildValidationEventPayload(rewriteValidationFailure, currentAppUserId),
+          source: "profile_setup",
+          creditCost: validationOverrideCreditCost,
+          availableCredits,
+          creditCharged: (result.creditsUsed ?? 0) > 0,
+          cvVersionId: result.resumeGenerationId,
+          validationOverride: true,
+        },
+      )
+      setRewriteValidationFailure(null)
+      applyGenerationSuccess(result, "Geramos a versão com sua confirmação.")
+    } catch (error) {
+      if (isInsufficientCreditsError(error)) {
+        trackAnalyticsEvent(
+          "agent.job_targeting.validation_override_insufficient_credits",
+          {
+            ...buildValidationEventPayload(rewriteValidationFailure, currentAppUserId),
+            source: "profile_setup",
+            creditCost: validationOverrideCreditCost,
+            availableCredits,
+          },
+        )
+        setIsPlanUpdateOpen(true)
+        return
+      }
+
+      trackAnalyticsEvent(
+        "agent.job_targeting.validation_override_failed",
+        {
+          ...buildValidationEventPayload(rewriteValidationFailure, currentAppUserId),
+          source: "profile_setup",
+          creditCost: validationOverrideCreditCost,
+          availableCredits,
+        },
+      )
+      toast.error(extractErrorMessage(error, "Não conseguimos concluir a geração por um erro técnico. Tente novamente."))
+    } finally {
+      setIsOverrideGenerating(false)
+    }
+  }
+
+  const handleValidationOverridePrimaryAction = (): void => {
+    if (!rewriteValidationFailure || !validationOverrideCta) {
+      return
+    }
+
+    if (validationOverrideCta.action === "open_pricing_modal") {
+      trackAnalyticsEvent("agent.job_targeting.validation_override_pricing_clicked", {
+        ...buildValidationEventPayload(rewriteValidationFailure, currentAppUserId),
+        source: "profile_setup",
+        creditCost: validationOverrideCreditCost,
+        availableCredits,
+      })
+      setIsPlanUpdateOpen(true)
+      return
+    }
+
+    void handleValidationOverride()
+  }
 
   const contactItems = [
     sanitizedResumeData.email
@@ -1439,7 +1708,7 @@ export default function UserDataPage({
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               <div className="flex items-center justify-between gap-4">
                 <span>Créditos disponíveis</span>
-                <span className="font-semibold text-slate-900">{currentCredits}</span>
+                <span className="font-semibold text-slate-900">{availableCredits}</span>
               </div>
             </div>
           </div>
@@ -1505,7 +1774,7 @@ export default function UserDataPage({
                       ))}
                     </div>
                   ) : null}
-                  {currentCredits < 1 ? (
+                  {availableCredits < 1 ? (
                     <p className="text-xs text-slate-500">
                       Você precisa de pelo menos 1 crédito para gerar essa versão.
                     </p>
@@ -1598,7 +1867,7 @@ export default function UserDataPage({
             <div className="text-sm text-slate-500 lg:text-right">
               <span className="font-medium text-slate-900">Modo: {selectedModeLabel}</span>
               <span className="mx-2 text-slate-300">·</span>
-              <span>{currentCredits} créditos disponíveis</span>
+              <span>{availableCredits} créditos disponíveis</span>
             </div>
           </div>
         </header>
@@ -1754,7 +2023,7 @@ export default function UserDataPage({
                       ))}
                     </div>
                   ) : null}
-                  {currentCredits < 1 ? (
+                  {availableCredits < 1 ? (
                     <p className="text-xs text-slate-500">
                       Você precisa de pelo menos 1 crédito para gerar uma versão otimizada.
                     </p>
@@ -1889,38 +2158,62 @@ export default function UserDataPage({
         open={Boolean(rewriteValidationFailure)}
         onOpenChange={(open) => {
           if (!open) {
-            setRewriteValidationFailure(null)
+            closeRewriteValidationFailure()
           }
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {rewriteValidationFailure?.workflowMode === "job_targeting"
+              {validationModalPayload?.title ?? (rewriteValidationFailure?.workflowMode === "job_targeting"
                 ? "Não concluímos essa adaptação automaticamente"
-                : "Não concluímos essa melhoria ATS automaticamente"}
+                : "Não concluímos essa melhoria ATS automaticamente")}
             </DialogTitle>
             <DialogDescription>
-              {rewriteValidationFailure?.workflowMode === "job_targeting"
+              {validationModalPayload?.description ?? (rewriteValidationFailure?.workflowMode === "job_targeting"
                 ? "A validação final encontrou inconsistências e interrompemos a adaptação para a vaga para não gerar um currículo incoerente."
-                : "A validação final encontrou inconsistências e interrompemos a melhoria ATS para não gerar um currículo incoerente."}
+                : "A validação final encontrou inconsistências e interrompemos a melhoria ATS para não gerar um currículo incoerente.")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm text-foreground">
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <p className="font-medium text-amber-900">O que bloqueou automaticamente</p>
-              <ul className="mt-2 space-y-2">
-                {rewriteValidationFailure?.hardIssues.map((issue, index) => (
-                  <li key={`${issue.section ?? "unknown"}-${index}`} className="list-none">
-                    <span className="font-medium">{formatValidationSectionLabel(issue.section)}:</span>{" "}
-                    {issue.message}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {validationModalPayload ? (
+              <>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="font-medium text-amber-900">{validationModalPayload.primaryProblem}</p>
+                  <ul className="mt-3 space-y-2">
+                    {validationModalPayload.problemBullets.map((bullet, index) => (
+                      <li key={`problem-bullet-${index}`} className="list-none">
+                        • {bullet}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-            {rewriteValidationFailure?.softWarnings.length ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p>{validationModalPayload.reassurance}</p>
+                  {validationModalPayload.recommendation ? (
+                    <p className="mt-2 font-medium text-slate-900">
+                      {validationModalPayload.recommendation}
+                    </p>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="font-medium text-amber-900">O que bloqueou automaticamente</p>
+                <ul className="mt-2 space-y-2">
+                  {rewriteValidationFailure?.hardIssues.map((issue, index) => (
+                    <li key={`${issue.section ?? "unknown"}-${index}`} className="list-none">
+                      <span className="font-medium">{formatValidationSectionLabel(issue.section)}:</span>{" "}
+                      {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {!validationModalPayload && rewriteValidationFailure?.softWarnings.length ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="font-medium text-slate-900">Outros pontos para revisar</p>
                 <p className="mt-2 text-slate-700">
@@ -1937,7 +2230,7 @@ export default function UserDataPage({
               </div>
             ) : null}
 
-            {suspiciousValidationTargetRole ? (
+            {!validationModalPayload && suspiciousValidationTargetRole ? (
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
                 <p className="font-medium text-rose-900">Possível bug de leitura da vaga</p>
                 <p className="mt-2">
@@ -1956,23 +2249,43 @@ export default function UserDataPage({
                   )}
                 </p>
               </div>
-            ) : (
+            ) : !validationModalPayload ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="font-medium text-slate-900">Como interpretar esse aviso</p>
                 <p className="mt-2">
                   Esse bloqueio é de segurança. Ele indica que a reescrita final ficou inconsistente com o seu histórico real ou com a vaga, então o sistema preferiu parar em vez de mostrar um currículo pronto como se estivesse tudo certo.
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
 
+          {validationOverrideCta?.helperText ? (
+            <p className="text-xs text-slate-500">{validationOverrideCta.helperText}</p>
+          ) : null}
+
           <DialogFooter>
-            <Button type="button" onClick={() => setRewriteValidationFailure(null)}>
-              Entendi
+            <Button type="button" variant="outline" onClick={closeRewriteValidationFailure}>
+              {validationModalPayload?.actions.secondary.label ?? "Entendi"}
             </Button>
+            {validationModalPayload?.actions.primary ? (
+              <Button
+                type="button"
+                onClick={handleValidationOverridePrimaryAction}
+                disabled={validationOverrideCta?.disabled}
+              >
+                {validationOverrideCta?.label ?? validationModalPayload.actions.primary.label}
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PlanUpdateDialog
+        isOpen={isPlanUpdateOpen}
+        onOpenChange={setIsPlanUpdateOpen}
+        activeRecurringPlan={currentActiveRecurringPlan}
+        currentCredits={availableCredits}
+      />
 
       <GenerationLoading
         isLoading={isRunningAtsEnhancement}

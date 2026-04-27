@@ -51,6 +51,7 @@ Baseline carried forward from earlier shipped milestones:
 
 ### Roadmap Evolution
 
+- Phase 109 added: Recoverable job targeting validation with summary retry, user-facing modal, and paid override.
 - Phase 108 added: Dynamic semantic evidence classification for targeted rewrite only inside job_targeting.
 
 - Phase 107 added: Harden highlight de job_targeting com origem rastreável, gate auditado e keywords defensivas.

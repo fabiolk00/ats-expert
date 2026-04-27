@@ -90,6 +90,21 @@ export type ValidationIssue = {
   severity: 'high' | 'medium'
   message: string
   section?: string
+  issueType?:
+    | 'unsupported_claim'
+    | 'unsupported_skill'
+    | 'target_role_overclaim'
+    | 'seniority_inflation'
+    | 'ungrounded_bridge'
+    | 'forbidden_claim'
+    | 'summary_skill_without_evidence'
+  offendingSignal?: string
+  offendingText?: string
+  evidenceLevel?: EvidenceLevel
+  rewritePermission?: RewritePermission
+  suggestedReplacement?: string
+  userFacingTitle?: string
+  userFacingExplanation?: string
 }
 
 export type RewriteValidationResult = {
@@ -135,6 +150,19 @@ export type BridgeClaimInstruction = {
   doNotSay: string[]
 }
 
+export type TargetRoleClaimPermission =
+  | 'can_claim_target_role'
+  | 'can_bridge_to_target_role'
+  | 'must_not_claim_target_role'
+
+export type TargetRolePositioning = {
+  targetRole: string
+  permission: TargetRoleClaimPermission
+  reason: string
+  safeRolePositioning: string
+  forbiddenRoleClaims: string[]
+}
+
 export type TargetedRewritePermissions = {
   directClaimsAllowed: string[]
   normalizedClaimsAllowed: string[]
@@ -154,6 +182,7 @@ export type TargetingPlan = {
   missingButCannotInvent: string[]
   targetEvidence?: TargetEvidence[]
   rewritePermissions?: TargetedRewritePermissions
+  targetRolePositioning?: TargetRolePositioning
   sectionStrategy: {
     summary: string[]
     experience: string[]
@@ -161,6 +190,63 @@ export type TargetingPlan = {
     education: string[]
     certifications: string[]
   }
+}
+
+export type ValidationOverrideMetadata = {
+  enabled: boolean
+  acceptedAt: string
+  acceptedByUserId: string
+  validationIssueCount: number
+  hardIssueCount: number
+  issueTypes: string[]
+  targetRole?: string
+}
+
+export type BlockedTargetedRewriteDraft = {
+  id: string
+  token: string
+  sessionId: string
+  userId: string
+  optimizedCvState: CVState
+  originalCvState: CVState
+  optimizationSummary?: {
+    changedSections: RewriteSectionInput['section'][]
+    notes: string[]
+    keywordCoverageImprovement?: string[]
+  }
+  targetJobDescription: string
+  targetRole?: string
+  validationIssues: ValidationIssue[]
+  recoverable: boolean
+  createdAt: string
+  expiresAt: string
+}
+
+export type UserFacingValidationModalPayload = {
+  title: string
+  description: string
+  primaryProblem: string
+  problemBullets: string[]
+  reassurance: string
+  recommendation?: string
+  actions: {
+    secondary: {
+      label: 'Fechar'
+      action: 'close'
+    }
+    primary?: {
+      label: 'Gerar mesmo assim (1 crédito)'
+      action: 'override_generate'
+      creditCost: 1
+    }
+  }
+}
+
+export type RecoverableValidationBlock = {
+  status: 'validation_blocked_recoverable'
+  overrideToken: string
+  modal: UserFacingValidationModalPayload
+  expiresAt: string
 }
 
 export type AgentState = {
@@ -208,6 +294,9 @@ export type AgentState = {
   }
   lastRewriteMode?: Extract<WorkflowMode, 'ats_enhancement' | 'job_targeting'>
   rewriteValidation?: RewriteValidationResult
+  blockedTargetedRewriteDraft?: BlockedTargetedRewriteDraft
+  validationOverride?: ValidationOverrideMetadata
+  recoverableValidationBlock?: RecoverableValidationBlock
   phaseMeta?: {
     analysisCompletedAt?: string
     confirmRequestedAt?: string
@@ -288,6 +377,7 @@ export type ResumeGeneration = {
   outputDocxPath?: string
   failureReason?: string
   errorMessage?: string
+  metadata?: Record<string, unknown>
   versionNumber: number
   createdAt: Date
   updatedAt: Date

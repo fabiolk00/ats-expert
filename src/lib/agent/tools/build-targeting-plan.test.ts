@@ -232,6 +232,37 @@ describe('buildTargetingPlan', () => {
     expect(plan.missingButCannotInvent).toEqual(['Airflow'])
   })
 
+  it('adds a safe target role positioning when the target role is distant and gap-heavy', async () => {
+    const plan = await buildTargetedRewritePlan({
+      cvState: buildCvState(),
+      targetJobDescription: 'Cargo: Analista de Sistemas de RH',
+      gapAnalysis: {
+        ...gapAnalysis,
+        matchScore: 59,
+        missingSkills: ['People Analytics', 'RPA', 'Power Platform'],
+      },
+      mode: 'job_targeting',
+      rewriteIntent: 'targeted_rewrite',
+      careerFitEvaluation: {
+        riskLevel: 'high',
+        needsExplicitConfirmation: true,
+        summary: 'A trajetória principal continua mais próxima de BI e dados.',
+        riskPoints: 3,
+        assessedAt: '2026-04-27T12:00:00.000Z',
+        signals: {
+          familyDistance: 'distant',
+          seniorityGapMajor: false,
+        },
+        reasons: ['Trajetória principal continua mais próxima de BI e dados.'],
+      },
+    })
+
+    expect(plan.targetRolePositioning).toEqual(expect.objectContaining({
+      permission: 'must_not_claim_target_role',
+    }))
+    expect(plan.targetRolePositioning?.safeRolePositioning).toContain('Profissional')
+  })
+
   it('fails explicitly if the enriched targeted-rewrite builder is called without a target job description', async () => {
     await expect(buildTargetedRewritePlan({
       cvState: buildCvState(),

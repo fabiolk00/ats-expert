@@ -83,6 +83,126 @@ function buildValidationResult(issues: ValidationIssue[]): RewriteValidationResu
   }
 }
 
+function sanitizeValidationMessage(message: string): string {
+  return message
+    .replaceAll('Ãª', 'ê')
+    .replaceAll('Ã©', 'é')
+    .replaceAll('Ã£', 'ã')
+    .replaceAll('Ã¡', 'á')
+    .replaceAll('Ã³', 'ó')
+    .replaceAll('Ãº', 'ú')
+    .replaceAll('Ã§', 'ç')
+    .replaceAll('Ã­', 'í')
+    .replaceAll('currÃ­culo', 'currículo')
+    .replaceAll('experiÃªncia', 'experiência')
+    .replaceAll('certificaÃ§Ã£o', 'certificação')
+    .replaceAll('inÃ­cio', 'início')
+    .replaceAll('tÃ©rmino', 'término')
+    .replaceAll('nÃºmerico', 'numérico')
+    .replaceAll('nÃ£o', 'não')
+    .replaceAll('versÃ£o', 'versão')
+}
+
+function enrichValidationIssues(params: {
+  issues: ValidationIssue[]
+  optimizedCvState: CVState
+  context?: {
+    mode?: WorkflowMode
+    targetJobDescription?: string
+    gapAnalysis?: GapAnalysisResult
+    targetingPlan?: TargetingPlan
+  }
+}): ValidationIssue[] {
+  const targetRole = params.context?.targetingPlan?.targetRole
+  const safeRolePositioning = params.context?.targetingPlan?.targetRolePositioning?.safeRolePositioning
+  const firstStrongAnchor = params.context?.targetingPlan?.mustEmphasize[0]
+
+  return params.issues.map((issue) => {
+    const nextIssue: ValidationIssue = {
+      ...issue,
+      message: sanitizeValidationMessage(issue.message),
+    }
+
+    if (
+      params.context?.mode === 'job_targeting'
+      && nextIssue.section === 'summary'
+      && nextIssue.message.toLowerCase().includes('cargo alvo')
+    ) {
+      nextIssue.severity = 'high'
+      nextIssue.issueType ??= 'target_role_overclaim'
+      nextIssue.offendingSignal ??= targetRole
+      nextIssue.offendingText ??= params.optimizedCvState.summary
+      nextIssue.suggestedReplacement ??= safeRolePositioning
+      nextIssue.userFacingTitle ??= 'O resumo assumiu o cargo alvo diretamente'
+      nextIssue.userFacingExplanation ??= targetRole
+        ? `A vaga é para ${targetRole}, mas seu currículo comprova melhor outra trajetória profissional.`
+        : 'O resumo tentou assumir diretamente o cargo alvo sem comprovação suficiente no currículo original.'
+      return nextIssue
+    }
+
+    if (
+      nextIssue.section === 'summary'
+      && nextIssue.message.toLowerCase().includes('menciona skill sem evid')
+    ) {
+      if (params.context?.mode === 'job_targeting') {
+        nextIssue.severity = 'high'
+      }
+      nextIssue.issueType ??= 'summary_skill_without_evidence'
+      nextIssue.offendingText ??= params.optimizedCvState.summary
+      nextIssue.suggestedReplacement ??= firstStrongAnchor
+      nextIssue.userFacingTitle ??= 'O resumo declarou uma skill sem comprovação suficiente'
+      nextIssue.userFacingExplanation ??= 'O resumo aproximou uma skill da vaga como experiência direta, mas ela não aparece comprovada no seu currículo original.'
+      return nextIssue
+    }
+
+    if (nextIssue.message.toLowerCase().includes('requisito sem suporte factual')) {
+      nextIssue.issueType ??= 'unsupported_claim'
+      nextIssue.offendingText ??= params.optimizedCvState.summary
+      nextIssue.suggestedReplacement ??= firstStrongAnchor
+      nextIssue.userFacingTitle ??= 'A versão declarou uma experiência que não está comprovada'
+      nextIssue.userFacingExplanation ??= 'A adaptação tratou um requisito da vaga como experiência direta sem evidência suficiente no currículo original.'
+      return nextIssue
+    }
+
+    if (nextIssue.message.toLowerCase().includes('ponte sem')) {
+      nextIssue.issueType ??= 'ungrounded_bridge'
+      nextIssue.offendingText ??= params.optimizedCvState.summary
+      nextIssue.suggestedReplacement ??= firstStrongAnchor
+      nextIssue.userFacingTitle ??= 'A versão aproximou uma experiência sem base suficiente'
+      nextIssue.userFacingExplanation ??= 'A adaptação tentou aproximar uma exigência da vaga sem apoio claro no seu histórico original.'
+      return nextIssue
+    }
+
+    if (nextIssue.message.toLowerCase().includes('senioridade') || nextIssue.message.toLowerCase().includes('dominio')) {
+      nextIssue.issueType ??= 'seniority_inflation'
+      nextIssue.offendingText ??= params.optimizedCvState.summary
+      nextIssue.suggestedReplacement ??= firstStrongAnchor
+      nextIssue.userFacingTitle ??= 'A versão exagerou profundidade ou senioridade'
+      nextIssue.userFacingExplanation ??= 'A adaptação elevou uma experiência próxima para um nível de domínio que o currículo original não comprova.'
+      return nextIssue
+    }
+
+    if (nextIssue.section === 'skills' && nextIssue.message.toLowerCase().includes('skill')) {
+      nextIssue.issueType ??= 'unsupported_skill'
+      nextIssue.offendingText ??= params.optimizedCvState.skills.join(', ')
+      nextIssue.suggestedReplacement ??= firstStrongAnchor
+      nextIssue.userFacingTitle ??= 'A versão declarou uma skill sem comprovação suficiente'
+      nextIssue.userFacingExplanation ??= 'A lista de skills trouxe um termo que não aparece com evidência suficiente no seu currículo original.'
+      return nextIssue
+    }
+
+    if (nextIssue.message.toLowerCase().includes('gaps reais')) {
+      nextIssue.issueType ??= 'forbidden_claim'
+      nextIssue.offendingText ??= params.optimizedCvState.summary
+      nextIssue.suggestedReplacement ??= firstStrongAnchor
+      nextIssue.userFacingTitle ??= 'A versão declarou um requisito sem comprovação suficiente'
+      nextIssue.userFacingExplanation ??= 'A adaptação transformou um gap real da vaga em alinhamento direto sem evidência suficiente no currículo original.'
+    }
+
+    return nextIssue
+  })
+}
+
 export function validateRewrite(
   originalCvState: CVState,
   optimizedCvState: CVState,
@@ -283,5 +403,9 @@ export function validateRewrite(
     }
   }
 
-  return buildValidationResult(issues)
+  return buildValidationResult(enrichValidationIssues({
+    issues,
+    optimizedCvState,
+    context,
+  }))
 }

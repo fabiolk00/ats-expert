@@ -134,6 +134,7 @@ export async function GET(
             optimizationSummary: session.agentState.optimizationSummary,
             lastRewriteMode: session.agentState.lastRewriteMode,
             rewriteValidation: session.agentState.rewriteValidation,
+            recoverableValidationBlock: session.agentState.recoverableValidationBlock,
           },
           generatedOutput: sanitizeGeneratedOutputForClient(session.generatedOutput),
           atsReadiness,

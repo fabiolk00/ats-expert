@@ -1,5 +1,6 @@
 import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
 import { classifyTargetEvidence } from '@/lib/agent/job-targeting/evidence-classifier'
+import { buildTargetRolePositioning } from '@/lib/agent/job-targeting/recoverable-validation'
 import { buildTargetedRewritePermissions } from '@/lib/agent/job-targeting/rewrite-permissions'
 import { MAX_TARGETING_PLAN_ITEMS, shapeTargetJobDescription } from '@/lib/agent/job-targeting-retry'
 import { trackApiUsage } from '@/lib/agent/usage-tracker'
@@ -158,11 +159,19 @@ export async function buildTargetedRewritePlan(params: BuildTargetedRewritePlanI
     userId: params.userId,
     sessionId: params.sessionId,
   })
+  const rewritePermissions = buildTargetedRewritePermissions(targetEvidence)
 
   return {
     ...basePlan,
     targetEvidence,
-    rewritePermissions: buildTargetedRewritePermissions(targetEvidence),
+    rewritePermissions,
+    targetRolePositioning: buildTargetRolePositioning({
+      targetRole: basePlan.targetRole,
+      targetEvidence,
+      mustEmphasize: basePlan.mustEmphasize,
+      directClaimsAllowed: rewritePermissions.directClaimsAllowed,
+      careerFitEvaluation: params.careerFitEvaluation,
+    }),
   }
 }
 
@@ -390,6 +399,7 @@ type BuildTargetingPlanParams = {
 export type BuildTargetedRewritePlanInput = BuildTargetingPlanParams & {
   mode: 'job_targeting'
   rewriteIntent: 'targeted_rewrite'
+  careerFitEvaluation?: import('@/types/agent').CareerFitEvaluation
 }
 
 async function buildBaseTargetingPlan(params: BuildTargetingPlanParams): Promise<TargetingPlan> {

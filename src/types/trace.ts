@@ -26,6 +26,9 @@ export type JobTargetingTrace = {
     sectionsChanged: string[]
     sectionsRetried: string[]
     sectionsCompacted: string[]
+    summaryRetryAttempted?: boolean
+    summaryRetrySucceeded?: boolean
+    summaryRetryReason?: string
   }
   validation?: {
     blocked: boolean
@@ -40,6 +43,7 @@ export type JobTargetingTrace = {
       message: string
     }>
     failureStage?: string
+    recoverable?: boolean
   }
   highlight?: {
     gate: 'allowed' | 'blocked_validation_failed' | 'blocked_unchanged_cv_state'

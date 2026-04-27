@@ -152,9 +152,21 @@ export function buildTargetedRewritePermissionIssues(params: {
     issues.push({
       severity,
       message: severity === 'high'
-        ? 'A lista de skills targetizada promoveu um gap sem suporte como competencia direta.'
-        : 'A lista de skills targetizada introduziu um termo nao comprovado ou nao permitido para claim direta.',
+        ? 'A lista de skills targetizada promoveu um gap sem suporte como competência direta.'
+        : 'A lista de skills targetizada introduziu um termo não comprovado ou não permitido para claim direta.',
       section: 'skills',
+      issueType: matchingEvidence?.rewritePermission === 'must_not_claim'
+        ? 'forbidden_claim'
+        : 'unsupported_skill',
+      offendingSignal: matchingEvidence?.canonicalSignal ?? skill,
+      offendingText: skill,
+      evidenceLevel: matchingEvidence?.evidenceLevel,
+      rewritePermission: matchingEvidence?.rewritePermission,
+      suggestedReplacement: matchingEvidence?.matchedResumeTerms[0] ?? matchingEvidence?.supportingResumeSpans[0],
+      userFacingTitle: 'A versão declarou uma skill sem comprovação suficiente',
+      userFacingExplanation: matchingEvidence?.matchedResumeTerms.length
+        ? `A vaga pede ${matchingEvidence.canonicalSignal}. Seu currículo comprova melhor ${matchingEvidence.matchedResumeTerms.join(', ')}.`
+        : 'A skill adicionada não aparece com evidência suficiente no seu currículo original.',
     })
   })
 
@@ -173,8 +185,18 @@ export function buildTargetedRewritePermissionIssues(params: {
     if (evidence.rewritePermission === 'must_not_claim') {
       issues.push({
         severity: 'high',
-        message: 'A versao targetizada declarou um requisito sem suporte factual no curriculo original.',
+        message: 'A versão targetizada declarou um requisito sem suporte factual no currículo original.',
         section: 'summary',
+        issueType: 'unsupported_claim',
+        offendingSignal: evidence.canonicalSignal,
+        offendingText: evidence.forbiddenRewriteForms[0] ?? evidence.jobSignal,
+        evidenceLevel: evidence.evidenceLevel,
+        rewritePermission: evidence.rewritePermission,
+        suggestedReplacement: evidence.matchedResumeTerms[0] ?? evidence.supportingResumeSpans[0],
+        userFacingTitle: 'A versão declarou uma experiência que não está comprovada',
+        userFacingExplanation: evidence.matchedResumeTerms.length > 0
+          ? `A vaga pede ${evidence.canonicalSignal}. Seu currículo mostra ${evidence.matchedResumeTerms.join(', ')}, mas não comprova essa experiência de forma direta.`
+          : `O currículo gerado tratou ${evidence.canonicalSignal} como experiência direta sem comprovação suficiente no currículo original.`,
       })
       return
     }
@@ -194,8 +216,16 @@ export function buildTargetedRewritePermissionIssues(params: {
       if (evidence.supportingResumeSpans.length === 0 || !hasGroundedSupportingSpan(bridgeSentence, evidence)) {
         issues.push({
           severity: 'high',
-          message: 'A versao targetizada usou uma ponte semantica sem ancoragem verificavel em experiencia real do curriculo.',
+          message: 'A versão targetizada usou uma ponte semântica sem ancoragem verificável em experiência real do currículo.',
           section: affectedSummarySentence ? 'summary' : 'experience',
+          issueType: 'ungrounded_bridge',
+          offendingSignal: evidence.canonicalSignal,
+          offendingText: bridgeSentence,
+          evidenceLevel: evidence.evidenceLevel,
+          rewritePermission: evidence.rewritePermission,
+          suggestedReplacement: evidence.supportingResumeSpans[0] ?? evidence.matchedResumeTerms[0],
+          userFacingTitle: 'A versão aproximou uma experiência sem base suficiente',
+          userFacingExplanation: `A adaptação tentou aproximar ${evidence.canonicalSignal}, mas sem apoio claro no seu histórico original.`,
         })
         return
       }
@@ -203,8 +233,16 @@ export function buildTargetedRewritePermissionIssues(params: {
       if (hasSeniorityInflation(bridgeSentence)) {
         issues.push({
           severity: 'high',
-          message: 'A versao targetizada elevou uma inferencia contextual para senioridade ou dominio nao comprovado.',
+          message: 'A versão targetizada elevou uma inferência contextual para senioridade ou domínio não comprovado.',
           section: affectedSummarySentence ? 'summary' : 'experience',
+          issueType: 'seniority_inflation',
+          offendingSignal: evidence.canonicalSignal,
+          offendingText: bridgeSentence,
+          evidenceLevel: evidence.evidenceLevel,
+          rewritePermission: evidence.rewritePermission,
+          suggestedReplacement: evidence.supportingResumeSpans[0] ?? evidence.matchedResumeTerms[0],
+          userFacingTitle: 'A versão exagerou profundidade ou senioridade',
+          userFacingExplanation: 'A adaptação elevou uma experiência próxima para um nível de domínio que o currículo original não comprova.',
         })
         return
       }
@@ -213,9 +251,23 @@ export function buildTargetedRewritePermissionIssues(params: {
         issues.push({
           severity: evidence.rewritePermission === 'can_mention_as_related_context' ? 'high' : 'medium',
           message: evidence.rewritePermission === 'can_mention_as_related_context'
-            ? 'A versao targetizada transformou uma ponte semantica em claim direta.'
-            : 'A versao targetizada apresentou uma inferencia contextual de forma forte demais.',
+            ? 'A versão targetizada transformou uma ponte semântica em claim direta.'
+            : 'A versão targetizada apresentou uma inferência contextual de forma forte demais.',
           section: affectedSummarySentence ? 'summary' : 'experience',
+          issueType: evidence.rewritePermission === 'can_mention_as_related_context'
+            ? 'forbidden_claim'
+            : 'unsupported_claim',
+          offendingSignal: evidence.canonicalSignal,
+          offendingText: bridgeSentence,
+          evidenceLevel: evidence.evidenceLevel,
+          rewritePermission: evidence.rewritePermission,
+          suggestedReplacement: evidence.supportingResumeSpans[0] ?? evidence.matchedResumeTerms[0],
+          userFacingTitle: evidence.rewritePermission === 'can_mention_as_related_context'
+            ? 'A versão declarou uma experiência direta sem comprovação'
+            : 'A versão aproximou a experiência de forma forte demais',
+          userFacingExplanation: evidence.rewritePermission === 'can_mention_as_related_context'
+            ? `A vaga pede ${evidence.canonicalSignal}, mas seu currículo comprova melhor uma experiência próxima, não direta.`
+            : `A adaptação poderia mencionar ${evidence.canonicalSignal} com mais cautela para ficar fiel ao seu histórico.`,
         })
       }
     }
