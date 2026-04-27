@@ -45,6 +45,7 @@ import { assessAtsEnhancementReadiness, getAtsEnhancementBlockingItems } from "@
 import type { PlanSlug } from "@/lib/plans"
 import { PROFILE_SETUP_PATH, buildResumeComparisonPath } from "@/lib/routes/app"
 import { getDisplayableTargetRole, isSuspiciousTargetRole } from "@/lib/target-role"
+import { repairUtf8Mojibake } from "@/lib/text/repair-utf8-mojibake"
 import { cvStateToTemplateData } from "@/lib/templates/cv-state-to-template-data"
 import { cn } from "@/lib/utils"
 import { trackAnalyticsEvent } from "@/components/analytics/track-event"
@@ -428,17 +429,17 @@ function formatValidationSectionLabel(section?: string): string {
 }
 
 function buildGenerationSuccessMessage(successMessage: string, warnings?: string[]): string {
-  const visibleWarnings = warnings?.map((warning) => warning.trim()).filter(Boolean) ?? []
+  const visibleWarnings = warnings?.map((warning) => repairUtf8Mojibake(warning).trim()).filter(Boolean) ?? []
 
   if (visibleWarnings.length === 0) {
-    return successMessage
+    return repairUtf8Mojibake(successMessage).trim()
   }
 
   const reviewLead = visibleWarnings.length === 1
     ? "Revise este ponto antes de usar a versão final:"
     : "Revise estes pontos antes de usar a versão final:"
 
-  return `${successMessage} ${reviewLead} ${visibleWarnings.join(" ")}`
+  return `${repairUtf8Mojibake(successMessage).trim()} ${reviewLead} ${visibleWarnings.join(" ")}`
 }
 
 function splitRewriteValidationIssues(
@@ -450,8 +451,14 @@ function splitRewriteValidationIssues(
   const issues = rewriteValidation?.issues ?? []
 
   return {
-    hardIssues: rewriteValidation?.hardIssues ?? issues.filter((issue) => issue.severity === "high"),
-    softWarnings: rewriteValidation?.softWarnings ?? issues.filter((issue) => issue.severity !== "high"),
+    hardIssues: (rewriteValidation?.hardIssues ?? issues.filter((issue) => issue.severity === "high")).map((issue) => ({
+      ...issue,
+      message: repairUtf8Mojibake(issue.message).trim(),
+    })),
+    softWarnings: (rewriteValidation?.softWarnings ?? issues.filter((issue) => issue.severity !== "high")).map((issue) => ({
+      ...issue,
+      message: repairUtf8Mojibake(issue.message).trim(),
+    })),
   }
 }
 

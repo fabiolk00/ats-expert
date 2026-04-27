@@ -23,7 +23,7 @@ function buildBridgeClaimInstruction(evidence: TargetEvidence): BridgeClaimInstr
   if (evidence.rewritePermission === 'can_bridge_carefully') {
     return {
       jobSignal: evidence.canonicalSignal,
-      safeBridge: `When relevant, connect ${evidence.canonicalSignal} to adjacent real evidence such as ${anchors} using cautious language like "experiencia relacionada a", "atuacao com", "base em", or "contexto de". Do not present it as direct mastery.`,
+  safeBridge: `When relevant, connect ${evidence.canonicalSignal} to adjacent real evidence such as ${anchors} using cautious language like "experiência relacionada a", "atuação com", "base em", or "contexto de". Do not present it as direct mastery.`,
       doNotSay: evidence.forbiddenRewriteForms,
     }
   }

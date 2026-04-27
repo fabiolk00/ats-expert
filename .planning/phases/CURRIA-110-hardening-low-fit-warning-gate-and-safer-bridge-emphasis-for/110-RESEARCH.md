@@ -360,20 +360,29 @@ This route already preserves the Phase 109 persistence-before-billing contract a
 | A1 | New helpers should be split into `safe-targeting-emphasis.ts`, `core-requirement-coverage.ts`, and `low-fit-warning-gate.ts` rather than staying inline. [ASSUMED] | Architecture Patterns | If wrong, the planner may over-split a change that could stay co-located in `build-targeting-plan.ts`. |
 | A2 | `safeTargetingEmphasis` should live under `TargetingPlan` as an optional sub-object. [ASSUMED] | Architecture Patterns | If wrong, the implementation may prefer a sibling contract or transient local object. |
 | A3 | The new explicit-evidence floor should start around an `explicitEvidenceRatio < 0.2` threshold. [ASSUMED] | Architecture Patterns | If wrong, the gate may over-block or under-block until thresholds are recalibrated. |
-| A4 | When the gate triggers without promotable warnings, the pipeline should synthesize one recoverable high issue so the flow still stops automatically. [ASSUMED] | Architecture Patterns | If wrong, some off-target scenarios may still auto-generate or the implementation may need a different recoverable marker. |
-| A5 | Adding optional promotion metadata to trace, and optionally to validation, is the lowest-friction way to make warning promotion testable. [ASSUMED] | Verification / Observability | If wrong, the planner may need a different observability shape or keep promotion details only in logs. |
+| A4 | When the gate triggers without promotable warnings, the pipeline should synthesize one recoverable high issue by reusing an already-allowed recoverable `issueType` from Phase 109, so override semantics remain valid. [RESOLVED: use `target_role_overclaim` when `targetRolePositioning.permission === 'must_not_claim_target_role'`; otherwise synthesize `unsupported_claim` tied to unsupported core coverage.] | Architecture Patterns | This keeps the fallback compatible with `RECOVERABLE_VALIDATION_ISSUE_TYPES` and with the existing override route revalidation. [VERIFIED: `src/lib/agent/job-targeting/recoverable-validation.ts`; `src/app/api/session/[id]/job-targeting/override/route.ts`] |
+| A5 | Adding optional promotion metadata to both trace and `rewriteValidation` is the lowest-friction way to make warning promotion observable and testable while keeping current UI consumers unchanged. [RESOLVED] | Verification / Observability | UI code already ignores unknown fields on `rewriteValidation`, so optional metadata can be carried server-side without changing existing rendering. [VERIFIED: `src/components/resume/user-data-page.tsx`; `src/components/dashboard/resume-workspace.tsx`] |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should promotion metadata live only in trace/logs, or also in `rewriteValidation`?**  
 What we know: the PRD requires promoted warnings to be recorded, and the current public response already returns `rewriteValidation`. [VERIFIED: `110-PRD.md`; `src/lib/routes/smart-generation/result-normalization.ts`]  
 What's unclear: whether product or downstream tooling needs that metadata in the client payload, or whether trace/log coverage is enough. [VERIFIED: current UI code reads `rewriteValidation` and `recoverableValidationBlock`, but does not read promotion metadata today.]  
 Recommendation: make trace mandatory, keep validation metadata optional, and avoid a required public contract change unless tests or UX need it. [ASSUMED]
 
+Resolution: keep promotion metadata in both places, but optional.
+- `trace.validation.promotedWarnings` remains the canonical observability record. [VERIFIED: `110-PRD.md`; `src/types/trace.ts`]
+- `rewriteValidation.promotedWarnings` may be attached as an optional server-side/testing field so route and pipeline tests can assert the promotion without parsing logs. Existing UI consumers do not need to render it. [VERIFIED: current UI code reads `issues`, `hardIssues`, `softWarnings`, and `recoverableValidationBlock`, but ignores unknown fields today.]
+
 2. **Should core coverage count `strong_contextual_inference` as partial or unsupported for `core`?**  
 What we know: the PRD wants adjacent evidence to help wording, but not to mask missing main stack coverage. [VERIFIED: `110-PRD.md`]  
 What's unclear: whether “partial” should reduce severity numerically or only stay visible for copy. [VERIFIED: no existing `coreRequirementCoverage` contract exists in the repo today.]  
 Recommendation: count it as narrative help, not as supported core coverage, and expose it only in rationale/copy. [ASSUMED]
+
+Resolution: treat `strong_contextual_inference` as narrative help, not as supported core coverage.
+- For `coreRequirementCoverage.supported`, count only `explicit`, `normalized_alias`, and `technical_equivalent`. [VERIFIED: earlier recommended support rule in this research]
+- Treat `strong_contextual_inference` and `semantic_bridge_only` as useful for copy/bridges, but insufficient to cover core stack claims automatically. [VERIFIED: `110-PRD.md`; `src/lib/agent/job-targeting/evidence-classifier.ts`]
+- This keeps partial-fit competitiveness useful while preventing peripheral contextual similarity from masking central unsupported requirements in off-target roles. [VERIFIED: `110-PRD.md`]
 
 ## Environment Availability
 

@@ -1,4 +1,5 @@
 import { buildTargetedRewritePermissionIssues } from '@/lib/agent/job-targeting/validation-policy'
+import { repairUtf8Mojibake } from '@/lib/text/repair-utf8-mojibake'
 import type { RewriteValidationResult, TargetingPlan, ValidationIssue, WorkflowMode } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
 
@@ -71,36 +72,20 @@ function toSkillSet(cvState: CVState): Set<string> {
 }
 
 function buildValidationResult(issues: ValidationIssue[]): RewriteValidationResult {
-  const hardIssues = issues.filter((issue) => issue.severity === 'high')
-  const softWarnings = issues.filter((issue) => issue.severity === 'medium')
+  const sanitizedIssues = issues.map((issue) => ({
+    ...issue,
+    message: repairUtf8Mojibake(issue.message).trim(),
+  }))
+  const hardIssues = sanitizedIssues.filter((issue) => issue.severity === 'high')
+  const softWarnings = sanitizedIssues.filter((issue) => issue.severity === 'medium')
 
   return {
     blocked: hardIssues.length > 0,
-    valid: issues.length === 0,
+    valid: sanitizedIssues.length === 0,
     hardIssues,
     softWarnings,
-    issues,
+    issues: sanitizedIssues,
   }
-}
-
-function sanitizeValidationMessage(message: string): string {
-  return message
-    .replaceAll('Ãª', 'ê')
-    .replaceAll('Ã©', 'é')
-    .replaceAll('Ã£', 'ã')
-    .replaceAll('Ã¡', 'á')
-    .replaceAll('Ã³', 'ó')
-    .replaceAll('Ãº', 'ú')
-    .replaceAll('Ã§', 'ç')
-    .replaceAll('Ã­', 'í')
-    .replaceAll('currÃ­culo', 'currículo')
-    .replaceAll('experiÃªncia', 'experiência')
-    .replaceAll('certificaÃ§Ã£o', 'certificação')
-    .replaceAll('inÃ­cio', 'início')
-    .replaceAll('tÃ©rmino', 'término')
-    .replaceAll('nÃºmerico', 'numérico')
-    .replaceAll('nÃ£o', 'não')
-    .replaceAll('versÃ£o', 'versão')
 }
 
 function enrichValidationIssues(params: {
@@ -120,7 +105,7 @@ function enrichValidationIssues(params: {
   return params.issues.map((issue) => {
     const nextIssue: ValidationIssue = {
       ...issue,
-      message: sanitizeValidationMessage(issue.message),
+      message: repairUtf8Mojibake(issue.message).trim(),
     }
 
     if (
@@ -363,7 +348,7 @@ export function validateRewrite(
       if (unsupportedRoleClaim) {
         issues.push({
           severity: 'medium',
-          message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidÃªncia equivalente no currÃ­culo original.',
+          message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidência equivalente no currículo original.',
           section: 'summary',
         })
       }

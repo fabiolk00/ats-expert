@@ -62,7 +62,7 @@ function buildTargetEvidence(overrides: Partial<TargetEvidence> = {}): TargetEvi
     rewritePermission: 'can_bridge_carefully',
     matchedResumeTerms: ['analise de dados'],
     supportingResumeSpans: ['Atuei com analise de dados e dashboards executivos.'],
-    rationale: 'Existe evidencia contextual forte, mas nao literal.',
+      rationale: 'Existe evidencia contextual forte, mas não literal.',
     confidence: 0.76,
     allowedRewriteForms: ['Analytics Engineer'],
     forbiddenRewriteForms: ['especialista em analytics engineer'],
@@ -405,7 +405,7 @@ describe('validateRewrite', () => {
       buildCvState(),
       {
         ...buildCvState(),
-        summary: 'Profissional de dados com experiencia relacionada a Lean Six Sigma por meio de melhoria continua.',
+        summary: 'Profissional de dados com experiência relacionada a Lean Six Sigma por meio de melhoria continua.',
       },
       {
         mode: 'job_targeting',
@@ -504,7 +504,7 @@ describe('validateRewrite', () => {
             normalizedClaimsAllowed: [],
             bridgeClaimsAllowed: [{
               jobSignal: 'enterprise sales',
-              safeBridge: 'Mencione apenas como experiencia relacionada a grandes contas.',
+              safeBridge: 'Mencione apenas como experiência relacionada a grandes contas.',
               doNotSay: ['especialista em enterprise sales'],
             }],
             relatedButNotClaimable: [],

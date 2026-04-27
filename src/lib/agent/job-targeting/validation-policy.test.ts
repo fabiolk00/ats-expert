@@ -75,7 +75,7 @@ describe('buildTargetedRewritePermissionIssues', () => {
     const issues = buildTargetedRewritePermissionIssues({
       originalCvState: buildCvState(),
       optimizedCvState: buildCvState({
-        summary: 'Profissional com experiencia relacionada a Lean Six Sigma a partir de melhoria continua e padronizacao de processos.',
+      summary: 'Profissional com experiência relacionada a Lean Six Sigma a partir de melhoria continua e padronizacao de processos.',
       }),
       targetingPlan: buildTargetingPlan({
         targetEvidence: [buildEvidence()],
@@ -141,7 +141,7 @@ describe('buildTargetedRewritePermissionIssues', () => {
     const issues = buildTargetedRewritePermissionIssues({
       originalCvState: buildCvState(),
       optimizedCvState: buildCvState({
-        summary: 'Profissional com experiencia relacionada a Lean Six Sigma em transformacoes globais.',
+      summary: 'Profissional com experiência relacionada a Lean Six Sigma em transformacoes globais.',
       }),
       targetingPlan: buildTargetingPlan({
         targetEvidence: [buildEvidence({
@@ -152,7 +152,7 @@ describe('buildTargetedRewritePermissionIssues', () => {
 
     expect(issues).toContainEqual(expect.objectContaining({
       severity: 'high',
-      message: expect.stringContaining('ponte semantica sem ancoragem'),
+      message: expect.stringContaining('ponte semântica sem ancoragem'),
     }))
   })
 
@@ -268,7 +268,7 @@ describe('buildTargetedRewritePermissionIssues', () => {
 
     expect(issues).toContainEqual(expect.objectContaining({
       severity: 'high',
-      message: expect.stringContaining('senioridade ou dominio nao comprovado'),
+    message: expect.stringContaining('senioridade ou domínio não comprovado'),
       section: 'summary',
     }))
   })

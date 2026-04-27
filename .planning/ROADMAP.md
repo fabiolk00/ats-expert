@@ -841,3 +841,20 @@ Plans:
 
 Plans:
 - [ ] 109-01-PLAN.md - Add safe target-role positioning, summary-only retry, recoverable validation modal, override draft + endpoint, billing-safe paid generation, and focused regression proof without affecting ATS or non-target flows
+
+### Phase 110: Hardening: low-fit warning gate and safer bridge emphasis for job targeting
+
+**Goal:** Endurecer o `job_targeting` para aproveitar melhor evidências reais e bridges cautelosas em vagas parcialmente aderentes, enquanto impede geração automática silenciosa em vagas claramente off-target através de um low-fit warning gate recuperável e credit-aware.
+**Requirements**: [JOB-TARGET-LOW-FIT-01, JOB-TARGET-EMPHASIS-01, JOB-TARGET-CORE-COVERAGE-01, JOB-TARGET-LOW-FIT-OBS-01, JOB-TARGET-LOW-FIT-TEST-01]
+**Depends on:** Phase 109
+**Plans:** 1 plan
+
+**Success Criteria** (what must be TRUE):
+  1. Vagas claramente distantes, como uma vaga Java com match baixo, risk high e cobertura core insuficiente, deixam de gerar automaticamente e passam a abrir modal humano com `Gerar mesmo assim (1 crédito)` ou `Adicionar créditos`.
+  2. Similaridades periféricas como Git, SQL e APIs REST continuam utilizáveis como evidência real, mas não liberam claim direto de cargo alvo nem cobertura artificial do core da vaga.
+  3. Vagas parcialmente aderentes passam a destacar melhor evidências explícitas e bridges cautelosas, sem transformar `RPA`, `People Analytics`, `Power Apps`, `FLUIG`, `JavaScript` ou equivalentes não comprovados em skills/claims diretos.
+  4. O pipeline não persiste versão final, não chama `generate_file` e não reserva crédito automaticamente quando o low-fit gate dispara; isso só acontece via override explícito do usuário.
+  5. Trace, validação e testes deixam explícito por que o gate disparou, quais warnings foram promovidos e por que a geração automática foi interrompida.
+
+Plans:
+- [ ] 110-01-PLAN.md - Add safe targeting emphasis, core-requirement coverage, low-fit recoverable gating, human modal reuse, billing-safe override handoff, and focused regression proof for off-target and partially-adherent vacancies

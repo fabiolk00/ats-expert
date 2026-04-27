@@ -3,7 +3,7 @@ import type { CVState } from '@/types/cv'
 import { buildCanonicalSignal, normalizeSemanticText } from '@/lib/agent/job-targeting/semantic-normalization'
 
 const BRIDGE_LANGUAGE_TERMS = [
-  'experiencia relacionada a',
+  'experiência relacionada a',
   'atuacao com',
   'contexto de',
   'base em',
