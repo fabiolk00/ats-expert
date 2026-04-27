@@ -131,6 +131,27 @@ export function buildLowFitWarningGate(params: {
   }
 }
 
+export function shouldPreRewriteLowFitBlock(params: {
+  lowFitWarningGate?: LowFitWarningGate
+  skipPreRewriteLowFitBlock?: boolean
+}): boolean {
+  if (params.skipPreRewriteLowFitBlock) {
+    return false
+  }
+
+  const gate = params.lowFitWarningGate
+  if (!gate?.triggered) {
+    return false
+  }
+
+  return (
+    gate.unsupportedGapRatio >= 0.8
+    && gate.explicitEvidenceRatio <= 0.15
+    && gate.coreRequirementCoverage.supported === 0
+    && gate.matchScore < 40
+  )
+}
+
 export function applyLowFitWarningGateToValidation(params: {
   validation: RewriteValidationResult
   lowFitWarningGate?: LowFitWarningGate

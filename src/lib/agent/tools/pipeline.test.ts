@@ -2660,6 +2660,103 @@ describe('ATS enhancement reliability hardening', () => {
     }))
   })
 
+  it('blocks extreme low-fit vacancies before rewrite starts and skips rewrite, validation, highlight, and persistence', async () => {
+    const session = buildSession()
+    session.agentState.workflowMode = 'job_targeting'
+    session.agentState.targetJobDescription = [
+      'Cargo: Desenvolvedor Java',
+      'Requisitos: 5+ anos em Java, Spring Boot, JPA/Hibernate, Kafka/RabbitMQ, microsserviços, Docker e CI/CD.',
+    ].join('\n')
+    session.agentState.rewriteStatus = 'pending'
+
+    mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan({
+      targetRole: 'Desenvolvedor Java',
+      targetRolePositioning: {
+        targetRole: 'Desenvolvedor Java',
+        permission: 'must_not_claim_target_role',
+        reason: 'career_fit_high_risk',
+        safeRolePositioning: 'Profissional com experiência em BI, SQL, APIs REST e Git.',
+        forbiddenRoleClaims: ['Desenvolvedor Java'],
+      },
+      rewritePermissions: {
+        directClaimsAllowed: ['Git', 'APIs REST', 'SQL'],
+        normalizedClaimsAllowed: [],
+        bridgeClaimsAllowed: [],
+        relatedButNotClaimable: [],
+        forbiddenClaims: ['Java', 'Spring Boot', 'JPA/Hibernate', 'Kafka/RabbitMQ', 'Docker', 'CI/CD'],
+        skillsSurfaceAllowed: ['Git', 'APIs REST', 'SQL'],
+      },
+      coreRequirementCoverage: {
+        requirements: [],
+        total: 7,
+        supported: 0,
+        unsupported: 7,
+        unsupportedSignals: ['Java', '5+ anos de Java', 'Spring Boot', 'JPA/Hibernate', 'Kafka/RabbitMQ', 'Docker', 'CI/CD'],
+      },
+      lowFitWarningGate: {
+        triggered: true,
+        reason: 'very_low_match_score',
+        matchScore: 28,
+        riskLevel: 'high',
+        familyDistance: 'distant',
+        explicitEvidenceCount: 1,
+        unsupportedGapCount: 12,
+        unsupportedGapRatio: 0.923,
+        explicitEvidenceRatio: 0.077,
+        coreRequirementCoverage: {
+          total: 7,
+          supported: 0,
+          unsupported: 7,
+          unsupportedSignals: ['Java', '5+ anos de Java', 'Spring Boot', 'JPA/Hibernate', 'Kafka/RabbitMQ', 'Docker', 'CI/CD'],
+        },
+      },
+    }))
+
+    const result = await runJobTargetingPipeline(session)
+
+    expect(result.success).toBe(false)
+    expect(result.validation).toEqual(expect.objectContaining({
+      blocked: true,
+      recoverable: true,
+      hardIssues: expect.arrayContaining([
+        expect.objectContaining({
+          issueType: 'low_fit_target_role',
+        }),
+      ]),
+    }))
+    expect(result.recoverableBlock).toEqual(expect.objectContaining({
+      kind: 'pre_rewrite_low_fit_block',
+      modal: expect.objectContaining({
+        title: expect.stringMatching(/vaga parece muito distante/i),
+      }),
+    }))
+    expect(mockRewriteSection).not.toHaveBeenCalled()
+    expect(mockValidateRewrite).not.toHaveBeenCalled()
+    expect(mockGenerateCvHighlightState).not.toHaveBeenCalled()
+    expect(mockCreateCvVersion).not.toHaveBeenCalled()
+    expect(mockLogWarn).toHaveBeenCalledWith('agent.job_targeting.pre_rewrite_low_fit_blocked', expect.objectContaining({
+      sessionId: session.id,
+      targetRole: 'Desenvolvedor Java',
+      reason: 'very_low_match_score',
+    }))
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.generation_gate', expect.objectContaining({
+      highlightGenerationDecision: 'blocked_low_fit',
+      validationBlocked: true,
+      lowFitRecoverableBlocked: true,
+    }))
+    expect(mockLogInfo).toHaveBeenCalledWith('agent.job_targeting.pipeline_trace', expect.objectContaining({
+      status: 'blocked',
+      rewrite: expect.objectContaining({
+        sectionsAttempted: [],
+        skippedReason: 'pre_rewrite_low_fit_block',
+      }),
+      lowFitGate: expect.objectContaining({
+        preRewriteBlocked: true,
+        preRewriteBlockReason: 'very_low_match_score',
+      }),
+    }))
+  })
+
   it('promotes low-fit soft warnings into a recoverable block before persist_version for off-target Java vacancies', async () => {
     const session = buildSession()
     session.agentState.workflowMode = 'job_targeting'
@@ -2804,6 +2901,9 @@ describe('ATS enhancement reliability hardening', () => {
           }),
         ]),
       }),
+    }))
+    expect(mockLogWarn).toHaveBeenCalledWith('agent.job_targeting.validation_failed', expect.objectContaining({
+      issueMessages: expect.stringContaining('evidência equivalente no currículo original'),
     }))
   })
 

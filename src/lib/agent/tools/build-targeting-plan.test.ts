@@ -396,7 +396,8 @@ describe('buildTargetingPlan', () => {
       total: expect.any(Number),
       unsupported: expect.any(Number),
       unsupportedSignals: expect.arrayContaining([
-        'Java com mais de 5 anos',
+        'Java',
+        '5+ anos de Java',
         'Spring Boot',
         'JPA/Hibernate',
         'Kafka/RabbitMQ',

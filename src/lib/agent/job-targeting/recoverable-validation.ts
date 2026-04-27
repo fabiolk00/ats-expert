@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto'
 import { repairUtf8Mojibake } from '@/lib/text/repair-utf8-mojibake'
 import type {
   BlockedTargetedRewriteDraft,
+  RecoverableValidationBlockKind,
+  RewriteValidationResult,
   Session,
   TargetEvidence,
   TargetingPlan,
@@ -49,11 +51,11 @@ function listToSentence(values: string[]): string {
   return `${values.slice(0, -1).join(', ')} e ${values[values.length - 1]}`
 }
 
-function sanitizeText(value: string): string {
+export function sanitizeText(value: string): string {
   return repairUtf8Mojibake(value)
 }
 
-function sanitizeValidationIssue(issue: ValidationIssue): ValidationIssue {
+export function sanitizeValidationIssue(issue: ValidationIssue): ValidationIssue {
   return {
     ...issue,
     message: sanitizeText(issue.message),
@@ -64,7 +66,7 @@ function sanitizeValidationIssue(issue: ValidationIssue): ValidationIssue {
   }
 }
 
-function sanitizeModalPayload(payload: UserFacingValidationModalPayload): UserFacingValidationModalPayload {
+export function sanitizeModalPayload(payload: UserFacingValidationModalPayload): UserFacingValidationModalPayload {
   const sanitizedRecommendation = payload.recommendation
     ? sanitizeText(payload.recommendation)
     : undefined
@@ -90,6 +92,22 @@ function sanitizeModalPayload(payload: UserFacingValidationModalPayload): UserFa
       },
       primary: sanitizedPrimaryAction,
     },
+  }
+}
+
+export function sanitizeValidationResultForLogging(result: RewriteValidationResult): RewriteValidationResult {
+  return {
+    ...result,
+    hardIssues: result.hardIssues.map(sanitizeValidationIssue),
+    softWarnings: result.softWarnings.map(sanitizeValidationIssue),
+    issues: result.issues.map(sanitizeValidationIssue),
+    promotedWarnings: result.promotedWarnings
+      ? result.promotedWarnings.map((warning) => ({
+          ...warning,
+          issueType: sanitizeText(warning.issueType),
+          reason: sanitizeText(warning.reason),
+        }))
+      : result.promotedWarnings,
   }
 }
 
@@ -353,12 +371,17 @@ export function buildUserFacingValidationBlockModal(args: {
 export function createBlockedTargetedRewriteDraft(params: {
   sessionId: string
   userId: string
-  optimizedCvState: CVState
+  kind?: RecoverableValidationBlockKind
+  optimizedCvState?: CVState
   originalCvState: CVState
   optimizationSummary?: BlockedTargetedRewriteDraft['optimizationSummary']
   targetJobDescription: string
   targetRole?: string
   validationIssues: ValidationIssue[]
+  lowFitGate?: BlockedTargetedRewriteDraft['lowFitGate']
+  targetEvidence?: BlockedTargetedRewriteDraft['targetEvidence']
+  safeTargetingEmphasis?: BlockedTargetedRewriteDraft['safeTargetingEmphasis']
+  coreRequirementCoverage?: BlockedTargetedRewriteDraft['coreRequirementCoverage']
   recoverable: boolean
 }): BlockedTargetedRewriteDraft {
   const createdAt = new Date().toISOString()
@@ -367,7 +390,10 @@ export function createBlockedTargetedRewriteDraft(params: {
     token: randomUUID(),
     sessionId: params.sessionId,
     userId: params.userId,
-    optimizedCvState: structuredClone(params.optimizedCvState),
+    kind: params.kind ?? 'post_rewrite_validation_block',
+    optimizedCvState: params.optimizedCvState
+      ? structuredClone(params.optimizedCvState)
+      : undefined,
     originalCvState: structuredClone(params.originalCvState),
     optimizationSummary: params.optimizationSummary
       ? structuredClone(params.optimizationSummary)
@@ -375,6 +401,18 @@ export function createBlockedTargetedRewriteDraft(params: {
     targetJobDescription: params.targetJobDescription,
     targetRole: params.targetRole,
     validationIssues: structuredClone(params.validationIssues.map(sanitizeValidationIssue)),
+    lowFitGate: params.lowFitGate
+      ? structuredClone(params.lowFitGate)
+      : undefined,
+    targetEvidence: params.targetEvidence
+      ? structuredClone(params.targetEvidence)
+      : undefined,
+    safeTargetingEmphasis: params.safeTargetingEmphasis
+      ? structuredClone(params.safeTargetingEmphasis)
+      : undefined,
+    coreRequirementCoverage: params.coreRequirementCoverage
+      ? structuredClone(params.coreRequirementCoverage)
+      : undefined,
     recoverable: params.recoverable,
     createdAt,
     expiresAt: new Date(Date.now() + RECOVERABLE_DRAFT_TTL_MS).toISOString(),

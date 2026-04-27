@@ -8,12 +8,17 @@ import {
 } from '@/lib/agent/tools/detect-cv-highlights'
 import {
   buildSummaryRetryInstructions,
+  sanitizeText,
+  sanitizeValidationResultForLogging,
   buildUserFacingValidationBlockModal,
   createBlockedTargetedRewriteDraft,
   isRecoverableValidationBlock,
   isSummaryOnlyRecoverableValidation,
 } from '@/lib/agent/job-targeting/recoverable-validation'
-import { applyLowFitWarningGateToValidation } from '@/lib/agent/job-targeting/low-fit-warning-gate'
+import {
+  applyLowFitWarningGateToValidation,
+  shouldPreRewriteLowFitBlock,
+} from '@/lib/agent/job-targeting/low-fit-warning-gate'
 import { rewriteResumeFull } from '@/lib/agent/tools/rewrite-resume-full'
 import { rewriteSection } from '@/lib/agent/tools/rewrite-section'
 import { validateRewrite } from '@/lib/agent/tools/validate-rewrite'
@@ -259,7 +264,13 @@ function resolveEvidenceRatios(targetEvidence: NonNullable<Session['agentState']
   }
 }
 
-export async function runJobTargetingPipeline(session: Session): Promise<{
+export async function runJobTargetingPipeline(
+  session: Session,
+  options?: {
+    userAcceptedLowFit?: boolean
+    overrideReason?: 'pre_rewrite_low_fit_block'
+  },
+): Promise<{
   success: boolean
   optimizedCvState?: Session['agentState']['optimizedCvState']
   optimizationSummary?: Session['agentState']['optimizationSummary']
@@ -553,6 +564,178 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     coreUnsupportedSignals: targetingPlan.lowFitWarningGate?.coreRequirementCoverage.unsupportedSignals ?? [],
   })
 
+  const preRewriteLowFitBlocked = shouldPreRewriteLowFitBlock({
+    lowFitWarningGate: targetingPlan.lowFitWarningGate,
+    skipPreRewriteLowFitBlock: options?.userAcceptedLowFit === true,
+  })
+
+  if (preRewriteLowFitBlocked) {
+    let validation = applyLowFitWarningGateToValidation({
+      validation: {
+        blocked: false,
+        valid: true,
+        hardIssues: [],
+        softWarnings: [],
+        issues: [],
+      },
+      lowFitWarningGate: targetingPlan.lowFitWarningGate,
+      targetRole: targetingPlan.targetRole,
+      targetRolePositioning: targetingPlan.targetRolePositioning,
+    })
+    validation = sanitizeValidationResultForLogging({
+      ...validation,
+      recoverable: true,
+    })
+
+    trace.rewrite = {
+      sectionsAttempted: [],
+      sectionsChanged: [],
+      sectionsRetried: [],
+      sectionsCompacted: [],
+      skippedReason: 'pre_rewrite_low_fit_block',
+    }
+    trace.validation = {
+      blocked: true,
+      hardIssuesCount: validation.hardIssues.length,
+      softWarningsCount: validation.softWarnings.length,
+      hardIssues: summarizeValidationIssues(validation.hardIssues),
+      softWarnings: summarizeValidationIssues(validation.softWarnings),
+      failureStage: 'pre_rewrite_low_fit_block',
+      recoverable: true,
+      promotedWarnings: validation.promotedWarnings,
+    }
+    if (trace.lowFitGate) {
+      trace.lowFitGate.preRewriteBlocked = true
+      trace.lowFitGate.preRewriteBlockReason = targetingPlan.lowFitWarningGate?.reason
+    }
+    trace.highlight = {
+      gate: 'blocked_low_fit',
+      generated: false,
+      jobKeywordsCount: jobKeywords.length,
+    }
+
+    const blockedDraft = createBlockedTargetedRewriteDraft({
+      sessionId: session.id,
+      userId: session.userId,
+      kind: 'pre_rewrite_low_fit_block',
+      originalCvState: session.cvState,
+      targetJobDescription,
+      targetRole: targetingPlan.targetRole,
+      validationIssues: validation.issues,
+      lowFitGate: targetingPlan.lowFitWarningGate,
+      targetEvidence: targetingPlan.targetEvidence,
+      safeTargetingEmphasis: targetingPlan.safeTargetingEmphasis,
+      coreRequirementCoverage: targetingPlan.coreRequirementCoverage,
+      recoverable: true,
+    })
+    const recoverableValidationBlock = {
+      status: 'validation_blocked_recoverable' as const,
+      kind: 'pre_rewrite_low_fit_block' as const,
+      overrideToken: blockedDraft.token,
+      modal: buildUserFacingValidationBlockModal({
+        targetRole: targetingPlan.targetRole,
+        validationIssues: validation.issues,
+        targetEvidence: targetingPlan.targetEvidence,
+        lowFitWarningGate: targetingPlan.lowFitWarningGate,
+        directClaimsAllowed: targetingPlan.rewritePermissions?.directClaimsAllowed,
+        originalProfileLabel: sanitizeText(targetingPlan.targetRolePositioning?.safeRolePositioning ?? '')
+          .replace(/^Profissional com experiência em\s*/i, '')
+          .replace(/[.]$/u, '') || undefined,
+      }),
+      expiresAt: blockedDraft.expiresAt,
+    }
+    const validationIssueMessages = validation.issues.map((issue) => issue.message)
+    const nextAgentState: Session['agentState'] = {
+      ...session.agentState,
+      workflowMode: 'job_targeting',
+      gapAnalysis,
+      targetFitAssessment,
+      careerFitEvaluation: careerFitEvaluation ?? undefined,
+      targetingPlan,
+      extractionWarning: targetingPlan.targetRoleConfidence === 'low' ? 'low_confidence_role' : undefined,
+      rewriteStatus: 'failed',
+      optimizedCvState: previousOptimizedCvState,
+      highlightState: previousHighlightState,
+      optimizedAt: previousOptimizedAt,
+      optimizationSummary: previousOptimizationSummary,
+      lastRewriteMode: previousLastRewriteMode,
+      rewriteValidation: validation,
+      blockedTargetedRewriteDraft: blockedDraft,
+      recoverableValidationBlock,
+      atsWorkflowRun: buildWorkflowRun(session, {
+        status: 'failed',
+        currentStage: 'pre_rewrite_low_fit_block',
+        lastFailureStage: 'pre_rewrite_low_fit_block',
+        lastFailureReason: validationIssueMessages[0]
+          ? `Job targeting pre-rewrite low-fit block: ${validationIssueMessages[0]}`
+          : 'Job targeting pre-rewrite low-fit block triggered.',
+      }),
+    }
+    await persistAgentState(session, nextAgentState)
+
+    logHighlightGenerationGate({
+      session,
+      gate: 'blocked_low_fit',
+      jobKeywordsCount: jobKeywords.length,
+      validationBlocked: true,
+      lowFitRecoverableBlocked: true,
+      optimizedChanged: false,
+      targetRoleConfidence: targetingPlan.targetRoleConfidence,
+      targetRoleSource: targetingPlan.targetRoleSource,
+    })
+    logHighlightStatePersistence({
+      session,
+      highlightState: previousHighlightState,
+      highlightDetectionInvoked: false,
+      highlightStateGenerated: false,
+      highlightStatePersisted: false,
+      highlightStatePersistedReason: 'low_fit_recoverable_block',
+    })
+    logWarn('agent.job_targeting.pre_rewrite_low_fit_blocked', {
+      sessionId: session.id,
+      userId: session.userId,
+      targetRole: targetingPlan.targetRole,
+      matchScore: targetingPlan.lowFitWarningGate?.matchScore ?? gapAnalysisResult.matchScore,
+      riskLevel: targetingPlan.lowFitWarningGate?.riskLevel,
+      familyDistance: targetingPlan.lowFitWarningGate?.familyDistance,
+      unsupportedGapRatio: targetingPlan.lowFitWarningGate?.unsupportedGapRatio ?? evidenceRatios.unsupportedGapRatio,
+      explicitEvidenceRatio: targetingPlan.lowFitWarningGate?.explicitEvidenceRatio ?? evidenceRatios.explicitEvidenceRatio,
+      coreRequirementCoverageSupported: targetingPlan.lowFitWarningGate?.coreRequirementCoverage.supported ?? 0,
+      coreRequirementCoverageUnsupported: targetingPlan.lowFitWarningGate?.coreRequirementCoverage.unsupported ?? 0,
+      reason: targetingPlan.lowFitWarningGate?.reason,
+      elapsedMsFromStart: Date.now() - Date.parse(trace.startedAt),
+    })
+    logInfo('agent.job_targeting.validation_modal_shown', {
+      sessionId: session.id,
+      userId: session.userId,
+      targetRole: targetingPlan.targetRole,
+      issueCount: validation.issues.length,
+      hardIssueCount: validation.hardIssues.length,
+      softWarningCount: validation.softWarnings.length,
+      issueTypes: getIssueTypeList(validation.issues).join(', ') || undefined,
+      targetEvidenceCount: targetingPlan.targetEvidence?.length,
+      evidenceLevelCounts: targetingPlan.targetEvidence
+        ? countEvidenceLevels(targetingPlan.targetEvidence)
+        : undefined,
+      matchScore: gapAnalysisResult.matchScore,
+      riskLevel: careerFitEvaluation?.riskLevel,
+      familyDistance: careerFitEvaluation?.signals.familyDistance,
+      lowFitGateTriggered: targetingPlan.lowFitWarningGate?.triggered ?? false,
+      lowFitGateReason: targetingPlan.lowFitWarningGate?.reason,
+      recoverableBlockKind: 'pre_rewrite_low_fit_block',
+    })
+    logJobTargetingPipelineTrace(trace, 'blocked', {
+      error: 'Job targeting pre-rewrite low-fit block triggered.',
+    })
+
+    return {
+      success: false,
+      validation,
+      recoverableBlock: recoverableValidationBlock,
+      error: 'Job targeting pre-rewrite low-fit block triggered.',
+    }
+  }
+
   const rewriteResult = await rewriteResumeFull({
     mode: 'job_targeting',
     cvState: session.cvState,
@@ -698,10 +881,10 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     targetRole: targetingPlan.targetRole,
     targetRolePositioning: targetingPlan.targetRolePositioning,
   })
-  validation = {
+  validation = sanitizeValidationResultForLogging({
     ...validation,
     recoverable: validation.blocked && isRecoverableValidationBlock(validation),
-  }
+  })
   trace.rewrite = {
     sectionsAttempted: rewriteResult.diagnostics?.sectionAttempts
       ? Object.keys(rewriteResult.diagnostics.sectionAttempts)
@@ -798,18 +981,24 @@ export async function runJobTargetingPipeline(session: Session): Promise<{
     ? createBlockedTargetedRewriteDraft({
       sessionId: session.id,
       userId: session.userId,
+      kind: 'post_rewrite_validation_block',
       optimizedCvState: finalizedOptimizedCvState,
       originalCvState: session.cvState,
       optimizationSummary: finalizedOptimizationSummary,
       targetJobDescription,
       targetRole: targetingPlan.targetRole,
       validationIssues: validation.issues,
+      lowFitGate: targetingPlan.lowFitWarningGate,
+      targetEvidence: targetingPlan.targetEvidence,
+      safeTargetingEmphasis: targetingPlan.safeTargetingEmphasis,
+      coreRequirementCoverage: targetingPlan.coreRequirementCoverage,
       recoverable: true,
     })
     : undefined
   const recoverableValidationBlock = blockedDraft
     ? {
       status: 'validation_blocked_recoverable' as const,
+      kind: blockedDraft.kind,
       overrideToken: blockedDraft.token,
       modal: buildUserFacingValidationBlockModal({
         targetRole: targetingPlan.targetRole,

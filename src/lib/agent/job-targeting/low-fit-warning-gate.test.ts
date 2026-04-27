@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyLowFitWarningGateToValidation, buildLowFitWarningGate } from '@/lib/agent/job-targeting/low-fit-warning-gate'
+import {
+  applyLowFitWarningGateToValidation,
+  buildLowFitWarningGate,
+  shouldPreRewriteLowFitBlock,
+} from '@/lib/agent/job-targeting/low-fit-warning-gate'
 import type { LowFitWarningGate, RewriteValidationResult, TargetEvidence } from '@/types/agent'
 
 function buildValidation(overrides: Partial<RewriteValidationResult> = {}): RewriteValidationResult {
@@ -157,5 +161,45 @@ describe('low-fit warning gate', () => {
 
     expect(gate.triggered).toBe(true)
     expect(gate.reason).toBe('very_low_match_score')
+  })
+
+  it('flags an extreme off-target case for pre-rewrite blocking', () => {
+    expect(shouldPreRewriteLowFitBlock({
+      lowFitWarningGate: buildLowFitGate({
+        matchScore: 28,
+        explicitEvidenceRatio: 0.077,
+        unsupportedGapRatio: 0.923,
+        coreRequirementCoverage: {
+          total: 7,
+          supported: 0,
+          unsupported: 7,
+          unsupportedSignals: ['Java', 'Spring Boot', 'Docker'],
+        },
+      }),
+    })).toBe(true)
+  })
+
+  it('does not pre-block adjacent cases with some real core coverage', () => {
+    expect(shouldPreRewriteLowFitBlock({
+      lowFitWarningGate: buildLowFitGate({
+        triggered: false,
+        matchScore: 71,
+        explicitEvidenceRatio: 0.38,
+        unsupportedGapRatio: 0.34,
+        coreRequirementCoverage: {
+          total: 6,
+          supported: 3,
+          unsupported: 3,
+          unsupportedSignals: ['People Analytics', 'RPA', 'Power Apps'],
+        },
+      }),
+    })).toBe(false)
+  })
+
+  it('skips the pre-rewrite block after explicit low-fit acceptance', () => {
+    expect(shouldPreRewriteLowFitBlock({
+      lowFitWarningGate: buildLowFitGate(),
+      skipPreRewriteLowFitBlock: true,
+    })).toBe(false)
   })
 })

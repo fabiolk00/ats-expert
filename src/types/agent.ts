@@ -36,6 +36,7 @@ export type AtsWorkflowStage =
   | 'gap_analysis'
   | 'analysis'
   | 'targeting_plan'
+  | 'pre_rewrite_low_fit_block'
   | 'rewrite_plan'
   | 'rewrite_section'
   | 'validation'
@@ -262,12 +263,17 @@ export type ValidationOverrideMetadata = {
   targetRole?: string
 }
 
+export type RecoverableValidationBlockKind =
+  | 'post_rewrite_validation_block'
+  | 'pre_rewrite_low_fit_block'
+
 export type BlockedTargetedRewriteDraft = {
   id: string
   token: string
   sessionId: string
   userId: string
-  optimizedCvState: CVState
+  kind?: RecoverableValidationBlockKind
+  optimizedCvState?: CVState
   originalCvState: CVState
   optimizationSummary?: {
     changedSections: RewriteSectionInput['section'][]
@@ -277,6 +283,10 @@ export type BlockedTargetedRewriteDraft = {
   targetJobDescription: string
   targetRole?: string
   validationIssues: ValidationIssue[]
+  lowFitGate?: LowFitWarningGate
+  targetEvidence?: TargetEvidence[]
+  safeTargetingEmphasis?: SafeTargetingEmphasis
+  coreRequirementCoverage?: CoreRequirementCoverage
   recoverable: boolean
   createdAt: string
   expiresAt: string
@@ -304,6 +314,7 @@ export type UserFacingValidationModalPayload = {
 
 export type RecoverableValidationBlock = {
   status: 'validation_blocked_recoverable'
+  kind?: RecoverableValidationBlockKind
   overrideToken: string
   modal: UserFacingValidationModalPayload
   expiresAt: string

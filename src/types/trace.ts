@@ -26,6 +26,7 @@ export type JobTargetingTrace = {
     sectionsChanged: string[]
     sectionsRetried: string[]
     sectionsCompacted: string[]
+    skippedReason?: 'pre_rewrite_low_fit_block'
     summaryRetryAttempted?: boolean
     summaryRetrySucceeded?: boolean
     summaryRetryReason?: string
@@ -62,6 +63,8 @@ export type JobTargetingTrace = {
     unsupportedGapCount: number
     unsupportedGapRatio: number
     explicitEvidenceRatio: number
+    preRewriteBlocked?: boolean
+    preRewriteBlockReason?: string
     coreRequirementCoverage: {
       total: number
       supported: number

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { POST } from './route'
+import { runJobTargetingPipeline } from '@/lib/agent/job-targeting-pipeline'
 import { dispatchToolWithContext } from '@/lib/agent/tools'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { createCvVersion } from '@/lib/db/cv-versions'
@@ -22,6 +23,10 @@ vi.mock('@/lib/db/cv-versions', () => ({
 
 vi.mock('@/lib/agent/tools', () => ({
   dispatchToolWithContext: vi.fn(),
+}))
+
+vi.mock('@/lib/agent/job-targeting-pipeline', () => ({
+  runJobTargetingPipeline: vi.fn(),
 }))
 
 function buildCvState() {
@@ -136,6 +141,41 @@ function buildSession() {
   }
 }
 
+function buildPreRewriteLowFitSession() {
+  return {
+    ...buildSession(),
+    agentState: {
+      ...buildSession().agentState,
+      rewriteValidation: {
+        blocked: true,
+        valid: false,
+        hardIssues: [{
+          severity: 'high',
+          section: 'summary',
+          issueType: 'low_fit_target_role',
+          message: 'Esta vaga parece muito distante do seu currículo atual.',
+        }],
+        softWarnings: [],
+        issues: [{
+          severity: 'high',
+          section: 'summary',
+          issueType: 'low_fit_target_role',
+          message: 'Esta vaga parece muito distante do seu currículo atual.',
+        }],
+      },
+      blockedTargetedRewriteDraft: {
+        ...buildSession().agentState.blockedTargetedRewriteDraft,
+        kind: 'pre_rewrite_low_fit_block' as const,
+        optimizedCvState: undefined,
+      },
+      recoverableValidationBlock: {
+        ...buildSession().agentState.recoverableValidationBlock,
+        kind: 'pre_rewrite_low_fit_block' as const,
+      },
+    },
+  }
+}
+
 function buildRequest(body: Record<string, unknown>) {
   return new NextRequest('https://example.com/api/session/sess_123/job-targeting/override', {
     method: 'POST',
@@ -173,6 +213,17 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
     } as never)
     vi.mocked(getSession).mockResolvedValue(buildSession() as never)
     vi.mocked(updateSession).mockResolvedValue(undefined)
+    vi.mocked(runJobTargetingPipeline).mockResolvedValue({
+      success: true,
+      optimizedCvState: buildCvState(),
+      validation: {
+        blocked: false,
+        valid: true,
+        hardIssues: [],
+        softWarnings: [],
+        issues: [],
+      },
+    } as never)
     vi.mocked(createCvVersion).mockResolvedValue({
       id: 'ver_123',
       sessionId: 'sess_123',
@@ -240,6 +291,71 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
         recoverableValidationBlock: undefined,
       }),
     }))
+  })
+
+  it('runs the targeted pipeline only after confirmation for pre-rewrite low-fit blocks', async () => {
+    vi.mocked(getSession).mockResolvedValue(buildPreRewriteLowFitSession() as never)
+    vi.mocked(runJobTargetingPipeline).mockResolvedValue({
+      success: true,
+      optimizedCvState: {
+        ...buildCvState(),
+        summary: 'Versão gerada após confirmação explícita de low-fit.',
+      },
+      validation: {
+        blocked: false,
+        valid: true,
+        hardIssues: [],
+        softWarnings: [],
+        issues: [],
+      },
+    } as never)
+    vi.mocked(dispatchToolWithContext).mockResolvedValue({
+      output: {
+        success: true,
+        creditsUsed: 1,
+        resumeGenerationId: 'gen_low_fit_123',
+      },
+      outputJson: JSON.stringify({
+        success: true,
+        creditsUsed: 1,
+        resumeGenerationId: 'gen_low_fit_123',
+      }),
+    } as never)
+
+    const response = await POST(buildRequest({
+      overrideToken: 'override_token_123',
+      consumeCredit: true,
+    }), {
+      params: { id: 'sess_123' },
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      success: true,
+      sessionId: 'sess_123',
+      creditsUsed: 1,
+      resumeGenerationId: 'gen_low_fit_123',
+      generationType: 'JOB_TARGETING',
+    })
+    expect(runJobTargetingPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'sess_123',
+      }),
+      expect.objectContaining({
+        userAcceptedLowFit: true,
+        overrideReason: 'pre_rewrite_low_fit_block',
+      }),
+    )
+    expect(createCvVersion).not.toHaveBeenCalled()
+    expect(dispatchToolWithContext).toHaveBeenCalledWith(
+      'generate_file',
+      expect.objectContaining({
+        idempotency_key: 'profile-target-override:sess_123:draft_123',
+      }),
+      expect.objectContaining({
+        id: 'sess_123',
+      }),
+    )
   })
 
   it('rejects override tokens that do not belong to the blocked draft', async () => {

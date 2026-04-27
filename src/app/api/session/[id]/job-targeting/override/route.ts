@@ -12,6 +12,7 @@ import {
   isRecoverableValidationBlock,
   buildValidationOverrideMetadata,
 } from '@/lib/agent/job-targeting/recoverable-validation'
+import { runJobTargetingPipeline } from '@/lib/agent/job-targeting-pipeline'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
 import { withRequestQueryTracking } from '@/lib/observability/request-query-tracking'
 import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
@@ -103,7 +104,7 @@ export async function POST(
     const rewriteValidation = session.agentState.rewriteValidation ?? buildValidationFromIssues(blockedDraft.validationIssues)
     if (!blockedDraft.recoverable || !isRecoverableValidationBlock(rewriteValidation)) {
       return NextResponse.json({
-        error: 'Este bloqueio nÃ£o pode ser liberado com override pago.',
+        error: 'Este bloqueio não pode ser liberado com override pago.',
       }, { status: 409 })
     }
 
@@ -129,6 +130,137 @@ export async function POST(
       }, { status: 402 })
     }
 
+    const blockKind = blockedDraft.kind ?? 'post_rewrite_validation_block'
+
+    if (blockKind === 'pre_rewrite_low_fit_block') {
+      const previousAgentState = structuredClone(session.agentState)
+      const clearedAgentState = {
+        ...session.agentState,
+        workflowMode: 'job_targeting' as const,
+        targetJobDescription: blockedDraft.targetJobDescription,
+        rewriteStatus: 'pending' as const,
+        rewriteValidation: undefined,
+        blockedTargetedRewriteDraft: undefined,
+        recoverableValidationBlock: undefined,
+      }
+      const generationSession = {
+        ...session,
+        agentState: clearedAgentState,
+      }
+
+      try {
+        await persistAgentState(session, clearedAgentState)
+      } catch (error) {
+        logError('api.session.job_targeting.override.persist_failed', {
+          requestMethod: req.method,
+          requestPath: req.nextUrl.pathname,
+          sessionId: session.id,
+          appUserId: appUser.id,
+          success: false,
+          ...serializeError(error),
+        })
+        return NextResponse.json({
+          error: 'Não conseguimos preparar a geração por um erro técnico. Tente novamente.',
+        }, { status: 500 })
+      }
+
+      const pipelineResult = await runJobTargetingPipeline(generationSession, {
+        userAcceptedLowFit: true,
+        overrideReason: 'pre_rewrite_low_fit_block',
+      })
+
+      if (!pipelineResult.success || !pipelineResult.optimizedCvState) {
+        if (!pipelineResult.recoverableBlock) {
+          await persistAgentState(session, previousAgentState)
+        }
+
+        return NextResponse.json({
+          error: pipelineResult.error ?? 'Não conseguimos concluir a geração desta versão.',
+          recoverableValidationBlock: pipelineResult.recoverableBlock,
+          rewriteValidation: pipelineResult.validation,
+        }, {
+          status: pipelineResult.recoverableBlock ? 409 : 500,
+        })
+      }
+
+      const generationResult = await dispatchToolWithContext(
+        'generate_file',
+        {
+          cv_state: pipelineResult.optimizedCvState,
+          idempotency_key: `profile-target-override:${session.id}:${blockedDraft.id}`,
+        },
+        generationSession,
+      )
+
+      if (generationResult.outputFailure) {
+        await persistAgentState(session, previousAgentState)
+        logWarn('agent.job_targeting.validation_override_failed', {
+          sessionId: session.id,
+          userId: appUser.id,
+          targetRole: blockedDraft.targetRole,
+          issueCount: blockedDraft.validationIssues.length,
+          hardIssueCount: blockedDraft.validationIssues.filter((issue) => issue.severity === 'high').length,
+          code: generationResult.outputFailure.code,
+          error: generationResult.outputFailure.error,
+          blockKind,
+        })
+        return NextResponse.json({
+          error: generationResult.outputFailure.error ?? 'Não conseguimos concluir a geração por um erro técnico. Tente novamente.',
+          code: generationResult.outputFailure.code,
+        }, {
+          status: generationResult.outputFailure.code
+            ? getHttpStatusForToolError(generationResult.outputFailure.code)
+            : 500,
+        })
+      }
+
+      const validationIssues = pipelineResult.validation?.issues ?? blockedDraft.validationIssues
+      const completedAgentState: typeof session.agentState = {
+        ...generationSession.agentState,
+        rewriteStatus: 'completed' as const,
+        validationOverride: buildValidationOverrideMetadata({
+          userId: appUser.id,
+          targetRole: blockedDraft.targetRole,
+          validationIssues,
+        }),
+        blockedTargetedRewriteDraft: undefined,
+        recoverableValidationBlock: undefined,
+      }
+
+      await persistAgentState(session, completedAgentState)
+
+      const output = generationResult.output as {
+        creditsUsed?: number
+        resumeGenerationId?: string
+      }
+      const warningIssues = completedAgentState.rewriteValidation?.softWarnings ?? []
+      const warnings = warningIssues
+        .map((issue) => issue.message)
+        .filter(Boolean)
+
+      logInfo('agent.job_targeting.validation_override_succeeded', {
+        sessionId: session.id,
+        userId: appUser.id,
+        targetRole: blockedDraft.targetRole,
+        issueCount: validationIssues.length,
+        hardIssueCount: validationIssues.filter((issue) => issue.severity === 'high').length,
+        creditCost: 1,
+        creditCharged: (output.creditsUsed ?? 0) > 0,
+        resumeGenerationId: output.resumeGenerationId,
+        validationOverride: true,
+        blockKind,
+      })
+
+      return NextResponse.json({
+        success: true,
+        sessionId: session.id,
+        creditsUsed: output.creditsUsed ?? 0,
+        resumeGenerationId: output.resumeGenerationId,
+        generationType: 'JOB_TARGETING' as const,
+        warnings: warnings && warnings.length > 0 ? warnings : undefined,
+      })
+    }
+
     const consumedDraftState = {
       ...session.agentState,
       blockedTargetedRewriteDraft: undefined,
@@ -140,7 +272,9 @@ export async function POST(
         ...session.agentState,
         workflowMode: 'job_targeting' as const,
         targetJobDescription: blockedDraft.targetJobDescription,
-        optimizedCvState: structuredClone(blockedDraft.optimizedCvState),
+        optimizedCvState: blockedDraft.optimizedCvState
+          ? structuredClone(blockedDraft.optimizedCvState)
+          : undefined,
         optimizedAt: new Date().toISOString(),
         optimizationSummary: blockedDraft.optimizationSummary ?? session.agentState.optimizationSummary,
         lastRewriteMode: 'job_targeting' as const,
@@ -157,6 +291,12 @@ export async function POST(
           expiresAt: blockedDraft.expiresAt,
         },
       },
+    }
+
+    if (!blockedDraft.optimizedCvState) {
+      return NextResponse.json({
+        error: 'Esta versão bloqueada precisa ser regenerada antes do override.',
+      }, { status: 409 })
     }
 
     try {
@@ -211,7 +351,7 @@ export async function POST(
       })
     }
 
-    const completedAgentState = {
+    const completedAgentState: typeof session.agentState = {
       ...generationSession.agentState,
       rewriteStatus: 'completed' as const,
       validationOverride: buildValidationOverrideMetadata({

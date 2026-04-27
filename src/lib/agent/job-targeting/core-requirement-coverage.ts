@@ -14,49 +14,139 @@ import type {
   TargetRolePositioning,
 } from '@/types/agent'
 
-const CORE_HEADING_RE = /^(requisitos?(?:\s+obrigatorios)?|requirements?|must(?:\s+have)?|mandatory|qualificacoes|qualifications)\b/i
+const CORE_HEADING_RE = /^(requisitos?(?:\s+obrigatorios)?|requirements?|must(?:\s+have)?|mandatory|qualificacoes|qualifications|pre[\s-]?requisitos?)\b/i
 const DIFFERENTIAL_HEADING_RE = /^(desejavel|desejaveis|differentials?|nice\s+to\s+have|plus)\b/i
 const SECONDARY_HEADING_RE = /^(responsabilidades?|atividades|atribuicoes|responsibilities|what\s+you(?:'ll|\s+will)?\s+do)\b/i
-const CORE_LINE_RE = /\b(obrigatori[oa]s?|required|must|dominio|experience with|experiencia com|experiencia forte|strong experience|profissional com|mais de \d+ anos|\d+\+?\s*(?:anos|years))\b/i
-const STOP_PHRASES = new Set([
-  'responsabilidades',
-  'requirements',
-  'requisitos',
-  'qualificacoes',
-  'qualifications',
-  'desejavel',
-  'diferenciais',
-  'about the job',
-  'about the role',
-])
+const CORE_LINE_RE = /\b(obrigatori[oa]s?|required|must|dominio|experience with|experi[eê]ncia com|experi[eê]ncia forte|strong experience|profissional com|mais de \d+ anos|\d+\+?\s*(?:anos|years))\b/i
 const SUPPORTED_CORE_LEVELS = new Set<EvidenceLevel>([
   'explicit',
   'normalized_alias',
   'technical_equivalent',
 ])
+const SECTION_HEADING_PATTERNS = [
+  /^requisitos$/i,
+  /^qualificacoes$/i,
+  /^requisitos e qualificacoes$/i,
+  /^responsabilidades$/i,
+  /^atividades$/i,
+  /^descricao$/i,
+  /^diferenciais$/i,
+  /^desejavel$/i,
+  /^pre[\s-]?requisitos$/i,
+  /^conhecimentos$/i,
+  /^experiencias$/i,
+  /^perfil$/i,
+  /^requirements?$/i,
+  /^qualifications?$/i,
+  /^responsibilities$/i,
+]
+const GENERIC_REQUIREMENT_PATTERNS = [
+  /^boas praticas de desenvolvimento$/i,
+  /^boas praticas$/i,
+  /^desenvolvimento$/i,
+  /^experiencia comprovada$/i,
+  /^experiencia profissional$/i,
+  /^vivencia profissional$/i,
+  /^perfil analitico$/i,
+]
+const REQUIREMENT_PREFIX_RE = /^(?:experi[eê]ncia(?:\s+forte)?\s+(?:com|em)|experience\s+with|strong\s+experience\s+with|viv[eê]ncia\s+com|conhecimento\s+(?:em|com)|dom[ií]nio\s+(?:de|em)|profissional\s+com|atua[cç][aã]o\s+com|constru[cç][aã]o\s+e\s+manuten[cç][aã]o\s+de|manuten[cç][aã]o\s+de|desenvolvimento\s+de|mais\s+de\s+\d+\s+anos\s+de\s+experi[eê]ncia\s+(?:em|com))\s+/iu
+const YEARS_PREFIX_RE = /(?:mais\s+de\s+)?(\d+)\+?\s*(?:anos|years)(?:\s+de\s+experi[eê]ncia)?\s+(?:em|com|with)\s+(.+)/iu
+const YEARS_SUFFIX_RE = /^(.+?)\s+com\s+(?:mais\s+de\s+)?(\d+)\+?\s*(?:anos|years)(?:\s+de\s+experi[eê]ncia)?$/iu
+const PARENS_RE = /\(([^)]+)\)/u
 
-function splitFragments(line: string): string[] {
-  const sanitized = line
-    .replace(/^[^:]{0,32}:\s*/u, '')
-    .replace(/[•·]/gu, ',')
-    .trim()
+function dedupe(values: string[]): string[] {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
+}
 
-  return sanitized
-    .split(/[;,]\s*/u)
-    .flatMap((fragment) => (
-      /\s+\be\b\s+/iu.test(fragment) && !/\d+\+?\s*(?:anos|years)/iu.test(fragment)
-        ? fragment.split(/\s+\be\b\s+/iu)
-        : [fragment]
-    ))
-    .map((fragment) => fragment.trim().replace(/^[\-–—]\s*/u, '').replace(/[.]+$/u, ''))
-    .filter((fragment) => fragment.length >= 2 && fragment.split(/\s+/u).length <= 8)
+function isPureSectionHeading(text: string): boolean {
+  const normalized = normalizeSemanticText(text)
+  return SECTION_HEADING_PATTERNS.some((pattern) => pattern.test(normalized))
+}
+
+function isGenericRequirement(text: string): boolean {
+  const normalized = normalizeSemanticText(text)
+  return GENERIC_REQUIREMENT_PATTERNS.some((pattern) => pattern.test(normalized))
 }
 
 function normalizeRequirementSignal(value: string): string {
   return value
-    .replace(/^(?:experiencia\s+com|experience\s+with|dominio\s+em|strong\s+experience\s+with)\s+/iu, '')
+    .replace(/^[\-•*]\s*/u, '')
+    .replace(REQUIREMENT_PREFIX_RE, '')
     .replace(/\s+(?:obrigatorio|obrigatoria|required)$/iu, '')
+    .replace(/[.]+$/u, '')
     .trim()
+}
+
+function splitCompositeFragments(line: string): string[] {
+  return line
+    .replace(/[•·]/gu, ',')
+    .split(/[;\n]/u)
+    .flatMap((fragment) => fragment.split(/,\s*/u))
+    .flatMap((fragment) => (
+      /\b(?:constru[cç][aã]o|construction)\s+\b(?:e|and)\b\s+\b(?:manuten[cç][aã]o|maintenance)\b\s+\bde\b/iu.test(fragment)
+        ? [fragment]
+        : fragment.split(/\s+\b(?:e|and)\b\s+/iu)
+    ))
+    .map((fragment) => fragment.trim())
+    .filter(Boolean)
+}
+
+function extractParentheticalSignals(fragment: string): string[] {
+  const match = fragment.match(PARENS_RE)
+  if (!match) {
+    return [fragment]
+  }
+
+  const withoutParens = fragment.replace(PARENS_RE, '').trim().replace(/[,:-]+$/u, '').trim()
+  const innerSignals = splitCompositeFragments(match[1] ?? '')
+  return dedupe([
+    withoutParens,
+    ...innerSignals,
+  ]).filter(Boolean)
+}
+
+function extractYearsSignals(fragment: string): string[] {
+  const normalized = normalizeRequirementSignal(fragment)
+  const prefixMatch = normalized.match(YEARS_PREFIX_RE)
+  if (prefixMatch) {
+    const years = prefixMatch[1]
+    const roleOrTech = normalizeRequirementSignal(prefixMatch[2] ?? '')
+    return dedupe([
+      roleOrTech,
+      years && roleOrTech ? `${years}+ anos de ${roleOrTech}` : '',
+    ])
+  }
+
+  const suffixMatch = normalized.match(YEARS_SUFFIX_RE)
+  if (suffixMatch) {
+    const roleOrTech = normalizeRequirementSignal(suffixMatch[1] ?? '')
+    const years = suffixMatch[2]
+    return dedupe([
+      roleOrTech,
+      years && roleOrTech ? `${years}+ anos de ${roleOrTech}` : '',
+    ])
+  }
+
+  return [normalized]
+}
+
+function extractRequirementFragments(line: string): string[] {
+  const sanitized = line
+    .replace(/^[^:]{0,40}:\s*/u, '')
+    .trim()
+
+  return dedupe(
+    splitCompositeFragments(sanitized)
+      .flatMap(extractParentheticalSignals)
+      .flatMap(extractYearsSignals)
+      .map(normalizeRequirementSignal)
+      .filter((fragment) => (
+        fragment.length >= 2
+        && fragment.split(/\s+/u).length <= 8
+        && !isPureSectionHeading(fragment)
+        && !isGenericRequirement(fragment)
+      )),
+  )
 }
 
 function inferImportance(params: {
@@ -85,7 +175,7 @@ function findMatchingEvidence(signal: string, targetEvidence: TargetEvidence[]):
   const canonicalSignal = buildCanonicalSignal(signal)
 
   return targetEvidence.find((evidence) => {
-    const evidenceCandidates = [
+    const candidates = [
       evidence.jobSignal,
       evidence.canonicalSignal,
       ...evidence.allowedRewriteForms,
@@ -93,7 +183,7 @@ function findMatchingEvidence(signal: string, targetEvidence: TargetEvidence[]):
       ...evidence.matchedResumeTerms,
     ]
 
-    return evidenceCandidates.some((candidate) => {
+    return candidates.some((candidate) => {
       const normalizedCandidate = normalizeSemanticText(candidate)
       const canonicalCandidate = buildCanonicalSignal(candidate)
 
@@ -111,12 +201,9 @@ function findMatchingEvidence(signal: string, targetEvidence: TargetEvidence[]):
   })
 }
 
-function upsertRequirement(
-  bucket: Map<string, CoreRequirement>,
-  requirement: CoreRequirement,
-): void {
+function upsertRequirement(bucket: Map<string, CoreRequirement>, requirement: CoreRequirement): void {
   const canonical = buildCanonicalSignal(requirement.signal)
-  if (!canonical || STOP_PHRASES.has(canonical)) {
+  if (!canonical || isPureSectionHeading(requirement.signal) || isGenericRequirement(requirement.signal)) {
     return
   }
 
@@ -137,10 +224,7 @@ function upsertRequirement(
     return
   }
 
-  if (
-    current.evidenceLevel === 'unsupported_gap'
-    && requirement.evidenceLevel !== 'unsupported_gap'
-  ) {
+  if (current.evidenceLevel === 'unsupported_gap' && requirement.evidenceLevel !== 'unsupported_gap') {
     bucket.set(canonical, requirement)
   }
 }
@@ -187,15 +271,14 @@ export function buildCoreRequirementCoverage(params: {
       activeHeading = 'secondary'
     }
 
+    if (isPureSectionHeading(line)) {
+      return
+    }
+
     const isTargetRoleLine = /^(cargo|position|role|vaga|titulo|title)\s*:/iu.test(line)
-    const fragments = splitFragments(line)
+    const fragments = extractRequirementFragments(line)
 
-    fragments.forEach((rawFragment) => {
-      const fragment = normalizeRequirementSignal(rawFragment)
-      if (!fragment || STOP_PHRASES.has(buildCanonicalSignal(fragment))) {
-        return
-      }
-
+    fragments.forEach((fragment) => {
       const evidence = findMatchingEvidence(fragment, params.targetEvidence)
       const importance = inferImportance({
         line,
