@@ -1801,8 +1801,6 @@ describe('runAgentLoop streaming', () => {
       'toolStart',
       'toolResult',
       'patch',
-      'toolResult',
-      'patch',
       'text',
       'done',
     ])
@@ -2906,8 +2904,6 @@ describe('runAgentLoop streaming', () => {
       'toolStart',
       'toolResult',
       'patch',
-      'toolResult',
-      'patch',
       'text',
       'done',
     ])
@@ -2925,7 +2921,7 @@ describe('runAgentLoop streaming', () => {
       2,
       'sess_123',
       'assistant',
-      expect.stringContaining('Diagnostico ATS interno atual: 73.'),
+      expect.stringContaining('Seu currículo ATS-otimizado em PDF está pronto.'),
     )
   })
 

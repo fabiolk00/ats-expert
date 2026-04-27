@@ -1,4 +1,4 @@
-import type OpenAI from 'openai'
+﻿import type OpenAI from 'openai'
 import { APIError } from 'openai'
 import { createHash } from 'crypto'
 import {
@@ -117,22 +117,6 @@ type AnalysisPrimeResult = {
 type DeterministicFallback = {
   text: string
   kind: string
-}
-
-function buildCurrentReadinessText(session: Session): string | null {
-  const readiness = resolveSessionAtsReadiness({ session })
-  if (!readiness) {
-    return null
-  }
-
-  const label = readiness.display.formattedScorePtBr
-  if (!label) {
-    return null
-  }
-
-  return readiness.display.mode === 'exact'
-    ? `ATS Readiness Score atual: ${label}.`
-    : `ATS Readiness Score estimado atual: ${label}.`
 }
 
 function parseJsonObject(value: string): Record<string, unknown> | null {
@@ -723,11 +707,6 @@ function buildDeterministicAssistantFallback(session: Session, userMessage: stri
 
     const parts = ['Recebi a vaga e ela já ficou salva como referência para o seu currículo.']
 
-    const readinessText = buildCurrentReadinessText(session)
-    if (readinessText) {
-      parts.push(readinessText)
-    }
-
     if (session.agentState.targetFitAssessment) {
       parts.push(
         `Aderência inicial: ${formatFitLevel(session.agentState.targetFitAssessment.level)}. ${localizeTargetFitSummary(session.agentState.targetFitAssessment.summary)}`,
@@ -792,14 +771,7 @@ function buildDeterministicVacancyBootstrap(
     && targetPreparation.previousAtsTotal !== undefined
     && targetPreparation.optimizedAtsTotal !== undefined
   ) {
-    parts.push(
-      `Atualizei a versão de trabalho do seu currículo para essa vaga. Diagnóstico heurístico ATS interno antes: ${targetPreparation.previousAtsTotal}/100. Diagnóstico heurístico interno da versão otimizada: ${targetPreparation.optimizedAtsTotal}/100.`,
-    )
-  } else {
-    const readinessText = buildCurrentReadinessText(session)
-    if (readinessText) {
-      parts.push(readinessText)
-    }
+    parts.push('Atualizei a versão de trabalho do seu currículo para essa vaga.')
   }
 
   if (session.agentState.targetFitAssessment) {
@@ -1363,39 +1335,6 @@ async function* handleConfirmedGeneration(params: {
       return 'Sua geração já está em andamento. Aguarde alguns segundos e tente novamente para recuperar o resultado sem consumir outro crédito.'
     }
 
-    let refreshedAtsTotal: number | null = null
-
-    if (params.session.agentState.targetJobDescription?.trim()) {
-      const refreshedScoreResult = yield* runDeterministicTool({
-        session: params.session,
-        toolName: 'score_ats',
-        toolInput: {
-          resume_text: buildResumeTextFromCvState(params.session.cvState),
-          job_description: params.session.agentState.targetJobDescription,
-        },
-        requestId: params.requestId,
-        signal: params.signal,
-        surfaceToolStartToUser: false,
-        surfaceFailureToUser: false,
-      })
-
-      const refreshedScoreOutput = refreshedScoreResult.output
-      if (
-        refreshedScoreResult.success
-        && refreshedScoreOutput
-        && typeof refreshedScoreOutput === 'object'
-        && 'success' in refreshedScoreOutput
-        && refreshedScoreOutput.success === true
-        && 'result' in refreshedScoreOutput
-        && refreshedScoreOutput.result
-        && typeof refreshedScoreOutput.result === 'object'
-        && 'total' in refreshedScoreOutput.result
-        && typeof refreshedScoreOutput.result.total === 'number'
-      ) {
-        refreshedAtsTotal = refreshedScoreOutput.result.total
-      }
-    }
-
     const generationWarnings = (
       generationResult.output
       && typeof generationResult.output === 'object'
@@ -1407,23 +1346,9 @@ async function* handleConfirmedGeneration(params: {
       ? generationResult.output.warnings.filter((warning): warning is string => typeof warning === 'string' && warning.trim().length > 0)
       : []
 
-    const currentReadiness = resolveSessionAtsReadiness({ session: params.session })
-    const previousDisplayedReadiness = currentReadiness?.displayedReadinessScoreBefore
-    const atsSummary = currentReadiness
-      ? (currentReadiness.display.mode === 'exact'
-        ? (previousDisplayedReadiness !== undefined
-          ? `ATS Readiness Score antes: ${previousDisplayedReadiness}. ATS Readiness Score final: ${currentReadiness.display.formattedScorePtBr}.`
-          : `ATS Readiness Score final: ${currentReadiness.display.formattedScorePtBr}.`)
-        : (previousDisplayedReadiness !== undefined
-          ? `ATS Readiness Score antes: ${previousDisplayedReadiness}. Faixa estimada atual: ${currentReadiness.display.formattedScorePtBr}.`
-          : `ATS Readiness Score estimado atual: ${currentReadiness.display.formattedScorePtBr}.`))
-      : (refreshedAtsTotal !== null
-        ? `Diagnostico ATS interno atual: ${refreshedAtsTotal}.`
-        : null)
     if (generationWarnings.length > 0) {
       return [
         'Seu currículo ATS-otimizado em PDF está pronto.',
-        atsSummary,
         `Mantive avisos claros nos campos pendentes do perfil: ${generationWarnings.join(', ')}.`,
         'Confira o download e a pré-visualização acima.',
       ].filter(Boolean).join(' ')
@@ -1431,7 +1356,6 @@ async function* handleConfirmedGeneration(params: {
 
     return [
       'Seu currículo ATS-otimizado em PDF está pronto.',
-      atsSummary,
       'Confira o download e a pré-visualização acima.',
     ].filter(Boolean).join(' ')
   }

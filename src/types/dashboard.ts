@@ -258,15 +258,6 @@ export type ResumeComparisonResponse = {
     notes: string[]
     keywordCoverageImprovement?: string[]
   }
-  atsReadiness?: AtsReadinessScoreContract
-  originalScore: {
-    total: number
-    label: string
-  }
-  optimizedScore: {
-    total: number
-    label: string
-  }
 }
 
 type CompareSnapshotRef =

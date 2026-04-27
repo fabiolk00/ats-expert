@@ -444,7 +444,7 @@ describe("ChatInterface", () => {
 
         return new Response(
           createSSEStream([
-            { type: "text", content: "Seu currículo ATS-otimizado em PDF está pronto. ATS Readiness Score antes: 47. ATS Readiness Score final: 63. Confira o download e a pré-visualização acima." },
+            { type: "text", content: "Seu curr\u00edculo ATS-otimizado em PDF est\u00e1 pronto. Confira o download e a pr\u00e9-visualiza\u00e7\u00e3o acima." },
             { type: "done", sessionId: "sess_confirm", phase: "generation", messageCount: 4 },
           ]),
           { status: 200, headers: { "Content-Type": "text/event-stream", "X-Session-Id": "sess_confirm" } },
@@ -1359,7 +1359,7 @@ describe("ChatInterface", () => {
     })
   })
 
-  it("refetches the session snapshot on done and applies the server truth to the header", async () => {
+  it("refetches the session snapshot on done and applies the server truth to the chat chrome", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
       if (typeof url === "string" && url.includes("/api/agent")) {
         return new Response(
@@ -1405,11 +1405,11 @@ describe("ChatInterface", () => {
     await waitFor(() => {
       expect(screen.getByText(/Mensagem\s+3\s+de\s+30/i)).toBeInTheDocument()
       expect(screen.getByText(/Fase:\s+dialog/i)).toBeInTheDocument()
-      expect(screen.getByText(/ATS Readiness Score:\s+88/i)).toBeInTheDocument()
+      expect(screen.queryByText(/ATS Readiness Score:/i)).not.toBeInTheDocument()
     })
   })
 
-  it("renders estimated ATS Readiness ranges in the header after session refetch", async () => {
+  it("does not render ATS Readiness ranges in the chat header after session refetch", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
       if (typeof url === "string" && url.includes("/api/agent")) {
         return new Response(
@@ -1450,10 +1450,11 @@ describe("ChatInterface", () => {
     submitComposer(textarea, "Mostre a faixa")
 
     await waitFor(() => {
-      expect(screen.getByText(/ATS Readiness Score:\s+89–91/i)).toBeInTheDocument()
+      expect(screen.getByText(/Fase:\s+dialog/i)).toBeInTheDocument()
+      expect(screen.queryByText(/ATS Readiness Score:/i)).not.toBeInTheDocument()
     })
-  })
 
+  })
   it("keeps the UI usable when the done-session refetch fails", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
 

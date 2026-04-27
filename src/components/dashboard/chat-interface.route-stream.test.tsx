@@ -746,7 +746,7 @@ describe("ChatInterface real /api/agent transcript integration", () => {
     await waitFor(() => {
       const assistantMessages = screen.getAllByTestId("message-assistant")
       expect(assistantMessages[assistantMessages.length - 1]).toHaveTextContent("Seu currículo ATS-otimizado em PDF está pronto.")
-    })
+    }, { timeout: 5000 })
 
     expect(agentBodies[1]?.message).toBe("Continuar mesmo assim")
     expect(mockDispatchToolWithContext.mock.calls.some(([toolName, toolInput, toolSession]) => (

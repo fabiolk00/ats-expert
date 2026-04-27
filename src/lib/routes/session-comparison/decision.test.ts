@@ -49,7 +49,7 @@ describe('session-comparison decision', () => {
     })
   })
 
-  it('preserves preview-lock sanitization and ATS Readiness labeling for ATS enhancement flows', async () => {
+  it('preserves preview-lock sanitization for ATS enhancement flows', async () => {
     const decision = await decideSessionComparison({
       request: new Request('https://example.com/api/session/sess_1/comparison') as never,
       params: { id: 'sess_1' },
@@ -148,12 +148,9 @@ describe('session-comparison decision', () => {
       reason: 'free_trial_locked',
     })
     expect(decision.body.highlightState).toBeUndefined()
-    expect(decision.body.originalScore.label).toBe('ATS Readiness Score')
-    expect(decision.body.optimizedScore.label).toBe('ATS Readiness Score')
-    expect(decision.body.atsReadiness?.scoreStatus).toBe('final')
-    expect(decision.body.atsReadiness?.displayedReadinessScoreAfter ?? 0).toBeGreaterThanOrEqual(
-      decision.body.atsReadiness?.displayedReadinessScoreBefore ?? 0,
-    )
+    expect(decision.body).not.toHaveProperty('originalScore')
+    expect(decision.body).not.toHaveProperty('optimizedScore')
+    expect(decision.body).not.toHaveProperty('atsReadiness')
     expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.response_evaluated', expect.objectContaining({
       surface: 'session_comparison',
       previewLocked: true,
@@ -165,7 +162,7 @@ describe('session-comparison decision', () => {
     }))
   })
 
-  it('uses job-targeting labels for job-targeting comparison flows', async () => {
+  it('keeps job-targeting comparison flows scoreless', async () => {
     const decision = await decideSessionComparison({
       request: new Request('https://example.com/api/session/sess_1/comparison') as never,
       params: { id: 'sess_1' },
@@ -208,8 +205,9 @@ describe('session-comparison decision', () => {
     }
 
     expect(decision.body.generationType).toBe('JOB_TARGETING')
-    expect(decision.body.originalScore.label).toBe('Aderencia a vaga')
-    expect(decision.body.optimizedScore.label).toBe('Aderencia a vaga')
+    expect(decision.body).not.toHaveProperty('originalScore')
+    expect(decision.body).not.toHaveProperty('optimizedScore')
+    expect(decision.body).not.toHaveProperty('atsReadiness')
     expect(mockLogInfo).toHaveBeenCalledWith('agent.highlight_state.response_evaluated', expect.objectContaining({
       surface: 'session_comparison',
       previewLocked: false,

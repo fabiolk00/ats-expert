@@ -434,13 +434,6 @@ function getDisplayedReadinessScore(atsReadiness?: AtsReadinessScoreContract): n
   return atsReadiness?.displayedReadinessScoreCurrent
 }
 
-function getDisplayedReadinessLabel(atsReadiness?: AtsReadinessScoreContract): string | undefined {
-  return atsReadiness?.display?.formattedScorePtBr
-    ?? (atsReadiness?.displayedReadinessScoreCurrent !== undefined
-      ? String(atsReadiness.displayedReadinessScoreCurrent)
-      : undefined)
-}
-
 function ChatWindowChrome() {
   return (
     <div
@@ -499,7 +492,6 @@ export function ChatInterface({
   const bottomRef = useRef<HTMLDivElement>(null)
   const isInputDisabled = disabled || isStreaming || sessionLimitReached || sessionExpired
   const displayedReadinessScore = getDisplayedReadinessScore(atsReadiness)
-  const displayedReadinessLabel = getDisplayedReadinessLabel(atsReadiness)
   const showGenerationApproval = phase === "confirm" || (phase === "dialog" && displayedReadinessScore !== undefined)
   const shouldConfirmWeakFitBeforeGenerate = showGenerationApproval
     && weakFitCheckpoint?.status === "pending_confirmation"
@@ -1030,9 +1022,6 @@ export function ChatInterface({
             </span>
             <div className="flex items-center gap-2 text-xs">
               {phase !== "intake" ? <span className="text-muted-foreground">Fase: {phase}</span> : null}
-              {displayedReadinessLabel ? (
-                <span className="text-muted-foreground">ATS Readiness Score: {displayedReadinessLabel}</span>
-              ) : null}
             </div>
           </div>
         </div>

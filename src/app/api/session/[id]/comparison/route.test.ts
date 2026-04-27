@@ -84,7 +84,7 @@ describe('session comparison route', () => {
     expect(await response.json()).toEqual({ error: 'No optimized resume found for this session.' })
   })
 
-  it('returns ATS Readiness scores and prevents optimized lower-than-original display after enhancement', async () => {
+  it('returns the comparison payload without ATS Readiness scoring fields', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
     } as Awaited<ReturnType<typeof getCurrentAppUser>>)
@@ -164,22 +164,16 @@ describe('session comparison route', () => {
     expect(body).toMatchObject({
       sessionId: 'sess_123',
       generationType: 'ATS_ENHANCEMENT',
-      originalScore: {
-        label: 'ATS Readiness Score',
-      },
-      optimizedScore: {
-        label: 'ATS Readiness Score',
-      },
-      atsReadiness: {
-        scoreStatus: 'final',
-        rawInternalConfidence: expect.any(String),
+      optimizedCvState: {
+        summary: expect.stringContaining('Resumo otimizado'),
       },
     })
-    expect(body.optimizedScore.total).toBeGreaterThanOrEqual(body.originalScore.total)
-    expect(body.optimizedScore.total).toBeGreaterThanOrEqual(89)
+    expect(body).not.toHaveProperty('originalScore')
+    expect(body).not.toHaveProperty('optimizedScore')
+    expect(body).not.toHaveProperty('atsReadiness')
   })
 
-  it('returns an estimated ATS Readiness range when the optimized score cannot be stated exactly', async () => {
+  it('keeps the comparison payload scoreless even when the ATS rewrite had validation issues', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
     } as Awaited<ReturnType<typeof getCurrentAppUser>>)
@@ -245,23 +239,13 @@ describe('session comparison route', () => {
 
     expect(response.status).toBe(200)
     const body = await response.json()
-    expect(body).toMatchObject({
-      atsReadiness: {
-        scoreStatus: 'estimated_range',
-        display: {
-          mode: 'estimated_range',
-          badgeTextPtBr: 'Estimado',
-        },
-      },
-      optimizedScore: {
-        total: 89,
-        label: 'ATS Readiness Score',
-      },
-    })
-    expect(body.atsReadiness.display.formattedScorePtBr).toBe('89–90')
+    expect(body.optimizedCvState.summary).toBe('Resumo curto')
+    expect(body).not.toHaveProperty('originalScore')
+    expect(body).not.toHaveProperty('optimizedScore')
+    expect(body).not.toHaveProperty('atsReadiness')
   })
 
-  it('derives canonical readiness for legacy ATS sessions instead of treating old raw atsScore as the final product score', async () => {
+  it('ignores legacy ATS score data in the comparison payload', async () => {
     vi.mocked(getCurrentAppUser).mockResolvedValue({
       id: 'usr_123',
     } as Awaited<ReturnType<typeof getCurrentAppUser>>)
@@ -346,11 +330,9 @@ describe('session comparison route', () => {
 
     expect(response.status).toBe(200)
     const body = await response.json()
-    expect(body.atsReadiness).toMatchObject({
-      contractVersion: 2,
-      productLabel: 'ATS Readiness Score',
-    })
-    expect(body.originalScore.total).not.toBe(11)
-    expect(body.optimizedScore.total).toBeGreaterThanOrEqual(body.originalScore.total)
+    expect(body.generationType).toBe('ATS_ENHANCEMENT')
+    expect(body).not.toHaveProperty('originalScore')
+    expect(body).not.toHaveProperty('optimizedScore')
+    expect(body).not.toHaveProperty('atsReadiness')
   })
 })

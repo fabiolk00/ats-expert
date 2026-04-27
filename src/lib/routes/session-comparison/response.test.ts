@@ -38,27 +38,15 @@ describe('session-comparison response', () => {
           skills: ['Python'],
           education: [],
         },
-        originalScore: {
-          total: 40,
-          label: 'ATS Readiness Score',
-        },
-        optimizedScore: {
-          total: 60,
-          label: 'ATS Readiness Score',
-        },
       },
     })
 
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
       sessionId: 'sess_1',
-      originalScore: {
-        total: 40,
-        label: 'ATS Readiness Score',
-      },
-      optimizedScore: {
-        total: 60,
-        label: 'ATS Readiness Score',
+      generationType: 'ATS_ENHANCEMENT',
+      optimizedCvState: {
+        summary: 'optimized summary',
       },
     })
   })

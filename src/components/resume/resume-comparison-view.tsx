@@ -6,7 +6,6 @@ import { ArrowLeft, Download, Highlighter, Loader2, Pencil } from "lucide-react"
 import { ARTIFACT_REFRESH_EVENT, type ArtifactRefreshDetail } from "@/components/dashboard/events"
 import { ResumeEditorModal } from "@/components/dashboard/resume-editor-modal"
 import Logo from "@/components/logo"
-import { AtsReadinessStatusBadge } from "@/components/ats-readiness-status-badge"
 import { Button } from "@/components/ui/button"
 import {
   buildExperienceBulletHighlightItemIds,
@@ -19,7 +18,6 @@ import {
 import { getDownloadUrls, isRetryableDownloadLookupError } from "@/lib/dashboard/workspace-client"
 import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
-import type { AtsReadinessScoreContract } from "@/lib/ats/scoring/types"
 import type { ResumeGenerationType } from "@/types/agent"
 import type { CVState } from "@/types/cv"
 import type { DownloadUrlsResponse, PreviewLockSummary } from "@/types/dashboard"
@@ -31,10 +29,6 @@ type ResumeComparisonViewProps = {
   sessionId: string
   previewLock?: PreviewLockSummary
   targetJobDescription?: string
-  originalScore?: number
-  optimizedScore?: number | null
-  scoreLabel?: string
-  atsReadiness?: AtsReadinessScoreContract
   highlightState?: CvHighlightState
   optimizationNotes?: string[]
   backHref?: string
@@ -64,21 +58,6 @@ function hasTextChanged(original: string, optimized: string): boolean {
 
 function hasArrayChanged<T>(original: T[], optimized: T[]): boolean {
   return JSON.stringify(original) !== JSON.stringify(optimized)
-}
-
-function getOptimizedScoreLabel(input: {
-  atsReadiness?: AtsReadinessScoreContract
-  optimizedScore?: number | null
-}): string {
-  if (input.atsReadiness?.display.formattedScorePtBr) {
-    return input.atsReadiness.display.formattedScorePtBr
-  }
-
-  if (input.optimizedScore === null || input.optimizedScore === undefined) {
-    return '89'
-  }
-
-  return String(input.optimizedScore)
 }
 
 function ChangeIndicator({ show }: { show: boolean }) {
@@ -424,10 +403,6 @@ export function ResumeComparisonView({
   sessionId,
   previewLock,
   targetJobDescription,
-  originalScore,
-  optimizedScore,
-  scoreLabel = "ATS Readiness Score",
-  atsReadiness,
   highlightState,
   optimizationNotes = [],
   backHref = PROFILE_SETUP_PATH,
@@ -529,10 +504,6 @@ export function ResumeComparisonView({
   const title = useMemo(
     () => generationType === "JOB_TARGETING" ? "Currículo adaptado para a vaga" : "Currículo otimizado para ATS",
     [generationType],
-  )
-  const optimizedScoreLabel = useMemo(
-    () => getOptimizedScoreLabel({ atsReadiness, optimizedScore }),
-    [atsReadiness, optimizedScore],
   )
   const downloadStatusMessage = downloadState.artifactStale?.message
     ?? (downloadState.generationStatus === "generating" && !downloadState.pdfUrl
@@ -675,12 +646,6 @@ export function ResumeComparisonView({
                   Original
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 sm:text-xs">{scoreLabel}:</span>
-                <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600 dark:bg-red-900/30 dark:text-red-400 sm:text-xs">
-                  {originalScore ?? 0}
-                </span>
-              </div>
             </div>
             <ResumeDocument cvState={originalCvState} variant="original" />
           </div>
@@ -701,18 +666,6 @@ export function ResumeComparisonView({
                     <Highlighter className="h-3 w-3" />
                     {showHighlights ? "Ocultar destaques" : "Mostrar destaques"}
                   </button>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 sm:text-xs">{scoreLabel}:</span>
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 sm:text-xs">
-                  {optimizedScoreLabel}
-                </span>
-                {atsReadiness?.display ? (
-                  <AtsReadinessStatusBadge
-                    badgeText={atsReadiness.display.badgeTextPtBr}
-                    className="border-emerald-200 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-900/40 dark:text-emerald-300 sm:text-xs"
-                  />
                 ) : null}
               </div>
             </div>
