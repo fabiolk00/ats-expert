@@ -108,6 +108,21 @@ function buildHighlightState(): CvHighlightState {
   }
 }
 
+function buildReviewItem(overrides: Partial<NonNullable<CvHighlightState["reviewItems"]>[number]> = {}): NonNullable<CvHighlightState["reviewItems"]>[number] {
+  return {
+    id: "review-item-1",
+    severity: "risk",
+    section: "summary",
+    title: "Ponto para revisar",
+    explanation: "Revise o texto antes de enviar.",
+    whyItMatters: "Evita desalinhamento com o currículo original.",
+    suggestedAction: "Ajuste a redação para manter fidelidade ao histórico.",
+    message: "Revise o texto antes de enviar.",
+    inline: false,
+    ...overrides,
+  }
+}
+
 describe('ResumeComparisonView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -229,14 +244,18 @@ describe('ResumeComparisonView', () => {
         section: 'summary',
         ranges: [{ start: 0, end: 18, reason: 'risk' }],
       }],
-      reviewItems: [{
-        severity: 'risk',
-        message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidência equivalente no currículo original.',
+      reviewItems: [buildReviewItem({
+        id: "review-low-fit-inline",
         issueType: 'low_fit_target_role',
+        title: "Cargo da vaga assumido com pouca evidência",
+        explanation: "A versão gerada pode estar se aproximando demais do cargo “Vendedora/Vendedor JR”.",
+        whyItMatters: "Seu currículo original comprova melhor uma trajetória em Engenharia de Dados e BI.",
+        suggestedAction: "Revise o resumo para manter sua identidade profissional real.",
         offendingText: 'Desenvolvedor Java',
+        targetRole: "Vendedora/Vendedor JR",
+        originalProfileLabel: "Engenharia de Dados e BI",
         inline: true,
-        section: 'summary',
-      }],
+      })],
     }
 
     render(
@@ -253,7 +272,7 @@ describe('ResumeComparisonView', () => {
     expect(screen.getAllByText('Pontos para revisar').length).toBeGreaterThan(0)
     expect(screen.getByText(/Revise os trechos marcados antes de enviar/i)).toBeInTheDocument()
     expect(screen.queryByText('Match da vaga')).not.toBeInTheDocument()
-    expect(screen.getByTestId('override-review-panel')).toHaveTextContent('Cargo alvo assumido com pouca evidência')
+    expect(screen.getByTestId('override-review-panel')).toHaveTextContent('Cargo da vaga assumido com pouca evidência')
     const highlighted = screen.getByTestId('optimized-summary-highlight').querySelector('[data-highlighted="true"]')
     expect(highlighted).toHaveTextContent('Desenvolvedor Java')
     expect(highlighted).toHaveAttribute('data-highlight-reason', 'risk')
@@ -269,20 +288,24 @@ describe('ResumeComparisonView', () => {
       generatedAt: '2026-04-22T12:00:00.000Z',
       resolvedHighlights: [],
       reviewItems: [
-        {
-          severity: 'risk',
-          message: 'O resumo otimizado menciona skill sem evidência no currículo original.',
-          issueType: 'unsupported_skill',
-          inline: false,
-          section: 'summary',
-        },
-        {
-          severity: 'risk',
-          message: 'O resumo targetizado passou a se apresentar diretamente como o cargo alvo sem evidência equivalente no currículo original.',
+        buildReviewItem({
+          id: "review-skill",
+          issueType: 'summary_skill_without_evidence',
+          title: "Skill sem comprovação clara",
+          explanation: "O resumo pode mencionar “vendas consultivas”, mas essa habilidade não aparece claramente no currículo original.",
+          message: "O resumo pode mencionar “vendas consultivas”, mas essa habilidade não aparece claramente no currículo original.",
+        }),
+        buildReviewItem({
+          id: "review-low-fit",
           issueType: 'low_fit_target_role',
-          inline: false,
-          section: 'summary',
-        },
+          title: "Cargo da vaga assumido com pouca evidência",
+          explanation: "A versão gerada pode estar se aproximando demais do cargo “Vendedora/Vendedor JR”.",
+          whyItMatters: "Seu currículo original comprova melhor uma trajetória em Engenharia de Dados e BI.",
+          suggestedAction: "Revise o resumo para manter sua identidade profissional real.",
+          targetRole: "Vendedora/Vendedor JR",
+          originalProfileLabel: "Engenharia de Dados e BI",
+          missingEvidence: ["metas comerciais", "relacionamento com clientes"],
+        }),
       ],
     }
 
@@ -302,12 +325,12 @@ describe('ResumeComparisonView', () => {
     expect(screen.getByText(/Revise os itens abaixo antes de enviar/i)).toBeInTheDocument()
     expect(screen.queryByText(/Revise os trechos marcados antes de enviar/i)).not.toBeInTheDocument()
     expect(panel).toHaveTextContent('Pontos para revisar')
-    expect(panel).toHaveTextContent('Skill sem evidência suficiente')
-    expect(panel).toHaveTextContent('Cargo alvo assumido com pouca evidência')
+    expect(panel).toHaveTextContent('Skill sem comprovação clara')
+    expect(panel).toHaveTextContent('Cargo da vaga assumido com pouca evidência')
     expect(panel).toHaveTextContent('Não há trechos destacados automaticamente')
     expect(screen.queryByText('Match da vaga')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /ocultar destaques/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Comprovado:/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/trecho sustentado pelo currículo original/i)).not.toBeInTheDocument()
     expect(screen.getByTestId('optimized-resume-document')).not.toContainElement(panel)
   })
 
@@ -331,13 +354,12 @@ describe('ResumeComparisonView', () => {
       highlightGeneratedAt: '2026-04-22T12:00:00.000Z',
       generatedAt: '2026-04-22T12:00:00.000Z',
       resolvedHighlights: [],
-      reviewItems: [{
-        severity: 'risk',
+      reviewItems: [buildReviewItem({
+        id: "review-mojibake",
+        explanation: brokenMessage,
         message: brokenMessage,
         issueType: 'review_copy',
-        inline: false,
-        section: 'summary',
-      }],
+      })],
     }
 
     render(
@@ -368,13 +390,13 @@ describe('ResumeComparisonView', () => {
       highlightGeneratedAt: '2026-04-22T12:00:00.000Z',
       generatedAt: '2026-04-22T12:00:00.000Z',
       resolvedHighlights: [],
-      reviewItems: [{
-        severity: 'risk',
+      reviewItems: [buildReviewItem({
+        id: "review-scroll",
+        title: "Skill sem comprovação clara",
+        explanation: 'O resumo otimizado menciona skill sem evidência no currículo original.',
         message: 'O resumo otimizado menciona skill sem evidência no currículo original.',
-        issueType: 'unsupported_skill',
-        inline: false,
-        section: 'summary',
-      }],
+        issueType: 'summary_skill_without_evidence',
+      })],
     }
 
     render(
@@ -388,7 +410,7 @@ describe('ResumeComparisonView', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: /skill sem evidência suficiente/i }))
+    await user.click(screen.getByRole('button', { name: /skill sem comprovação clara/i }))
 
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
   })

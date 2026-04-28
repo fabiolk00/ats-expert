@@ -52,7 +52,6 @@ const GENERIC_REQUIREMENT_PATTERNS = [
 const REQUIREMENT_PREFIX_RE = /^(?:experi[eê]ncia(?:\s+forte)?\s+(?:com|em)|experience\s+with|strong\s+experience\s+with|viv[eê]ncia\s+(?:com|em)|conhecimento\s+(?:em|com)|dom[ií]nio\s+(?:de|em)|profissional\s+com|atua[cç][aã]o\s+com|atuar[aá]?\s+com|ser[aá]\s+respons[aá]vel\s+por|respons[aá]vel\s+por|constru[cç][aã]o\s+e\s+manuten[cç][aã]o\s+de|manuten[cç][aã]o\s+de|desenvolvimento\s+de|mais\s+de\s+\d+\s+anos\s+de\s+experi[eê]ncia\s+(?:em|com))\s+/iu
 const YEARS_PREFIX_RE = /(?:mais\s+de\s+)?(\d+)\+?\s*(?:anos|years)(?:\s+de\s+experi[eê]ncia)?\s+(?:em|com|with)\s+(.+)/iu
 const YEARS_SUFFIX_RE = /^(.+?)\s+com\s+(?:mais\s+de\s+)?(\d+)\+?\s*(?:anos|years)(?:\s+de\s+experi[eê]ncia)?$/iu
-const PARENS_RE = /\(([^)]+)\)/u
 const MAX_DISPLAY_REQUIREMENTS = 8
 const WEAK_DISPLAY_SIGNAL_PATTERNS = [
   /^atribuicoes$/i,
@@ -95,6 +94,8 @@ const STANDALONE_MODIFIER_TOKENS = new Set([
 ])
 const ACTION_VERB_RE = /\b(acompanhar|analisar|apoiar|build|criar|define|definir|develop|desenvolver|elaborar|execute|executar|gerenciar|implement|implementar|integrar|lead|liderar|maintain|manter|manage|optimize|otimizar|planejar|support)\b/iu
 const SEMANTIC_OBJECT_RE = /[A-Z]{2,}|[a-z]+(?:[/.-][a-z0-9]+)+|\b[\p{L}\p{N}]{3,}\b/iu
+const TECH_STACK_INTRO_RE = /^(?:experi[eê]ncia|conhecimento|viv[eê]ncia)\s+com\s+/iu
+const INCOMPLETE_FRAGMENT_SUFFIX_RE = /(?:\bde|\bda|\bdo|\bdos|\bdas|\bem|\bna|\bno|\bnas|\bnos|\bpara|\bcom)\s*$/iu
 
 function dedupe(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
@@ -134,12 +135,31 @@ function hasSemanticObject(text: string): boolean {
   return SEMANTIC_OBJECT_RE.test(text) || normalized.split(/\s+/u).filter(Boolean).length > 1
 }
 
-function cleanDisplaySignal(signal: string): string | null {
-  const cleaned = signal
+export function normalizeRequirementForDisplay(text: string): string {
+  const withoutParens = text.replace(/\([^)]*\)/gu, ' ')
+  return withoutParens
     .replace(/^[\-•*]\s*/u, '')
+    .replace(/,\s*visando\b.*$/iu, '')
+    .replace(/\bvisando\b.*$/iu, '')
+    .replace(/^assegurar\s+(?:a|o)\s+correta\s+/iu, '')
+    .replace(/^utiliza[cç][aã]o\s+dos\s+/iu, 'Utilização de ')
+    .replace(/\b(cumprir|executar|negociar|assegurar)\s+(?:as|os|a|o)\b/giu, '$1')
     .replace(/\s+/gu, ' ')
-    .replace(/[.]+$/u, '')
+    .replace(/[,:;.-]+$/u, '')
     .trim()
+}
+
+export function isIncompleteFragment(text: string): boolean {
+  const cleaned = text.trim()
+  const normalized = normalizeSemanticText(cleaned)
+  if (!normalized) return true
+  if (cleaned.includes('(') && !cleaned.includes(')')) return true
+  if (/^(?:visando|para|com|de|da|do|dos|das)\b/iu.test(normalized)) return true
+  return INCOMPLETE_FRAGMENT_SUFFIX_RE.test(normalized)
+}
+
+function cleanDisplaySignal(signal: string): string | null {
+  const cleaned = normalizeRequirementForDisplay(signal)
 
   if (
     !cleaned
@@ -242,6 +262,9 @@ function shouldSplitOnConjunction(left: string, right: string): boolean {
   if (hasActionVerb(leftSignal) && !hasActionVerb(rightSignal) && wordCount(rightSignal) === 1) {
     return false
   }
+  if (/\bequipamentos?\b/iu.test(leftSignal) && /^ativos?\s+de\b/iu.test(rightSignal)) {
+    return false
+  }
 
   return true
 }
@@ -267,11 +290,40 @@ function splitOnIndependentConjunction(fragment: string): string[] {
   return [...result, current].map((part) => part.trim()).filter(Boolean)
 }
 
+function splitCommaFragments(fragment: string): string[] {
+  const trimmed = fragment.trim()
+  if (!trimmed) return []
+  if (!trimmed.includes(',')) return [trimmed]
+  if (/[()]/u.test(trimmed) && TECH_STACK_INTRO_RE.test(trimmed)) {
+    const parenthetical = trimmed.match(/\(([^)]+)\)/u)?.[1]?.trim()
+    const withoutParens = trimmed.replace(/\([^)]*\)/gu, '').replace(/\s+/gu, ' ').trim()
+    return [
+      ...withoutParens.split(/,\s*/u).map((part) => part.trim()).filter(Boolean),
+      parenthetical ?? '',
+    ].filter(Boolean)
+  }
+  if (/[()]/u.test(trimmed)) {
+    return [trimmed]
+  }
+
+  const parts = trimmed.split(/,\s*/u).map((part) => part.trim()).filter(Boolean)
+  const hasLongClause = trimmed.split(/\s+/u).length > 8
+  const looksTechnicalList = TECH_STACK_INTRO_RE.test(trimmed)
+    || parts.every((part) => part.split(/\s+/u).length <= 3)
+  const looksEnumeratedObjects = parts.length > 1 && parts.slice(1).every((part) => part.split(/\s+/u).length <= 6)
+
+  if (hasLongClause && !looksTechnicalList && !looksEnumeratedObjects) {
+    return [trimmed]
+  }
+
+  return looksTechnicalList || looksEnumeratedObjects ? parts : [trimmed]
+}
+
 function splitCompositeFragments(line: string): string[] {
   return line
     .replace(/[•·]/gu, ',')
     .split(/[;\n]/u)
-    .flatMap((fragment) => fragment.split(/,\s*/u))
+    .flatMap((fragment) => splitCommaFragments(fragment))
     .flatMap((fragment) => (
       /\b(?:constru[cç][aã]o|construction)\s+\b(?:e|and)\b\s+\b(?:manuten[cç][aã]o|maintenance)\b\s+\bde\b/iu.test(fragment)
         ? [fragment]
@@ -282,22 +334,36 @@ function splitCompositeFragments(line: string): string[] {
 }
 
 function extractParentheticalSignals(fragment: string): string[] {
-  const match = fragment.match(PARENS_RE)
+  const match = fragment.match(/\(([^)]+)\)/u)
   if (!match) {
     return [fragment]
   }
 
-  const withoutParens = fragment.replace(PARENS_RE, '').trim().replace(/[,:-]+$/u, '').trim()
+  const withoutParens = fragment.replace(/\([^)]*\)/gu, '').trim().replace(/[,:-]+$/u, '').trim()
   const innerSignals = splitCompositeFragments(match[1] ?? '')
-  return dedupe([
-    withoutParens,
-    ...innerSignals,
-  ]).filter(Boolean)
+    .filter((item) => /[\/+]|docker|kafka|spring|java|python|sql|ci\/cd|hibernate|rabbitmq|jpa/iu.test(item))
+
+  return dedupe([withoutParens, ...innerSignals]).filter(Boolean)
+}
+
+function extractActionObjects(fragment: string): string[] {
+  const normalized = normalizeRequirementSignal(fragment)
+  const parts = normalized.split(/,\s*/u).map((part) => part.trim()).filter(Boolean)
+  if (parts.length <= 1) {
+    return [normalized]
+  }
+
+  const first = parts[0] ?? ''
+  if (!/\b(?:instala[cç][aã]o|equipamentos)\b/iu.test(first)) {
+    return [normalized]
+  }
+
+  const rest = parts.slice(1).flatMap((part) => splitOnIndependentConjunction(part))
+  return [first, ...rest].map((value) => value.trim()).filter(Boolean)
 }
 
 function extractYearsSignals(fragment: string): string[] {
-  const normalized = normalizeRequirementSignal(fragment)
-  const prefixMatch = normalized.match(YEARS_PREFIX_RE)
+  const prefixMatch = fragment.match(YEARS_PREFIX_RE)
   if (prefixMatch) {
     const years = prefixMatch[1]
     const roleOrTech = normalizeRequirementSignal(prefixMatch[2] ?? '')
@@ -307,7 +373,7 @@ function extractYearsSignals(fragment: string): string[] {
     ])
   }
 
-  const suffixMatch = normalized.match(YEARS_SUFFIX_RE)
+  const suffixMatch = fragment.match(YEARS_SUFFIX_RE)
   if (suffixMatch) {
     const roleOrTech = normalizeRequirementSignal(suffixMatch[1] ?? '')
     const years = suffixMatch[2]
@@ -317,7 +383,7 @@ function extractYearsSignals(fragment: string): string[] {
     ])
   }
 
-  return [normalized]
+  return [normalizeRequirementSignal(fragment)]
 }
 
 function extractRequirementFragments(line: string): string[] {
@@ -328,11 +394,14 @@ function extractRequirementFragments(line: string): string[] {
   return dedupe(
     splitCompositeFragments(sanitized)
       .flatMap(extractParentheticalSignals)
+      .flatMap(extractActionObjects)
       .flatMap(extractYearsSignals)
       .map(normalizeRequirementSignal)
+      .map(normalizeRequirementForDisplay)
       .filter((fragment) => (
         fragment.length >= 2
-        && fragment.split(/\s+/u).length <= 8
+        && fragment.split(/\s+/u).length <= 12
+        && !isIncompleteFragment(fragment)
         && !isPureSectionHeading(fragment)
         && !isGenericRequirement(fragment)
       )),
