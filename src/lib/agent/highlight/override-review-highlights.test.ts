@@ -334,6 +334,89 @@ describe('buildOverrideReviewHighlightState', () => {
     }))
     expect(cards[0]?.message).not.toMatch(/skill sem evid[êe]ncia|cargo alvo sem evid[êe]ncia/i)
   })
+
+  it('downgrades the low-fit card copy when core BI evidence is supported', () => {
+    const session = buildSession({
+      validationOverride: {
+        enabled: true,
+        acceptedAt: '2026-04-28T00:00:00.000Z',
+        acceptedByUserId: 'usr_123',
+        validationIssueCount: 1,
+        hardIssueCount: 1,
+        targetRole: 'Analista de BI',
+        acceptedLowFit: true,
+        issueTypes: ['low_fit_target_role'],
+        issues: [{
+          severity: 'high',
+          issueType: 'low_fit_target_role',
+          message: 'A vaga tem gaps, mas tambem tem evidencias centrais.',
+        }],
+      },
+      targetingPlan: {
+        ...buildSession().agentState.targetingPlan!,
+        targetRole: 'Analista de BI',
+        lowFitWarningGate: {
+          triggered: true,
+          matchScore: 32,
+          riskLevel: 'high',
+          familyDistance: 'distant',
+          explicitEvidenceCount: 2,
+          unsupportedGapCount: 4,
+          unsupportedGapRatio: 0.67,
+          explicitEvidenceRatio: 0.33,
+          coreRequirementCoverage: {
+            total: 6,
+            supported: 2,
+            unsupported: 4,
+            unsupportedSignals: ['DAX', 'tratamento e integração de dados'],
+            topUnsupportedSignalsForDisplay: ['DAX', 'Tratamento e integração de dados'],
+            preferredSignalsForDisplay: ['Python', 'APIs', 'Microsoft Fabric'],
+            requirements: [
+              {
+                signal: 'SQL',
+                importance: 'core',
+                requirementKind: 'required',
+                evidenceLevel: 'explicit',
+                rewritePermission: 'can_claim_directly',
+              },
+              {
+                signal: 'Dashboards',
+                importance: 'core',
+                requirementKind: 'required',
+                evidenceLevel: 'explicit',
+                rewritePermission: 'can_claim_directly',
+              },
+              {
+                signal: 'DAX',
+                importance: 'core',
+                requirementKind: 'required',
+                evidenceLevel: 'unsupported_gap',
+                rewritePermission: 'must_not_claim',
+              },
+              {
+                signal: 'Python',
+                importance: 'differential',
+                requirementKind: 'preferred',
+                evidenceLevel: 'unsupported_gap',
+                rewritePermission: 'must_not_claim',
+              },
+            ],
+          },
+        },
+      },
+    })
+
+    const state = buildOverrideReviewHighlightState({ session, cvState: session.cvState })
+    const card = state.reviewItems?.[0]
+
+    expect(card?.kind).toBe('low_fit_target_mismatch')
+    expect(card?.severity).toBe('review')
+    expect(card?.title).not.toMatch(/muito distante/i)
+    expect(card?.title).toMatch(/ader/i)
+    expect(card?.jobRequirements).toEqual(expect.arrayContaining(['SQL', 'Dashboards']))
+    expect(card?.preferredRequirements).toEqual(expect.arrayContaining(['Python', 'APIs', 'Microsoft Fabric']))
+    expect(card?.missingEvidence).toEqual(expect.arrayContaining(['DAX']))
+  })
 })
 
 describe('buildOriginalProfileLabel', () => {

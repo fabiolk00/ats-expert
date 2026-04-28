@@ -34,6 +34,7 @@ const reviewItem: ReviewItem = {
   targetRole: "Executivo De Vendas",
   provenProfile: "Profissional com experiÃªncia tÃ©cnica aderente ao currÃ­culo original.",
   jobRequirements: repeatedRequirements,
+  preferredRequirements: ["Python", "APIs", "Microsoft Fabric"],
   missingEvidence: repeatedRequirements,
   unsupportedRequirements: repeatedRequirements,
   inline: false,
@@ -58,9 +59,10 @@ describe("ReviewWarningPanel", () => {
     expect(screen.getByRole("button", { name: /Ver detalhes/i })).toBeInTheDocument()
     expect(screen.getAllByRole("listitem")).toHaveLength(3)
 
-    expect(screen.queryByText("O que a vaga pede")).not.toBeInTheDocument()
+    expect(screen.queryByText("Requisitos principais")).not.toBeInTheDocument()
+    expect(screen.queryByText("Diferenciais da vaga")).not.toBeInTheDocument()
     expect(screen.queryByText("Seu perfil comprovado")).not.toBeInTheDocument()
-    expect(screen.queryByText("Requisitos sem evidência suficiente")).not.toBeInTheDocument()
+    expect(screen.queryByText("Pontos sem evidência suficiente")).not.toBeInTheDocument()
     expect(screen.getByText(/geração/i)).toBeInTheDocument()
     expect(screen.getAllByText(/aderência/i).length).toBeGreaterThan(0)
     expect(screen.queryByText(/geraÃ/i)).not.toBeInTheDocument()
@@ -72,9 +74,10 @@ describe("ReviewWarningPanel", () => {
 
     await user.click(screen.getByRole("button", { name: /Ver detalhes/i }))
 
-    expect(screen.getByText("O que a vaga pede")).toBeInTheDocument()
+    expect(screen.getByText("Requisitos principais")).toBeInTheDocument()
+    expect(screen.getByText("Diferenciais da vaga")).toBeInTheDocument()
     expect(screen.getByText("Seu perfil comprovado")).toBeInTheDocument()
-    expect(screen.getByText("Requisitos sem evidência suficiente")).toBeInTheDocument()
+    expect(screen.getByText("Pontos sem evidência suficiente")).toBeInTheDocument()
     expect(screen.getByText("Por que revisar")).toBeInTheDocument()
     expect(screen.getByText("Ação sugerida")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Ocultar detalhes/i })).toBeInTheDocument()

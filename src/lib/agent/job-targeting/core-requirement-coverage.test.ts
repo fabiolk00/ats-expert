@@ -478,4 +478,122 @@ describe('core requirement coverage', () => {
       'técnicas de vendas',
     ]))
   })
+
+  it('separates core requirements, differentials, and benefit sections for a BI vacancy', () => {
+    const vacancy = [
+      'Responsabilidades:',
+      '',
+      'Levantar requisitos junto às áreas de negócio, atuando de forma consultiva na definição de indicadores e soluções analíticas. Traduzir demandas em análises claras e relevantes para o negócio. Construir e manter dashboards em Power BI com foco em usabilidade e clareza das informações. Modelar e tratar dados garantindo consistência e confiabilidade. Automatizar processos de coleta, transformação e disponibilização de dados. Atuar na integração de dados entre diferentes sistemas. Apoiar na definição e evolução de métricas estratégicas. Trabalhar em parceria com diferentes áreas internas, garantindo alinhamento e qualidade das informações. Contribuir com a evolução das soluções de BI, apoiando iniciativas de modernização do ambiente de dados.',
+      '',
+      'Requisitos:',
+      '',
+      'Experiência sólida com Power BI (modelagem, DAX e construção de dashboards). Domínio de SQL para manipulação e análise de dados. Vivência na tradução de necessidades de negócio em indicadores e análises. Experiência com tratamento e integração de dados (ETL ou similar). Boa comunicação com áreas não técnicas.',
+      '',
+      'Diferenciais:',
+      '',
+      'Conhecimento em Python para análise e automação de dados. Experiência com integrações sistêmicas (APIs). Vivência com ambientes de dados em evolução, como Microsoft Fabric. Noções de modelagem e arquitetura de dados. Experiência com indicadores financeiros, controladoria, vendas ou RH. Experiência com storytelling de dados e atuação em projetos estratégicos para áreas de negócio ou alta gestão. Previsão de início: imediato.',
+      '',
+      '- O que temos pra te oferecer?',
+      '',
+      'Mais do que um plano de carreira!',
+      'Carreira técnica: Você pode seguir a trilha de crescimento técnico, se o seu objetivo for se desenvolver cada vez mais em diferentes tecnologias.',
+      'Carreira de Liderança: Você pode seguir a trilha e se tornar um líder.',
+      'Experiência internacional: Estamos crescendo cada vez mais fora do Brasil.',
+      'Empreendedorismo: De funcionário para sócio! Temos o Innovation Hub.',
+    ].join('\n')
+    const targetEvidence: TargetEvidence[] = [
+      {
+        jobSignal: 'Power BI',
+        canonicalSignal: 'Power BI',
+        evidenceLevel: 'explicit',
+        rewritePermission: 'can_claim_directly',
+        matchedResumeTerms: ['Power BI'],
+        supportingResumeSpans: ['dashboards em Power BI'],
+        rationale: 'Evidencia explicita.',
+        confidence: 1,
+        allowedRewriteForms: ['Power BI'],
+        forbiddenRewriteForms: [],
+        validationSeverityIfViolated: 'none',
+      },
+      {
+        jobSignal: 'SQL',
+        canonicalSignal: 'SQL',
+        evidenceLevel: 'explicit',
+        rewritePermission: 'can_claim_directly',
+        matchedResumeTerms: ['SQL'],
+        supportingResumeSpans: ['SQL'],
+        rationale: 'Evidencia explicita.',
+        confidence: 1,
+        allowedRewriteForms: ['SQL'],
+        forbiddenRewriteForms: [],
+        validationSeverityIfViolated: 'none',
+      },
+      {
+        jobSignal: 'dashboards',
+        canonicalSignal: 'dashboards',
+        evidenceLevel: 'explicit',
+        rewritePermission: 'can_claim_directly',
+        matchedResumeTerms: ['Dashboards'],
+        supportingResumeSpans: ['criação de dashboards'],
+        rationale: 'Evidencia explicita.',
+        confidence: 1,
+        allowedRewriteForms: ['Dashboards'],
+        forbiddenRewriteForms: [],
+        validationSeverityIfViolated: 'none',
+      },
+    ]
+
+    const coverage = buildCoreRequirementCoverage({
+      targetJobDescription: vacancy,
+      targetRole: 'Analista de BI',
+      targetEvidence,
+      missingButCannotInvent: [],
+    })
+    const allSignals = coverage.requirements.map((requirement) => requirement.signal)
+    const coreSignals = coverage.requirements
+      .filter((requirement) => requirement.importance === 'core')
+      .map((requirement) => requirement.signal)
+    const differentialSignals = coverage.requirements
+      .filter((requirement) => requirement.importance === 'differential')
+      .map((requirement) => requirement.signal)
+    const benefitSignals = [
+      'Mais do que um plano de carreira',
+      'Carreira técnica',
+      'Carreira de Liderança',
+      'Experiência internacional',
+      'Empreendedorismo',
+      'Innovation Hub',
+    ]
+
+    expect(coreSignals.join('|')).toContain('Power BI')
+    expect(coreSignals).toEqual(expect.arrayContaining([
+      'DAX',
+      'dashboards',
+      'SQL',
+      'Tratamento e integração de dados',
+      'Boa comunicação com áreas não técnicas',
+    ]))
+    expect(differentialSignals).toEqual(expect.arrayContaining([
+      'Conhecimento em Python para análise e automação de dados',
+      'APIs',
+      'Microsoft Fabric',
+      'Storytelling de dados e atuação em projetos estratégicos para áreas de negócio ou alta gestão',
+    ]))
+    expect(coverage.preferredSignalsForDisplay).toEqual(expect.arrayContaining([
+      'Conhecimento em Python para análise e automação de dados',
+      'APIs',
+      'Microsoft Fabric',
+    ]))
+    expect(coverage.requirements.filter((requirement) => requirement.importance === 'differential')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ requirementKind: 'preferred' }),
+      ]),
+    )
+    benefitSignals.forEach((signal) => {
+      expect(allSignals.join('|')).not.toContain(signal)
+      expect(coverage.topUnsupportedSignalsForDisplay.join('|')).not.toContain(signal)
+      expect((coverage.preferredSignalsForDisplay ?? []).join('|')).not.toContain(signal)
+    })
+    expect(coverage.supported).toBeGreaterThan(0)
+  })
 })

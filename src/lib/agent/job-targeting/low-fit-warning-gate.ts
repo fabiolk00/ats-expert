@@ -54,6 +54,7 @@ export function buildLowFitWarningGate(params: {
   targetEvidence: TargetEvidence[]
   targetRolePositioning?: TargetRolePositioning
   coreRequirementCoverage: {
+    requirements?: LowFitWarningGate['coreRequirementCoverage']['requirements']
     total: number
     supported: number
     unsupported: number
@@ -85,7 +86,7 @@ export function buildLowFitWarningGate(params: {
 
   let reason: LowFitWarningGate['reason']
 
-  if (riskLevel === 'high' && matchScore < 45) {
+  if (riskLevel === 'high' && matchScore < 45 && lowCoreCoverage) {
     reason = 'very_low_match_score'
   } else if (coreCoverage.total >= 5 && coreUnsupportedRatio >= 0.7) {
     reason = 'too_many_unsupported_core_requirements'
@@ -111,7 +112,7 @@ export function buildLowFitWarningGate(params: {
   return {
     triggered: Boolean(
       reason
-      || (riskLevel === 'high' && matchScore < 45)
+      || (riskLevel === 'high' && matchScore < 45 && lowCoreCoverage)
       || (unsupportedGapRatio >= 0.7 && supportedClaimEvidenceRatio <= 0.2)
       || (missingSkillsCount >= 10 && unsupportedGapRatio >= 0.6)
       || (

@@ -1,4 +1,8 @@
 import {
+  buildCoreRequirementOverviewSignals,
+  buildPreferredRequirementDisplaySignals,
+} from '@/lib/agent/job-targeting/core-requirement-coverage'
+import {
   CV_HIGHLIGHT_ARTIFACT_VERSION,
   buildExperienceBulletHighlightItemIds,
   createSummaryHighlightItemId,
@@ -183,23 +187,44 @@ function hasLowFitMismatchContext(params: {
 function buildLowFitTargetMismatchReviewItem(params: {
   targetRole?: string
   originalProfileLabel: string
+  jobRequirements: string[]
+  preferredRequirements: string[]
   unsupportedRequirements: string[]
   sourceIssueCount: number
+  hasSupportedCoreEvidence: boolean
 }): ReviewWarningItem {
-  const jobRequirements = params.unsupportedRequirements.slice(0, 12)
+  const jobRequirements = (params.jobRequirements.length > 0
+    ? params.jobRequirements
+    : params.unsupportedRequirements).slice(0, 12)
+  const unsupportedRequirements = params.unsupportedRequirements.slice(0, 8)
+  const preferredRequirements = params.preferredRequirements.slice(0, 8)
   const provenProfile = params.originalProfileLabel
     || 'O currículo original não deixou claro um perfil diretamente alinhado a esta vaga.'
+
+  const partialFit = params.hasSupportedCoreEvidence
+  const title = partialFit
+    ? 'Esta vaga tem aderência parcial com seu currículo'
+    : 'Esta vaga parece distante do seu currículo atual'
+  const summary = partialFit
+    ? 'Encontramos pontos relevantes de aderência, mas alguns requisitos principais ainda pedem revisão cuidadosa.'
+    : 'A geração foi feita após seu aceite, mas a aderência entre a vaga e o histórico original exige uma revisão cuidadosa.'
+  const explanation = partialFit
+    ? 'A vaga tem requisitos principais parcialmente comprovados no currículo original, junto com lacunas que não devem ser apresentadas como experiência direta.'
+    : 'A vaga pede responsabilidades e requisitos que não aparecem com evidência suficiente no currículo original.'
+  const whyItMatters = partialFit
+    ? 'Quando existem pontos comprovados e gaps ao mesmo tempo, a versão gerada precisa preservar o que é real sem transformar diferenciais ou lacunas em experiência direta.'
+    : 'A versão gerada pode aproximar seu currículo de uma função que o histórico original não comprova diretamente. Isso pode fazer o currículo parecer artificial ou sugerir experiência sem sustentação no documento original.'
 
   return {
     id: `review-low-fit-target-mismatch-${params.targetRole ?? 'target-role'}`.slice(0, 120),
     kind: 'low_fit_target_mismatch',
-    severity: 'risk',
+    severity: partialFit ? 'review' : 'risk',
     section: 'general',
     sectionLabel: 'Diagnóstico da vaga',
-    title: 'Esta vaga parece distante do seu currículo atual',
-    summary: 'A geração foi feita após seu aceite, mas a aderência entre a vaga e o histórico original exige uma revisão cuidadosa.',
-    explanation: 'A vaga pede responsabilidades e requisitos que não aparecem com evidência suficiente no currículo original.',
-    whyItMatters: 'A versão gerada pode aproximar seu currículo de uma função que o histórico original não comprova diretamente. Isso pode fazer o currículo parecer artificial ou sugerir experiência sem sustentação no documento original.',
+    title,
+    summary,
+    explanation,
+    whyItMatters,
     suggestedAction: 'Revise o resumo e as experiências antes de enviar. Mantenha sua identidade profissional real e destaque apenas habilidades transferíveis comprovadas.',
     message: `Diagnóstico consolidado de baixa aderência a partir de ${params.sourceIssueCount} ponto(s) de validação.`,
     issueType: 'low_fit_target_mismatch',
@@ -207,8 +232,9 @@ function buildLowFitTargetMismatchReviewItem(params: {
     provenProfile,
     originalProfileLabel: provenProfile,
     jobRequirements,
-    unsupportedRequirements: jobRequirements,
-    missingEvidence: jobRequirements,
+    preferredRequirements,
+    unsupportedRequirements,
+    missingEvidence: unsupportedRequirements,
     inline: false,
   }
 }
@@ -419,16 +445,27 @@ export function buildOverrideReviewHighlightState(params: {
 
   const targetRole = validationOverride?.targetRole ?? targetingPlan?.targetRole
   const originalProfileLabel = buildOriginalProfileLabel(params.session.cvState)
-  const unsupportedRequirements = targetingPlan?.lowFitWarningGate?.coreRequirementCoverage?.topUnsupportedSignalsForDisplay
-    ?? targetingPlan?.coreRequirementCoverage?.topUnsupportedSignalsForDisplay
+  const coreRequirementCoverage = targetingPlan?.lowFitWarningGate?.coreRequirementCoverage
+    ?? targetingPlan?.coreRequirementCoverage
+  const unsupportedRequirements = coreRequirementCoverage?.topUnsupportedSignalsForDisplay
     ?? []
+  const requirementItems = coreRequirementCoverage?.requirements ?? []
+  const jobRequirements = requirementItems.length > 0
+    ? buildCoreRequirementOverviewSignals(requirementItems)
+    : unsupportedRequirements
+  const preferredRequirements = coreRequirementCoverage?.preferredSignalsForDisplay
+    ?? (requirementItems.length > 0 ? buildPreferredRequirementDisplaySignals(requirementItems) : [])
+  const hasSupportedCoreEvidence = (coreRequirementCoverage?.supported ?? 0) > 0
 
   if (hasLowFitMismatchContext({ session: params.session, issues, unsupportedRequirements })) {
     reviewItems.push(buildLowFitTargetMismatchReviewItem({
       targetRole,
       originalProfileLabel,
+      jobRequirements,
+      preferredRequirements,
       unsupportedRequirements,
       sourceIssueCount: issues.length,
+      hasSupportedCoreEvidence,
     }))
   } else {
     issues.forEach((issue) => {

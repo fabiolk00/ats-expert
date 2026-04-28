@@ -193,6 +193,7 @@ export type SafeTargetingEmphasis = {
 export type CoreRequirement = {
   signal: string
   importance: 'core' | 'secondary' | 'differential'
+  requirementKind?: 'responsibility' | 'required' | 'preferred' | 'nice_to_have'
   evidenceLevel: EvidenceLevel
   rewritePermission: RewritePermission
 }
@@ -204,6 +205,7 @@ export type CoreRequirementCoverage = {
   unsupported: number
   unsupportedSignals: string[]
   topUnsupportedSignalsForDisplay: string[]
+  preferredSignalsForDisplay?: string[]
 }
 
 export type LowFitWarningGate = {
@@ -222,11 +224,13 @@ export type LowFitWarningGate = {
   unsupportedGapRatio: number
   explicitEvidenceRatio: number
   coreRequirementCoverage: {
+    requirements?: CoreRequirement[]
     total: number
     supported: number
     unsupported: number
     unsupportedSignals: string[]
     topUnsupportedSignalsForDisplay: string[]
+    preferredSignalsForDisplay?: string[]
   }
 }
 

@@ -85,11 +85,14 @@ function resolveProvenProfile(item: ReviewItem): string {
 function resolveLists(item: ReviewItem): {
   compactCritical: string[]
   visibleJobRequirements: string[]
+  visiblePreferredRequirements: string[]
   visibleMissingEvidence: string[]
 } {
   const jobRequirements = dedupe(item.jobRequirements ?? [])
+  const preferredRequirements = dedupe(item.preferredRequirements ?? [])
   const missingEvidence = dedupe(item.missingEvidence ?? item.unsupportedRequirements ?? jobRequirements)
   const visibleJobRequirements = jobRequirements.slice(0, 6)
+  const visiblePreferredRequirements = preferredRequirements.slice(0, 5)
   const leadingJobKeys = new Set(visibleJobRequirements.slice(0, 3).map(normalizeForComparison))
   const filteredMissing = missingEvidence.filter((value) => !leadingJobKeys.has(normalizeForComparison(value)))
   const visibleMissingEvidence = (filteredMissing.length > 0 ? filteredMissing : missingEvidence).slice(0, 4)
@@ -98,6 +101,7 @@ function resolveLists(item: ReviewItem): {
   return {
     compactCritical,
     visibleJobRequirements,
+    visiblePreferredRequirements,
     visibleMissingEvidence,
   }
 }
@@ -169,8 +173,15 @@ export function ReviewDiagnosticCard({ item }: { item: ReviewItem }) {
         <div className="mt-3 space-y-3 border-t border-zinc-200 pt-3 dark:border-zinc-800">
           {lists.visibleJobRequirements.length > 0 ? (
             <section>
-              <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">O que a vaga pede</p>
+              <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">Requisitos principais</p>
               <RequirementList items={lists.visibleJobRequirements} idPrefix={`${item.id}-job`} />
+            </section>
+          ) : null}
+
+          {lists.visiblePreferredRequirements.length > 0 ? (
+            <section>
+              <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">Diferenciais da vaga</p>
+              <RequirementList items={lists.visiblePreferredRequirements} idPrefix={`${item.id}-preferred`} />
             </section>
           ) : null}
 
@@ -184,7 +195,7 @@ export function ReviewDiagnosticCard({ item }: { item: ReviewItem }) {
           {lists.visibleMissingEvidence.length > 0 ? (
             <section>
               <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
-                Requisitos sem evidência suficiente
+                Pontos sem evidência suficiente
               </p>
               <RequirementList items={lists.visibleMissingEvidence} idPrefix={`${item.id}-missing`} />
             </section>

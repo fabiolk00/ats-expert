@@ -149,6 +149,7 @@ export type ReviewWarningItem = {
   targetRole?: string
   provenProfile?: string
   jobRequirements?: string[]
+  preferredRequirements?: string[]
   unsupportedRequirements?: string[]
   originalProfileLabel?: string
   inline: boolean

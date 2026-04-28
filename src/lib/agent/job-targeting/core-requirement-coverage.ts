@@ -14,10 +14,13 @@ import type {
   TargetRolePositioning,
 } from '@/types/agent'
 
+type RequirementSection = 'requirements' | 'responsibilities' | 'differential' | 'benefits'
+
 const CORE_HEADING_RE = /^(requisitos?(?:\s+obrigatorios)?|requirements?|must(?:\s+have)?|mandatory|qualificacoes|qualifications|pre[\s-]?requisitos?|o que esperamos de voce)\b/i
-const DIFFERENTIAL_HEADING_RE = /^(desejavel|desejaveis|differentials?|nice\s+to\s+have|plus)\b/i
+const DIFFERENTIAL_HEADING_RE = /^(diferenciais?|sera(?:o)?\s+um\s+diferencial|ser[aã]o\s+diferenciais|desejavel|desejaveis|differentials?|nice\s+to\s+have|plus|diferencial\s+competitivo)\b/i
 const SECONDARY_HEADING_RE = /^(responsabilidades?|atividades|atribuicoes|responsibilities|what\s+you(?:'ll|\s+will)?\s+do|e o seu dia a dia como sera)\b/i
 const CORE_LINE_RE = /\b(obrigatori[oa]s?|required|must|dominio|experience with|experi[eê]ncia com|experi[eê]ncia forte|strong experience|profissional com|conhecimento em|conhecimento com|viv[eê]ncia em|viv[eê]ncia com|ser[aá] respons[aá]vel por|atuar[aá] com|mais de \d+ anos|\d+\+?\s*(?:anos|years))\b/i
+const BENEFITS_HEADING_RE = /^(o que temos (?:pra|para) te oferecer|o que oferecemos|beneficios?(?: e vantagens)?|por que trabalhar conosco|nosso plano de carreira|mais do que um plano de carreira|cultura|sobre nos|quem somos)\b/i
 const SUPPORTED_CORE_LEVELS = new Set<EvidenceLevel>([
   'explicit',
   'normalized_alias',
@@ -37,6 +40,7 @@ const SECTION_HEADING_PATTERNS = [
   /^sobre a posicao$/i,
   /^descricao$/i,
   /^diferenciais$/i,
+  /^sera um diferencial$/i,
   /^desejavel$/i,
   /^pre[\s-]?requisitos$/i,
   /^conhecimentos$/i,
@@ -50,6 +54,15 @@ const SECTION_HEADING_PATTERNS = [
   /^what you ll do$/i,
   /^o que esperamos de voce$/i,
   /^e o seu dia a dia como sera$/i,
+  /^o que temos (?:pra|para) te oferecer$/i,
+  /^o que oferecemos$/i,
+  /^beneficios?(?: e vantagens)?$/i,
+  /^por que trabalhar conosco$/i,
+  /^nosso plano de carreira$/i,
+  /^mais do que um plano de carreira$/i,
+  /^cultura$/i,
+  /^sobre nos$/i,
+  /^quem somos$/i,
 ]
 const GENERIC_REQUIREMENT_PATTERNS = [
   /^boas praticas de desenvolvimento$/i,
@@ -59,6 +72,13 @@ const GENERIC_REQUIREMENT_PATTERNS = [
   /^experiencia profissional$/i,
   /^vivencia profissional$/i,
   /^perfil analitico$/i,
+  /^previsao de inicio\b.*$/i,
+  /^mais do que um plano de carreira!?$/i,
+  /^carreira tecnica\b.*$/i,
+  /^carreira de lideranca\b.*$/i,
+  /^experiencia internacional\b.*$/i,
+  /^empreendedorismo\b.*$/i,
+  /^innovation hub\b.*$/i,
 ]
 const REQUIREMENT_PREFIX_RE = /^(?:experi[eê]ncia(?:\s+forte)?\s+(?:com|em)|experience\s+with|strong\s+experience\s+with|viv[eê]ncia\s+(?:com|em)|conhecimento\s+(?:em|com)|dom[ií]nio\s+(?:de|em)|profissional\s+com|atua[cç][aã]o\s+com|atuar[aá]?\s+com|ser[aá]\s+respons[aá]vel\s+por|respons[aá]vel\s+por|constru[cç][aã]o\s+e\s+manuten[cç][aã]o\s+de|manuten[cç][aã]o\s+de|desenvolvimento\s+de|mais\s+de\s+\d+\s+anos\s+de\s+experi[eê]ncia\s+(?:em|com))\s+/iu
 const YEARS_PREFIX_RE = /(?:mais\s+de\s+)?(\d+)\+?\s*(?:anos|years)(?:\s+de\s+experi[eê]ncia)?\s+(?:em|com|with)\s+(.+)/iu
@@ -114,6 +134,10 @@ function isLikelyTechnicalSignal(text: string): boolean {
   const trimmed = text.trim()
   if (!trimmed) return false
   if (/^[A-Z]{2,}(?:[/-][A-Z0-9]{2,})*$/u.test(trimmed)) return true
+  if (/^[A-Z][A-Za-z0-9]{1,}(?:[/-][A-Za-z0-9]{2,})*$/u.test(trimmed)) {
+    const uppercaseCount = [...trimmed].filter((char) => /[A-Z]/u.test(char)).length
+    if (uppercaseCount >= 2) return true
+  }
   if (/[+#/]/u.test(trimmed)) return true
   if (/^[A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+)*$/u.test(trimmed)) return true
   return /\b[\p{L}\p{N}]{2,}[-/][\p{L}\p{N}]{2,}\b/u.test(trimmed)
@@ -206,6 +230,11 @@ export function normalizeRequirementForDisplay(text: string): string {
     .replace(/,\s*para\s+apresenta[cç][oõ]es?\b.*$/iu, '')
     .replace(/^conhecimento\s+em\s+(.+)/iu, 'Conhecimento em $1')
     .replace(/^experi[eê]ncia\s+com\s+gest[aã]o\s+de\s+(.+)/iu, 'Gestão de $1')
+    .replace(/^experi[eê]ncia\s+s[oó]lida\s+com\s+/iu, '')
+    .replace(/^dom[ií]nio\s+de\s+/iu, '')
+    .replace(/^como\s+([A-Z].*)$/u, '$1')
+    .replace(/^experi[eê]ncia\s+com\s+storytelling\b/iu, 'Storytelling')
+    .replace(/^experi[eê]ncia\s+com\s+tratamento\s+e\s+integra[cç][aã]o\s+de\s+dados\b.*$/iu, 'Tratamento e integração de dados')
     .replace(/^gest[aã]o\s+de\s+(.+)/iu, 'Gestão de $1')
     .replace(/^autonomia\s+e\s+hands?\s+on$/iu, 'Autonomia e postura hands-on')
     .replace(/\s+/gu, ' ')
@@ -282,6 +311,7 @@ function scoreDisplaySignal(requirement: CoreRequirement): number {
   if (requirement.evidenceLevel === 'unsupported_gap') score += 10
   if (requirement.rewritePermission === 'must_not_claim') score += 5
   if (words >= 2 && words <= 8) score += 10
+  if (isLikelyTechnicalSignal(signal)) score += 12
   if (hasActionVerb(signal)) score += 8
   if (hasSemanticObject(signal)) score += 6
   if (/^(?:experi[eê]ncia|conhecimento|viv[eê]ncia|forma[cç][aã]o|gradua[cç][aã]o|curso|bacharelado)\b/iu.test(signal)) score += 7
@@ -324,6 +354,60 @@ export function buildCoreRequirementDisplaySignals(requirements: CoreRequirement
     .slice(0, MAX_DISPLAY_REQUIREMENTS)
 }
 
+export function buildCoreRequirementOverviewSignals(requirements: CoreRequirement[]): string[] {
+  const candidates = requirements
+    .filter((requirement) => requirement.importance === 'core')
+    .map((requirement, index) => ({
+      signal: cleanDisplaySignal(requirement.signal),
+      score: scoreDisplaySignal(requirement) + (SUPPORTED_CORE_LEVELS.has(requirement.evidenceLevel) ? 6 : 0),
+      canonical: buildCanonicalSignal(requirement.signal),
+      index,
+    }))
+    .filter((entry): entry is { signal: string; score: number; canonical: string; index: number } => (
+      Boolean(entry.signal) && Boolean(entry.canonical) && entry.score > 0
+    ))
+
+  const strongestByCanonical = new Map<string, { signal: string; score: number; index: number }>()
+  candidates.forEach((candidate) => {
+    const current = strongestByCanonical.get(candidate.canonical)
+    if (!current || candidate.score > current.score || (candidate.score === current.score && candidate.index < current.index)) {
+      strongestByCanonical.set(candidate.canonical, candidate)
+    }
+  })
+
+  return mergeComplementaryFragments(Array.from(strongestByCanonical.values())
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((entry) => entry.signal))
+    .slice(0, MAX_DISPLAY_REQUIREMENTS)
+}
+
+export function buildPreferredRequirementDisplaySignals(requirements: CoreRequirement[]): string[] {
+  const candidates = requirements
+    .filter((requirement) => requirement.importance === 'differential')
+    .map((requirement, index) => ({
+      signal: cleanDisplaySignal(requirement.signal),
+      score: scoreDisplaySignal(requirement),
+      canonical: buildCanonicalSignal(requirement.signal),
+      index,
+    }))
+    .filter((entry): entry is { signal: string; score: number; canonical: string; index: number } => (
+      Boolean(entry.signal) && Boolean(entry.canonical) && entry.score > 0
+    ))
+
+  const strongestByCanonical = new Map<string, { signal: string; score: number; index: number }>()
+  candidates.forEach((candidate) => {
+    const current = strongestByCanonical.get(candidate.canonical)
+    if (!current || candidate.score > current.score || (candidate.score === current.score && candidate.index < current.index)) {
+      strongestByCanonical.set(candidate.canonical, candidate)
+    }
+  })
+
+  return mergeComplementaryFragments(Array.from(strongestByCanonical.values())
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((entry) => entry.signal))
+    .slice(0, 8)
+}
+
 function normalizeRequirementSignal(value: string): string {
   const trimmed = value.trim()
   const prefixMatch = trimmed.match(/^(conhecimento\s+em|experi[eê]ncia\s+com|experi[eê]ncia\s+em|viv[eê]ncia\s+com|viv[eê]ncia\s+em)\s+(.+)$/iu)
@@ -343,9 +427,14 @@ function normalizeRequirementSignal(value: string): string {
   }
 
   return trimmed
+    .replace(/^experi[eê]ncia\s+s[oó]lida\s+com\s+/iu, '')
+    .replace(/^dom[ií]nio\s+de\s+/iu, '')
+    .replace(/^como\s+([A-Z].*)$/u, '$1')
     .replace(/^construcao\s+e\s+manutencao\s+de\s+/iu, '')
+    .replace(/^constru[cç][aã]o\s+de\s+/iu, '')
     .replace(/^[\-•*]\s*/u, '')
     .replace(REQUIREMENT_PREFIX_RE, '')
+    .replace(/^([A-Z]{2,}(?:\s+[A-Z][\p{L}\p{N}]+){0,2})\s+para\b.*$/u, '$1')
     .replace(/\s+(?:obrigatorio|obrigatoria|required)$/iu, '')
     .replace(/[.]+$/u, '')
     .trim()
@@ -465,7 +554,7 @@ function splitCommaFragments(fragment: string): string[] {
 function splitCompositeFragments(line: string): string[] {
   return line
     .replace(/[•·]/gu, ',')
-    .split(/[;\n]/u)
+    .split(/[;\n]|(?<=[\p{L}\p{N}\)])\.\s+/u)
     .flatMap((fragment) => splitCommaFragments(fragment))
     .flatMap((fragment) => (
       /\b(?:constru[cç][aã]o|construction)\s+\b(?:e|and)\b\s+\b(?:manuten[cç][aã]o|maintenance)\b\s+\bde\b/iu.test(fragment)
@@ -483,6 +572,12 @@ function extractParentheticalSignals(fragment: string): string[] {
   }
 
   const withoutParens = fragment.replace(/\([^)]*\)/gu, '').trim().replace(/[,:-]+$/u, '').trim()
+  const outerTechnicalSignal = withoutParens.match(/\b(?:com|em|de)\s+([A-Z][\p{L}\p{N}]+(?:\s+[A-Z]{2,}){0,2})$/u)?.[1]
+  const innerText = match[1] ?? ''
+  const explicitInnerSignals = [
+    ...Array.from(innerText.matchAll(/\b[A-Z]{2,}(?:[/-][A-Z0-9]{2,})*\b/gu)).map((item) => item[0]),
+    ...Array.from(innerText.matchAll(/\b(?:constru[cç][aã]o|cria[cç][aã]o)\s+de\s+([\p{L}\p{N}/+.-]+(?:\s+[\p{L}\p{N}/+.-]+){0,3})/giu)).map((item) => item[1] ?? ''),
+  ].filter(Boolean)
   const innerSignals = splitCompositeFragments(match[1] ?? '')
     .filter((item) => {
       const trimmed = item.trim()
@@ -493,7 +588,7 @@ function extractParentheticalSignals(fragment: string): string[] {
         || (words <= 3 && /^[A-Z][\p{L}\p{N}]+(?:\s+[A-Z][\p{L}\p{N}]+)*$/u.test(trimmed))
     })
 
-  return dedupe([withoutParens, ...innerSignals]).filter(Boolean)
+  return dedupe([withoutParens, outerTechnicalSignal ?? '', ...innerSignals, ...explicitInnerSignals]).filter(Boolean)
 }
 
 function extractActionObjects(fragment: string): string[] {
@@ -582,7 +677,7 @@ function mergeContinuationLines(lines: string[]): string[] {
 
 function inferImportance(params: {
   line: string
-  activeHeading?: 'core' | 'secondary' | 'differential'
+  activeSection?: RequirementSection
   isTargetRoleLine: boolean
   fragment: string
 }): CoreRequirement['importance'] {
@@ -590,8 +685,12 @@ function inferImportance(params: {
     return 'core'
   }
 
-  if (params.activeHeading) {
-    return params.activeHeading
+  if (params.activeSection === 'requirements' || params.activeSection === 'responsibilities') {
+    return 'core'
+  }
+
+  if (params.activeSection === 'differential') {
+    return 'differential'
   }
 
   if (CORE_LINE_RE.test(params.line) || /\d+\+?\s*(?:anos|years)/iu.test(params.fragment)) {
@@ -599,6 +698,19 @@ function inferImportance(params: {
   }
 
   return 'secondary'
+}
+
+function inferRequirementKind(params: {
+  line: string
+  activeSection?: RequirementSection
+  isTargetRoleLine: boolean
+}): CoreRequirement['requirementKind'] {
+  if (params.isTargetRoleLine) return 'required'
+  if (params.activeSection === 'responsibilities') return 'responsibility'
+  if (params.activeSection === 'requirements') return 'required'
+  if (params.activeSection === 'differential') return 'preferred'
+  if (CORE_LINE_RE.test(params.line)) return 'required'
+  return undefined
 }
 
 function findMatchingEvidence(signal: string, targetEvidence: TargetEvidence[]): TargetEvidence | undefined {
@@ -655,6 +767,16 @@ function upsertRequirement(bucket: Map<string, CoreRequirement>, requirement: Co
     return
   }
 
+  if (
+    importanceOrder[requirement.importance] === importanceOrder[current.importance]
+    && requirement.evidenceLevel === current.evidenceLevel
+    && wordCount(requirement.signal) < wordCount(current.signal)
+    && (isLikelyTechnicalSignal(requirement.signal) || wordCount(requirement.signal) <= 4)
+  ) {
+    bucket.set(canonical, requirement)
+    return
+  }
+
   if (current.evidenceLevel === 'unsupported_gap' && requirement.evidenceLevel !== 'unsupported_gap') {
     bucket.set(canonical, requirement)
   }
@@ -689,17 +811,23 @@ export function buildCoreRequirementCoverage(params: {
     .filter(Boolean))
 
   const requirements = new Map<string, CoreRequirement>()
-  let activeHeading: 'core' | 'secondary' | 'differential' | undefined
+  let activeSection: RequirementSection | undefined
 
   lines.forEach((line) => {
     const normalizedLine = normalizeSemanticText(line)
 
-    if (CORE_HEADING_RE.test(normalizedLine)) {
-      activeHeading = 'core'
+    if (BENEFITS_HEADING_RE.test(normalizedLine)) {
+      activeSection = 'benefits'
+    } else if (CORE_HEADING_RE.test(normalizedLine)) {
+      activeSection = 'requirements'
     } else if (DIFFERENTIAL_HEADING_RE.test(normalizedLine)) {
-      activeHeading = 'differential'
+      activeSection = 'differential'
     } else if (SECONDARY_HEADING_RE.test(normalizedLine)) {
-      activeHeading = 'core'
+      activeSection = 'responsibilities'
+    }
+
+    if (activeSection === 'benefits') {
+      return
     }
 
     if (isPureSectionHeading(line) || isLikelyIntroductoryHeading(line)) {
@@ -713,9 +841,14 @@ export function buildCoreRequirementCoverage(params: {
       const evidence = findMatchingEvidence(fragment, params.targetEvidence)
       const importance = inferImportance({
         line,
-        activeHeading,
+        activeSection,
         isTargetRoleLine,
         fragment,
+      })
+      const requirementKind = inferRequirementKind({
+        line,
+        activeSection,
+        isTargetRoleLine,
       })
       const roleRequirement = isTargetRoleLine
         ? resolveRoleRequirement({
@@ -727,6 +860,7 @@ export function buildCoreRequirementCoverage(params: {
       upsertRequirement(requirements, {
         signal: fragment,
         importance,
+        requirementKind,
         evidenceLevel: roleRequirement?.evidenceLevel ?? evidence?.evidenceLevel ?? 'unsupported_gap',
         rewritePermission: roleRequirement?.rewritePermission ?? evidence?.rewritePermission ?? 'must_not_claim',
       })
@@ -738,12 +872,13 @@ export function buildCoreRequirementCoverage(params: {
     upsertRequirement(requirements, {
       signal,
       importance: 'core',
+      requirementKind: 'required',
       evidenceLevel: evidence?.evidenceLevel ?? 'unsupported_gap',
       rewritePermission: evidence?.rewritePermission ?? 'must_not_claim',
     })
   })
 
-  const requirementList = Array.from(requirements.values()).slice(0, 18)
+  const requirementList = Array.from(requirements.values()).slice(0, 40)
   const coreRequirements = requirementList.filter((requirement) => requirement.importance === 'core')
   const supportedCoreRequirements = coreRequirements.filter((requirement) => (
     SUPPORTED_CORE_LEVELS.has(requirement.evidenceLevel)
@@ -753,6 +888,7 @@ export function buildCoreRequirementCoverage(params: {
     .filter((requirement) => !supportedCoreRequirements.includes(requirement))
     .map((requirement) => requirement.signal)
   const topUnsupportedSignalsForDisplay = buildCoreRequirementDisplaySignals(coreRequirements)
+  const preferredSignalsForDisplay = buildPreferredRequirementDisplaySignals(requirementList)
 
   return {
     requirements: requirementList,
@@ -761,5 +897,6 @@ export function buildCoreRequirementCoverage(params: {
     unsupported: unsupportedSignals.length,
     unsupportedSignals,
     topUnsupportedSignalsForDisplay,
+    preferredSignalsForDisplay,
   }
 }

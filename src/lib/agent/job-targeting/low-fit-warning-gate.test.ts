@@ -165,6 +165,73 @@ describe('low-fit warning gate', () => {
     expect(gate.reason).toBe('very_low_match_score')
   })
 
+  it('does not trigger a strong low-fit gate from match score alone when core requirements have meaningful evidence', () => {
+    const targetEvidence: TargetEvidence[] = [
+      {
+        jobSignal: 'SQL',
+        canonicalSignal: 'SQL',
+        evidenceLevel: 'explicit',
+        rewritePermission: 'can_claim_directly',
+        matchedResumeTerms: ['SQL'],
+        supportingResumeSpans: ['SQL'],
+        rationale: 'Existe no currÃ­culo.',
+        confidence: 1,
+        allowedRewriteForms: ['SQL'],
+        forbiddenRewriteForms: [],
+        validationSeverityIfViolated: 'none',
+      },
+      {
+        jobSignal: 'Dashboards',
+        canonicalSignal: 'Dashboards',
+        evidenceLevel: 'explicit',
+        rewritePermission: 'can_claim_directly',
+        matchedResumeTerms: ['Dashboards'],
+        supportingResumeSpans: ['dashboards em Power BI'],
+        rationale: 'Existe no currÃ­culo.',
+        confidence: 1,
+        allowedRewriteForms: ['Dashboards'],
+        forbiddenRewriteForms: [],
+        validationSeverityIfViolated: 'none',
+      },
+      {
+        jobSignal: 'DAX',
+        canonicalSignal: 'DAX',
+        evidenceLevel: 'unsupported_gap',
+        rewritePermission: 'must_not_claim',
+        matchedResumeTerms: [],
+        supportingResumeSpans: [],
+        rationale: 'Sem evidÃªncia real.',
+        confidence: 0.98,
+        allowedRewriteForms: [],
+        forbiddenRewriteForms: ['DAX'],
+        validationSeverityIfViolated: 'critical',
+      },
+    ]
+
+    const gate = buildLowFitWarningGate({
+      matchScore: 32,
+      careerFitEvaluation: {
+        riskLevel: 'high',
+        signals: {
+          matchScore: 32,
+          missingSkillsCount: 2,
+          familyDistance: 'distant',
+        },
+      },
+      targetEvidence,
+      coreRequirementCoverage: {
+        total: 6,
+        supported: 3,
+        unsupported: 3,
+        unsupportedSignals: ['DAX', 'Microsoft Fabric'],
+        topUnsupportedSignalsForDisplay: ['DAX', 'Microsoft Fabric'],
+      },
+    })
+
+    expect(gate.triggered).toBe(false)
+    expect(gate.reason).toBeUndefined()
+  })
+
   it('flags an extreme off-target case for pre-rewrite blocking', () => {
     expect(shouldPreRewriteLowFitBlock({
       lowFitWarningGate: buildLowFitGate({
