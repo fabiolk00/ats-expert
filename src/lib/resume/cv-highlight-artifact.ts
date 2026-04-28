@@ -117,16 +117,29 @@ export type CvHighlightState = {
   resolvedHighlights: CvResolvedHighlight[]
   highlightSource: 'ats_enhancement' | 'job_targeting'
   highlightMode?: 'normal_job_match' | 'override_review'
-  reviewItems?: Array<{
-    severity: 'supported' | 'caution' | 'risk'
-    message: string
-    issueType?: string
-    offendingText?: string
-    section?: 'summary' | 'experience' | 'skills' | 'education' | 'certifications'
-    inline: boolean
-  }>
+  reviewItems?: ReviewWarningItem[]
   highlightGeneratedAt: string
   generatedAt: string
+}
+
+export type ReviewWarningItem = {
+  id: string
+  severity: 'review' | 'caution' | 'risk'
+  section: 'summary' | 'experience' | 'skills' | 'education' | 'certifications' | 'general'
+  title: string
+  explanation: string
+  whyItMatters: string
+  suggestedAction: string
+  message: string
+  issueType?: string
+  offendingSignal?: string
+  offendingText?: string
+  supportedEvidence?: string[]
+  missingEvidence?: string[]
+  replacementSuggestion?: string
+  targetRole?: string
+  originalProfileLabel?: string
+  inline: boolean
 }
 
 export type CvHighlightDetectionResult = Array<{
@@ -212,11 +225,22 @@ const cvHighlightStateSchema = z.object({
   highlightSource: z.enum(['ats_enhancement', 'job_targeting']).optional(),
   highlightMode: z.enum(['normal_job_match', 'override_review']).optional(),
   reviewItems: z.array(z.object({
-    severity: z.enum(['supported', 'caution', 'risk']),
+    id: z.string().min(1),
+    severity: z.enum(['review', 'caution', 'risk']),
+    section: z.enum(['summary', 'experience', 'skills', 'education', 'certifications', 'general']),
+    title: z.string().min(1),
+    explanation: z.string().min(1),
+    whyItMatters: z.string().min(1),
+    suggestedAction: z.string().min(1),
     message: z.string().min(1),
     issueType: z.string().min(1).optional(),
+    offendingSignal: z.string().min(1).optional(),
     offendingText: z.string().min(1).optional(),
-    section: z.enum(['summary', 'experience', 'skills', 'education', 'certifications']).optional(),
+    supportedEvidence: z.array(z.string().min(1)).optional(),
+    missingEvidence: z.array(z.string().min(1)).optional(),
+    replacementSuggestion: z.string().min(1).optional(),
+    targetRole: z.string().min(1).optional(),
+    originalProfileLabel: z.string().min(1).optional(),
     inline: z.boolean(),
   })).optional(),
   highlightGeneratedAt: z.string().min(1).optional(),
@@ -1668,4 +1692,3 @@ export function normalizeCvHighlightState(
     highlightGeneratedAt: result.data.highlightGeneratedAt ?? result.data.generatedAt,
   }
 }
-

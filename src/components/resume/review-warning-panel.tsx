@@ -45,13 +45,7 @@ export function repairMojibakeForDisplay(text: string): string {
   )
 }
 
-function inferHumanCopy(item: ReviewItem): {
-  title: string
-  description: string
-  sectionLabel: string
-} {
-  const message = repairMojibakeForDisplay(item.message)
-  const searchable = `${message} ${item.issueType ?? ""}`.toLocaleLowerCase()
+function inferHumanCopy(item: ReviewItem): { sectionLabel: string } {
   const sectionLabel = item.section === "experience"
     ? "Experiência"
     : item.section === "skills"
@@ -60,58 +54,18 @@ function inferHumanCopy(item: ReviewItem): {
         ? "Educação"
         : item.section === "certifications"
           ? "Certificações"
-          : "Resumo"
-
-  if (searchable.includes("skill sem evid") || searchable.includes("habilidade") || searchable.includes("unsupported")) {
-    return {
-      title: "Skill sem evidência suficiente",
-      description: "O resumo pode mencionar uma habilidade que não aparece claramente no currículo original.",
-      sectionLabel,
-    }
-  }
-
-  if (
-    searchable.includes("cargo alvo")
-    || searchable.includes("se apresentar")
-    || searchable.includes("target_role")
-    || searchable.includes("low_fit")
-  ) {
-    return {
-      title: "Cargo alvo assumido com pouca evidência",
-      description: "O resumo pode estar se aproximando demais do cargo da vaga. Revise se essa apresentação representa bem seu histórico.",
-      sectionLabel,
-    }
-  }
-
-  if (item.severity === "supported") {
-    return {
-      title: "Trecho comprovado",
-      description: "Este ponto tem sustentação no currículo original e foi destacado para conferência.",
-      sectionLabel,
-    }
-  }
-
-  if (item.severity === "caution") {
-    return {
-      title: "Aproximação cautelosa",
-      description: "Este ponto cria uma ponte com a vaga, mas não deve soar como experiência direta sem base no seu histórico.",
-      sectionLabel,
-    }
-  }
-
-  return {
-    title: "Ponto para revisar",
-    description: message,
-    sectionLabel,
-  }
+          : item.section === "general"
+            ? "Geral"
+            : "Resumo"
+  return { sectionLabel }
 }
 
 function SeverityBadge({ severity }: { severity: ReviewItem["severity"] }) {
-  if (severity === "supported") {
+  if (severity === "review") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-900">
+      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-700">
         <CheckCircle2 className="h-3 w-3" />
-        Comprovado
+        Revisão
       </span>
     )
   }
@@ -139,7 +93,9 @@ export function ReviewWarningPanel({
   onItemSelect,
   className,
 }: ReviewWarningPanelProps) {
-  const displayItems = items.filter((item) => item.severity === "risk" || item.inline)
+  const displayItems = items.filter((item) => item.severity === "risk" || item.severity === "caution" || item.severity === "review")
+  const lowFitItem = displayItems.find((item) => item.issueType === "low_fit_target_role" || item.issueType === "target_role_overclaim")
+  const topUnsupportedSignalsForDisplay = lowFitItem?.missingEvidence ?? []
 
   if (displayItems.length === 0) {
     return null
@@ -162,7 +118,7 @@ export function ReviewWarningPanel({
             Pontos para revisar
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
-            A IA gerou esta versão mesmo com alguns avisos de aderência à vaga. Isso não impede o uso do currículo, mas recomendamos revisar estes pontos.
+            Esta versão foi gerada mesmo com avisos de aderência à vaga. Isso não impede o uso do currículo, mas recomendamos revisar os pontos abaixo.
           </p>
         </div>
       </div>
@@ -172,10 +128,30 @@ export function ReviewWarningPanel({
           Não há trechos destacados automaticamente, mas existem pontos de revisão listados abaixo.
         </p>
       ) : null}
+      {lowFitItem ? (
+        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+          <p className="font-medium">Esta vaga parece distante do seu currículo atual.</p>
+          {lowFitItem.targetRole ? <p className="mt-1"><strong>Vaga alvo:</strong> {lowFitItem.targetRole}</p> : null}
+          {lowFitItem.originalProfileLabel ? <p className="mt-1"><strong>Seu perfil comprovado:</strong> {lowFitItem.originalProfileLabel}</p> : null}
+          {topUnsupportedSignalsForDisplay.length > 0 ? (
+            <div className="mt-2">
+              <p><strong>Principais requisitos da vaga sem evidência suficiente:</strong></p>
+              <ul className="ml-4 mt-1 list-disc">
+                {topUnsupportedSignalsForDisplay.slice(0, 6).map((signal) => (
+                  <li key={signal}>{signal}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-4 space-y-3">
         {displayItems.map((item, index) => {
           const copy = inferHumanCopy(item)
+          const explanation = repairMojibakeForDisplay(item.explanation || item.message)
+          const whyItMatters = repairMojibakeForDisplay(item.whyItMatters || "")
+          const suggestedAction = repairMojibakeForDisplay(item.suggestedAction || "")
 
           return (
             <button
@@ -191,11 +167,13 @@ export function ReviewWarningPanel({
                 </span>
               </div>
               <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-                {copy.title}
+                {item.title}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
-                {copy.description}
+                {explanation}
               </p>
+              {whyItMatters ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Por que revisar:</strong> {whyItMatters}</p> : null}
+              {suggestedAction ? <p className="mt-1 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Ação sugerida:</strong> {suggestedAction}</p> : null}
             </button>
           )
         })}

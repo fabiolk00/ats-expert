@@ -140,8 +140,7 @@ describe('core requirement coverage', () => {
       'Planejar campanhas de marketing e comunicacao',
       'briefing',
       'relacionamento com fornecedores',
-      'midias sociais',
-      'trade marketing',
+      'midias sociais, trade marketing',
       'eventos corporativos',
     ]))
     expect(coverage.topUnsupportedSignalsForDisplay).toEqual(expect.arrayContaining([
@@ -274,6 +273,52 @@ describe('core requirement coverage', () => {
     expect(coverage.requirements.map((requirement) => requirement.signal)).toEqual(expect.arrayContaining([
       'Java',
       '5+ anos de Java',
+    ]))
+  })
+
+  it('normalizes long business requirements for sales vacancies without broken fragments', () => {
+    const coverage = buildCoreRequirementCoverage({
+      targetJobDescription: [
+        'Responsabilidades',
+        'Cumprir as metas de vendas estabelecidas (volume, rentabilidade, positivação etc.), visando a geração da demanda.',
+        'Negociar a instalação de equipamentos, espaços para exposição de produtos e materiais de merchandising.',
+        'Assegurar a correta utilização dos equipamentos e ativos de mercado (geladeiras, gôndolas, racks, etc.)',
+      ].join('\n'),
+      targetRole: 'Vendedora/Vendedor JR',
+      targetEvidence: [],
+      missingButCannotInvent: [],
+    })
+
+    expect(coverage.topUnsupportedSignalsForDisplay).toEqual(expect.arrayContaining([
+      'Cumprir metas de vendas estabelecidas',
+      'Negociar instalação de equipamentos',
+      'Espaços para exposição de produtos',
+      'Materiais de merchandising',
+      'Utilização de equipamentos e ativos de mercado',
+    ]))
+    expect(coverage.topUnsupportedSignalsForDisplay).not.toEqual(expect.arrayContaining([
+      'rentabilidade',
+      'positivação etc.)',
+      'visando a geração da',
+      'materiais de',
+      'ativos de mercado (geladeiras',
+    ]))
+  })
+
+  it('keeps technical lists split into atomic display signals', () => {
+    const coverage = buildCoreRequirementCoverage({
+      targetJobDescription: 'Experiência com Java, Spring Boot, Kafka, Docker e CI/CD.',
+      targetRole: 'Desenvolvedor Backend',
+      targetEvidence: [],
+      missingButCannotInvent: [],
+    })
+
+    expect(coverage.topUnsupportedSignalsForDisplay).toEqual(expect.arrayContaining([
+      'Java',
+      'Spring Boot',
+      'Kafka',
+      'Docker',
+      'CI/CD',
     ]))
   })
 })

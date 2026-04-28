@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildOverrideReviewHighlightState } from './override-review-highlights'
+import { buildOriginalProfileLabel, buildOverrideReviewHighlightState } from './override-review-highlights'
 import type { Session } from '@/types/agent'
 
 function buildSession(overrides: Partial<Session['agentState']> = {}): Session {
@@ -98,12 +98,13 @@ describe('buildOverrideReviewHighlightState', () => {
 
     expect(state.highlightMode).toBe('override_review')
     expect(state.resolvedHighlights.flatMap((item) => item.ranges.map((range) => range.reason))).toEqual(
-      expect.arrayContaining(['supported', 'caution']),
+      expect.arrayContaining(['caution']),
     )
     expect(state.reviewItems).toEqual(expect.arrayContaining([
       expect.objectContaining({
         severity: 'risk',
         issueType: 'low_fit_target_role',
+        title: 'Cargo da vaga assumido com pouca evidência',
         inline: false,
       }),
     ]))
@@ -187,5 +188,77 @@ describe('buildOverrideReviewHighlightState', () => {
     expect(state.resolvedHighlights.flatMap((item) => item.ranges)).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ reason: 'risk' })]),
     )
+  })
+
+  it('builds specific copy for summary_skill_without_evidence with offending signal', () => {
+    const session = buildSession({
+      validationOverride: {
+        enabled: true,
+        acceptedAt: '2026-04-28T00:00:00.000Z',
+        acceptedByUserId: 'usr_123',
+        validationIssueCount: 1,
+        hardIssueCount: 1,
+        issueTypes: ['summary_skill_without_evidence'],
+        issues: [{
+          severity: 'high',
+          issueType: 'summary_skill_without_evidence',
+          message: 'Skill sem evidência.',
+          offendingSignal: 'vendas consultivas',
+        }],
+      },
+    })
+    const state = buildOverrideReviewHighlightState({ session, cvState: session.cvState })
+    expect(state.reviewItems?.[0]?.explanation).toContain('“vendas consultivas”')
+  })
+
+  it('exposes low-fit context with target role and original profile label', () => {
+    const session = buildSession({
+      validationOverride: {
+        enabled: true,
+        acceptedAt: '2026-04-28T00:00:00.000Z',
+        acceptedByUserId: 'usr_123',
+        validationIssueCount: 1,
+        hardIssueCount: 1,
+        targetRole: 'Vendedora/Vendedor JR',
+        issueTypes: ['low_fit_target_role'],
+        issues: [{
+          severity: 'high',
+          issueType: 'low_fit_target_role',
+          message: 'A vaga parece distante.',
+        }],
+      },
+      targetingPlan: {
+        ...buildSession().agentState.targetingPlan!,
+        lowFitWarningGate: {
+          triggered: true,
+          matchScore: 0.21,
+          explicitEvidenceCount: 1,
+          unsupportedGapCount: 5,
+          unsupportedGapRatio: 0.83,
+          explicitEvidenceRatio: 0.17,
+          coreRequirementCoverage: {
+            total: 6,
+            supported: 1,
+            unsupported: 5,
+            unsupportedSignals: [],
+            topUnsupportedSignalsForDisplay: ['metas comerciais', 'relacionamento com clientes'],
+          },
+        },
+      },
+    })
+    const state = buildOverrideReviewHighlightState({ session, cvState: session.cvState })
+    expect(state.reviewItems?.[0]).toEqual(expect.objectContaining({
+      targetRole: 'Vendedora/Vendedor JR',
+      originalProfileLabel: expect.any(String),
+      missingEvidence: expect.arrayContaining(['metas comerciais']),
+    }))
+  })
+})
+
+describe('buildOriginalProfileLabel', () => {
+  it('returns a human profile label from CV fields', () => {
+    const label = buildOriginalProfileLabel(buildSession().cvState)
+    expect(label).toContain('SQL')
+    expect(label.length).toBeGreaterThan(10)
   })
 })
