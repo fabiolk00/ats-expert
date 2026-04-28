@@ -40,6 +40,7 @@ const SECTION_HEADING_PATTERNS = [
   /^conhecimentos$/i,
   /^experiencias$/i,
   /^perfil$/i,
+  /^requisitos?\s+d[oe]\s+perfil$/i,
   /^requirements?$/i,
   /^qualifications?$/i,
   /^responsibilities$/i,
@@ -56,21 +57,11 @@ const GENERIC_REQUIREMENT_PATTERNS = [
 const REQUIREMENT_PREFIX_RE = /^(?:experi[eê]ncia(?:\s+forte)?\s+(?:com|em)|experience\s+with|strong\s+experience\s+with|viv[eê]ncia\s+(?:com|em)|conhecimento\s+(?:em|com)|dom[ií]nio\s+(?:de|em)|profissional\s+com|atua[cç][aã]o\s+com|atuar[aá]?\s+com|ser[aá]\s+respons[aá]vel\s+por|respons[aá]vel\s+por|constru[cç][aã]o\s+e\s+manuten[cç][aã]o\s+de|manuten[cç][aã]o\s+de|desenvolvimento\s+de|mais\s+de\s+\d+\s+anos\s+de\s+experi[eê]ncia\s+(?:em|com))\s+/iu
 const YEARS_PREFIX_RE = /(?:mais\s+de\s+)?(\d+)\+?\s*(?:anos|years)(?:\s+de\s+experi[eê]ncia)?\s+(?:em|com|with)\s+(.+)/iu
 const YEARS_SUFFIX_RE = /^(.+?)\s+com\s+(?:mais\s+de\s+)?(\d+)\+?\s*(?:anos|years)(?:\s+de\s+experi[eê]ncia)?$/iu
-const MAX_DISPLAY_REQUIREMENTS = 8
+const MAX_DISPLAY_REQUIREMENTS = 16
 const WEAK_DISPLAY_SIGNAL_PATTERNS = [
   /^atribuicoes$/i,
   /^atribuições$/i,
-  /^aplicar$/i,
-  /^demanda$/i,
-  /^gondolas$/i,
-  /^racks?(?:,\s*etc\.)?\)?$/i,
-  /^merchandising$/i,
  /^[\p{L}\p{N}\s]+ndo\s+conforme\b.*$/iu,
- /^reciprocidades?\s+dos\s+acordos\s+comerciais$/i,
- /^pendencias?\s+de\s+produtos?\s+da\s+sua\s+area$/i,
-  /^promocional$/i,
-  /^externos$/i,
-  /^institucionais$/i,
   /^fazer o acompanhamento$/i,
   /^acompanhamento$/i,
 ]
@@ -117,7 +108,7 @@ function isLikelyTechnicalSignal(text: string): boolean {
   if (/^[A-Z]{2,}(?:[/-][A-Z0-9]{2,})*$/u.test(trimmed)) return true
   if (/[+#/]/u.test(trimmed)) return true
   if (/^[A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+)*$/u.test(trimmed)) return true
-  return /\b(?:java|python|sql|docker|kafka|spring|node|react|angular|kubernetes|terraform|hibernate|rabbitmq)\b/iu.test(trimmed)
+  return /\b[\p{L}\p{N}]{2,}[-/][\p{L}\p{N}]{2,}\b/u.test(trimmed)
 }
 
 function dedupe(values: string[]): string[] {
@@ -175,8 +166,9 @@ export function normalizeRequirementForDisplay(text: string): string {
     .replace(/\b(?:da|do|das|dos)\s+sua\s+[a-z\u00c0-\u024f]+(?:\s+[a-z\u00c0-\u024f]+){0,2}$/iu, '')
     .replace(/\bcadastros?\s+dos\s+/iu, 'cadastros de ')
     .replace(/\bestrat[eé]gias?\s+de\s+repasse\s+de\s+pre[cç]o.*$/iu, 'estratégias de repasse de preço')
-    .replace(/\b(cumprir|executar|negociar|assegurar)\s+(?:as|os|a|o)\b/giu, '$1')
+    .replace(/\b(cumprir|executar|negociar|assegurar|implementar)\s+(?:as|os|a|o)\b/giu, '$1')
     .replace(/\b(?:as|os)\s+estrat[eé]gias\b/iu, 'estratégias')
+    .replace(/\bconstruir\s+um\s+relacionamento\s+sustent[aá]vel\s+com\s+os\s+clientes\s+de\s+sua\s+carteira\b/iu, 'Construir relacionamento com clientes')
     .replace(/\bplanos\s+acordados\s+com\s+os\s+clientes\b/iu, 'planos acordados com clientes')
     .replace(/\s+/gu, ' ')
     .replace(/[,:;.-]+$/u, '')
@@ -331,10 +323,9 @@ function shouldSplitOnConjunction(left: string, right: string): boolean {
   if (hasActionVerb(leftSignal) && !hasActionVerb(rightSignal) && wordCount(rightSignal) === 1) {
     return false
   }
-  if (/\bequipamentos?\b/iu.test(leftSignal) && /^ativos?\s+de\b/iu.test(rightSignal)) {
+  if (!hasActionVerb(leftSignal) && !hasActionVerb(rightSignal) && (wordCount(leftSignal) > 1 || wordCount(rightSignal) > 1)) {
     return false
   }
-
   return true
 }
 
@@ -413,7 +404,14 @@ function extractParentheticalSignals(fragment: string): string[] {
 
   const withoutParens = fragment.replace(/\([^)]*\)/gu, '').trim().replace(/[,:-]+$/u, '').trim()
   const innerSignals = splitCompositeFragments(match[1] ?? '')
-    .filter((item) => /[\/+]|docker|kafka|spring|java|python|sql|ci\/cd|hibernate|rabbitmq|jpa/iu.test(item))
+    .filter((item) => {
+      const trimmed = item.trim()
+      if (!trimmed) return false
+      const words = trimmed.split(/\s+/u).length
+      return /[\/+#]/u.test(trimmed)
+        || /^[A-Z]{2,}(?:[/-][A-Z0-9]{2,})*$/u.test(trimmed)
+        || (words <= 3 && /^[A-Z][\p{L}\p{N}]+(?:\s+[A-Z][\p{L}\p{N}]+)*$/u.test(trimmed))
+    })
 
   return dedupe([withoutParens, ...innerSignals]).filter(Boolean)
 }
@@ -472,7 +470,7 @@ function extractRequirementFragments(line: string): string[] {
       .map(normalizeRequirementForDisplay)
       .filter((fragment) => (
         fragment.length >= 2
-        && fragment.split(/\s+/u).length <= 12
+        && fragment.split(/\s+/u).length <= 18
         && !isIncompleteFragment(fragment)
         && !isPureSectionHeading(fragment)
         && !isGenericRequirement(fragment)

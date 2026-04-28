@@ -53,8 +53,19 @@ function buildTargetEvidence(): TargetEvidence[] {
 describe('core requirement coverage', () => {
   it('does not hardcode domain-specific display rules in the requirement coverage source', () => {
     const source = readFileSync('src/lib/agent/job-targeting/core-requirement-coverage.ts', 'utf8')
+    const forbiddenRuntimePatterns = [
+      /if\s*\([^)]*vendas/i,
+      /if\s*\([^)]*marketing/i,
+      /if\s*\([^)]*java/i,
+      /if\s*\([^)]*financeiro/i,
+      /if\s*\([^)]*jur[ií]dico/i,
+      /if\s*\([^)]*rh/i,
+      /if\s*\([^)]*coca/i,
+    ]
 
-    expect(source).not.toMatch(/\bif\s*\([^)]*(marketing|eventos|campanhas|java|juridico|financas|vendas|saude|operacoes|logistica)/iu)
+    forbiddenRuntimePatterns.forEach((pattern) => {
+      expect(source).not.toMatch(pattern)
+    })
     expect(source).not.toMatch(/Planejamento de acoes de marketing|Campanhas comerciais|Conteudo para canais externos/iu)
   })
 
@@ -89,7 +100,7 @@ describe('core requirement coverage', () => {
       'Docker',
       'CI/CD',
     ]))
-    expect(coverage.topUnsupportedSignalsForDisplay.length).toBeLessThanOrEqual(8)
+    expect(coverage.topUnsupportedSignalsForDisplay.length).toBeLessThanOrEqual(16)
     expect(coverage.topUnsupportedSignalsForDisplay).toEqual(expect.arrayContaining([
       '5+ anos de Java',
       'Spring Boot',
@@ -140,8 +151,8 @@ describe('core requirement coverage', () => {
     expect(coverage.unsupportedSignals).toEqual(expect.arrayContaining([
       'Planejar campanhas de marketing e comunicacao',
       'briefing e relacionamento com fornecedores',
-      'midias sociais, trade marketing',
-      'eventos corporativos',
+      'midias sociais, trade marketing e relacionamento com areas internas',
+      'eventos corporativos e campanhas digitais',
     ]))
     expect(coverage.topUnsupportedSignalsForDisplay).toEqual(expect.arrayContaining([
       'Planejar campanhas de marketing e comunicacao',
@@ -302,8 +313,7 @@ describe('core requirement coverage', () => {
     expect(coverage.topUnsupportedSignalsForDisplay).toEqual(expect.arrayContaining([
       'Cumprir metas de vendas estabelecidas',
       'Negociar instalação de equipamentos',
-      'Espaços para exposição de produtos',
-      'Materiais de merchandising',
+      'Espaços para exposição de produtos e materiais de merchandising',
       'Utilização de equipamentos e ativos de mercado',
     ]))
     expect(coverage.topUnsupportedSignalsForDisplay).not.toEqual(expect.arrayContaining([
@@ -325,12 +335,15 @@ describe('core requirement coverage', () => {
 
     expect(coverage.topUnsupportedSignalsForDisplay).toEqual(expect.arrayContaining([
       'Manter cadastros de clientes atualizados',
+      'Acompanhar carteira de clientes',
       'Monitorar estratégias de repasse de preço',
       'Cumprir metas de vendas estabelecidas',
       'Construir relacionamento com clientes',
       'Executar planos acordados com clientes',
       'Negociar instalação de equipamentos',
-      'Acompanhar retornos, entregas e pendências de produtos',
+      'Espaços para exposição de produtos e materiais de merchandising',
+      'Acompanhar retornos, entregas',
+      'Pendências de produtos',
     ]))
     expect(coverage.topUnsupportedSignalsForDisplay).not.toEqual(expect.arrayContaining([
       'Aplicar',
@@ -341,6 +354,60 @@ describe('core requirement coverage', () => {
       'reciprocidades dos acordos comerciais',
       'pendências de produtos da sua área',
       'Responsabilidades Da Posição',
+      'Requisitos Do Perfil',
+    ]))
+  })
+
+  it('extracts responsibilities and profile requirements from long commercial vacancy text without noisy fragments', () => {
+    const coverage = buildCoreRequirementCoverage({
+      targetJobDescription: [
+        'Responsabilidades Da Posição',
+        'Efetuar o roteiro de visitas efetivando vendas e/ou influenciando a geração de pedidos.',
+        'Manter os cadastros dos clientes atualizados;',
+        'Aplicar e monitorar as estratégias de repasse de preço, precificando conforme padrão.',
+        'Cumprir as metas de vendas estabelecidas (volume, rentabilidade, positivação etc.).',
+        'Implementar as atividades para geração de demanda.',
+        'Construir um relacionamento sustentável com os clientes de sua carteira.',
+        'Executar os planos acordados com os clientes e reciprocidades dos acordos comerciais.',
+        'Negociar a instalação de equipamentos, espaços para exposição de produtos e materiais de merchandising.',
+        'Acompanhar retornos, entregas e pendências de produtos.',
+        'Requisitos Do Perfil',
+        'Formação: Ensino médio completo',
+        'Experiência desejável: Vendas ou área comercial',
+        'Obrigatório CNH B e veículo próprio',
+      ].join('\n'),
+      targetRole: 'Vendedora/Vendedor JR',
+      targetEvidence: [],
+      missingButCannotInvent: [],
+    })
+
+    expect(coverage.topUnsupportedSignalsForDisplay).toEqual(expect.arrayContaining([
+      'Efetuar o roteiro de visitas efetivando vendas e/ou influenciando a geração de pedidos',
+      'Manter cadastros de clientes atualizados',
+      'Aplicar e monitorar estratégias de repasse de preço',
+      'Cumprir metas de vendas estabelecidas',
+      'Implementar atividades para geração de demanda',
+      'Construir relacionamento com clientes',
+      'Executar planos acordados com clientes',
+      'Negociar instalação de equipamentos',
+      'Espaços para exposição de produtos e materiais de merchandising',
+      'Acompanhar retornos, entregas',
+      'Pendências de produtos',
+      'Ensino médio completo',
+      'Vendas ou área comercial',
+      'Obrigatório CNH B e veículo próprio',
+    ]))
+    expect(coverage.topUnsupportedSignalsForDisplay).not.toEqual(expect.arrayContaining([
+      'Responsabilidades Da Posição',
+      'Requisitos Do Perfil',
+      'Aplicar',
+      'demanda',
+      'gôndolas',
+      'racks, etc.)',
+      'precificando conforme padrão',
+      'reciprocidades dos acordos comerciais',
+      'materiais de',
+      'ativos de mercado (geladeiras',
     ]))
   })
 

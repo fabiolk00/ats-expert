@@ -104,7 +104,7 @@ describe('buildOverrideReviewHighlightState', () => {
       expect.objectContaining({
         severity: 'risk',
         issueType: 'low_fit_target_role',
-        title: 'Cargo da vaga assumido com pouca evidência',
+        title: 'Esta vaga parece distante do seu currículo atual',
         inline: false,
       }),
     ]))
@@ -247,12 +247,16 @@ describe('buildOverrideReviewHighlightState', () => {
       },
     })
     const state = buildOverrideReviewHighlightState({ session, cvState: session.cvState })
-    expect(state.reviewItems?.[0]).toEqual(expect.objectContaining({
+    const item = state.reviewItems?.[0]
+    expect(item).toEqual(expect.objectContaining({
+      title: expect.stringMatching(/vaga.*distante|ader[eê]ncia/i),
       targetRole: 'Vendedora/Vendedor JR',
-      originalProfileLabel: expect.any(String),
-      missingEvidence: expect.arrayContaining(['metas comerciais']),
+      provenProfile: expect.any(String),
+      unsupportedRequirements: expect.arrayContaining(['metas comerciais']),
+      whyItMatters: expect.stringMatching(/histórico original|comprovad|experiência/i),
+      suggestedAction: expect.stringMatching(/revise|antes de enviar|transfer[ií]veis/i),
     }))
-    expect(state.reviewItems?.[0]?.missingEvidence).not.toEqual(expect.arrayContaining([
+    expect(item?.unsupportedRequirements).not.toEqual(expect.arrayContaining([
       'Responsabilidades Da Posição',
       'precificando conforme padrão',
       'pendências de produtos da sua área',
