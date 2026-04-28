@@ -46,6 +46,10 @@ export function repairMojibakeForDisplay(text: string): string {
 }
 
 function inferHumanCopy(item: ReviewItem): { sectionLabel: string } {
+  if (item.sectionLabel?.trim()) {
+    return { sectionLabel: item.sectionLabel.trim() }
+  }
+
   const sectionLabel = item.section === "experience"
     ? "Experiência"
     : item.section === "skills"
@@ -94,8 +98,6 @@ export function ReviewWarningPanel({
   className,
 }: ReviewWarningPanelProps) {
   const displayItems = items.filter((item) => item.severity === "risk" || item.severity === "caution" || item.severity === "review")
-  const lowFitItem = displayItems.find((item) => item.issueType === "low_fit_target_role" || item.issueType === "target_role_overclaim")
-  const topUnsupportedSignalsForDisplay = lowFitItem?.missingEvidence ?? []
 
   if (displayItems.length === 0) {
     return null
@@ -128,28 +130,14 @@ export function ReviewWarningPanel({
           Não há trechos destacados automaticamente, mas existem pontos de revisão listados abaixo.
         </p>
       ) : null}
-      {lowFitItem ? (
-        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
-          <p className="font-medium">Esta vaga parece distante do seu currículo atual.</p>
-          {lowFitItem.targetRole ? <p className="mt-1"><strong>Vaga alvo:</strong> {lowFitItem.targetRole}</p> : null}
-          {lowFitItem.originalProfileLabel ? <p className="mt-1"><strong>Seu perfil comprovado:</strong> {lowFitItem.originalProfileLabel}</p> : null}
-          {topUnsupportedSignalsForDisplay.length > 0 ? (
-            <div className="mt-2">
-              <p><strong>Principais requisitos da vaga sem evidência suficiente:</strong></p>
-              <ul className="ml-4 mt-1 list-disc">
-                {topUnsupportedSignalsForDisplay.slice(0, 6).map((signal) => (
-                  <li key={signal}>{signal}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
       <div className="mt-4 space-y-3">
         {displayItems.map((item, index) => {
           const copy = inferHumanCopy(item)
           const explanation = repairMojibakeForDisplay(item.explanation || item.message)
+          const summary = repairMojibakeForDisplay(item.summary || "")
+          const provenProfile = repairMojibakeForDisplay(item.provenProfile || item.originalProfileLabel || "")
+          const unsupportedRequirements = item.unsupportedRequirements ?? item.missingEvidence ?? []
+          const jobRequirements = item.jobRequirements ?? unsupportedRequirements
           const whyItMatters = repairMojibakeForDisplay(item.whyItMatters || "")
           const suggestedAction = repairMojibakeForDisplay(item.suggestedAction || "")
 
@@ -172,6 +160,29 @@ export function ReviewWarningPanel({
               <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
                 {explanation}
               </p>
+              {summary ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">{summary}</p> : null}
+              {item.targetRole ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Vaga alvo:</strong> {item.targetRole}</p> : null}
+              {jobRequirements.length > 0 ? (
+                <div className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">
+                  <p><strong>O que a vaga pede:</strong></p>
+                  <ul className="ml-4 mt-1 list-disc">
+                    {jobRequirements.slice(0, 8).map((signal) => (
+                      <li key={`${item.id}-job-${signal}`}>{signal}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {provenProfile ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Seu perfil comprovado:</strong> {provenProfile}</p> : null}
+              {unsupportedRequirements.length > 0 ? (
+                <div className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">
+                  <p><strong>Requisitos sem evidência suficiente:</strong></p>
+                  <ul className="ml-4 mt-1 list-disc">
+                    {unsupportedRequirements.slice(0, 8).map((signal) => (
+                      <li key={`${item.id}-unsupported-${signal}`}>{signal}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               {whyItMatters ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Por que revisar:</strong> {whyItMatters}</p> : null}
               {suggestedAction ? <p className="mt-1 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Ação sugerida:</strong> {suggestedAction}</p> : null}
             </button>

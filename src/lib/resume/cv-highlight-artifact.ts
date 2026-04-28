@@ -126,7 +126,9 @@ export type ReviewWarningItem = {
   id: string
   severity: 'review' | 'caution' | 'risk'
   section: 'summary' | 'experience' | 'skills' | 'education' | 'certifications' | 'general'
+  sectionLabel?: string
   title: string
+  summary?: string
   explanation: string
   whyItMatters: string
   suggestedAction: string
@@ -138,6 +140,9 @@ export type ReviewWarningItem = {
   missingEvidence?: string[]
   replacementSuggestion?: string
   targetRole?: string
+  provenProfile?: string
+  jobRequirements?: string[]
+  unsupportedRequirements?: string[]
   originalProfileLabel?: string
   inline: boolean
 }
@@ -228,7 +233,9 @@ const cvHighlightStateSchema = z.object({
     id: z.string().min(1),
     severity: z.enum(['review', 'caution', 'risk']),
     section: z.enum(['summary', 'experience', 'skills', 'education', 'certifications', 'general']),
+    sectionLabel: z.string().min(1).optional(),
     title: z.string().min(1),
+    summary: z.string().min(1).optional(),
     explanation: z.string().min(1),
     whyItMatters: z.string().min(1),
     suggestedAction: z.string().min(1),
@@ -240,6 +247,9 @@ const cvHighlightStateSchema = z.object({
     missingEvidence: z.array(z.string().min(1)).optional(),
     replacementSuggestion: z.string().min(1).optional(),
     targetRole: z.string().min(1).optional(),
+    provenProfile: z.string().min(1).optional(),
+    jobRequirements: z.array(z.string().min(1)).optional(),
+    unsupportedRequirements: z.array(z.string().min(1)).optional(),
     originalProfileLabel: z.string().min(1).optional(),
     inline: z.boolean(),
   })).optional(),

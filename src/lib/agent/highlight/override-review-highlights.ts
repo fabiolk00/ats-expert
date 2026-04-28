@@ -146,19 +146,20 @@ function buildIssueReviewItem(params: {
   inline: boolean
   targetRole?: string
   originalProfileLabel: string
-  topUnsupportedSignalsForDisplay: string[]
+  unsupportedRequirements: string[]
 }): ReviewWarningItem {
   const { issue } = params
-  const targetRole = params.targetRole ?? 'da vaga'
+  const targetRole = params.targetRole
   const offendingSignal = issue.offendingSignal?.trim()
   const replacement = issue.suggestedReplacement?.trim()
   const defaults = {
     severity: 'risk' as const,
     section: mapIssueSection(issue.section),
-    title: 'Ponto para revisar',
-    explanation: issue.userFacingExplanation?.trim() || 'Esta versão contém um ponto que merece revisão antes do envio.',
-    whyItMatters: 'Ajustes de linguagem ajudam seu currículo a permanecer fiel ao que está comprovado no histórico.',
-    suggestedAction: 'Revise este trecho e prefira uma formulação alinhada ao seu currículo original.',
+    title: 'Revise este ponto antes de enviar',
+    explanation: issue.userFacingExplanation?.trim() || 'Identificamos um ponto que merece revisão para manter seu currículo fiel ao histórico original.',
+    whyItMatters: 'Quando o texto sugere experiências não comprovadas, o currículo pode parecer artificial para recrutadores.',
+    suggestedAction: 'Ajuste a redação para manter apenas afirmações sustentadas pelo currículo original.',
+    summary: issue.userFacingExplanation?.trim() || issue.message,
   }
 
   if (issue.issueType === 'summary_skill_without_evidence') {
@@ -184,30 +185,35 @@ function buildIssueReviewItem(params: {
   }
 
   if (issue.issueType === 'target_role_overclaim' || issue.issueType === 'low_fit_target_role') {
-    const missingEvidence = params.topUnsupportedSignalsForDisplay.slice(0, 6)
-    const hasMissingEvidence = missingEvidence.length > 0
+    const unsupportedRequirements = params.unsupportedRequirements.slice(0, 8)
+    const hasUnsupportedRequirements = unsupportedRequirements.length > 0
+    const provenProfile = params.originalProfileLabel
+      || 'O currículo original não deixou claro um perfil diretamente alinhado a esta vaga.'
     return {
       ...defaults,
-      id: `warning-${issue.issueType}-${targetRole}`.slice(0, 120),
-      title: hasMissingEvidence
-        ? 'Requisitos da vaga sem evidência suficiente'
-        : 'Cargo da vaga assumido com pouca evidência',
-      explanation: hasMissingEvidence
-        ? `A vaga “${targetRole}” exige pontos que ainda não aparecem com evidência forte no seu currículo original.`
-        : `A versão gerada pode estar se aproximando demais do cargo “${targetRole}”.`,
-      whyItMatters: hasMissingEvidence
-        ? `Seu perfil comprovado hoje está mais alinhado com ${params.originalProfileLabel}. Se os requisitos centrais da vaga não estiverem claros no histórico, o encaixe pode parecer artificial para recrutadores.`
-        : `Seu currículo original comprova melhor uma trajetória em ${params.originalProfileLabel}. Se o resumo se apresentar diretamente como “${targetRole}”, pode parecer que você já atuou nessa função.`,
-      suggestedAction: hasMissingEvidence
-        ? 'Use os requisitos sem evidência como plano de transição e ajuste o resumo para destacar somente competências já comprovadas.'
-        : 'Revise o resumo para manter sua identidade profissional real e usar a vaga apenas como direcionamento.',
+      id: `warning-${issue.issueType}-${targetRole ?? 'target-role'}`.slice(0, 120),
+      title: 'Esta vaga parece distante do seu currículo atual',
+      summary: hasUnsupportedRequirements
+        ? 'Esta versão foi gerada com distância relevante entre os requisitos da vaga e as evidências do currículo original.'
+        : 'Esta versão foi gerada para uma vaga com sinais limitados de aderência no currículo original.',
+      explanation: hasUnsupportedRequirements
+        ? 'A vaga exige responsabilidades e requisitos que ainda não aparecem com evidência suficiente no seu histórico.'
+        : 'A vaga escolhida pode não estar diretamente alinhada com as experiências comprovadas no seu currículo original.',
+      whyItMatters: `Seu perfil comprovado hoje está mais alinhado com ${provenProfile}. Quando requisitos centrais da vaga não aparecem no histórico original, o currículo pode parecer artificial ou sugerir experiência não comprovada.`,
+      suggestedAction: hasUnsupportedRequirements
+        ? 'Revise se faz sentido se apresentar diretamente para esta vaga. Se decidir seguir, mantenha sua identidade profissional real e destaque apenas habilidades transferíveis comprovadas antes de enviar.'
+        : 'Revise o posicionamento para manter sua identidade profissional real e destacar apenas competências comprovadas antes de enviar.',
       message: issue.userFacingExplanation ?? issue.message,
       issueType: issue.issueType,
       offendingSignal,
       offendingText: issue.offendingText ?? issue.offendingSignal,
-      missingEvidence,
       targetRole,
-      originalProfileLabel: params.originalProfileLabel,
+      provenProfile,
+      originalProfileLabel: provenProfile,
+      unsupportedRequirements,
+      missingEvidence: unsupportedRequirements,
+      jobRequirements: unsupportedRequirements,
+      sectionLabel: 'Resumo',
       inline: params.inline,
     }
   }
@@ -308,7 +314,7 @@ export function buildOverrideReviewHighlightState(params: {
 
   const targetRole = validationOverride?.targetRole ?? targetingPlan?.targetRole
   const originalProfileLabel = buildOriginalProfileLabel(params.session.cvState)
-  const topUnsupportedSignalsForDisplay = targetingPlan?.lowFitWarningGate?.coreRequirementCoverage?.topUnsupportedSignalsForDisplay
+  const unsupportedRequirements = targetingPlan?.lowFitWarningGate?.coreRequirementCoverage?.topUnsupportedSignalsForDisplay
     ?? targetingPlan?.coreRequirementCoverage?.topUnsupportedSignalsForDisplay
     ?? []
 
@@ -323,7 +329,7 @@ export function buildOverrideReviewHighlightState(params: {
       inline,
       targetRole,
       originalProfileLabel,
-      topUnsupportedSignalsForDisplay,
+      unsupportedRequirements,
     }))
   })
 
