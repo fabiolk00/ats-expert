@@ -326,6 +326,46 @@ describe('credit reservation repository', () => {
     })
   })
 
+  it('settles a freshly reserved reservation without reloading by generation intent', async () => {
+    const reserved = buildReservationRow('reserved')
+    mockSupabase.rpc.mockResolvedValueOnce({ data: buildReservationRow('finalized'), error: null })
+
+    const finalized = await finalizeCreditReservation({
+      userId: 'usr_123',
+      generationIntentKey: 'intent_123',
+      resumeGenerationId: 'generation_123',
+      reservation: {
+        id: reserved.id,
+        userId: reserved.user_id,
+        generationIntentKey: reserved.generation_intent_key,
+        jobId: reserved.job_id ?? undefined,
+        sessionId: reserved.session_id ?? undefined,
+        resumeTargetId: reserved.resume_target_id ?? undefined,
+        resumeGenerationId: reserved.resume_generation_id ?? undefined,
+        type: reserved.type,
+        status: reserved.status,
+        creditsReserved: reserved.credits_reserved,
+        failureReason: reserved.failure_reason ?? undefined,
+        reservedAt: new Date(reserved.reserved_at),
+        finalizedAt: undefined,
+        releasedAt: undefined,
+        reconciliationStatus: reserved.reconciliation_status as never,
+        metadata: reserved.metadata ?? undefined,
+        createdAt: new Date(reserved.created_at),
+        updatedAt: new Date(reserved.updated_at),
+      },
+    })
+
+    expect(finalized.status).toBe('finalized')
+    expect(reservationMaybeSingle).not.toHaveBeenCalled()
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('finalize_credit_reservation', {
+      p_user_id: 'usr_123',
+      p_generation_intent_key: 'intent_123',
+      p_resume_generation_id: 'generation_123',
+      p_metadata: null,
+    })
+  })
+
   it('allows reconciliation repairs to settle reservations already marked needs_reconciliation', async () => {
     reservationMaybeSingle
       .mockResolvedValueOnce({ data: buildReservationRow('needs_reconciliation'), error: null })

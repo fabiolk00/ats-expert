@@ -4,10 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST } from './route'
 import { tryAcquireOverrideProcessingLock } from '@/lib/agent/job-targeting/override-processing-lock'
 import { runJobTargetingPipeline } from '@/lib/agent/job-targeting-pipeline'
-import { dispatchToolWithContext } from '@/lib/agent/tools'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { createCvVersion } from '@/lib/db/cv-versions'
 import { getSession, updateSession } from '@/lib/db/sessions'
+import { generateBillableResume } from '@/lib/resume-generation/generate-billable-resume'
 
 vi.mock('@/lib/auth/app-user', () => ({
   getCurrentAppUser: vi.fn(),
@@ -22,8 +22,8 @@ vi.mock('@/lib/db/cv-versions', () => ({
   createCvVersion: vi.fn(),
 }))
 
-vi.mock('@/lib/agent/tools', () => ({
-  dispatchToolWithContext: vi.fn(),
+vi.mock('@/lib/resume-generation/generate-billable-resume', () => ({
+  generateBillableResume: vi.fn(),
 }))
 
 vi.mock('@/lib/agent/job-targeting-pipeline', () => ({
@@ -288,17 +288,18 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
   })
 
   it('persists the blocked rewrite and generates the override through the billable path', async () => {
-    vi.mocked(dispatchToolWithContext).mockResolvedValue({
+    vi.mocked(generateBillableResume).mockResolvedValue({
       output: {
         success: true,
         creditsUsed: 1,
         resumeGenerationId: 'gen_123',
       },
-      outputJson: JSON.stringify({
-        success: true,
-        creditsUsed: 1,
-        resumeGenerationId: 'gen_123',
-      }),
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-27T15:01:00.000Z',
+      },
     } as never)
 
     const response = await POST(buildRequest({
@@ -320,25 +321,26 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
     expect(tryAcquireOverrideProcessingLock).toHaveBeenCalledWith(expect.objectContaining({
       sessionId: 'sess_123',
       userId: 'usr_123',
+      initialSession: expect.objectContaining({
+        id: 'sess_123',
+        stateVersion: 1,
+      }),
       draftId: 'draft_123',
       overrideToken: 'override_token_123',
     }))
+    expect(getSession).toHaveBeenCalledTimes(1)
     expect(createCvVersion).toHaveBeenCalledWith(expect.objectContaining({
       sessionId: 'sess_123',
       source: 'job-targeting',
     }))
-    expect(dispatchToolWithContext).toHaveBeenCalledWith(
-      'generate_file',
+    expect(generateBillableResume).toHaveBeenCalledWith(
       expect.objectContaining({
-        idempotency_key: 'profile-target-override:sess_123:draft_123',
-      }),
-      expect.objectContaining({
-        id: 'sess_123',
-        agentState: expect.objectContaining({
-          optimizedCvState: expect.objectContaining({
-            summary: expect.stringContaining('dashboards'),
-          }),
-        }),
+        userId: 'usr_123',
+        sessionId: 'sess_123',
+        idempotencyKey: 'profile-target-override:sess_123:draft_123',
+        latestVersionId: 'ver_123',
+        latestVersionSource: 'job-targeting',
+        skipCreditPrecheck: true,
       }),
     )
     expect(updateSession).toHaveBeenLastCalledWith('sess_123', expect.objectContaining({
@@ -376,17 +378,18 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
         issues: [],
       },
     } as never)
-    vi.mocked(dispatchToolWithContext).mockResolvedValue({
+    vi.mocked(generateBillableResume).mockResolvedValue({
       output: {
         success: true,
         creditsUsed: 1,
         resumeGenerationId: 'gen_low_fit_123',
       },
-      outputJson: JSON.stringify({
-        success: true,
-        creditsUsed: 1,
-        resumeGenerationId: 'gen_low_fit_123',
-      }),
+      generatedOutput: {
+        status: 'ready',
+        pdfPath: 'usr_123/sess_123/resume.pdf',
+        docxPath: null,
+        generatedAt: '2026-04-27T15:01:00.000Z',
+      },
     } as never)
 
     const response = await POST(buildRequest({
@@ -417,14 +420,16 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
         deferSessionPersistence: true,
       }),
     )
+    expect(getSession).toHaveBeenCalledTimes(1)
     expect(createCvVersion).not.toHaveBeenCalled()
-    expect(dispatchToolWithContext).toHaveBeenCalledWith(
-      'generate_file',
+    expect(generateBillableResume).toHaveBeenCalledWith(
       expect.objectContaining({
-        idempotency_key: 'profile-target-override:sess_123:draft_123',
-      }),
-      expect.objectContaining({
-        id: 'sess_123',
+        userId: 'usr_123',
+        sessionId: 'sess_123',
+        idempotencyKey: 'profile-target-override:sess_123:draft_123',
+        latestVersionId: undefined,
+        latestVersionSource: undefined,
+        skipCreditPrecheck: true,
       }),
     )
     expect(updateSession).toHaveBeenLastCalledWith('sess_123', expect.objectContaining({
@@ -454,7 +459,7 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
     })
     expect(tryAcquireOverrideProcessingLock).not.toHaveBeenCalled()
     expect(createCvVersion).not.toHaveBeenCalled()
-    expect(dispatchToolWithContext).not.toHaveBeenCalled()
+    expect(generateBillableResume).not.toHaveBeenCalled()
   })
 
   it('returns insufficient_credits without consuming draft state or creating a version', async () => {
@@ -499,7 +504,7 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
     expect(tryAcquireOverrideProcessingLock).not.toHaveBeenCalled()
     expect(updateSession).not.toHaveBeenCalled()
     expect(createCvVersion).not.toHaveBeenCalled()
-    expect(dispatchToolWithContext).not.toHaveBeenCalled()
+    expect(generateBillableResume).not.toHaveBeenCalled()
   })
 
   it('returns a human message when the recoverable override token has expired', async () => {
@@ -528,11 +533,11 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
     expect(tryAcquireOverrideProcessingLock).not.toHaveBeenCalled()
     expect(updateSession).not.toHaveBeenCalled()
     expect(createCvVersion).not.toHaveBeenCalled()
-    expect(dispatchToolWithContext).not.toHaveBeenCalled()
+    expect(generateBillableResume).not.toHaveBeenCalled()
   })
 
   it('does not charge or finalize the override when the billable generation fails', async () => {
-    vi.mocked(dispatchToolWithContext).mockResolvedValue({
+    vi.mocked(generateBillableResume).mockResolvedValue({
       output: {
         success: false,
         error: 'Falha técnica ao gerar artefato.',
@@ -593,7 +598,7 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
       retryAfterMs: 3000,
     })
     expect(runJobTargetingPipeline).not.toHaveBeenCalled()
-    expect(dispatchToolWithContext).not.toHaveBeenCalled()
+    expect(generateBillableResume).not.toHaveBeenCalled()
   })
 
   it('returns the completed result idempotently when the same override token is replayed after success', async () => {
@@ -624,6 +629,6 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
       generationSource: 'job_targeting_override',
     })
     expect(createCvVersion).not.toHaveBeenCalled()
-    expect(dispatchToolWithContext).not.toHaveBeenCalled()
+    expect(generateBillableResume).not.toHaveBeenCalled()
   })
 })

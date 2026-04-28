@@ -103,6 +103,7 @@ type SettleCreditReservationInput = {
   action: ReservationTransitionAction
   resumeGenerationId?: string
   metadata?: Record<string, unknown>
+  reservation?: CreditReservation
 }
 
 function isDuplicateKeyError(error: PostgrestErrorLike | null | undefined): boolean {
@@ -330,13 +331,20 @@ export async function reserveCreditForGenerationIntent(
 export async function settleCreditReservationTransition(
   input: SettleCreditReservationInput,
 ): Promise<CreditReservation> {
-  const reservation = await getCreditReservationByIntent({
+  const reservation = input.reservation ?? await getCreditReservationByIntent({
     userId: input.userId,
     generationIntentKey: input.generationIntentKey,
   })
 
   if (!reservation) {
     throw new Error(`Credit reservation not found for generation intent: ${input.generationIntentKey}`)
+  }
+
+  if (
+    reservation.userId !== input.userId
+    || reservation.generationIntentKey !== input.generationIntentKey
+  ) {
+    throw new Error('Credit reservation does not match the requested generation intent')
   }
 
   assertReservationTransitionAllowed(reservation, input.action)
@@ -373,6 +381,7 @@ export async function finalizeCreditReservation(input: {
   generationIntentKey: string
   resumeGenerationId?: string
   metadata?: Record<string, unknown>
+  reservation?: CreditReservation
 }): Promise<CreditReservation> {
   return settleCreditReservationTransition({
     ...input,
@@ -385,6 +394,7 @@ export async function releaseCreditReservation(input: {
   generationIntentKey: string
   resumeGenerationId?: string
   metadata?: Record<string, unknown>
+  reservation?: CreditReservation
 }): Promise<CreditReservation> {
   return settleCreditReservationTransition({
     ...input,

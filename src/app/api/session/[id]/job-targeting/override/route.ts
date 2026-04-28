@@ -14,7 +14,6 @@ import {
   isRecoverableValidationBlock,
 } from '@/lib/agent/job-targeting/recoverable-validation'
 import { TOOL_ERROR_CODES, getHttpStatusForToolError } from '@/lib/agent/tool-errors'
-import { dispatchToolWithContext } from '@/lib/agent/tools'
 import { runWithApiUsageBuffer } from '@/lib/agent/usage-tracker'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
 import { createCvVersion } from '@/lib/db/cv-versions'
@@ -25,8 +24,12 @@ import {
   logWarn,
   serializeError,
 } from '@/lib/observability/structured-log'
+import { getRequestQueryContext } from '@/lib/observability/request-query-context'
+import { summarizePatternStats } from '@/lib/observability/query-fingerprint'
 import { withRequestQueryTracking } from '@/lib/observability/request-query-tracking'
+import { generateBillableResume } from '@/lib/resume-generation/generate-billable-resume'
 import { validateTrustedMutationRequest } from '@/lib/security/request-trust'
+import type { GeneratedOutput, GenerateFileOutput } from '@/types/agent'
 
 const OverrideBodySchema = z.object({
   overrideToken: z.string().min(1),
@@ -35,6 +38,122 @@ const OverrideBodySchema = z.object({
 
 const OVERRIDE_PROCESSING_LOCK_TTL_MS = 5 * 60 * 1000
 const JOB_TARGETING_OVERRIDE_GENERATION_SOURCE = 'job_targeting_override'
+const DEFAULT_OVERRIDE_QUERY_THRESHOLD = 15
+
+type OverrideStage =
+  | 'load_context'
+  | 'acquire_lock'
+  | 'build_targeting_plan'
+  | 'persist_version'
+  | 'build_review_card'
+  | 'generate_file'
+  | 'persist_generated_output'
+  | 'persist_validation_override'
+
+function readOverrideQueryThreshold(): number {
+  const rawThreshold = process.env.DB_QUERY_WARNING_THRESHOLD?.trim()
+  if (!rawThreshold) {
+    return DEFAULT_OVERRIDE_QUERY_THRESHOLD
+  }
+
+  const parsedThreshold = Number.parseInt(rawThreshold, 10)
+  return Number.isFinite(parsedThreshold) && parsedThreshold > 0
+    ? parsedThreshold
+    : DEFAULT_OVERRIDE_QUERY_THRESHOLD
+}
+
+function logOverrideStageTiming(
+  stage: OverrideStage,
+  startedAt: number,
+  fields: Record<string, unknown> = {},
+): void {
+  logInfo('agent.job_targeting.override.stage_timing', {
+    stage,
+    latencyMs: Date.now() - startedAt,
+    ...fields,
+  })
+}
+
+async function runOverrideStage<T>(
+  stage: OverrideStage,
+  fields: Record<string, unknown>,
+  run: () => Promise<T>,
+): Promise<T> {
+  const startedAt = Date.now()
+  try {
+    return await run()
+  } finally {
+    logOverrideStageTiming(stage, startedAt, fields)
+  }
+}
+
+function countSampledQueries(patterns: RegExp[]): number {
+  const context = getRequestQueryContext()
+  if (!context) {
+    return 0
+  }
+
+  return context.queries.filter((query) => patterns.some((pattern) => pattern.test(query))).length
+}
+
+function countOverrideHighlightRanges(
+  agentState: NonNullable<Awaited<ReturnType<typeof getSession>>>['agentState'],
+): number {
+  return agentState.highlightState?.resolvedHighlights.reduce(
+    (total, highlight) => total + highlight.ranges.length,
+    0,
+  ) ?? 0
+}
+
+function logOverrideQueryBudget(params: {
+  sessionId: string
+  userId: string
+  targetRole?: string
+  reviewCardCount: number
+  highlightRangeCount: number
+  creditCharged: boolean
+}): void {
+  const context = getRequestQueryContext()
+  if (!context) {
+    return
+  }
+
+  const patternSummary = summarizePatternStats(context.patternStats)
+  const threshold = readOverrideQueryThreshold()
+  const suspectedNPlusOne = context.queryCount > threshold
+    && patternSummary.maxRepeatedPatternCount >= 3
+
+  logInfo('agent.job_targeting.override.query_budget', {
+    requestId: context.requestId,
+    sessionId: params.sessionId,
+    userId: params.userId,
+    targetRole: params.targetRole,
+    queryCount: context.queryCount,
+    threshold,
+    uniqueQueryPatternCount: patternSummary.uniqueQueryPatternCount,
+    repeatedQueryPatternCount: patternSummary.repeatedQueryPatternCount,
+    maxRepeatedPatternCount: patternSummary.maxRepeatedPatternCount,
+    suspectedNPlusOne,
+    sessionReadCount: countSampledQueries([/GET\s+\/rest\/v1\/sessions\?/i, /sessions\?select=/i]),
+    sessionWriteCount: countSampledQueries([
+      /PATCH\s+\/rest\/v1\/sessions/i,
+      /POST\s+\/rest\/v1\/rpc\/apply_session_patch_with_version/i,
+    ]),
+    generationLookupCount: countSampledQueries([
+      /GET\s+\/rest\/v1\/resume_generations\?/i,
+      /resume_generations\?select=/i,
+      /GET\s+\/rest\/v1\/cv_versions\?/i,
+      /cv_versions\?select=/i,
+    ]),
+    creditReservationLookupCount: countSampledQueries([
+      /GET\s+\/rest\/v1\/credit_reservations\?/i,
+      /credit_reservations\?select=/i,
+    ]),
+    reviewCardCount: params.reviewCardCount,
+    highlightRangeCount: params.highlightRangeCount,
+    creditCharged: params.creditCharged,
+  })
+}
 
 function buildValidationFromIssues(
   validationIssues: NonNullable<NonNullable<Awaited<ReturnType<typeof getSession>>>['agentState']['blockedTargetedRewriteDraft']>['validationIssues'],
@@ -57,6 +176,27 @@ async function persistAgentState(
 ): Promise<void> {
   await updateSession(session.id, { agentState })
   session.agentState = agentState
+}
+
+async function persistOverrideCompletion(
+  session: NonNullable<Awaited<ReturnType<typeof getSession>>>,
+  agentState: NonNullable<Awaited<ReturnType<typeof getSession>>>['agentState'],
+  generatedOutput?: GeneratedOutput,
+): Promise<void> {
+  await updateSession(session.id, {
+    agentState,
+    generatedOutput,
+  })
+  session.agentState = agentState
+  if (generatedOutput) {
+    session.generatedOutput = generatedOutput
+  }
+}
+
+function getGenerationOutputFailure(
+  output: GenerateFileOutput,
+): Extract<GenerateFileOutput, { success: false }> | undefined {
+  return output.success ? undefined : output
 }
 
 function stripOverrideProcessing(
@@ -195,6 +335,7 @@ export async function POST(
   { params }: { params: { id: string } },
 ): Promise<NextResponse> {
   return withRequestQueryTracking(req, async () => runWithApiUsageBuffer(async () => {
+    const loadContextStartedAt = Date.now()
     const appUser = await getCurrentAppUser()
     if (!appUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -223,6 +364,10 @@ export async function POST(
     if (!body.success) {
       return NextResponse.json({ error: body.error.flatten() }, { status: 400 })
     }
+    logOverrideStageTiming('load_context', loadContextStartedAt, {
+      sessionId: session.id,
+      userId: appUser.id,
+    })
 
     const overrideTokenHash = hashOverrideToken(body.data.overrideToken)
     const existingValidationOverride = session.agentState.validationOverride
@@ -320,16 +465,22 @@ export async function POST(
     const blockKind = blockedDraft.kind ?? 'post_rewrite_validation_block'
     const overrideRequestId = randomUUID()
     const overrideIdempotencyKey = `profile-target-override:${session.id}:${blockedDraft.id}`
-    const lockResult = await tryAcquireOverrideProcessingLock({
+    const lockResult = await runOverrideStage('acquire_lock', {
       sessionId: session.id,
       userId: appUser.id,
+      draftId: blockedDraft.id,
+      blockKind,
+    }, () => tryAcquireOverrideProcessingLock({
+      sessionId: session.id,
+      userId: appUser.id,
+      initialSession: session,
       draftId: blockedDraft.id,
       overrideToken: body.data.overrideToken,
       requestId: overrideRequestId,
       now: new Date(),
       lockTtlMs: OVERRIDE_PROCESSING_LOCK_TTL_MS,
       idempotencyKey: overrideIdempotencyKey,
-    })
+    }))
 
     if (!lockResult.acquired) {
       if (lockResult.reason === 'already_processing') {
@@ -440,13 +591,18 @@ export async function POST(
         generationSource: JOB_TARGETING_OVERRIDE_GENERATION_SOURCE,
       })
 
-      const pipelineResult = await runJobTargetingPipeline(generationSession, {
-        userAcceptedLowFit: true,
-        overrideReason: 'pre_rewrite_low_fit_block',
-        skipPreRewriteLowFitBlock: true,
-        skipLowFitRecoverableBlocking: true,
-        deferSessionPersistence: true,
-      })
+      const pipelineResult = await runOverrideStage('build_targeting_plan', {
+        sessionId: lockedSession.id,
+        userId: appUser.id,
+        targetRole: lockedDraft.targetRole,
+        acceptedLowFit: true,
+      }, () => runJobTargetingPipeline(generationSession, {
+          userAcceptedLowFit: true,
+          overrideReason: 'pre_rewrite_low_fit_block',
+          skipPreRewriteLowFitBlock: true,
+          skipLowFitRecoverableBlocking: true,
+          deferSessionPersistence: true,
+        }))
 
       if (!pipelineResult.success || !pipelineResult.optimizedCvState) {
         await persistAgentState(lockedSession, previousAgentState)
@@ -466,17 +622,34 @@ export async function POST(
           { status: 500 },
         )
       }
+      const optimizedCvState = pipelineResult.optimizedCvState
 
-      const generationResult = await dispatchToolWithContext(
-        'generate_file',
-        {
-          cv_state: pipelineResult.optimizedCvState,
-          idempotency_key: overrideIdempotencyKey,
-        },
-        generationSession,
-      )
+      const generationResult = await runOverrideStage('generate_file', {
+        sessionId: lockedSession.id,
+        userId: appUser.id,
+        targetRole: lockedDraft.targetRole,
+        generationIntentKey: overrideIdempotencyKey,
+      }, () => generateBillableResume({
+          userId: appUser.id,
+          sessionId: lockedSession.id,
+          sourceCvState: optimizedCvState,
+          idempotencyKey: overrideIdempotencyKey,
+          templateTargetSource: generationSession.agentState,
+          latestVersionId: pipelineResult.cvVersionId,
+          latestVersionSource: pipelineResult.cvVersionId ? 'job-targeting' : undefined,
+          sourceScope: 'optimized',
+          skipCreditPrecheck: true,
+          historyContext: {
+            idempotencyKey: overrideIdempotencyKey,
+            workflowMode: generationSession.agentState.workflowMode,
+            lastRewriteMode: generationSession.agentState.lastRewriteMode,
+            targetJobDescription: generationSession.agentState.targetJobDescription,
+            targetRole: lockedDraft.targetRole,
+          },
+        }))
 
-      if (generationResult.outputFailure) {
+      const outputFailure = getGenerationOutputFailure(generationResult.output)
+      if (outputFailure) {
         await persistAgentState(lockedSession, previousAgentState)
         logWarn('agent.job_targeting.validation_override_failed', {
           sessionId: lockedSession.id,
@@ -484,8 +657,8 @@ export async function POST(
           targetRole: lockedDraft.targetRole,
           issueCount: lockedDraft.validationIssues.length,
           hardIssueCount: lockedDraft.validationIssues.filter((issue) => issue.severity === 'high').length,
-          code: generationResult.outputFailure.code,
-          error: generationResult.outputFailure.error,
+          code: outputFailure.code,
+          error: outputFailure.error,
           blockKind,
           generationSource: JOB_TARGETING_OVERRIDE_GENERATION_SOURCE,
         })
@@ -495,19 +668,19 @@ export async function POST(
           targetRole: lockedDraft.targetRole,
           originalBlockKind: 'pre_rewrite_low_fit_block',
           userAcceptedLowFit: true,
-          failureReason: generationResult.outputFailure.code ?? generationResult.outputFailure.error,
+          failureReason: outputFailure.code ?? outputFailure.error,
           cvVersionId: pipelineResult.cvVersionId,
         })
         return NextResponse.json(
           {
             error:
-              generationResult.outputFailure.error
+              outputFailure.error
               ?? 'Não conseguimos concluir a geração por um erro técnico. Tente novamente.',
-            code: generationResult.outputFailure.code,
+            code: outputFailure.code,
           },
           {
-            status: generationResult.outputFailure.code
-              ? getHttpStatusForToolError(generationResult.outputFailure.code)
+            status: outputFailure.code
+              ? getHttpStatusForToolError(outputFailure.code)
               : 500,
           },
         )
@@ -535,18 +708,33 @@ export async function POST(
         blockedTargetedRewriteDraft: undefined,
         recoverableValidationBlock: undefined,
       }
-      completedAgentState = {
-        ...completedAgentState,
-        highlightState: buildOverrideReviewHighlightState({
+      const highlightState = await runOverrideStage('build_review_card', {
+        sessionId: lockedSession.id,
+        userId: appUser.id,
+        targetRole: lockedDraft.targetRole,
+      }, async () => buildOverrideReviewHighlightState({
           session: {
             ...generationSession,
             agentState: completedAgentState,
           },
           cvState: generationSession.agentState.optimizedCvState ?? lockedSession.cvState,
-        }),
+        }))
+      completedAgentState = {
+        ...completedAgentState,
+        highlightState,
       }
 
-      await persistAgentState(lockedSession, completedAgentState)
+      await runOverrideStage('persist_validation_override', {
+        sessionId: lockedSession.id,
+        userId: appUser.id,
+        targetRole: lockedDraft.targetRole,
+        reviewCardCount: completedAgentState.highlightState?.reviewItems?.length ?? 0,
+        highlightRangeCount: countOverrideHighlightRanges(completedAgentState),
+      }, () => persistOverrideCompletion(
+          lockedSession,
+          completedAgentState,
+          generationResult.generatedOutput,
+        ))
 
       logInfo('agent.job_targeting.validation_override_succeeded', {
         sessionId: lockedSession.id,
@@ -575,6 +763,14 @@ export async function POST(
         cvVersionId: pipelineResult.cvVersionId,
         generationSource: JOB_TARGETING_OVERRIDE_GENERATION_SOURCE,
       })
+      logOverrideQueryBudget({
+        sessionId: lockedSession.id,
+        userId: appUser.id,
+        targetRole: lockedDraft.targetRole,
+        reviewCardCount: completedAgentState.highlightState?.reviewItems?.length ?? 0,
+        highlightRangeCount: countOverrideHighlightRanges(completedAgentState),
+        creditCharged: (output.creditsUsed ?? 0) > 0,
+      })
 
       return NextResponse.json({
         success: true,
@@ -596,6 +792,7 @@ export async function POST(
         { status: 409 },
       )
     }
+    const optimizedCvState = lockedDraft.optimizedCvState
 
     const generationSession = buildGenerationSessionFromProcessingState({
       session: lockedSession,
@@ -607,11 +804,15 @@ export async function POST(
 
     let createdCvVersion
     try {
-      createdCvVersion = await createCvVersion({
+      createdCvVersion = await runOverrideStage('persist_version', {
         sessionId: lockedSession.id,
-        snapshot: lockedDraft.optimizedCvState,
+        userId: appUser.id,
+        targetRole: lockedDraft.targetRole,
+      }, () => createCvVersion({
+        sessionId: lockedSession.id,
+        snapshot: optimizedCvState,
         source: 'job-targeting',
-      })
+      }))
     } catch (error) {
       await persistAgentState(lockedSession, previousAgentState)
       logError('api.session.job_targeting.override.persist_failed', {
@@ -638,16 +839,32 @@ export async function POST(
       )
     }
 
-    const generationResult = await dispatchToolWithContext(
-      'generate_file',
-      {
-        cv_state: lockedDraft.optimizedCvState,
-        idempotency_key: overrideIdempotencyKey,
-      },
-      generationSession,
-    )
+    const generationResult = await runOverrideStage('generate_file', {
+      sessionId: lockedSession.id,
+      userId: appUser.id,
+      targetRole: lockedDraft.targetRole,
+      generationIntentKey: overrideIdempotencyKey,
+    }, () => generateBillableResume({
+        userId: appUser.id,
+        sessionId: lockedSession.id,
+        sourceCvState: optimizedCvState,
+        idempotencyKey: overrideIdempotencyKey,
+        templateTargetSource: generationSession.agentState,
+        latestVersionId: createdCvVersion.id,
+        latestVersionSource: createdCvVersion.source,
+        sourceScope: 'optimized',
+        skipCreditPrecheck: true,
+        historyContext: {
+          idempotencyKey: overrideIdempotencyKey,
+          workflowMode: generationSession.agentState.workflowMode,
+          lastRewriteMode: generationSession.agentState.lastRewriteMode,
+          targetJobDescription: generationSession.agentState.targetJobDescription,
+          targetRole: lockedDraft.targetRole,
+        },
+      }))
 
-    if (generationResult.outputFailure) {
+    const outputFailure = getGenerationOutputFailure(generationResult.output)
+    if (outputFailure) {
       await persistAgentState(lockedSession, previousAgentState)
       logWarn('agent.job_targeting.validation_override_failed', {
         sessionId: lockedSession.id,
@@ -655,8 +872,8 @@ export async function POST(
         targetRole: lockedDraft.targetRole,
         issueCount: lockedDraft.validationIssues.length,
         hardIssueCount: lockedDraft.validationIssues.filter((issue) => issue.severity === 'high').length,
-        code: generationResult.outputFailure.code,
-        error: generationResult.outputFailure.error,
+        code: outputFailure.code,
+        error: outputFailure.error,
         blockKind,
         generationSource: JOB_TARGETING_OVERRIDE_GENERATION_SOURCE,
       })
@@ -666,19 +883,19 @@ export async function POST(
         targetRole: lockedDraft.targetRole,
         originalBlockKind: 'post_rewrite_validation_block',
         userAcceptedLowFit: false,
-        failureReason: generationResult.outputFailure.code ?? generationResult.outputFailure.error,
+        failureReason: outputFailure.code ?? outputFailure.error,
         cvVersionId: createdCvVersion.id,
       })
       return NextResponse.json(
         {
           error:
-            generationResult.outputFailure.error
+            outputFailure.error
             ?? 'Não conseguimos concluir a geração por um erro técnico. Tente novamente.',
-          code: generationResult.outputFailure.code,
+          code: outputFailure.code,
         },
         {
-          status: generationResult.outputFailure.code
-            ? getHttpStatusForToolError(generationResult.outputFailure.code)
+          status: outputFailure.code
+            ? getHttpStatusForToolError(outputFailure.code)
             : 500,
         },
       )
@@ -703,18 +920,33 @@ export async function POST(
       blockedTargetedRewriteDraft: undefined,
       recoverableValidationBlock: undefined,
     }
-    completedAgentState = {
-      ...completedAgentState,
-      highlightState: buildOverrideReviewHighlightState({
+    const highlightState = await runOverrideStage('build_review_card', {
+      sessionId: lockedSession.id,
+      userId: appUser.id,
+      targetRole: lockedDraft.targetRole,
+    }, async () => buildOverrideReviewHighlightState({
         session: {
           ...generationSession,
           agentState: completedAgentState,
         },
         cvState: generationSession.agentState.optimizedCvState ?? lockedSession.cvState,
-      }),
+      }))
+    completedAgentState = {
+      ...completedAgentState,
+      highlightState,
     }
 
-    await persistAgentState(lockedSession, completedAgentState)
+    await runOverrideStage('persist_validation_override', {
+      sessionId: lockedSession.id,
+      userId: appUser.id,
+      targetRole: lockedDraft.targetRole,
+      reviewCardCount: completedAgentState.highlightState?.reviewItems?.length ?? 0,
+      highlightRangeCount: countOverrideHighlightRanges(completedAgentState),
+    }, () => persistOverrideCompletion(
+        lockedSession,
+        completedAgentState,
+        generationResult.generatedOutput,
+      ))
 
     logInfo('agent.job_targeting.validation_override_succeeded', {
       sessionId: lockedSession.id,
@@ -742,6 +974,14 @@ export async function POST(
       resumeGenerationId: output.resumeGenerationId,
       cvVersionId: createdCvVersion.id,
       generationSource: JOB_TARGETING_OVERRIDE_GENERATION_SOURCE,
+    })
+    logOverrideQueryBudget({
+      sessionId: lockedSession.id,
+      userId: appUser.id,
+      targetRole: lockedDraft.targetRole,
+      reviewCardCount: completedAgentState.highlightState?.reviewItems?.length ?? 0,
+      highlightRangeCount: countOverrideHighlightRanges(completedAgentState),
+      creditCharged: (output.creditsUsed ?? 0) > 0,
     })
 
     return NextResponse.json({

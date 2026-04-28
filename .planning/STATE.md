@@ -230,6 +230,8 @@ Baseline carried forward from earlier shipped milestones:
 | 260427-vo5 | UX + Core Requirement Hardening: dynamic review panel and domain-agnostic requirement display | 2026-04-28 | working-tree | Validated | [260427-vo5-ux-core-requirement-hardening-dynamic-re](./quick/260427-vo5-ux-core-requirement-hardening-dynamic-re/) |
 | 260428-82i | Fix copy regression audit mojibake findings | 2026-04-28 | working-tree | Validated | [260428-82i-fix-copy-regression-audit-mojibake-findi](./quick/260428-82i-fix-copy-regression-audit-mojibake-findi/) |
 | 260428-ovr | Hardening final do Override Review Card com base no pipeline trace | 2026-04-28 | working-tree | Validated | [260428-ovr-override-review-card-hardening](./quick/260428-ovr-override-review-card-hardening/) |
+| 260428-uxr | Hardening UX do Review Warning Panel com scroll interno e accordion | 2026-04-28 | working-tree | Validated | [260428-ux-review-warning-panel-scroll-accordion](./quick/260428-ux-review-warning-panel-scroll-accordion/) |
+| 260428-oqb | Hardening tecnico do log do fluxo /job-targeting/override | 2026-04-28 | working-tree | Validated | [260428-oqb-hardening-t-cnico-do-log-do-fluxo-job-ta](./quick/260428-oqb-hardening-t-cnico-do-log-do-fluxo-job-ta/) |
 
 ## Session Continuity
 

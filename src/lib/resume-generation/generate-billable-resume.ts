@@ -776,6 +776,7 @@ export async function generateBillableResume(input: {
   latestVersionSource?: string
   sourceScope?: string
   historyContext?: ResumeGenerationHistoryContext
+  skipCreditPrecheck?: boolean
 }): Promise<BillableGenerationResult> {
   const scope: ArtifactScope = input.targetId
     ? { type: 'target', targetId: input.targetId }
@@ -985,14 +986,16 @@ export async function generateBillableResume(input: {
     }
   }
 
-  const hasCredits = await checkUserQuota(input.userId)
-  if (!hasCredits) {
-    return {
-      output: toolFailure(
-        TOOL_ERROR_CODES.INSUFFICIENT_CREDITS,
-        'Seus créditos acabaram. Gere um novo currículo quando houver saldo disponível.',
-      ),
-      processingStage: 'reserve_credit',
+  if (!input.skipCreditPrecheck) {
+    const hasCredits = await checkUserQuota(input.userId)
+    if (!hasCredits) {
+      return {
+        output: toolFailure(
+          TOOL_ERROR_CODES.INSUFFICIENT_CREDITS,
+          'Seus créditos acabaram. Gere um novo currículo quando houver saldo disponível.',
+        ),
+        processingStage: 'reserve_credit',
+      }
     }
   }
 
@@ -1228,6 +1231,7 @@ export async function generateBillableResume(input: {
             userId: input.userId,
             generationIntentKey,
             resumeGenerationId: resumeGeneration.id,
+            reservation,
             metadata: {
               sessionId: input.sessionId,
               targetId: input.targetId ?? null,
@@ -1385,6 +1389,7 @@ export async function generateBillableResume(input: {
           userId: input.userId,
           generationIntentKey,
           resumeGenerationId: resumeGeneration.id,
+          reservation,
           metadata: {
             sessionId: input.sessionId,
             targetId: input.targetId ?? null,

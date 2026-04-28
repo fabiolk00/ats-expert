@@ -169,6 +169,7 @@ function createSessionsSupabaseHarness(initialRow = buildSessionRow()) {
     enableParallelSelectBarrier: () => {
       forceParallelSelectBarrier = true
     },
+    maybeSingleSelect,
     maybeSingleUpdate,
   }
 }
@@ -205,6 +206,40 @@ describe('override processing lock', () => {
       requestId: 'req_123',
       status: 'processing',
     })
+  })
+
+  it('uses the caller-loaded session for the first lock attempt without reloading it', async () => {
+    const initialRow = buildSessionRow()
+    const harness = createSessionsSupabaseHarness(initialRow)
+    vi.mocked(getSupabaseAdminClient).mockReturnValue(harness.supabase as never)
+
+    const result = await tryAcquireOverrideProcessingLock({
+      sessionId: 'sess_123',
+      userId: 'usr_123',
+      initialSession: {
+        id: 'sess_123',
+        userId: 'usr_123',
+        stateVersion: 1,
+        phase: 'intake',
+        cvState: initialRow.cv_state,
+        agentState: initialRow.agent_state,
+        generatedOutput: { status: 'idle' },
+        creditsUsed: 0,
+        messageCount: 0,
+        creditConsumed: false,
+        createdAt: new Date(initialRow.created_at),
+        updatedAt: new Date(initialRow.updated_at),
+      } as never,
+      draftId: 'draft_123',
+      overrideToken: 'override_token_123',
+      requestId: 'req_123',
+      now: new Date('2026-04-27T15:00:00.000Z'),
+      lockTtlMs: 5 * 60 * 1000,
+      idempotencyKey: 'profile-target-override:sess_123:draft_123',
+    })
+
+    expect(result.acquired).toBe(true)
+    expect(harness.maybeSingleSelect).not.toHaveBeenCalled()
   })
 
   it('blocks a second concurrent acquisition across simulated instances and keeps only one winner', async () => {

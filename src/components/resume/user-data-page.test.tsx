@@ -1001,6 +1001,9 @@ describe("UserDataPage", () => {
     await user.click(screen.getByTestId("ats-panel-cta"))
 
     const overrideButton = await screen.findByRole("button", { name: "Gerar mesmo assim (1 crédito)" })
+    const scrollContainer = await screen.findByTestId("rewrite-validation-dialog-scroll")
+    expect(scrollContainer.className).toContain("overflow-y-auto")
+    expect(scrollContainer.className).toContain("min-h-0")
     expect(screen.getByText("Você usará 1 crédito para gerar esta versão.")).toBeInTheDocument()
 
     await user.click(overrideButton)

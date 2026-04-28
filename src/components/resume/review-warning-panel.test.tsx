@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
 
 import { ReviewWarningPanel } from "./review-warning-panel"
@@ -6,41 +7,92 @@ import type { CvHighlightState } from "@/lib/resume/cv-highlight-artifact"
 
 type ReviewItem = NonNullable<CvHighlightState["reviewItems"]>[number]
 
+const repeatedRequirements = [
+  "Negociar e fechar vendas com novos clientes",
+  "Mapear oportunidades com clientes existentes",
+  "Experiência na área comercial",
+  "Realizar reuniões comerciais",
+  "Manter follow-ups e atualizar CRM",
+  "Realizar visitas comerciais",
+  "Conhecimento em técnicas de vendas",
+  "Gestão de carteira de clientes",
+]
+
 const reviewItem: ReviewItem = {
   id: "low-fit-1",
   kind: "low_fit_target_mismatch",
   severity: "risk",
   section: "general",
-  sectionLabel: "Resumo",
-  issueType: "low_fit_target_role",
-  title: "Esta vaga parece distante do seu currículo atual",
-  summary: "Esta versão foi gerada com distância relevante entre os requisitos da vaga e as evidências do currículo original.",
-  explanation: "A vaga exige responsabilidades e requisitos que ainda não aparecem com evidência suficiente no seu histórico.",
-  whyItMatters: "Seu histórico original comprova melhor outro perfil profissional.",
-  suggestedAction: "Revise antes de enviar e destaque habilidades transferíveis comprovadas.",
+  sectionLabel: "DiagnÃ³stico da vaga",
+  issueType: "low_fit_target_mismatch",
+  title: "Esta vaga parece distante do seu currÃ­culo atual",
+  summary: "A geraÃ§Ã£o foi feita apÃ³s seu aceite, mas a aderÃªncia entre a vaga e o histÃ³rico original exige revisÃ£o.",
+  explanation: "A vaga exige responsabilidades e requisitos que ainda nÃ£o aparecem com evidÃªncia suficiente.",
+  whyItMatters: "A versÃ£o gerada pode aproximar seu currÃ­culo de uma funÃ§Ã£o sem sustentaÃ§Ã£o direta.",
+  suggestedAction: "Revise antes de enviar e destaque habilidades transferÃ­veis comprovadas.",
   message: "A vaga parece distante.",
-  targetRole: "Vendedora/Vendedor JR",
-  provenProfile: "Analista de dados e operações",
-  jobRequirements: ["Cumprir metas de vendas estabelecidas", "Construir relacionamento com clientes"],
-  unsupportedRequirements: ["CNH B e veículo próprio"],
+  targetRole: "Executivo De Vendas",
+  provenProfile: "Profissional com experiÃªncia tÃ©cnica aderente ao currÃ­culo original.",
+  jobRequirements: repeatedRequirements,
+  missingEvidence: repeatedRequirements,
+  unsupportedRequirements: repeatedRequirements,
   inline: false,
 }
 
 describe("ReviewWarningPanel", () => {
-  it("renders human labels and structured low-fit context", () => {
-    render(
-      <ReviewWarningPanel
-        items={[reviewItem]}
-        hasInlineHighlights={false}
-      />, 
-    )
+  it("keeps long review content inside an internal scroll container", () => {
+    render(<ReviewWarningPanel items={[reviewItem]} hasInlineHighlights={false} />)
 
-    expect(screen.getByText("Vaga alvo:")).toBeInTheDocument()
-    expect(screen.getByText("O que a vaga pede:")).toBeInTheDocument()
-    expect(screen.getByText("Seu perfil comprovado:")).toBeInTheDocument()
-    expect(screen.getByText("Requisitos sem evidência suficiente:")).toBeInTheDocument()
-    expect(screen.getByText("Por que revisar:")).toBeInTheDocument()
-    expect(screen.getByText("Ação sugerida:")).toBeInTheDocument()
+    const scrollContainer = screen.getByTestId("override-review-panel-scroll")
+    expect(scrollContainer.className).toContain("max-h-")
+    expect(scrollContainer.className).toContain("overflow-y-auto")
+  })
+
+  it("starts the low-fit card compact and repairs mojibake for display", () => {
+    render(<ReviewWarningPanel items={[reviewItem]} hasInlineHighlights={false} />)
+
+    expect(screen.getByText(/Esta vaga parece distante do seu currículo atual/i)).toBeInTheDocument()
+    expect(screen.getByText("Vaga alvo")).toBeInTheDocument()
+    expect(screen.getByText("Executivo De Vendas")).toBeInTheDocument()
+    expect(screen.getByText("Principais pontos sem evidência")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Ver detalhes/i })).toBeInTheDocument()
+    expect(screen.getAllByRole("listitem")).toHaveLength(3)
+
+    expect(screen.queryByText("O que a vaga pede")).not.toBeInTheDocument()
+    expect(screen.queryByText("Seu perfil comprovado")).not.toBeInTheDocument()
+    expect(screen.queryByText("Requisitos sem evidência suficiente")).not.toBeInTheDocument()
+    expect(screen.getByText(/geração/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/aderência/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/geraÃ/i)).not.toBeInTheDocument()
+  })
+
+  it("expands details on click without treating a generic proven profile as a strong conclusion", async () => {
+    const user = userEvent.setup()
+    render(<ReviewWarningPanel items={[reviewItem]} hasInlineHighlights={true} />)
+
+    await user.click(screen.getByRole("button", { name: /Ver detalhes/i }))
+
+    expect(screen.getByText("O que a vaga pede")).toBeInTheDocument()
+    expect(screen.getByText("Seu perfil comprovado")).toBeInTheDocument()
+    expect(screen.getByText("Requisitos sem evidência suficiente")).toBeInTheDocument()
+    expect(screen.getByText("Por que revisar")).toBeInTheDocument()
+    expect(screen.getByText("Ação sugerida")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Ocultar detalhes/i })).toBeInTheDocument()
+    expect(screen.getByText(/função/i)).toBeInTheDocument()
+    expect(screen.getByText(/sustentação/i)).toBeInTheDocument()
+    expect(screen.getByText(/transferíveis/i)).toBeInTheDocument()
+    expect(screen.getByText(/O currículo original não deixou claro um perfil diretamente alinhado/i)).toBeInTheDocument()
+    expect(screen.queryByText(/experiência técnica aderente/i)).not.toBeInTheDocument()
+  })
+
+  it("limits duplicate requirement lists instead of rendering both full arrays", async () => {
+    const user = userEvent.setup()
+    render(<ReviewWarningPanel items={[reviewItem]} hasInlineHighlights={true} />)
+
+    await user.click(screen.getByRole("button", { name: /Ver detalhes/i }))
+
+    const panel = screen.getByTestId("override-review-panel")
+    expect(within(panel).getAllByRole("listitem").length).toBeLessThan(repeatedRequirements.length * 2)
   })
 
   it("does not render legacy generic warning copy", () => {
@@ -52,6 +104,5 @@ describe("ReviewWarningPanel", () => {
     expect(screen.queryByText(/cargo alvo sem evidência/i)).not.toBeInTheDocument()
     expect(screen.queryByText("Ponto para revisar")).not.toBeInTheDocument()
     expect(screen.queryByText(/Ajustes de linguagem/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Esta versão contém um ponto que merece revisão/i)).not.toBeInTheDocument()
   })
 })

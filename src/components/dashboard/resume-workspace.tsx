@@ -857,15 +857,18 @@ export function ResumeWorkspace({
           closeRewriteFailureDialog()
         }
       }}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{recoverableModal?.title ?? rewriteFailureCopy.title}</DialogTitle>
             <DialogDescription>
               {recoverableModal?.description ?? rewriteFailureCopy.description}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 text-sm text-slate-700">
+          <div
+            data-testid="rewrite-validation-dialog-scroll"
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2 text-sm text-slate-700"
+          >
             {recoverableModal ? (
               <>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -930,10 +933,10 @@ export function ResumeWorkspace({
           </div>
 
           {validationOverrideCta?.helperText ? (
-            <p className="text-xs text-slate-500">{validationOverrideCta.helperText}</p>
+            <p className="shrink-0 text-xs text-slate-500">{validationOverrideCta.helperText}</p>
           ) : null}
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button type="button" variant="outline" onClick={closeRewriteFailureDialog}>
               {recoverableModal?.actions.secondary.label ?? "Entendi"}
             </Button>

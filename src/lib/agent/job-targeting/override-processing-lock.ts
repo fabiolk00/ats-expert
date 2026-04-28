@@ -15,6 +15,7 @@ const OVERRIDE_PROCESSING_LOCK_RETRIES = 5
 export type AcquireOverrideProcessingLockInput = {
   sessionId: string
   userId: string
+  initialSession?: Session
   draftId: string
   overrideToken: string
   requestId: string
@@ -107,27 +108,37 @@ export async function tryAcquireOverrideProcessingLock(
 ): Promise<AcquireOverrideProcessingLockResult> {
   const supabase = getSupabaseAdminClient()
   const overrideTokenHash = hashOverrideToken(input.overrideToken)
+  let candidateSession = input.initialSession
 
   for (let attempt = 0; attempt < OVERRIDE_PROCESSING_LOCK_RETRIES; attempt += 1) {
-    const { data, error } = await supabase
-      .from('sessions')
-      .select('*')
-      .eq('id', input.sessionId)
-      .eq('user_id', input.userId)
-      .maybeSingle<SessionRow>()
+    let session = candidateSession
+    candidateSession = undefined
 
-    if (error) {
-      throw new Error(`Failed to load session for override processing lock: ${error.message}`)
+    if (session && (session.id !== input.sessionId || session.userId !== input.userId)) {
+      session = undefined
     }
 
-    if (!data) {
-      return {
-        acquired: false,
-        reason: 'session_missing',
+    if (!session) {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', input.sessionId)
+        .eq('user_id', input.userId)
+        .maybeSingle<SessionRow>()
+
+      if (error) {
+        throw new Error(`Failed to load session for override processing lock: ${error.message}`)
       }
-    }
 
-    const session = mapSessionRow(data)
+      if (!data) {
+        return {
+          acquired: false,
+          reason: 'session_missing',
+        }
+      }
+
+      session = mapSessionRow(data)
+    }
     const validationOverride = session.agentState.validationOverride
     if (
       validationOverride?.enabled

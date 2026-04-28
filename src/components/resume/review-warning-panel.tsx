@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CheckCircle2, Info, ShieldCheck } from "lucide-react"
 
+import { ReviewDiagnosticCard, repairMojibakeForDisplay } from "@/components/resume/review-diagnostic-card"
 import type { CvHighlightState } from "@/lib/resume/cv-highlight-artifact"
 import { cn } from "@/lib/utils"
 
@@ -14,40 +15,9 @@ type ReviewWarningPanelProps = {
   className?: string
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
-
-function corruptUtf8AsLatin1(value: string): string {
-  return Array.from(new TextEncoder().encode(value), (byte) => String.fromCharCode(byte)).join("")
-}
-
-const MOJIBAKE_REPAIRS: Array<[RegExp, string]> = [
-  "currículo",
-  "atenção",
-  "aproximação",
-  "evidência",
-  "experiência",
-  "geração",
-  "adaptação",
-  "você",
-  "não",
-].map((replacement) => {
-  const once = corruptUtf8AsLatin1(replacement)
-  const twice = corruptUtf8AsLatin1(once)
-  return [new RegExp(`${escapeRegExp(twice)}|${escapeRegExp(once)}`, "gi"), replacement]
-})
-
-export function repairMojibakeForDisplay(text: string): string {
-  return MOJIBAKE_REPAIRS.reduce(
-    (value, [pattern, replacement]) => value.replace(pattern, replacement),
-    text,
-  )
-}
-
 function inferHumanCopy(item: ReviewItem): { sectionLabel: string } {
   if (item.sectionLabel?.trim()) {
-    return { sectionLabel: item.sectionLabel.trim() }
+    return { sectionLabel: repairMojibakeForDisplay(item.sectionLabel.trim()) }
   }
 
   const sectionLabel = item.section === "experience"
@@ -91,6 +61,48 @@ function SeverityBadge({ severity }: { severity: ReviewItem["severity"] }) {
   )
 }
 
+function FallbackReviewItem({
+  item,
+  index,
+  onItemSelect,
+}: {
+  item: ReviewItem
+  index: number
+  onItemSelect?: (item: ReviewItem) => void
+}) {
+  const copy = inferHumanCopy(item)
+  const title = repairMojibakeForDisplay(item.title)
+  const explanation = repairMojibakeForDisplay(item.explanation || item.message)
+  const summary = repairMojibakeForDisplay(item.summary || "")
+  const whyItMatters = repairMojibakeForDisplay(item.whyItMatters || "")
+  const suggestedAction = repairMojibakeForDisplay(item.suggestedAction || "")
+
+  return (
+    <button
+      key={`${item.severity}-${item.issueType ?? "review"}-${index}`}
+      type="button"
+      onClick={() => onItemSelect?.(item)}
+      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-left transition-colors hover:border-amber-300 hover:bg-amber-50 dark:border-zinc-800 dark:bg-zinc-900/70 dark:hover:border-amber-900 dark:hover:bg-amber-950/30"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <SeverityBadge severity={item.severity} />
+        <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          {copy.sectionLabel}
+        </span>
+      </div>
+      <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+        {title}
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
+        {explanation}
+      </p>
+      {summary ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">{summary}</p> : null}
+      {whyItMatters ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Por que revisar:</strong> {whyItMatters}</p> : null}
+      {suggestedAction ? <p className="mt-1 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Ação sugerida:</strong> {suggestedAction}</p> : null}
+    </button>
+  )
+}
+
 export function ReviewWarningPanel({
   items,
   hasInlineHighlights,
@@ -119,8 +131,8 @@ export function ReviewWarningPanel({
           <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
             Pontos para revisar
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
-            Esta versão foi gerada mesmo com avisos de aderência à vaga. Isso não impede o uso do currículo, mas recomendamos revisar os pontos abaixo.
+          <p className="mt-1 max-w-prose text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
+            Esta versão foi gerada mesmo com avisos de aderência à vaga. Recomendamos revisar os pontos abaixo antes de enviar.
           </p>
         </div>
       </div>
@@ -130,64 +142,23 @@ export function ReviewWarningPanel({
           Não há trechos destacados automaticamente, mas existem pontos de revisão listados abaixo.
         </p>
       ) : null}
-      <div className="mt-4 space-y-3">
-        {displayItems.map((item, index) => {
-          const copy = inferHumanCopy(item)
-          const explanation = repairMojibakeForDisplay(item.explanation || item.message)
-          const summary = repairMojibakeForDisplay(item.summary || "")
-          const provenProfile = repairMojibakeForDisplay(item.provenProfile || item.originalProfileLabel || "")
-          const unsupportedRequirements = item.unsupportedRequirements ?? item.missingEvidence ?? []
-          const jobRequirements = item.jobRequirements ?? unsupportedRequirements
-          const whyItMatters = repairMojibakeForDisplay(item.whyItMatters || "")
-          const suggestedAction = repairMojibakeForDisplay(item.suggestedAction || "")
 
-          return (
-            <button
-              key={`${item.severity}-${item.issueType ?? "review"}-${index}`}
-              type="button"
-              onClick={() => onItemSelect?.(item)}
-              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-left transition-colors hover:border-amber-300 hover:bg-amber-50 dark:border-zinc-800 dark:bg-zinc-900/70 dark:hover:border-amber-900 dark:hover:bg-amber-950/30"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <SeverityBadge severity={item.severity} />
-                <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  {copy.sectionLabel}
-                </span>
-              </div>
-              <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-                {item.title}
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
-                {explanation}
-              </p>
-              {summary ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">{summary}</p> : null}
-              {item.targetRole ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Vaga alvo:</strong> {item.targetRole}</p> : null}
-              {jobRequirements.length > 0 ? (
-                <div className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">
-                  <p><strong>O que a vaga pede:</strong></p>
-                  <ul className="ml-4 mt-1 list-disc">
-                    {jobRequirements.slice(0, 8).map((signal) => (
-                      <li key={`${item.id}-job-${signal}`}>{signal}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {provenProfile ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Seu perfil comprovado:</strong> {provenProfile}</p> : null}
-              {unsupportedRequirements.length > 0 ? (
-                <div className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">
-                  <p><strong>Requisitos sem evidência suficiente:</strong></p>
-                  <ul className="ml-4 mt-1 list-disc">
-                    {unsupportedRequirements.slice(0, 8).map((signal) => (
-                      <li key={`${item.id}-unsupported-${signal}`}>{signal}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {whyItMatters ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Por que revisar:</strong> {whyItMatters}</p> : null}
-              {suggestedAction ? <p className="mt-1 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Ação sugerida:</strong> {suggestedAction}</p> : null}
-            </button>
-          )
-        })}
+      <div
+        data-testid="override-review-panel-scroll"
+        className="mt-4 max-h-[min(70vh,42rem)] space-y-3 overflow-y-auto pr-1"
+      >
+        {displayItems.map((item, index) => (
+          item.kind === "low_fit_target_mismatch"
+            ? <ReviewDiagnosticCard key={`${item.kind}-${item.id}-${index}`} item={item} />
+            : (
+                <FallbackReviewItem
+                  key={`${item.severity}-${item.issueType ?? "review"}-${index}`}
+                  item={item}
+                  index={index}
+                  onItemSelect={onItemSelect}
+                />
+              )
+        ))}
       </div>
     </aside>
   )

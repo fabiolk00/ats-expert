@@ -636,6 +636,7 @@ describe('generateBillableResume', () => {
       userId: 'usr_123',
       generationIntentKey: 'dup_key',
       resumeGenerationId: 'gen_pending_success',
+      reservation: buildReservation(),
       metadata: expect.any(Object),
     })
     expect(mockReleaseCreditReservation).not.toHaveBeenCalled()
@@ -754,6 +755,7 @@ describe('generateBillableResume', () => {
       userId: 'usr_123',
       generationIntentKey: 'dup_key',
       resumeGenerationId: 'gen_pending_render',
+      reservation: buildReservation(),
       metadata: expect.any(Object),
     })
     expect(mockUpdateResumeGeneration).toHaveBeenCalledWith(expect.objectContaining({
@@ -806,6 +808,7 @@ describe('generateBillableResume', () => {
       userId: 'usr_123',
       generationIntentKey: 'dup_key',
       resumeGenerationId: 'gen_pending_timeout',
+      reservation: buildReservation(),
       metadata: expect.any(Object),
     })
     expect(mockUpdateResumeGeneration).toHaveBeenCalledWith(expect.objectContaining({

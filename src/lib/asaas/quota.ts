@@ -261,6 +261,7 @@ export async function finalizeCreditReservation(input: {
   generationIntentKey: string
   resumeGenerationId?: string
   metadata?: Record<string, unknown>
+  reservation?: CreditReservation
 }): Promise<CreditReservation> {
   return finalizeCreditReservationRecord(input)
 }
@@ -270,6 +271,7 @@ export async function releaseCreditReservation(input: {
   generationIntentKey: string
   resumeGenerationId?: string
   metadata?: Record<string, unknown>
+  reservation?: CreditReservation
 }): Promise<CreditReservation> {
   return releaseCreditReservationRecord(input)
 }

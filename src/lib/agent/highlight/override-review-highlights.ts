@@ -188,20 +188,20 @@ function buildLowFitTargetMismatchReviewItem(params: {
 }): ReviewWarningItem {
   const jobRequirements = params.unsupportedRequirements.slice(0, 12)
   const provenProfile = params.originalProfileLabel
-    || 'O currÃ­culo original nÃ£o deixou claro um perfil diretamente alinhado a esta vaga.'
+    || 'O currículo original não deixou claro um perfil diretamente alinhado a esta vaga.'
 
   return {
     id: `review-low-fit-target-mismatch-${params.targetRole ?? 'target-role'}`.slice(0, 120),
     kind: 'low_fit_target_mismatch',
     severity: 'risk',
     section: 'general',
-    sectionLabel: 'DiagnÃ³stico da vaga',
-    title: 'Esta vaga parece distante do seu currÃ­culo atual',
-    summary: 'A geraÃ§Ã£o foi feita apÃ³s seu aceite, mas a aderÃªncia entre a vaga e o histÃ³rico original exige uma revisÃ£o cuidadosa.',
-    explanation: 'A vaga pede responsabilidades e requisitos que nÃ£o aparecem com evidÃªncia suficiente no currÃ­culo original.',
-    whyItMatters: 'A versÃ£o gerada pode aproximar seu currÃ­culo de uma funÃ§Ã£o que o histÃ³rico original nÃ£o comprova diretamente. Isso pode fazer o currÃ­culo parecer artificial ou sugerir experiÃªncia sem sustentaÃ§Ã£o no documento original.',
-    suggestedAction: 'Revise o resumo e as experiÃªncias antes de enviar. Mantenha sua identidade profissional real e destaque apenas habilidades transferÃ­veis comprovadas.',
-    message: `DiagnÃ³stico consolidado de baixa aderÃªncia a partir de ${params.sourceIssueCount} ponto(s) de validaÃ§Ã£o.`,
+    sectionLabel: 'Diagnóstico da vaga',
+    title: 'Esta vaga parece distante do seu currículo atual',
+    summary: 'A geração foi feita após seu aceite, mas a aderência entre a vaga e o histórico original exige uma revisão cuidadosa.',
+    explanation: 'A vaga pede responsabilidades e requisitos que não aparecem com evidência suficiente no currículo original.',
+    whyItMatters: 'A versão gerada pode aproximar seu currículo de uma função que o histórico original não comprova diretamente. Isso pode fazer o currículo parecer artificial ou sugerir experiência sem sustentação no documento original.',
+    suggestedAction: 'Revise o resumo e as experiências antes de enviar. Mantenha sua identidade profissional real e destaque apenas habilidades transferíveis comprovadas.',
+    message: `Diagnóstico consolidado de baixa aderência a partir de ${params.sourceIssueCount} ponto(s) de validação.`,
     issueType: 'low_fit_target_mismatch',
     targetRole: params.targetRole,
     provenProfile,
