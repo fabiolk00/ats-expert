@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import "@testing-library/jest-dom"
 
-import { ChatInterface } from "./chat-interface"
+import { ChatInterface, isPdfUpload } from "./chat-interface"
 
 // jsdom does not implement scrollIntoView
 Element.prototype.scrollIntoView = vi.fn()
@@ -1546,5 +1546,15 @@ describe("ChatInterface", () => {
       expect(screen.getByTestId("chat-interface")).toHaveAttribute("data-phase", "dialog")
       expect(screen.getByTestId("chat-interface")).toHaveAttribute("data-message-count", "3")
     })
+  })
+})
+
+describe("isPdfUpload", () => {
+  it("allows PDF files and rejects DOCX files", () => {
+    expect(isPdfUpload(new File(["pdf"], "resume.pdf", { type: "application/pdf" }))).toBe(true)
+    expect(isPdfUpload(new File(["pdf"], "resume.PDF", { type: "" }))).toBe(true)
+    expect(isPdfUpload(new File(["docx"], "resume.docx", {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }))).toBe(false)
   })
 })

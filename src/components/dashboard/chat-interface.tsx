@@ -200,9 +200,13 @@ function hasConversationMessages(items: Message[]): boolean {
 function isLegacyWelcomeMessage(content: string): boolean {
   return (
     content.includes("Sou seu consultor especialista em ATS e RH.") &&
-    content.includes("Envie seu currículo em PDF ou DOCX") &&
+    content.includes("Envie seu currículo em PDF") &&
     content.includes("cole a descrição da vaga para eu iniciar a análise.")
   )
+}
+
+export function isPdfUpload(file: File): boolean {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
 }
 
 type ChatCopy = {
@@ -986,7 +990,7 @@ export function ChatInterface({
     }
 
     const file = event.dataTransfer.files[0]
-    if (file && (file.type === "application/pdf" || file.name.endsWith(".docx"))) {
+    if (file && isPdfUpload(file)) {
       setUploadedFile(file)
     }
   }
@@ -997,7 +1001,7 @@ export function ChatInterface({
     }
 
     const file = event.target.files?.[0]
-    if (file) {
+    if (file && isPdfUpload(file)) {
       setUploadedFile(file)
     }
   }
@@ -1155,7 +1159,7 @@ export function ChatInterface({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.docx"
+                    accept="application/pdf,.pdf"
                     className="hidden"
                     onChange={handleFileSelect}
                   />
