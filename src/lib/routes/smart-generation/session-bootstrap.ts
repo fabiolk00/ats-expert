@@ -5,6 +5,7 @@ import {
 } from '@/lib/agent/job-targeting-start-lock'
 import { applyToolPatchWithVersion, createSession } from '@/lib/db/sessions'
 import { buildResumeTextFromCvState } from '@/lib/profile/ats-enhancement'
+import { buildGenerationStatePatch } from '@/lib/resume-generation/generation-state'
 
 import type { SmartGenerationContext } from './types'
 import { resolveWorkflowMode, type SmartGenerationWorkflowMode } from './workflow-mode'
@@ -25,8 +26,10 @@ export function buildPatchedSession(
       ...session.agentState,
       parseStatus: 'parsed' as const,
       sourceResumeText: params.sourceResumeText,
-      workflowMode: params.workflowMode,
-      targetJobDescription: params.targetJobDescription,
+      ...buildGenerationStatePatch({
+        workflowMode: params.workflowMode,
+        targetJobDescription: params.targetJobDescription,
+      }).agentState,
     },
   }
 }
@@ -55,8 +58,12 @@ export async function bootstrapSmartGenerationSession(
     agentState: {
       parseStatus: 'parsed',
       sourceResumeText,
-      workflowMode,
-      targetJobDescription: context.targetJobDescription,
+      // agentState currently stores generation-state fields for backward compatibility.
+      // New generation orchestration should use generation-state helpers for these writes.
+      ...buildGenerationStatePatch({
+        workflowMode,
+        targetJobDescription: context.targetJobDescription,
+      }).agentState,
     },
   }, 'manual')
 
