@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useRef, useState, type ReactNod
 export type PreviewFile = {
   sessionId: string
   targetId: string | null
-  type: 'pdf' | 'docx'
+  type: 'pdf'
   label: string
 }
 
