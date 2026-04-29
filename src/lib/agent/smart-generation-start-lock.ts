@@ -273,13 +273,13 @@ function buildDuplicateMessage(input: {
 }): string {
   if (input.workflowMode === 'job_targeting') {
     return input.status === 'already_running'
-      ? 'Essa adaptaÃ§Ã£o jÃ¡ estÃ¡ em andamento.'
-      : 'Essa adaptaÃ§Ã£o jÃ¡ foi gerada.'
+      ? 'Essa adaptação já está em andamento.'
+      : 'Essa adaptação já foi gerada.'
   }
 
   return input.status === 'already_running'
-    ? 'Essa versÃ£o ATS jÃ¡ estÃ¡ em andamento.'
-    : 'Essa versÃ£o ATS jÃ¡ foi gerada.'
+    ? 'Essa versão ATS já está em andamento.'
+    : 'Essa versão ATS já foi gerada.'
 }
 
 export function tryAcquireSmartGenerationStartLock(
