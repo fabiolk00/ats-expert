@@ -134,73 +134,88 @@ export async function executeSmartGenerationDecision(
     smartGenerationStartLockBackend = lock.backend
   }
 
-  const { session, patchedSession } = await bootstrapSmartGenerationSession(context, {
-    smartGenerationStartIdempotencyKey,
-    smartGenerationStartLockBackend,
-  })
-  const workflow = { workflowMode, copy, session, patchedSession } as const
-  const pipeline = await runSmartGenerationPipeline(patchedSession, workflowMode)
+  let startLockClosed = false
 
-  if (!pipeline.success || !pipeline.optimizedCvState) {
+  const markStartLockFailed = async (): Promise<void> => {
     if (smartGenerationStartIdempotencyKey && smartGenerationStartLockBackend) {
       await markSmartGenerationStartLockFailedDurable({
         idempotencyKey: smartGenerationStartIdempotencyKey,
         backend: smartGenerationStartLockBackend,
       })
+      startLockClosed = true
+    }
+  }
+
+  const markStartLockCompleted = async (sessionId: string): Promise<void> => {
+    if (smartGenerationStartIdempotencyKey && smartGenerationStartLockBackend) {
+      await markSmartGenerationStartLockCompletedDurable({
+        idempotencyKey: smartGenerationStartIdempotencyKey,
+        sessionId,
+        backend: smartGenerationStartLockBackend,
+      })
+      startLockClosed = true
+    }
+  }
+
+  try {
+    const { session, patchedSession } = await bootstrapSmartGenerationSession(context, {
+      smartGenerationStartIdempotencyKey,
+      smartGenerationStartLockBackend,
+    })
+    const workflow = { workflowMode, copy, session, patchedSession } as const
+    const pipeline = await runSmartGenerationPipeline(patchedSession, workflowMode)
+
+    if (!pipeline.success || !pipeline.optimizedCvState) {
+      await markStartLockFailed()
+
+      return normalizeSmartGenerationPipelineFailure({
+        pipeline,
+        workflow,
+        sessionId: session.id,
+        patchedSession,
+      })
     }
 
-    return normalizeSmartGenerationPipelineFailure({
-      pipeline,
-      workflow,
+    const handoffFailure = await evaluateSmartGenerationHandoff({
       sessionId: session.id,
       patchedSession,
+      optimizedCvState: pipeline.optimizedCvState,
     })
-  }
-
-  const handoffFailure = await evaluateSmartGenerationHandoff({
-    sessionId: session.id,
-    patchedSession,
-    optimizedCvState: pipeline.optimizedCvState,
-  })
-  if (handoffFailure) {
-    if (smartGenerationStartIdempotencyKey && smartGenerationStartLockBackend) {
-      await markSmartGenerationStartLockFailedDurable({
-        idempotencyKey: smartGenerationStartIdempotencyKey,
-        backend: smartGenerationStartLockBackend,
-      })
+    if (handoffFailure) {
+      await markStartLockFailed()
+      return handoffFailure
     }
-    return handoffFailure
-  }
 
-  const generationResult = await dispatchSmartGenerationArtifact({
-    patchedSession,
-    optimizedCvState: pipeline.optimizedCvState,
-    idempotencyKey: smartGenerationArtifactIdempotencyKey ?? `${copy.idempotencyKeyPrefix}:${session.id}`,
-  })
+    const generationResult = await dispatchSmartGenerationArtifact({
+      patchedSession,
+      optimizedCvState: pipeline.optimizedCvState,
+      idempotencyKey: smartGenerationArtifactIdempotencyKey ?? `${copy.idempotencyKeyPrefix}:${session.id}`,
+    })
 
-  if (generationResult.outputFailure) {
-    if (smartGenerationStartIdempotencyKey && smartGenerationStartLockBackend) {
-      await markSmartGenerationStartLockFailedDurable({
-        idempotencyKey: smartGenerationStartIdempotencyKey,
-        backend: smartGenerationStartLockBackend,
-      })
+    if (generationResult.outputFailure) {
+      await markStartLockFailed()
+      return normalizeSmartGenerationDispatchFailure(generationResult)
     }
-    return normalizeSmartGenerationDispatchFailure(generationResult)
-  }
 
-  if (smartGenerationStartIdempotencyKey && smartGenerationStartLockBackend) {
-    await markSmartGenerationStartLockCompletedDurable({
-      idempotencyKey: smartGenerationStartIdempotencyKey,
+    const decision = normalizeSmartGenerationSuccess({
+      context,
       sessionId: session.id,
-      backend: smartGenerationStartLockBackend,
+      optimizedCvState: pipeline.optimizedCvState,
+      generationResult,
+      workflow,
     })
-  }
 
-  return normalizeSmartGenerationSuccess({
-    context,
-    sessionId: session.id,
-    optimizedCvState: pipeline.optimizedCvState,
-    generationResult,
-    workflow,
-  })
+    await markStartLockCompleted(session.id)
+
+    return decision
+  } catch (error) {
+    if (!startLockClosed && smartGenerationStartIdempotencyKey && smartGenerationStartLockBackend) {
+      await markSmartGenerationStartLockFailedDurable({
+        idempotencyKey: smartGenerationStartIdempotencyKey,
+        backend: smartGenerationStartLockBackend,
+      }).catch(() => undefined)
+    }
+
+    throw error
+  }
 }

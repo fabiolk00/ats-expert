@@ -389,4 +389,68 @@ describe('smart-generation helpers', () => {
     expect(runSmartGenerationPipeline).toHaveBeenCalledTimes(2)
     expect(dispatchSmartGenerationArtifact).not.toHaveBeenCalled()
   })
+
+  it('marks the start lock failed when session bootstrap throws after acquisition', async () => {
+    const context = {
+      request: {} as never,
+      appUser: { id: 'usr_1' } as never,
+      cvState: {
+        fullName: 'Ana',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        summary: 'Resumo base',
+        experience: [{ title: 'Analista', company: 'Acme', startDate: '2022', endDate: '2024', bullets: ['Entrega'] }],
+        skills: ['SQL'],
+        education: [],
+      },
+      targetJobDescription: 'Cargo: Desenvolvedor Java',
+    }
+
+    vi.mocked(bootstrapSmartGenerationSession).mockRejectedValueOnce(new Error('bootstrap failed'))
+
+    await expect(executeSmartGenerationDecision(context)).rejects.toThrow('bootstrap failed')
+    const retryDecision = await executeSmartGenerationDecision(context)
+
+    expect(retryDecision).toEqual({
+      kind: 'validation_error',
+      status: 409,
+      body: {
+        error: 'The optimized resume state is no longer coherent with the export handoff.',
+        code: 'PRECONDITION_FAILED',
+      },
+    })
+    expect(bootstrapSmartGenerationSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('marks the start lock failed when the smart-generation pipeline throws after acquisition', async () => {
+    const context = {
+      request: {} as never,
+      appUser: { id: 'usr_1' } as never,
+      cvState: {
+        fullName: 'Ana',
+        email: 'ana@example.com',
+        phone: '555-0100',
+        summary: 'Resumo base',
+        experience: [{ title: 'Analista', company: 'Acme', startDate: '2022', endDate: '2024', bullets: ['Entrega'] }],
+        skills: ['SQL'],
+        education: [],
+      },
+      targetJobDescription: 'Cargo: Desenvolvedor Java',
+    }
+
+    vi.mocked(runSmartGenerationPipeline).mockRejectedValueOnce(new Error('pipeline failed'))
+
+    await expect(executeSmartGenerationDecision(context)).rejects.toThrow('pipeline failed')
+    const retryDecision = await executeSmartGenerationDecision(context)
+
+    expect(retryDecision).toEqual({
+      kind: 'validation_error',
+      status: 409,
+      body: {
+        error: 'The optimized resume state is no longer coherent with the export handoff.',
+        code: 'PRECONDITION_FAILED',
+      },
+    })
+    expect(runSmartGenerationPipeline).toHaveBeenCalledTimes(2)
+  })
 })
