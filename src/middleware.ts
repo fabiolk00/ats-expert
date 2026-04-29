@@ -26,54 +26,74 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhook/clerk(.*)',
 ])
 
-function addSecurityHeaders(response: NextResponse): NextResponse {
-  const clerkFrontendApi = decodeClerkFrontendApi(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
-  const clerkScriptSrc = [
-    "'self'",
-    "'unsafe-inline'",
-    "'unsafe-eval'",
-    clerkFrontendApi,
-    'https://*.clerk.accounts.dev',
-    'https://challenges.cloudflare.com',
-    'https://www.googletagmanager.com',
-  ].filter(Boolean).join(' ')
+function addSecurityHeaders(response: NextResponse, includeClerkHeaders: boolean = true): NextResponse {
+  const baseHeaders = {
+    'X-Frame-Options': 'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  }
 
-  const clerkConnectSrc = [
-    "'self'",
-    clerkFrontendApi,
-    'https:',
-  ].filter(Boolean).join(' ')
+  Object.entries(baseHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value)
+  })
 
-  const clerkFrameSrc = [
-    "'self'",
-    'blob:',
-    clerkFrontendApi,
-    'https://*.clerk.accounts.dev',
-    'https://challenges.cloudflare.com',
-  ].filter(Boolean).join(' ')
+  if (includeClerkHeaders && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    const clerkFrontendApi = decodeClerkFrontendApi(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+    const clerkScriptSrc = [
+      "'self'",
+      "'unsafe-inline'",
+      "'unsafe-eval'",
+      clerkFrontendApi,
+      'https://*.clerk.accounts.dev',
+      'https://challenges.cloudflare.com',
+      'https://www.googletagmanager.com',
+    ].filter(Boolean).join(' ')
 
-  response.headers.set('X-Frame-Options', 'DENY')
-  response.headers.set('X-Content-Type-Options', 'nosniff')
-  response.headers.set(
-    'Strict-Transport-Security',
-    'max-age=31536000; includeSubDomains; preload',
-  )
+    const clerkConnectSrc = [
+      "'self'",
+      clerkFrontendApi,
+      'https:',
+    ].filter(Boolean).join(' ')
 
-  response.headers.set(
-    'Content-Security-Policy',
-    [
-      "default-src 'self'",
-      `script-src ${clerkScriptSrc}`,
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https:",
-      "font-src 'self'",
-      `connect-src ${clerkConnectSrc}`,
-      "worker-src 'self' blob:",
-      `frame-src ${clerkFrameSrc}`,
-      "frame-ancestors 'none'",
-      "form-action 'self'",
-    ].join('; ') + ';',
-  )
+    const clerkFrameSrc = [
+      "'self'",
+      'blob:',
+      clerkFrontendApi,
+      'https://*.clerk.accounts.dev',
+      'https://challenges.cloudflare.com',
+    ].filter(Boolean).join(' ')
+
+    response.headers.set(
+      'Content-Security-Policy',
+      [
+        "default-src 'self'",
+        `script-src ${clerkScriptSrc}`,
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "font-src 'self'",
+        `connect-src ${clerkConnectSrc}`,
+        "worker-src 'self' blob:",
+        `frame-src ${clerkFrameSrc}`,
+        "frame-ancestors 'none'",
+        "form-action 'self'",
+      ].join('; ') + ';',
+    )
+  } else {
+    response.headers.set(
+      'Content-Security-Policy',
+      [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "font-src 'self'",
+        "connect-src 'self' https:",
+        "worker-src 'self' blob:",
+        "frame-ancestors 'none'",
+        "form-action 'self'",
+      ].join('; ') + ';',
+    )
+  }
 
   return response
 }
