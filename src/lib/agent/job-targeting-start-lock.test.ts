@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   JobTargetingStartLockBackendError,
+  buildSmartGenerationStartLockFingerprint,
   buildJobTargetingStartLockFingerprint,
+  markSmartGenerationStartLockCompleted,
+  markSmartGenerationStartLockFailed,
+  markSmartGenerationStartLockRunningSession,
   markJobTargetingStartLockCompleted,
   markJobTargetingStartLockCompletedDurable,
   markJobTargetingStartLockFailed,
@@ -11,10 +15,11 @@ import {
   markJobTargetingStartLockRunningSessionDurable,
   normalizeJobTargetForLock,
   resetJobTargetingStartLocksForTests,
+  tryAcquireSmartGenerationStartLock,
   tryAcquireJobTargetingStartLock,
   tryAcquireJobTargetingStartLockDurable,
 } from './job-targeting-start-lock'
-import { logInfo } from '@/lib/observability/structured-log'
+import { logError, logInfo, logWarn } from '@/lib/observability/structured-log'
 import type { CVState } from '@/types/cv'
 
 const redisMock = vi.hoisted(() => ({
@@ -35,6 +40,7 @@ vi.mock('@upstash/redis', () => ({
 vi.mock('@/lib/observability/structured-log', () => ({
   logInfo: vi.fn(),
   logWarn: vi.fn(),
+  logError: vi.fn(),
 }))
 
 function buildCvState(overrides: Partial<CVState> = {}): CVState {
@@ -77,6 +83,8 @@ describe('job targeting start lock', () => {
       return 1
     })
     vi.mocked(logInfo).mockClear()
+    vi.mocked(logWarn).mockClear()
+    vi.mocked(logError).mockClear()
     vi.stubEnv('NODE_ENV', 'test')
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '')
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '')
@@ -132,6 +140,93 @@ describe('job targeting start lock', () => {
     })
 
     expect(second.resumeHash).toBe(first.resumeHash)
+  })
+
+  it('uses a distinct ATS fingerprint without target job text', () => {
+    const ats = buildSmartGenerationStartLockFingerprint({
+      workflowMode: 'ats_enhancement',
+      userId: 'usr_123',
+      cvState: buildCvState(),
+    })
+    const targeting = buildJobTargetingStartLockFingerprint({
+      userId: 'usr_123',
+      cvState: buildCvState(),
+      targetJobDescription: 'Requisitos: SQL',
+    })
+
+    expect(ats.idempotencyKey).toMatch(/^ats-enhancement-start:/)
+    expect(ats.targetJobHash).toBeUndefined()
+    expect(targeting.idempotencyKey).toMatch(/^job-targeting-start:/)
+    expect(targeting.targetJobHash).toEqual(expect.any(String))
+  })
+
+  it('does not log raw resume or target job sentinel values', () => {
+    const cvState = buildCvState({
+      fullName: 'SENTINEL RAW NAME',
+      phone: 'SENTINEL RAW PHONE',
+      experience: [{
+        title: 'Analista',
+        company: 'SENTINEL RAW COMPANY',
+        startDate: '2022',
+        endDate: '2024',
+        bullets: ['SENTINEL RAW RESUME BULLET'],
+      }],
+    })
+    const targetJobDescription = 'SENTINEL RAW TARGET JOB SENTENCE with strategic requirements'
+
+    const atsAcquire = tryAcquireSmartGenerationStartLock({
+      workflowMode: 'ats_enhancement',
+      userId: 'usr_ats_privacy',
+      cvState,
+    })
+    expect(atsAcquire.acquired).toBe(true)
+    if (!atsAcquire.acquired) {
+      throw new Error('expected ATS acquire')
+    }
+    markSmartGenerationStartLockRunningSession({
+      idempotencyKey: atsAcquire.idempotencyKey,
+      sessionId: 'sess_ats_privacy',
+    })
+    markSmartGenerationStartLockCompleted({
+      idempotencyKey: atsAcquire.idempotencyKey,
+      sessionId: 'sess_ats_privacy',
+    })
+
+    const targetingAcquire = tryAcquireSmartGenerationStartLock({
+      workflowMode: 'job_targeting',
+      userId: 'usr_target_privacy',
+      cvState,
+      targetJobDescription,
+    })
+    expect(targetingAcquire.acquired).toBe(true)
+    if (!targetingAcquire.acquired) {
+      throw new Error('expected job targeting acquire')
+    }
+    markSmartGenerationStartLockFailed({
+      idempotencyKey: targetingAcquire.idempotencyKey,
+    })
+
+    const serializedLoggerCalls = JSON.stringify([
+      vi.mocked(logInfo).mock.calls,
+      vi.mocked(logWarn).mock.calls,
+      vi.mocked(logError).mock.calls,
+    ])
+
+    for (const rawSentinel of [
+      'SENTINEL RAW NAME',
+      'SENTINEL RAW PHONE',
+      'SENTINEL RAW COMPANY',
+      'SENTINEL RAW RESUME BULLET',
+      'SENTINEL RAW TARGET JOB SENTENCE',
+    ]) {
+      expect(serializedLoggerCalls).not.toContain(rawSentinel)
+    }
+    expect(serializedLoggerCalls).toContain('resumeHash')
+    expect(serializedLoggerCalls).toContain('targetJobHash')
+    expect(serializedLoggerCalls).toContain('idempotencyKeyHash')
+    expect(serializedLoggerCalls).toContain('usr_ats_privacy')
+    expect(serializedLoggerCalls).toContain('sess_ats_privacy')
+    expect(serializedLoggerCalls).toContain('usr_target_privacy')
   })
 
   it('returns already_running with sessionId for duplicate starts', () => {
@@ -282,19 +377,23 @@ describe('job targeting start lock', () => {
       backend: failedAcquire.backend,
     })
 
-    expect(logInfo).toHaveBeenCalledWith('agent.job_targeting.start_lock_acquired', expect.objectContaining({
+    expect(logInfo).toHaveBeenCalledWith('agent.smart_generation.start_lock_acquired', expect.objectContaining({
       backend: 'redis',
+      workflowMode: 'job_targeting',
     }))
-    expect(logInfo).toHaveBeenCalledWith('agent.job_targeting.start_lock_running_session_marked', expect.objectContaining({
+    expect(logInfo).toHaveBeenCalledWith('agent.smart_generation.start_lock_running_session_marked', expect.objectContaining({
       backend: 'redis',
+      workflowMode: 'job_targeting',
     }))
-    expect(logInfo).toHaveBeenCalledWith('agent.job_targeting.start_lock_completed', expect.objectContaining({
+    expect(logInfo).toHaveBeenCalledWith('agent.smart_generation.start_lock_completed', expect.objectContaining({
       backend: 'redis',
+      workflowMode: 'job_targeting',
     }))
-    expect(logInfo).toHaveBeenCalledWith('agent.job_targeting.start_lock_failed', expect.objectContaining({
+    expect(logInfo).toHaveBeenCalledWith('agent.smart_generation.start_lock_failed', expect.objectContaining({
       backend: 'redis',
+      workflowMode: 'job_targeting',
     }))
-    expect(logInfo).not.toHaveBeenCalledWith('agent.job_targeting.start_lock_completed', expect.objectContaining({
+    expect(logInfo).not.toHaveBeenCalledWith('agent.smart_generation.start_lock_completed', expect.objectContaining({
       backend: 'memory_fallback',
     }))
   })
