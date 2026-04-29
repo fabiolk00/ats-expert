@@ -36,7 +36,7 @@ Current Plan: 01 completed
 Total Plans in Phase: 1
 Status: In progress
 Last activity: 2026-04-29
-Last Activity Description: Completed quick task 260428-u03: Job Targeting 2.0 explanations, safe recommendations, and rewrite diff.
+Last Activity Description: Completed quick plan 260428-upq-01: Smart Generation canonical guided route and workflow-aware start locks.
 
 Progress: [##########] 100%
 
@@ -88,6 +88,9 @@ Baseline carried forward from earlier shipped milestones:
 
 ### Decisions
 
+- [Quick 260428-upq-01]: Smart Generation is now the canonical guided generation start route for ATS enhancement and job targeting.
+- [Quick 260428-upq-01]: `/api/profile/ats-enhancement` remains only as a deprecated compatibility wrapper around Smart Generation.
+- [Quick 260428-upq-01]: ATS and job-targeting artifact idempotency now use the stable start-lock idempotency boundary before falling back to session identity.
 - [Phase 101]: Keep durable history metadata on `resume_generations` instead of introducing a parallel artifact-history store.
 - [Phase 101]: Reuse `/api/file/[sessionId]` with an opt-in `download=pdf` mode so history cards open protected URLs without exposing storage paths.
 - [Phase 101]: Reuse `/dashboard/resume/compare/[sessionId]` as the viewer/open destination instead of building a new history viewer.
@@ -233,9 +236,10 @@ Baseline carried forward from earlier shipped milestones:
 | 260428-uxr | Hardening UX do Review Warning Panel com scroll interno e accordion | 2026-04-28 | working-tree | Validated | [260428-ux-review-warning-panel-scroll-accordion](./quick/260428-ux-review-warning-panel-scroll-accordion/) |
 | 260428-oqb | Hardening tecnico do log do fluxo /job-targeting/override | 2026-04-28 | working-tree | Validated | [260428-oqb-hardening-t-cnico-do-log-do-fluxo-job-ta](./quick/260428-oqb-hardening-t-cnico-do-log-do-fluxo-job-ta/) |
 | 260428-u03 | Job Targeting 2.0 explanations, safe recommendations, and rewrite diff | 2026-04-29 | e487795 | Validated | [260428-u03-job-targeting-2-0-explanations-safe-reco](./quick/260428-u03-job-targeting-2-0-explanations-safe-reco/) |
+| 260428-upq-01 | Smart Generation canonical route and start lock for ATS and job targeting | 2026-04-29 | 73303e9 | Validated | [260428-upq-refactor-smart-generation-as-core-pdf-on](./quick/260428-upq-refactor-smart-generation-as-core-pdf-on/) |
 
 ## Session Continuity
 
 Last session: 2026-04-22T09:52:30.000Z
-Stopped at: Completed 94-01-PLAN.md
+Stopped at: Completed 260428-upq-01-PLAN.md
 Resume file: None
