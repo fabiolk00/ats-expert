@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { executeSmartGenerationDecision } from './decision'
 import { buildGenerationCopy, resolveWorkflowMode } from './decision'
 import { dispatchSmartGenerationArtifact, runSmartGenerationPipeline } from './dispatch'
 import { bootstrapSmartGenerationSession } from './session-bootstrap'
+import { resetJobTargetingStartLocksForTests } from '@/lib/agent/job-targeting-start-lock'
 
 vi.mock('./readiness', () => ({
   evaluateSmartGenerationReadiness: vi.fn(async () => null),
@@ -62,6 +63,11 @@ vi.mock('@/lib/db/cv-versions', () => ({
 }))
 
 describe('smart-generation helpers', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetJobTargetingStartLocksForTests()
+  })
+
   it('resolves workflow mode from target job description presence', () => {
     expect(resolveWorkflowMode()).toBe('ats_enhancement')
     expect(resolveWorkflowMode('vaga alvo')).toBe('job_targeting')
@@ -255,6 +261,132 @@ describe('smart-generation helpers', () => {
         }),
       }),
     }))
+    expect(dispatchSmartGenerationArtifact).not.toHaveBeenCalled()
+  })
+
+  it('returns recoverable validation again for the same job-targeting start instead of already_completed', async () => {
+    const cvState = {
+      fullName: 'Ana',
+      email: 'ana@example.com',
+      phone: '555-0100',
+      summary: 'Resumo base',
+      experience: [{ title: 'Analista', company: 'Acme', startDate: '2022', endDate: '2024', bullets: ['Entrega'] }],
+      skills: ['SQL'],
+      education: [],
+    }
+    const patchedSession = {
+      id: 'sess_recoverable',
+      userId: 'usr_1',
+      phase: 'intake',
+      stateVersion: 1,
+      cvState,
+      agentState: {
+        parseStatus: 'parsed',
+        rewriteHistory: {},
+        targetingPlan: {
+          targetRole: 'Desenvolvedor Java',
+          targetRoleConfidence: 'high',
+          targetRoleSource: 'heuristic',
+        },
+      },
+      generatedOutput: { status: 'idle' },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    const recoverablePipelineResult = {
+      success: false,
+      error: 'Job targeting rewrite validation failed.',
+      validation: {
+        blocked: true,
+        valid: false,
+        recoverable: true,
+        hardIssues: [{
+          severity: 'high',
+          section: 'summary',
+          issueType: 'target_role_overclaim',
+          message: 'The target role is not supported by the original resume.',
+        }],
+        softWarnings: [],
+        issues: [{
+          severity: 'high',
+          section: 'summary',
+          issueType: 'target_role_overclaim',
+          message: 'The target role is not supported by the original resume.',
+        }],
+      },
+      recoverableBlock: {
+        status: 'validation_blocked_recoverable',
+        overrideToken: 'override_retry',
+        expiresAt: '2099-04-27T16:00:00.000Z',
+        modal: {
+          title: 'Review needed',
+          description: 'The target is distant from the current resume.',
+          primaryProblem: 'The rewrite would overstate the candidate profile.',
+          problemBullets: ['The core target requirements are not evidenced.'],
+          reassurance: 'The user can still review and override manually.',
+          actions: {
+            secondary: {
+              label: 'Fechar',
+              action: 'close',
+            },
+            primary: {
+              label: 'Gerar mesmo assim (1 credito)',
+              action: 'override_generate',
+              creditCost: 1,
+            },
+          },
+        },
+      },
+    }
+    vi.mocked(bootstrapSmartGenerationSession)
+      .mockResolvedValueOnce({
+        session: { id: 'sess_recoverable' } as never,
+        patchedSession: patchedSession as never,
+      })
+      .mockResolvedValueOnce({
+        session: { id: 'sess_recoverable_retry' } as never,
+        patchedSession: patchedSession as never,
+      })
+    vi.mocked(runSmartGenerationPipeline)
+      .mockResolvedValueOnce(recoverablePipelineResult as never)
+      .mockResolvedValueOnce(recoverablePipelineResult as never)
+
+    const context = {
+      request: {} as never,
+      appUser: { id: 'usr_1' } as never,
+      cvState,
+      targetJobDescription: 'Cargo: Desenvolvedor Java',
+    }
+
+    const firstDecision = await executeSmartGenerationDecision(context)
+    const retryDecision = await executeSmartGenerationDecision(context)
+
+    expect(firstDecision).toEqual(expect.objectContaining({
+      kind: 'validation_error',
+      status: 422,
+      body: expect.objectContaining({
+        recoverableValidationBlock: expect.objectContaining({
+          overrideToken: 'override_retry',
+        }),
+      }),
+    }))
+    expect(retryDecision).toEqual(expect.objectContaining({
+      kind: 'validation_error',
+      status: 422,
+      body: expect.objectContaining({
+        recoverableValidationBlock: expect.objectContaining({
+          overrideToken: 'override_retry',
+        }),
+      }),
+    }))
+    expect(retryDecision).not.toEqual(expect.objectContaining({
+      kind: 'success',
+      body: expect.objectContaining({
+        status: 'already_completed',
+      }),
+    }))
+    expect(bootstrapSmartGenerationSession).toHaveBeenCalledTimes(2)
+    expect(runSmartGenerationPipeline).toHaveBeenCalledTimes(2)
     expect(dispatchSmartGenerationArtifact).not.toHaveBeenCalled()
   })
 })

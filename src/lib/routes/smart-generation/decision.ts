@@ -142,16 +142,9 @@ export async function executeSmartGenerationDecision(
   const pipeline = await runSmartGenerationPipeline(patchedSession, workflowMode)
 
   if (!pipeline.success || !pipeline.optimizedCvState) {
-    const recoverableBlock = 'recoverableBlock' in pipeline ? pipeline.recoverableBlock : undefined
-    if (smartGenerationStartIdempotencyKey && smartGenerationStartLockBackend && !recoverableBlock) {
+    if (smartGenerationStartIdempotencyKey && smartGenerationStartLockBackend) {
       await markSmartGenerationStartLockFailedDurable({
         idempotencyKey: smartGenerationStartIdempotencyKey,
-        backend: smartGenerationStartLockBackend,
-      })
-    } else if (smartGenerationStartIdempotencyKey && smartGenerationStartLockBackend) {
-      await markSmartGenerationStartLockCompletedDurable({
-        idempotencyKey: smartGenerationStartIdempotencyKey,
-        sessionId: session.id,
         backend: smartGenerationStartLockBackend,
       })
     }
