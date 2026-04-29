@@ -3,14 +3,6 @@ import path from 'node:path'
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import fontkit from '@pdf-lib/fontkit'
-import {
-  BorderStyle,
-  Document,
-  HeadingLevel,
-  Packer,
-  Paragraph,
-  TextRun,
-} from 'docx'
 import { PDFDocument, rgb } from 'pdf-lib'
 import { z } from 'zod'
 
@@ -429,7 +421,7 @@ function buildArtifactPaths(
 }
 
 export async function createSignedResumeArtifactUrls(
-  docxPath: string | undefined,
+  _docxPath: string | undefined,
   pdfPath: string,
   supabase: SupabaseClient = generateFileDeps.getSupabase(),
 ): Promise<SignedResumeArtifactUrls> {
@@ -442,7 +434,7 @@ export async function createSignedResumeArtifactUrls(
   }
 
   return {
-    docxUrl: docxPath ? null : null,
+    docxUrl: null,
     pdfUrl: pdfSigned.signedUrl,
   }
 }
@@ -479,7 +471,6 @@ export async function generateFile(
   scope: ArtifactScope = { type: 'session' },
   templateTargetSource?: TemplateTargetSource,
 ): Promise<GenerateFileExecutionResult> {
-  let docxPath: string | undefined
   let pdfPath: string | undefined
 
   const validation = validateGenerationCvState(input.cv_state)
@@ -487,9 +478,9 @@ export async function generateFile(
     return {
       output: toolFailure(TOOL_ERROR_CODES.VALIDATION_ERROR, validation.errorMessage),
       patch: scope.type === 'session'
-        ? createFailurePatch(validation.errorMessage, docxPath, pdfPath)
+        ? createFailurePatch(validation.errorMessage, undefined, pdfPath)
         : undefined,
-      generatedOutput: createGeneratedOutput('failed', validation.errorMessage, docxPath, pdfPath),
+      generatedOutput: createGeneratedOutput('failed', validation.errorMessage, undefined, pdfPath),
     }
   }
 
@@ -510,7 +501,7 @@ export async function generateFile(
     )
 
     const signedUrls = await createSignedResumeArtifactUrlsBestEffort(
-      docxPath,
+      undefined,
       pdfPath,
       {
         userId,
@@ -541,8 +532,8 @@ export async function generateFile(
 
     return {
       output: toolFailure(TOOL_ERROR_CODES.GENERATION_ERROR, 'File generation failed.'),
-      patch: scope.type === 'session' ? createFailurePatch(error, docxPath, pdfPath) : undefined,
-      generatedOutput: createGeneratedOutput('failed', error, docxPath, pdfPath),
+      patch: scope.type === 'session' ? createFailurePatch(error, undefined, pdfPath) : undefined,
+      generatedOutput: createGeneratedOutput('failed', error, undefined, pdfPath),
     }
   }
 }
@@ -604,16 +595,6 @@ function buildSkillGroupLines(templateData: TemplateData): string[] {
   return []
 }
 
-function formatExperienceMetadata(experience: TemplateData['experiences'][number]): string {
-  const parts = [experience.period.trim()]
-
-  if (experience.location.trim().length > 0) {
-    parts.push(experience.location.trim())
-  }
-
-  return parts.join(' | ')
-}
-
 function formatExperienceSecondaryLine(experience: TemplateData['experiences'][number]): string {
   const parts = [experience.company.trim()]
 
@@ -636,222 +617,6 @@ function formatLanguageLine(language: TemplateData['languages'][number]): string
   return language.level.trim().length > 0
     ? `${language.language}: ${language.level.trim()}`
     : language.language
-}
-
-function createDocxSeparator(): Paragraph {
-  return new Paragraph({
-    border: {
-      bottom: {
-        color: 'BBBBBB',
-        space: 1,
-        style: BorderStyle.SINGLE,
-        size: 6,
-      },
-    },
-    spacing: { after: 180 },
-  })
-}
-
-function createDocxHeading(text: string): Paragraph {
-  return new Paragraph({
-    children: [
-      new TextRun({
-        text: text.toUpperCase(),
-        font: 'Helvetica',
-        size: 28,
-        bold: true,
-        color: '000000',
-      }),
-    ],
-    spacing: { before: 0, after: 120 },
-    heading: HeadingLevel.HEADING_2,
-  })
-}
-
-function createDocxBody(
-  text: string,
-  options: { bold?: boolean; italics?: boolean; color?: string } = {},
-): Paragraph {
-  return new Paragraph({
-    children: [
-      new TextRun({
-        text,
-        font: 'Helvetica',
-        size: 20,
-        bold: options.bold ?? false,
-        italics: options.italics ?? false,
-        color: options.color ?? '1A1A1A',
-      }),
-    ],
-    spacing: { after: 120 },
-  })
-}
-
-function createDocxBullet(text: string): Paragraph {
-  return new Paragraph({
-    children: [
-      new TextRun({
-        text,
-        font: 'Helvetica',
-        size: 20,
-        color: '1A1A1A',
-      }),
-    ],
-    bullet: { level: 0 },
-    indent: { left: 360, hanging: 120 },
-    spacing: { after: 80 },
-  })
-}
-
-function buildDocxDocument(templateData: TemplateData): Document {
-  const contactLines = buildContactLines(templateData)
-  const skillLines = buildSkillGroupLines(templateData)
-
-  const children: Paragraph[] = [
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: templateData.fullName,
-          font: 'Helvetica',
-          size: 28,
-          bold: true,
-          color: '000000',
-        }),
-      ],
-      spacing: { after: 60 },
-    }),
-  ]
-
-  for (const line of contactLines) {
-    children.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: line,
-            font: 'Helvetica',
-            size: 20,
-            color: '555555',
-          }),
-        ],
-        spacing: { after: 60 },
-      }),
-    )
-  }
-
-  children.push(
-    createDocxSeparator(),
-    createDocxHeading(ATS_SECTION_HEADINGS.summary),
-    createDocxBody(templateData.summary),
-  )
-
-  if (skillLines.length > 0) {
-    children.push(
-      createDocxSeparator(),
-      createDocxHeading(ATS_SECTION_HEADINGS.skills),
-    )
-
-    for (const line of skillLines) {
-      children.push(createDocxBody(line))
-    }
-  }
-
-  if (templateData.experiences.length > 0) {
-    children.push(createDocxSeparator(), createDocxHeading(ATS_SECTION_HEADINGS.experience))
-
-    templateData.experiences.forEach((experience, index) => {
-      children.push(
-        createDocxBody(experience.title, {
-          bold: true,
-        }),
-        createDocxBody(experience.company, {
-          color: '1A1A1A',
-        }),
-        createDocxBody(formatExperienceMetadata(experience), {
-          color: '555555',
-        }),
-      )
-
-      for (const bullet of experience.bullets) {
-        children.push(createDocxBullet(bullet.text))
-      }
-
-      if (index < templateData.experiences.length - 1) {
-        children.push(createDocxSeparator())
-      }
-    })
-  }
-
-  if (templateData.education.length > 0) {
-    children.push(createDocxSeparator(), createDocxHeading(ATS_SECTION_HEADINGS.education))
-
-    for (const education of templateData.education) {
-      children.push(
-        createDocxBody(education.degree, {
-          bold: true,
-        }),
-        createDocxBody(
-          [education.institution, education.period].filter(Boolean).join(' - '),
-          { color: '555555' },
-        ),
-      )
-    }
-  }
-
-  if (templateData.hasCertifications) {
-    children.push(createDocxSeparator(), createDocxHeading(ATS_SECTION_HEADINGS.certifications))
-
-    for (const certification of templateData.certifications) {
-      children.push(createDocxBody(formatCertificationLine(certification)))
-    }
-  }
-
-  if (templateData.hasLanguages) {
-    children.push(createDocxSeparator(), createDocxHeading(ATS_SECTION_HEADINGS.languages))
-
-    for (const language of templateData.languages) {
-      children.push(createDocxBody(formatLanguageLine(language)))
-    }
-  }
-
-  return new Document({
-    styles: {
-      default: {
-        document: {
-          run: {
-            font: 'Helvetica',
-            size: 20,
-            color: '1A1A1A',
-          },
-          paragraph: {
-            spacing: {
-              line: 240,
-            },
-          },
-        },
-      },
-    },
-    sections: [
-      {
-        properties: {
-          page: {
-            margin: {
-              top: 1134,
-              right: 1134,
-              bottom: 1134,
-              left: 1134,
-            },
-          },
-        },
-        children,
-      },
-    ],
-  })
-}
-
-export async function generateDOCX(source: ResumeTemplateSource): Promise<Buffer> {
-  const templateData = toTemplateData(source)
-  const doc = buildDocxDocument(templateData)
-  return Packer.toBuffer(doc)
 }
 
 async function generatePDF(source: ResumeTemplateSource): Promise<Buffer> {
@@ -1195,7 +960,6 @@ async function upload(
 
 export const generateFileDeps = {
   getSupabase,
-  generateDOCX,
   generatePDF,
   upload,
 }

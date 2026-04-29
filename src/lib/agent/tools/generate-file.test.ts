@@ -604,7 +604,6 @@ describe('generateFile', () => {
 
   it('does not call generation or storage dependencies on validation failure', async () => {
     const getSupabase = vi.spyOn(generateFileDeps, 'getSupabase')
-    const generateDOCX = vi.spyOn(generateFileDeps, 'generateDOCX')
     const generatePDF = vi.spyOn(generateFileDeps, 'generatePDF')
     const upload = vi.spyOn(generateFileDeps, 'upload')
 
@@ -621,7 +620,7 @@ describe('generateFile', () => {
       error: 'Falta pelo menos uma experiência profissional no currículo salvo.',
     })
     expect(getSupabase).not.toHaveBeenCalled()
-    expect(generateDOCX).not.toHaveBeenCalled()
+    expect('generateDOCX' in generateFileDeps).toBe(false)
     expect(generatePDF).not.toHaveBeenCalled()
     expect(upload).not.toHaveBeenCalled()
   })
