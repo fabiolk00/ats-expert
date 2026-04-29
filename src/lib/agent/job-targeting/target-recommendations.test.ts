@@ -32,7 +32,7 @@ describe('buildTargetRecommendations', () => {
         mustNotInvent: true,
       }),
     ]))
-    expect(recommendations[0].suggestedUserAction).toMatch(/se você realmente/i)
+    expect(recommendations[0].suggestedUserAction).toMatch(/deixe isso expl[ií]cito/i)
     expect(recommendations[0].suggestedUserAction).toMatch(/DAX|Power Query|linguagem M/i)
     expect(recommendations[0].currentEvidence).toEqual(expect.arrayContaining([
       'Power BI',
@@ -51,7 +51,43 @@ describe('buildTargetRecommendations', () => {
 
     expect(recommendation.suggestedUserAction).not.toMatch(/^Adicione DAX/i)
     expect(recommendation.suggestedUserAction).not.toMatch(/^Coloque DAX/i)
-    expect(recommendation.suggestedUserAction).toMatch(/apenas|verdadeir|se você realmente/i)
+    expect(recommendation.suggestedUserAction).toMatch(/Caso contr[aá]rio|fora/i)
+  })
+
+  it('normalizes verbose job requirement fragments into concise labels and copy', () => {
+    const [recommendation] = buildTargetRecommendations({
+      coreRequirements: [
+        buildRequirement({
+          signal: 'Também será responsável por identificar oportunidades de crescimento nas contas e estruturar propostas comerciais',
+        }),
+      ],
+      preferredRequirements: [],
+      supportedSignals: [],
+      adjacentSignals: [],
+      resumeSkillSignals: [],
+    })
+
+    expect(recommendation.jobRequirement).toBe('Identificação de oportunidades de crescimento nas contas e estruturação de propostas comerciais')
+    expect(recommendation.suggestedUserAction).not.toMatch(/A vaga pede/i)
+    expect(recommendation.suggestedUserAction).not.toContain('Também será responsável')
+    expect(recommendation.safeExample).toBe('Se for verdadeiro: cite atividade, contexto e resultado real ligados a esse requisito.')
+  })
+
+  it('deduplicates narrower requirements covered by broader financial-accountability gaps', () => {
+    const recommendations = buildTargetRecommendations({
+      coreRequirements: [
+        buildRequirement({ signal: 'Forecast e budget' }),
+        buildRequirement({ signal: 'P&L, margem, faturamento, forecast e budget' }),
+      ],
+      preferredRequirements: [],
+      supportedSignals: [],
+      adjacentSignals: [],
+      resumeSkillSignals: [],
+    })
+
+    expect(recommendations.map((recommendation) => recommendation.jobRequirement)).toEqual([
+      'P&L, margem, faturamento, forecast e budget',
+    ])
   })
 
   it('skips requirements that are already explicitly supported', () => {

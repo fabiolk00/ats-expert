@@ -54,7 +54,7 @@ export function TargetRecommendationsCard({
             Sugestões para melhorar sua aderência
           </h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
-            Encontramos requisitos da vaga que estão próximos do seu perfil, mas não aparecem de forma explícita no currículo.
+            Revise lacunas da vaga que ainda não aparecem claramente no currículo.
           </p>
         </div>
         <Badge
@@ -62,7 +62,7 @@ export function TargetRecommendationsCard({
           className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
         >
           <ShieldCheck className="h-3 w-3" />
-          Adicione apenas se for verdadeiro
+          Só se for verdadeiro
         </Badge>
       </div>
 

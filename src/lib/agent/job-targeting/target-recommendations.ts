@@ -26,6 +26,25 @@ const DIRECTLY_SUPPORTED_LEVELS = new Set<CoreRequirement['evidenceLevel']>([
   'normalized_alias',
   'technical_equivalent',
 ])
+const REDUNDANT_TOKEN_STOPWORDS = new Set([
+  'a',
+  'as',
+  'com',
+  'da',
+  'das',
+  'de',
+  'do',
+  'dos',
+  'e',
+  'em',
+  'na',
+  'nas',
+  'no',
+  'nos',
+  'o',
+  'os',
+  'para',
+])
 
 function dedupe(values: string[]): string[] {
   const seen = new Set<string>()
@@ -54,6 +73,67 @@ function sentenceList(values: string[]): string {
   }
 
   return `${values.slice(0, -1).join(', ')} e ${values.at(-1)}`
+}
+
+function cleanupRequirementText(value: string): string {
+  return value
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function capitalizeFirst(value: string): string {
+  const trimmed = value.trim()
+
+  if (!trimmed) {
+    return ''
+  }
+
+  return `${trimmed.charAt(0).toLocaleUpperCase('pt-BR')}${trimmed.slice(1)}`
+}
+
+function formatRequirementLabel(value: string): string {
+  const cleaned = cleanupRequirementText(value)
+    .replace(/^tamb[eé]m\s+ser[aá]\s+respons[aá]vel\s+por\s+/iu, '')
+    .replace(/^ser[aá]\s+respons[aá]vel\s+por\s+/iu, '')
+    .replace(/^tem\s+experi[eê]ncia\s+com\s+/iu, '')
+
+  if (/^identificar oportunidades de crescimento nas contas e estruturar propostas comerciais$/iu.test(cleaned)) {
+    return 'Identificação de oportunidades de crescimento nas contas e estruturação de propostas comerciais'
+  }
+
+  return capitalizeFirst(cleaned)
+}
+
+function formatSentenceRequirement(value: string): string {
+  const label = formatRequirementLabel(value)
+
+  if (/^(?:P&L|DAX|SQL|BI|Power BI)\b/u.test(label)) {
+    return label
+  }
+
+  return `${label.charAt(0).toLocaleLowerCase('pt-BR')}${label.slice(1)}`
+}
+
+function tokenizeRequirement(value: string): Set<string> {
+  const tokens = buildCanonicalSignal(formatRequirementLabel(value))
+    .split(' ')
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3)
+    .filter((token) => !REDUNDANT_TOKEN_STOPWORDS.has(token))
+
+  return new Set(tokens)
+}
+
+function isRedundantRequirement(candidate: string, existing: string): boolean {
+  const candidateTokens = tokenizeRequirement(candidate)
+  const existingTokens = tokenizeRequirement(existing)
+
+  if (candidateTokens.size === 0 || existingTokens.size <= candidateTokens.size) {
+    return false
+  }
+
+  return Array.from(candidateTokens).every((token) => existingTokens.has(token))
 }
 
 function isDirectlySupported(requirement: CoreRequirement): boolean {
@@ -178,51 +258,53 @@ function buildActionCopy(params: {
   relatedSuggestions: string[]
 }): { suggestedUserAction: string; safeExample?: string } {
   const requirement = params.requirement.signal
+  const requirementLabel = formatRequirementLabel(requirement)
+  const sentenceRequirement = formatSentenceRequirement(requirement)
   const evidenceCopy = params.currentEvidence.length > 0
-    ? `Seu currículo mostra ${sentenceList(params.currentEvidence)}`
-    : 'Seu currículo ainda não traz evidência suficiente desse ponto'
+    ? `Seu currículo já mostra ${sentenceList(params.currentEvidence)}.`
+    : 'Ainda não há evidência suficiente no currículo.'
   const suggestions = params.relatedSuggestions.length > 0
-    ? sentenceList(params.relatedSuggestions)
-    : requirement
+    ? sentenceList(params.relatedSuggestions.map(formatRequirementLabel))
+    : requirementLabel
 
   if (params.kind === 'adjacent_skill' || params.kind === 'missing_tooling_detail') {
     return {
-      suggestedUserAction: `A vaga pede ${requirement}. ${evidenceCopy}, mas não deixa claro se você usa ${suggestions}. Se você realmente tem experiência com ${suggestions}, adicione isso explicitamente em Skills e em uma experiência prática.`,
-      safeExample: `Se for verdadeiro: Construí entregas usando ${suggestions}, conectando essa prática a um resultado ou contexto real do projeto.`,
+      suggestedUserAction: `${evidenceCopy} Se você usa ${suggestions}, deixe isso explícito em Skills e em uma experiência prática. Caso contrário, deixe fora.`,
+      safeExample: `Se for verdadeiro: cite uma entrega real usando ${suggestions}, com contexto e resultado.`,
     }
   }
 
   if (params.kind === 'missing_stakeholder_context') {
     return {
-      suggestedUserAction: `A vaga valoriza ${requirement}. ${evidenceCopy}, mas poderia explicar melhor como você levantou requisitos, traduziu demandas ou apresentou análises. Caso isso faça parte da sua trajetória, descreva essa atuação em uma experiência.`,
-      safeExample: 'Se for verdadeiro: Atuei junto a áreas de negócio para levantar requisitos, traduzir demandas em indicadores e apresentar análises para tomada de decisão.',
+      suggestedUserAction: `${evidenceCopy} Inclua esse ponto apenas se você tiver atuado com relacionamento, levantamento de demanda ou apresentação para stakeholders reais.`,
+      safeExample: 'Se for verdadeiro: cite cliente, área parceira, tipo de demanda e resultado da interação.',
     }
   }
 
   if (params.kind === 'needs_quantification') {
     return {
-      suggestedUserAction: `A vaga valoriza ${requirement}. ${evidenceCopy}. Se você tiver números reais, adicione métricas, volume, prazo, qualidade ou impacto, apenas se forem verdadeiros.`,
-      safeExample: 'Se for verdadeiro: Acompanhei indicadores com melhoria mensurável de prazo, qualidade ou eficiência, informando o número real.',
+      suggestedUserAction: `${evidenceCopy} Se você tiver números reais, acrescente métrica, volume, prazo, qualidade ou impacto. Não estime nem invente valores.`,
+      safeExample: 'Se for verdadeiro: cite o indicador acompanhado, o período e o resultado mensurável.',
     }
   }
 
   if (params.kind === 'missing_methodology') {
     return {
-      suggestedUserAction: `A vaga cita ${requirement}. ${evidenceCopy}. Se você realmente usou ${suggestions}, mencione a metodologia no contexto do projeto em que ela foi aplicada.`,
-      safeExample: `Se for verdadeiro: Conduzi entregas usando ${suggestions}, mantendo rituais, priorização e acompanhamento de evolução do trabalho.`,
+      suggestedUserAction: `${evidenceCopy} Se você aplicou ${suggestions}, mencione a metodologia no contexto do projeto em que ela foi usada.`,
+      safeExample: `Se for verdadeiro: cite rituais, priorização ou acompanhamento de entregas ligados a ${suggestions}.`,
     }
   }
 
   if (params.kind === 'missing_business_domain') {
     return {
-      suggestedUserAction: `A vaga pede contexto de ${requirement}. ${evidenceCopy}. Caso isso faça parte da sua experiência real, detalhe o domínio de negócio, público atendido ou área parceira.`,
-      safeExample: 'Se for verdadeiro: Apoiei áreas de negócio com análises e indicadores conectados ao domínio real da operação.',
+      suggestedUserAction: `${evidenceCopy} Caso faça parte da sua experiência real, detalhe domínio de negócio, público atendido ou área parceira.`,
+      safeExample: 'Se for verdadeiro: cite o domínio atendido e como seu trabalho apoiou a operação ou decisão.',
     }
   }
 
   return {
-    suggestedUserAction: `A vaga pede ${requirement}. ${evidenceCopy}. Se você realmente tem essa experiência, adicione apenas o que for verdadeiro; se não tiver, não afirme esse requisito no currículo.`,
-    safeExample: `Se for verdadeiro: Descreva ${requirement} dentro de uma experiência real, citando a atividade, ferramenta ou contexto em que ocorreu.`,
+    suggestedUserAction: `${evidenceCopy} Inclua ${sentenceRequirement} somente se fizer parte da sua experiência real; se não fizer, deixe fora do currículo.`,
+    safeExample: 'Se for verdadeiro: cite atividade, contexto e resultado real ligados a esse requisito.',
   }
 }
 
@@ -243,8 +325,19 @@ function scoreRecommendation(recommendation: TargetRecommendation, sourceIndex: 
       : 30
   const evidenceScore = recommendation.currentEvidence.length > 0 ? 12 : 0
   const kindScore = recommendation.kind === 'adjacent_skill' ? 10 : 0
+  const coverageScore = tokenizeRequirement(recommendation.jobRequirement).size * 2
 
-  return priorityScore + evidenceScore + kindScore - sourceIndex
+  return priorityScore + evidenceScore + kindScore + coverageScore - sourceIndex
+}
+
+function removeRedundantRecommendations(recommendations: TargetRecommendation[]): TargetRecommendation[] {
+  return recommendations.reduce<TargetRecommendation[]>((result, recommendation) => {
+    if (result.some((existing) => isRedundantRequirement(recommendation.jobRequirement, existing.jobRequirement))) {
+      return result
+    }
+
+    return [...result, recommendation]
+  }, [])
 }
 
 export function buildTargetRecommendations(
@@ -284,7 +377,7 @@ export function buildTargetRecommendations(
           id: buildRecommendationId(requirement, index),
           kind,
           priority: priorityFor(requirement),
-          jobRequirement: requirement.signal,
+          jobRequirement: formatRequirementLabel(requirement.signal),
           currentEvidence,
           suggestedUserAction,
           safeExample,
@@ -304,5 +397,5 @@ export function buildTargetRecommendations(
     .sort((left, right) => scoreRecommendation(right.recommendation, right.sourceIndex) - scoreRecommendation(left.recommendation, left.sourceIndex))
     .map(({ recommendation }) => recommendation)
 
-  return recommendations.slice(0, maxRecommendations)
+  return removeRedundantRecommendations(recommendations).slice(0, maxRecommendations)
 }

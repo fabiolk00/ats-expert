@@ -13,8 +13,8 @@ function recommendation(id: string, jobRequirement: string): TargetRecommendatio
     priority: "high",
     jobRequirement,
     currentEvidence: ["Power BI", "dashboards"],
-    suggestedUserAction: `A vaga pede ${jobRequirement}. Seu currículo mostra Power BI e dashboards. Se você realmente usa ${jobRequirement}, adicione isso explicitamente.`,
-    safeExample: `Se for verdadeiro: use ${jobRequirement} em uma experiência real.`,
+    suggestedUserAction: `Seu currículo já mostra Power BI e dashboards. Se você usa ${jobRequirement}, deixe isso explícito em uma experiência prática.`,
+    safeExample: `Se for verdadeiro: cite uma entrega real usando ${jobRequirement}.`,
     mustNotInvent: true,
     relatedResumeSection: "skills",
     relatedEvidenceLevel: "adjacent",
@@ -35,7 +35,8 @@ describe("TargetRecommendationsCard", () => {
     )
 
     expect(screen.getByText("Sugestões para melhorar sua aderência")).toBeInTheDocument()
-    expect(screen.getByText("Adicione apenas se for verdadeiro")).toBeInTheDocument()
+    expect(screen.getByText("Só se for verdadeiro")).toBeInTheDocument()
+    expect(screen.getByText("Revise lacunas da vaga que ainda não aparecem claramente no currículo.")).toBeInTheDocument()
     expect(screen.getAllByTestId("target-recommendation-item")).toHaveLength(3)
     expect(screen.getByText("DAX")).toBeInTheDocument()
     expect(screen.queryByText("APIs")).not.toBeInTheDocument()

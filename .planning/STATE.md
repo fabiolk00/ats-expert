@@ -180,6 +180,7 @@ Baseline carried forward from earlier shipped milestones:
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
+| 260429-vrb | Shorten and normalize Job Targeting recommendation card copy | 2026-04-29 | working-tree | Validated | [260429-vrb-shorten-target-recommendation-copy](./quick/260429-vrb-shorten-target-recommendation-copy/) |
 | 260429-pdc | Delete dead Job Targeting rewrite-diff code after simplifying generated resume review | 2026-04-29 | working-tree | Validated | [260429-pdc-delete-dead-job-targeting-diff-code](./quick/260429-pdc-delete-dead-job-targeting-diff-code/) |
 | 260429-ovc | Simplify generated resume review screen for Job Targeting while keeping ATS Enhancement comparison | 2026-04-29 | working-tree | Validated | [260429-ovc-simplify-generated-resume-review-screen-](./quick/260429-ovc-simplify-generated-resume-review-screen-/) |
 | 260429-os7 | Shorten low-fit Job Targeting warning into concise bullet list | 2026-04-29 | working-tree | Validated | [260429-os7-shorten-low-fit-job-targeting-warning-in](./quick/260429-os7-shorten-low-fit-job-targeting-warning-in/) |
