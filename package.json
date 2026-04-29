@@ -44,9 +44,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:generate": "prisma generate",
-    "template:create": "tsx src/lib/templates/create-template.ts",
-    "template:test": "tsx src/lib/templates/test-template.ts"
+    "db:generate": "prisma generate"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.0.0",
