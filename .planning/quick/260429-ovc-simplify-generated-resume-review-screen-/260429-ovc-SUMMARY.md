@@ -23,4 +23,4 @@
 
 ## Notes
 
-- The `RewriteDiffPanel` component remains in the repository for any other historical or future use, but it is no longer rendered by this Job Targeting review screen.
+- The `RewriteDiffPanel` component and its rewrite-change summary builder were later removed as dead code because the Job Targeting screen now shows only generated resume review and target recommendations.

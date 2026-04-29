@@ -1796,12 +1796,6 @@ describe('ATS enhancement reliability hardening', () => {
       source: 'job_targeting',
       version: 1,
       targetRole: 'Analytics Engineer',
-      rewriteChanges: expect.arrayContaining([
-        expect.objectContaining({
-          section: 'summary',
-          changed: true,
-        }),
-      ]),
       targetRecommendations: expect.arrayContaining([
         expect.objectContaining({
           jobRequirement: 'BigQuery',

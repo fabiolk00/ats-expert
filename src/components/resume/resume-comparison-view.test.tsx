@@ -131,18 +131,6 @@ function buildJobTargetingExplanation(): JobTargetingExplanation {
     generatedAt: "2026-04-29T12:00:00.000Z",
     source: "job_targeting",
     version: 1,
-    rewriteChanges: [{
-      id: "rewrite-change-summary",
-      section: "summary",
-      sectionLabel: "Resumo",
-      changed: true,
-      beforeText: "Original summary",
-      afterText: "Optimized summary",
-      relatedJobRequirements: ["Power BI"],
-      changeReasons: ["Destacou requisito relevante da vaga: Power BI."],
-      safetyNotes: ["Não adicionamos DAX como experiência direta porque não havia evidência suficiente no currículo original."],
-      changeIntensity: "light",
-    }],
     targetRecommendations: [{
       id: "target-rec-dax",
       kind: "adjacent_skill",

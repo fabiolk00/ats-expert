@@ -193,35 +193,9 @@ export type RewriteChangeSection =
   | 'education'
   | 'certifications'
 
-export type RewriteChangeSummary = {
-  id: string
-  section: RewriteChangeSection
-  sectionLabel: string
-  changed: boolean
-  beforeText: string
-  afterText: string
-  /**
-   * Requisitos da vaga que motivaram a mudanca.
-   */
-  relatedJobRequirements: string[]
-  /**
-   * Explicacoes curtas e humanas.
-   */
-  changeReasons: string[]
-  /**
-   * Coisas que o sistema NAO afirmou por seguranca.
-   */
-  safetyNotes: string[]
-  /**
-   * Metrica simples para QA/observabilidade.
-   */
-  changeIntensity: 'none' | 'light' | 'moderate' | 'strong'
-}
-
 export type JobTargetingExplanation = {
   targetRole?: string
   targetRoleConfidence?: 'low' | 'medium' | 'high'
-  rewriteChanges: RewriteChangeSummary[]
   targetRecommendations: TargetRecommendation[]
   generatedAt: string
   source: 'job_targeting'

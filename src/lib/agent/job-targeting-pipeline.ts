@@ -16,7 +16,6 @@ import {
   isRecoverableValidationBlock,
   isSummaryOnlyRecoverableValidation,
 } from '@/lib/agent/job-targeting/recoverable-validation'
-import { buildRewriteChangeSummary } from '@/lib/agent/job-targeting/rewrite-change-summary'
 import { buildTargetRecommendations } from '@/lib/agent/job-targeting/target-recommendations'
 import {
   applyLowFitWarningGateToValidation,
@@ -332,13 +331,6 @@ function buildJobTargetingExplanation(params: {
   return {
     targetRole: params.targetingPlan.targetRole,
     targetRoleConfidence: params.targetingPlan.targetRoleConfidence,
-    rewriteChanges: buildRewriteChangeSummary({
-      beforeCvState: params.session.cvState,
-      afterCvState: params.optimizedCvState,
-      coreRequirements,
-      preferredRequirements,
-      targetRole: params.targetingPlan.targetRole,
-    }),
     targetRecommendations: buildTargetRecommendations({
       targetRole: params.targetingPlan.targetRole,
       coreRequirements,
@@ -1154,9 +1146,6 @@ export async function runJobTargetingPipeline(
     : undefined
 
   if (jobTargetingExplanation) {
-    const changedSections = jobTargetingExplanation.rewriteChanges
-      .filter((change) => change.changed)
-      .map((change) => change.section)
     const mustNotInventRecommendationCount = jobTargetingExplanation.targetRecommendations
       .filter((recommendation) => recommendation.mustNotInvent).length
 
@@ -1164,24 +1153,12 @@ export async function runJobTargetingPipeline(
       sessionId: session.id,
       userId: session.userId,
       targetRole: targetingPlan.targetRole,
-      rewriteChangeCount: changedSections.length,
       targetRecommendationCount: jobTargetingExplanation.targetRecommendations.length,
       mustNotInventRecommendationCount,
-      changedSections,
     })
     recordMetricCounter('architecture.job_targeting.recommendations.count', {
       sessionId: session.id,
       count: jobTargetingExplanation.targetRecommendations.length,
-    })
-    recordMetricCounter('architecture.job_targeting.rewrite_changes.count', {
-      sessionId: session.id,
-      count: changedSections.length,
-    })
-    changedSections.forEach((section) => {
-      recordMetricCounter('architecture.job_targeting.rewrite_changes.changed_sections', {
-        sessionId: session.id,
-        section,
-      })
     })
   }
   const highlightGenerationGate = classifyHighlightGenerationGate({
