@@ -423,46 +423,6 @@ function ResumeDocument({
   )
 }
 
-type ReviewItems = NonNullable<CvHighlightState["reviewItems"]>
-
-function JobTargetingDiagnosticColumn({
-  jobTargetingExplanation,
-  reviewItems,
-  hasInlineHighlights,
-  isResumeOpen,
-}: {
-  jobTargetingExplanation?: JobTargetingExplanation
-  reviewItems: ReviewItems
-  hasInlineHighlights: boolean
-  isResumeOpen: boolean
-}) {
-  const hasScore = Boolean(jobTargetingExplanation?.scoreBreakdown)
-  const hasReviewItems = reviewItems.length > 0
-
-  if (!hasScore && !hasReviewItems) {
-    return null
-  }
-
-  return (
-    <section
-      data-testid="job-targeting-diagnostic-column"
-      className="space-y-4 lg:sticky lg:top-4 lg:self-start"
-    >
-      {jobTargetingExplanation?.scoreBreakdown ? (
-        <JobTargetingScoreCard breakdown={jobTargetingExplanation.scoreBreakdown} />
-      ) : null}
-
-      {hasReviewItems ? (
-        <ReviewWarningPanel
-          items={reviewItems}
-          hasInlineHighlights={hasInlineHighlights}
-          scrollClassName={isResumeOpen ? "lg:max-h-[min(52vh,32rem)]" : "lg:max-h-[min(76vh,46rem)]"}
-        />
-      ) : null}
-    </section>
-  )
-}
-
 function JobTargetResumeFrame({
   isOpen,
   onToggle,
@@ -479,17 +439,17 @@ function JobTargetResumeFrame({
       className={cn(
         "relative rounded-lg transition-[max-height] duration-300",
         isOpen
-          ? "max-h-[calc(100vh-12rem)] overflow-y-auto pr-1"
-          : "max-h-[52vh] overflow-hidden",
+          ? "overflow-visible"
+          : "lg:max-h-[52vh] lg:overflow-hidden",
       )}
     >
       {children}
       <div
         className={cn(
-          "pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-3 pt-20",
+          "pointer-events-none inset-x-0 bottom-0 z-20 hidden justify-center px-4 pb-3 pt-20 lg:flex",
           isOpen
-            ? "bg-gradient-to-t from-white via-white/80 to-transparent dark:from-zinc-950 dark:via-zinc-950/80"
-            : "bg-gradient-to-t from-white via-white/90 to-transparent dark:from-zinc-950 dark:via-zinc-950/90",
+            ? "sticky -mt-24 bg-gradient-to-t from-white via-white/80 to-transparent dark:from-zinc-950 dark:via-zinc-950/80"
+            : "absolute bg-gradient-to-t from-white via-white/90 to-transparent dark:from-zinc-950 dark:via-zinc-950/90",
         )}
       >
         <button
@@ -667,9 +627,14 @@ export function ResumeComparisonView({
   const hasReviewItems = isOverrideReviewHighlight && Boolean(currentHighlightState?.reviewItems?.length)
   const reviewItems = currentHighlightState?.reviewItems ?? []
   const visibleReviewItems = hasReviewItems ? reviewItems : []
+  const hasJobTargetingScore = isJobTargeting && !previewLock?.locked && Boolean(jobTargetingExplanation?.scoreBreakdown)
   const hasJobTargetingDiagnostics = isJobTargeting
     && !previewLock?.locked
-    && (Boolean(jobTargetingExplanation?.scoreBreakdown) || hasReviewItems)
+    && (hasJobTargetingScore || hasReviewItems)
+  const reviewPanelScrollClassName = cn(
+    "lg:overflow-y-auto",
+    isJobTargetResumeOpen ? "lg:max-h-[min(52vh,32rem)]" : "lg:max-h-[min(76vh,46rem)]",
+  )
 
   const handleDownload = async () => {
     try {
@@ -781,6 +746,12 @@ export function ResumeComparisonView({
               isVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
             )}
           >
+          {hasJobTargetingScore && jobTargetingExplanation?.scoreBreakdown ? (
+            <div className="order-1 lg:col-start-2 lg:row-start-1">
+              <JobTargetingScoreCard breakdown={jobTargetingExplanation.scoreBreakdown} />
+            </div>
+          ) : null}
+
           {!isJobTargeting ? (
             <div>
               <div className="mb-2 flex items-center justify-between sm:mb-3">
@@ -795,7 +766,13 @@ export function ResumeComparisonView({
             </div>
           ) : null}
 
-          <div>
+          <div
+            className={cn(
+              isJobTargeting
+                ? "order-2 lg:col-start-1 lg:row-span-2 lg:row-start-1"
+                : undefined,
+            )}
+          >
             <div className="mb-2 flex items-center justify-between sm:mb-3">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -877,13 +854,22 @@ export function ResumeComparisonView({
               </div>
             ) : null}
           </div>
-          {hasJobTargetingDiagnostics ? (
-              <JobTargetingDiagnosticColumn
-                jobTargetingExplanation={jobTargetingExplanation}
-                reviewItems={visibleReviewItems}
-                hasInlineHighlights={hasInlineHighlights}
-                isResumeOpen={isJobTargetResumeOpen}
-              />
+          {hasReviewItems ? (
+            <section
+              data-testid="job-targeting-diagnostic-column"
+              className={cn(
+                "order-3 space-y-4 lg:col-start-2",
+                hasJobTargetingScore ? "lg:row-start-2" : "lg:row-start-1",
+              )}
+            >
+              {hasReviewItems ? (
+                <ReviewWarningPanel
+                  items={visibleReviewItems}
+                  hasInlineHighlights={hasInlineHighlights}
+                  scrollClassName={reviewPanelScrollClassName}
+                />
+              ) : null}
+            </section>
           ) : null}
           </div>
         </div>

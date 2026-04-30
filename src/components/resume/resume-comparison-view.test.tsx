@@ -329,7 +329,7 @@ describe('ResumeComparisonView', () => {
     expect(screen.queryByText('Entenda o que mudou')).not.toBeInTheDocument()
     expect(screen.queryByText('Sugestões para melhorar sua aderência')).not.toBeInTheDocument()
     expect(screen.queryByText('Só se for verdadeiro')).not.toBeInTheDocument()
-    expect(screen.getByTestId('job-targeting-diagnostic-column')).toHaveClass('lg:sticky', 'lg:top-4', 'lg:self-start')
+    expect(screen.queryByTestId('job-targeting-diagnostic-column')).not.toBeInTheDocument()
     expect(screen.getByTestId('job-targeting-score-card')).toBeInTheDocument()
     expect(screen.getByText('Compatibilidade com a vaga')).toBeInTheDocument()
     expect(screen.getByText('Composição da nota')).toBeInTheDocument()
@@ -342,7 +342,7 @@ describe('ResumeComparisonView', () => {
     expect(screen.getByTestId('comparison-credits-badge')).toHaveTextContent('Créditos disponíveis')
     expect(screen.getByTestId('comparison-credits-badge')).toHaveTextContent('7 / 12')
     expect(screen.getByTestId('job-target-resume-frame')).toHaveAttribute('data-collapsed', 'false')
-    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('max-h-[calc(100vh-12rem)]')
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('overflow-visible')
     expect(screen.getByRole('button', { name: /ocultar currículo/i })).toBeInTheDocument()
   })
 
@@ -463,23 +463,30 @@ describe('ResumeComparisonView', () => {
 
     expect(screen.getByTestId('optimized-resume-document')).toBeInTheDocument()
     expect(screen.getByTestId('job-target-resume-frame')).toHaveAttribute('data-collapsed', 'false')
-    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('max-h-[calc(100vh-12rem)]')
-    expect(screen.getByTestId('override-review-panel-scroll')).toHaveClass('overflow-y-auto')
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('overflow-visible')
+    expect(screen.getByTestId('override-review-panel-scroll')).toHaveClass('lg:overflow-y-auto')
+    expect(screen.getByRole('button', { name: /ocultar currículo/i }).parentElement).toHaveClass('hidden', 'lg:flex')
+
+    const scoreCard = screen.getByTestId('job-targeting-score-card')
+    const resumeFrame = screen.getByTestId('job-target-resume-frame')
+    const reviewPanel = screen.getByTestId('override-review-panel')
+    expect(scoreCard.compareDocumentPosition(resumeFrame) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(resumeFrame.compareDocumentPosition(reviewPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
     await user.click(screen.getByRole('button', { name: /ocultar currículo/i }))
 
     expect(screen.getByTestId('optimized-resume-document')).toBeInTheDocument()
     expect(screen.getByTestId('job-target-resume-frame')).toHaveAttribute('data-collapsed', 'true')
-    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('max-h-[52vh]')
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('lg:max-h-[52vh]', 'lg:overflow-hidden')
     expect(screen.getByRole('button', { name: /abrir currículo/i })).toBeInTheDocument()
     expect(screen.getByTestId('override-review-panel')).toHaveTextContent('Pontos para revisar')
-    expect(screen.getByTestId('override-review-panel-scroll')).toHaveClass('overflow-y-auto')
+    expect(screen.getByTestId('override-review-panel-scroll')).toHaveClass('lg:overflow-y-auto')
 
     await user.click(screen.getByRole('button', { name: /abrir currículo/i }))
 
     expect(screen.getByTestId('optimized-resume-document')).toBeInTheDocument()
     expect(screen.getByTestId('job-target-resume-frame')).toHaveAttribute('data-collapsed', 'false')
-    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('max-h-[calc(100vh-12rem)]')
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('overflow-visible')
     expect(screen.getByTestId('override-review-panel')).toHaveTextContent('Pontos para revisar')
   })
 

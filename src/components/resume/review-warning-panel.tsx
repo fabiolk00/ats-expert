@@ -185,14 +185,14 @@ export function ReviewWarningPanel(props: ReviewWarningPanelProps) {
       </div>
 
       <div className="px-6 pt-8 pb-2 flex items-center gap-4">
-        <h1 className="text-2xl font-bold text-gray-900 whitespace-nowrap shrink-0">Pontos para revisar</h1>
+        <h1 className="text-sm font-semibold text-gray-900 whitespace-nowrap shrink-0 sm:text-base">Pontos para revisar</h1>
         <div className="flex-1 h-px bg-gray-200" />
       </div>
 
       <div
         data-testid="override-review-panel-scroll"
         className={cn(
-          "px-6 pb-8 space-y-8 overflow-y-auto",
+          "px-6 pb-8 space-y-8",
           scrollClassName,
         )}
       >
