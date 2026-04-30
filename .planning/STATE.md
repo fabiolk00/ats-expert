@@ -180,6 +180,7 @@ Baseline carried forward from earlier shipped milestones:
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
+| 260429-w1m | Ajustar peso visual do título Pontos para revisar | 2026-04-29 | working-tree | Validated | [260429-w1m-ajustar-peso-visual-do-titulo-pontos-par](./quick/260429-w1m-ajustar-peso-visual-do-titulo-pontos-par/) |
 | 260429-vy9 | Padronizar títulos e corrigir layout responsivo da comparação | 2026-04-29 | working-tree | Validated | [260429-vy9-padronizar-t-tulos-e-corrigir-layout-res](./quick/260429-vy9-padronizar-t-tulos-e-corrigir-layout-res/) |
 | 260429-vgk | Replicar fielmente layout do zip para seção de pontos a revisar | 2026-04-29 | working-tree | Validated | [260429-vgk-replicar-fielmente-layout-do-zip-para-se](./quick/260429-vgk-replicar-fielmente-layout-do-zip-para-se/) |
 | 260429-v8h | Mostrar créditos disponíveis no header da tela de comparação | 2026-04-29 | working-tree | Validated | [260429-v8h-mostrar-cr-ditos-dispon-veis-no-header-d](./quick/260429-v8h-mostrar-cr-ditos-dispon-veis-no-header-d/) |

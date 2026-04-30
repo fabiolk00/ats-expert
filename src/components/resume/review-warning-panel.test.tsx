@@ -51,7 +51,7 @@ describe("ReviewWarningPanel", () => {
     const panel = screen.getByTestId("override-review-panel")
     expect(panel).toHaveClass("bg-white", "rounded-2xl", "shadow-sm", "border", "border-gray-200", "overflow-hidden")
 
-    expect(screen.getByText("Pontos para revisar")).toHaveClass("text-sm", "font-semibold", "text-gray-900", "sm:text-base")
+    expect(screen.getByText("Pontos para revisar")).toHaveClass("text-2xl", "font-bold", "text-gray-900")
     expect(screen.getByText(/Esta versão foi gerada mesmo com avisos de aderência à vaga/i)).toBeInTheDocument()
     expect(screen.getByText("Experiência relevante")).toBeInTheDocument()
     expect(screen.getByText("Seu perfil comprovado")).toBeInTheDocument()
