@@ -116,7 +116,7 @@ export function ReviewWarningPanel({
   }
 
   return (
-    <aside
+    <section
       data-testid="override-review-panel"
       className={cn(
         "rounded-lg border border-amber-200 bg-white p-4 shadow-sm dark:border-amber-900/60 dark:bg-zinc-950",
@@ -160,6 +160,6 @@ export function ReviewWarningPanel({
               )
         ))}
       </div>
-    </aside>
+    </section>
   )
 }

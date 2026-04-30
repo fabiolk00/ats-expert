@@ -1,11 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Download, Highlighter, Loader2, Pencil } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { ArrowLeft, ChevronDown, Download, Highlighter, Loader2, Pencil } from "lucide-react"
 
 import { ARTIFACT_REFRESH_EVENT, type ArtifactRefreshDetail } from "@/components/dashboard/events"
 import { ResumeEditorModal } from "@/components/dashboard/resume-editor-modal"
-import Logo from "@/components/logo"
 import { JobTargetingScoreCard } from "@/components/resume/job-targeting-score-card"
 import { ReviewWarningPanel } from "@/components/resume/review-warning-panel"
 import { TargetRecommendationsCard } from "@/components/resume/target-recommendations-card"
@@ -19,7 +18,6 @@ import {
   type CvHighlightTextSegment,
 } from "@/lib/resume/cv-highlight-artifact"
 import { getDownloadUrls, isRetryableDownloadLookupError } from "@/lib/dashboard/workspace-client"
-import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
 import type { JobTargetingExplanation, ResumeGenerationType } from "@/types/agent"
 import type { CVState } from "@/types/cv"
@@ -55,6 +53,7 @@ const EMPTY_DOWNLOAD_STATE: DownloadState = {
 }
 
 const TRANSIENT_DOWNLOAD_LOOKUP_MESSAGE = "Estamos sincronizando o PDF desta sessão. Tente novamente em alguns segundos."
+const RESUME_EDITING_HELP_TEXT = "Use as dicas de ATS para ajustar seu currículo e, em seguida, baixe a versão editada em PDF."
 
 function hasTextChanged(original: string, optimized: string): boolean {
   return original?.trim() !== optimized?.trim()
@@ -159,7 +158,7 @@ function ResumeDocument({
             <button
               type="button"
               onClick={onEdit}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 sm:h-8 sm:w-8"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-950 shadow-sm transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
               title="Editar currículo"
             >
               <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -170,7 +169,7 @@ function ResumeDocument({
               type="button"
               onClick={onDownload}
               disabled={isDownloading || downloadDisabled}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 disabled:opacity-50 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 sm:h-8 sm:w-8"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-950 shadow-sm transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
               title="Baixar PDF"
             >
               {isDownloading || downloadPending ? (
@@ -420,6 +419,87 @@ function ResumeDocument({
   )
 }
 
+type ReviewItems = NonNullable<CvHighlightState["reviewItems"]>
+
+function JobTargetingDiagnosticBlock({
+  jobTargetingExplanation,
+  reviewItems,
+  hasInlineHighlights,
+  onReviewItemSelect,
+}: {
+  jobTargetingExplanation?: JobTargetingExplanation
+  reviewItems: ReviewItems
+  hasInlineHighlights: boolean
+  onReviewItemSelect: (item: ReviewItems[number]) => void
+}) {
+  const [isOpen, setIsOpen] = useState(true)
+  const hasScore = Boolean(jobTargetingExplanation?.scoreBreakdown)
+  const hasRecommendations = Boolean(jobTargetingExplanation?.targetRecommendations.length)
+  const hasReviewItems = reviewItems.length > 0
+  const hasDetails = hasReviewItems || hasRecommendations
+
+  if (!hasScore && !hasDetails) {
+    return null
+  }
+
+  return (
+    <section
+      data-testid="job-targeting-diagnostic-block"
+      className="mx-auto w-full max-w-[58rem] space-y-3"
+    >
+      {jobTargetingExplanation?.scoreBreakdown ? (
+        <JobTargetingScoreCard breakdown={jobTargetingExplanation.scoreBreakdown} />
+      ) : null}
+
+      {hasDetails ? (
+        <div className="space-y-3">
+          <button
+            type="button"
+            aria-expanded={isOpen}
+            onClick={() => setIsOpen((value) => !value)}
+            className="flex w-full items-center justify-between gap-4 rounded-lg border border-zinc-200 bg-white px-4 py-3 text-left shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-900"
+          >
+            <span>
+              <span className="block text-sm font-semibold text-zinc-950 dark:text-zinc-50">
+                Diagnóstico da vaga
+              </span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                Aderência, pontos para revisar e sugestões seguras antes de enviar.
+              </span>
+            </span>
+            <span className="inline-flex shrink-0 items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+              {isOpen ? "Ocultar" : "Abrir"}
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  isOpen ? "rotate-180" : undefined,
+                )}
+              />
+            </span>
+          </button>
+
+          {isOpen ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {hasReviewItems ? (
+                <ReviewWarningPanel
+                  items={reviewItems}
+                  hasInlineHighlights={hasInlineHighlights}
+                  onItemSelect={onReviewItemSelect}
+                />
+              ) : null}
+              {hasRecommendations && jobTargetingExplanation ? (
+                <div data-testid="job-targeting-explanation">
+                  <TargetRecommendationsCard recommendations={jobTargetingExplanation.targetRecommendations} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 export function ResumeComparisonView({
   originalCvState,
   optimizedCvState,
@@ -430,7 +510,6 @@ export function ResumeComparisonView({
   highlightState,
   jobTargetingExplanation,
   optimizationNotes = [],
-  backHref = PROFILE_SETUP_PATH,
   onContinue,
   onCvStateUpdate,
   className,
@@ -441,6 +520,7 @@ export function ResumeComparisonView({
   const [currentOptimizedCvState, setCurrentOptimizedCvState] = useState(optimizedCvState)
   const [currentHighlightState, setCurrentHighlightState] = useState(highlightState)
   const [showHighlights, setShowHighlights] = useState(true)
+  const [isJobTargetResumeOpen, setIsJobTargetResumeOpen] = useState(true)
   const [downloadState, setDownloadState] = useState<DownloadState>(EMPTY_DOWNLOAD_STATE)
   const [isRefreshingDownloadState, setIsRefreshingDownloadState] = useState(false)
 
@@ -526,10 +606,6 @@ export function ResumeComparisonView({
     return () => window.clearTimeout(timeoutId)
   }, [downloadState.generationStatus, refreshDownloadState])
 
-  const title = useMemo(
-    () => generationType === "JOB_TARGETING" ? "Currículo adaptado para a vaga" : "Currículo otimizado para ATS",
-    [generationType],
-  )
   const downloadStatusMessage = downloadState.artifactStale?.message
     ?? (downloadState.generationStatus === "generating" && !downloadState.pdfUrl
       ? "Atualizando o PDF salvo para download."
@@ -550,7 +626,11 @@ export function ResumeComparisonView({
     && Boolean(jobTargetingExplanation)
   const isJobTargeting = generationType === "JOB_TARGETING"
   const hasReviewItems = isOverrideReviewHighlight && Boolean(currentHighlightState?.reviewItems?.length)
-  const hasJobTargetingSidebar = isJobTargeting && (hasReviewItems || shouldShowJobTargetingExplanation)
+  const reviewItems = currentHighlightState?.reviewItems ?? []
+  const visibleReviewItems = hasReviewItems ? reviewItems : []
+  const hasJobTargetingDiagnostics = isJobTargeting
+    && !previewLock?.locked
+    && (Boolean(jobTargetingExplanation?.scoreBreakdown) || hasReviewItems || shouldShowJobTargetingExplanation)
 
   const handleReviewItemSelect = (item: NonNullable<CvHighlightState["reviewItems"]>[number]) => {
     const section = item.section ?? "summary"
@@ -621,48 +701,23 @@ export function ResumeComparisonView({
       data-testid="resume-comparison-view"
       className={cn("flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-900", className)}
     >
-      <header
+      <div
         className={cn(
-          "shrink-0 border-b border-zinc-200 bg-white px-4 py-3 transition-all duration-500 dark:border-zinc-800 dark:bg-zinc-950 sm:px-6 sm:py-4",
+          "shrink-0 bg-white px-4 py-4 transition-all duration-500 dark:bg-zinc-950 sm:px-6",
           isVisible ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
         )}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-            <div className="shrink-0">
-              <Logo linkTo={backHref} size="default" />
-            </div>
-            <div className="hidden h-6 w-px bg-zinc-200 dark:bg-zinc-700 sm:block" />
-            <div className="hidden min-w-0 sm:block">
-              <h1 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100 lg:text-lg">
-                {title}
-              </h1>
-              <p className="truncate text-xs text-zinc-500 dark:text-zinc-400 lg:text-sm">
-                {isJobTargeting ? "Revise o currículo gerado e os pontos de aderência" : "Compare as alterações lado a lado"}
-              </p>
-            </div>
-          </div>
-
+        <div className="mx-auto flex max-w-6xl justify-end">
           <Button
             onClick={onContinue}
             size="sm"
-            className="hidden gap-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 sm:flex sm:h-9 sm:px-4"
+            className="gap-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 sm:h-9 sm:px-4"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="hidden md:inline">Voltar ao Perfil</span>
-            <span className="md:hidden">Voltar</span>
+            Voltar ao Perfil
           </Button>
         </div>
-
-        <div className="mt-2 sm:hidden">
-          <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            {title}
-          </h1>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {isJobTargeting ? "Revise o currículo gerado" : "Compare as alterações lado a lado"}
-          </p>
-        </div>
-      </header>
+      </div>
 
       {isOverrideReviewHighlight ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/30 sm:px-6">
@@ -687,17 +742,22 @@ export function ResumeComparisonView({
       ) : null}
 
       <div className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
-        <div className="mx-auto max-w-7xl space-y-6">
+        <div className="mx-auto max-w-6xl space-y-6">
+          {hasJobTargetingDiagnostics ? (
+            <JobTargetingDiagnosticBlock
+              jobTargetingExplanation={jobTargetingExplanation}
+              reviewItems={visibleReviewItems}
+              hasInlineHighlights={hasInlineHighlights}
+              onReviewItemSelect={handleReviewItemSelect}
+            />
+          ) : null}
+
           <div
             className={cn(
-              "grid gap-8 transition-all duration-700 sm:gap-6",
+              "grid gap-6 transition-all duration-700",
               isJobTargeting
-                ? hasJobTargetingSidebar
-                  ? "lg:grid-cols-[minmax(0,1fr)_300px]"
-                  : "lg:grid-cols-[minmax(0,46rem)] lg:justify-center"
-                : hasReviewItems
-                  ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px]"
-                  : "lg:grid-cols-2",
+                ? "lg:grid-cols-[minmax(0,42rem)] lg:justify-center"
+                : "lg:grid-cols-[minmax(0,32rem)_minmax(0,32rem)] lg:justify-center",
               isVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
             )}
           >
@@ -720,7 +780,7 @@ export function ResumeComparisonView({
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
                 <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 sm:text-sm">
-                  {isJobTargeting ? "Currículo gerado" : isOverrideReviewHighlight ? "Revisão recomendada" : "Otimizado"}
+                  {isJobTargeting ? "Currículo ATS Otimizado" : isOverrideReviewHighlight ? "Revisão recomendada" : "Otimizado"}
                 </span>
                 {shouldShowHighlightToggle ? (
                   <button
@@ -733,81 +793,71 @@ export function ResumeComparisonView({
                   </button>
                 ) : null}
               </div>
+              {isJobTargeting ? (
+                <button
+                  type="button"
+                  aria-expanded={isJobTargetResumeOpen}
+                  onClick={() => setIsJobTargetResumeOpen((value) => !value)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                >
+                  {isJobTargetResumeOpen ? "Ocultar" : "Abrir"}
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 transition-transform",
+                      isJobTargetResumeOpen ? "rotate-180" : undefined,
+                    )}
+                  />
+                </button>
+              ) : null}
             </div>
-            {isOverrideReviewHighlight && hasInlineHighlights ? (
-              <div className="mb-3 rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-zinc-700 shadow-sm dark:border-amber-900/50 dark:bg-zinc-950 dark:text-zinc-200">
-                <div className="flex flex-wrap gap-3">
-                  <span><strong>Comprovado:</strong> trecho sustentado pelo currículo original</span>
-                  <span><strong>Atenção:</strong> aproximação cautelosa</span>
-                  <span><strong>Revisar:</strong> ponto aceito com aviso</span>
-                </div>
-              </div>
-            ) : null}
-            <ResumeDocument
-              cvState={currentOptimizedCvState}
-              variant="optimized"
-              originalCvState={originalCvState}
-              onEdit={previewLock?.locked ? undefined : () => setIsEditorOpen(true)}
-              onDownload={previewLock?.locked ? undefined : handleDownload}
-              isDownloading={isDownloading}
-              downloadDisabled={isDownloadDisabled}
-              downloadPending={isDownloadPending}
-              previewLock={previewLock}
-              showHighlights={showHighlights}
-              highlightState={currentHighlightState}
-            />
-            {!previewLock?.locked && downloadStatusMessage ? (
-              <div
-                data-testid="optimized-download-status"
-                className={cn(
-                  "mt-3 rounded-lg border px-3 py-2 text-xs",
-                  downloadState.generationStatus === "failed"
-                    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
-                    : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
-                )}
-              >
-                {downloadStatusMessage}
-              </div>
+
+            {(!isJobTargeting || isJobTargetResumeOpen) ? (
+              <>
+                {!previewLock?.locked ? (
+                  <p className="mb-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs leading-relaxed text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+                    {RESUME_EDITING_HELP_TEXT}
+                  </p>
+                ) : null}
+                {isOverrideReviewHighlight && hasInlineHighlights ? (
+                  <div className="mb-3 rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-zinc-700 shadow-sm dark:border-amber-900/50 dark:bg-zinc-950 dark:text-zinc-200">
+                    <div className="flex flex-wrap gap-3">
+                      <span><strong>Comprovado:</strong> trecho sustentado pelo currículo original</span>
+                      <span><strong>Atenção:</strong> aproximação cautelosa</span>
+                      <span><strong>Revisar:</strong> ponto aceito com aviso</span>
+                    </div>
+                  </div>
+                ) : null}
+                <ResumeDocument
+                  cvState={currentOptimizedCvState}
+                  variant="optimized"
+                  originalCvState={originalCvState}
+                  onEdit={previewLock?.locked ? undefined : () => setIsEditorOpen(true)}
+                  onDownload={previewLock?.locked ? undefined : handleDownload}
+                  isDownloading={isDownloading}
+                  downloadDisabled={isDownloadDisabled}
+                  downloadPending={isDownloadPending}
+                  previewLock={previewLock}
+                  showHighlights={showHighlights}
+                  highlightState={currentHighlightState}
+                />
+                {!previewLock?.locked && downloadStatusMessage ? (
+                  <div
+                    data-testid="optimized-download-status"
+                    className={cn(
+                      "mt-3 rounded-lg border px-3 py-2 text-xs",
+                      downloadState.generationStatus === "failed"
+                        ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+                        : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
+                    )}
+                  >
+                    {downloadStatusMessage}
+                  </div>
+                ) : null}
+              </>
             ) : null}
           </div>
-          {hasJobTargetingSidebar ? (
-            <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-              {jobTargetingExplanation?.scoreBreakdown ? (
-                <JobTargetingScoreCard breakdown={jobTargetingExplanation.scoreBreakdown} />
-              ) : null}
-              {hasReviewItems ? (
-                <ReviewWarningPanel
-                  items={currentHighlightState?.reviewItems ?? []}
-                  hasInlineHighlights={hasInlineHighlights}
-                  onItemSelect={handleReviewItemSelect}
-                />
-              ) : null}
-              {shouldShowJobTargetingExplanation && jobTargetingExplanation ? (
-                <div data-testid="job-targeting-explanation">
-                  <TargetRecommendationsCard recommendations={jobTargetingExplanation.targetRecommendations} />
-                </div>
-              ) : null}
-            </aside>
-          ) : hasReviewItems ? (
-            <ReviewWarningPanel
-              items={currentHighlightState?.reviewItems ?? []}
-              hasInlineHighlights={hasInlineHighlights}
-              onItemSelect={handleReviewItemSelect}
-              className="lg:sticky lg:top-4 lg:self-start"
-            />
-          ) : null}
           </div>
         </div>
-      </div>
-
-      <div className="shrink-0 border-t border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950 sm:hidden">
-        <Button
-          onClick={onContinue}
-          className="w-full gap-2 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar ao Perfil
-        </Button>
       </div>
 
       {!previewLock?.locked ? (

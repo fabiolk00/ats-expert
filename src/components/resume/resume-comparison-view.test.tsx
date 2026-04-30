@@ -327,12 +327,16 @@ describe('ResumeComparisonView', () => {
     expect(screen.queryByText('Entenda o que mudou')).not.toBeInTheDocument()
     expect(screen.getByText('Sugestões para melhorar sua aderência')).toBeInTheDocument()
     expect(screen.getByText('Só se for verdadeiro')).toBeInTheDocument()
+    expect(screen.getByTestId('job-targeting-diagnostic-block')).toBeInTheDocument()
+    expect(screen.getByText('Diagnóstico da vaga')).toBeInTheDocument()
     expect(screen.getByTestId('job-targeting-score-card')).toBeInTheDocument()
+    expect(screen.getByText('Compatibilidade com a vaga')).toBeInTheDocument()
     expect(screen.getByText('Composição da nota')).toBeInTheDocument()
     expect(screen.getByLabelText('Nota de Habilidades')).toHaveAttribute('aria-valuenow', '82')
     expect(screen.queryByText('Original')).not.toBeInTheDocument()
     expect(screen.queryByTestId('original-resume-document')).not.toBeInTheDocument()
-    expect(screen.getByText('Currículo gerado')).toBeInTheDocument()
+    expect(screen.getByText('Currículo ATS Otimizado')).toBeInTheDocument()
+    expect(screen.getByText('Use as dicas de ATS para ajustar seu currículo e, em seguida, baixe a versão editada em PDF.')).toBeInTheDocument()
   })
 
   it('keeps the original resume comparison for ATS enhancement generations', () => {
@@ -348,7 +352,8 @@ describe('ResumeComparisonView', () => {
 
     expect(screen.getByText('Original')).toBeInTheDocument()
     expect(screen.getByTestId('original-resume-document')).toBeInTheDocument()
-    expect(screen.getAllByText('Compare as alterações lado a lado').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('optimized-resume-document')).toBeInTheDocument()
+    expect(screen.queryByTestId('job-targeting-diagnostic-block')).not.toBeInTheDocument()
   })
 
   it('shows a review panel outside the resume body when override has no inline highlights', () => {

@@ -24,7 +24,7 @@ function scoreColor(score: number): string {
 
 function scoreTextColor(score: number): string {
   if (score >= 75) {
-    return "text-emerald-700 dark:text-emerald-300"
+    return "text-emerald-600 dark:text-emerald-300"
   }
 
   if (score >= 50) {
@@ -34,60 +34,79 @@ function scoreTextColor(score: number): string {
   return "text-red-600 dark:text-red-300"
 }
 
+function toPercentage(score: number, max: number): number {
+  if (max <= 0) {
+    return 0
+  }
+
+  return Math.min(100, Math.max(0, Math.round((score / max) * 100)))
+}
+
 export function JobTargetingScoreCard({
   breakdown,
   className,
 }: JobTargetingScoreCardProps) {
+  const totalPercentage = toPercentage(breakdown.total, breakdown.maxTotal)
+
   return (
     <section
       data-testid="job-targeting-score-card"
       className={cn(
-        "rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950",
+        "rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 sm:p-5",
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-            Composição da nota
+          <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50 sm:text-base">
+            Compatibilidade com a vaga
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-            Aderência estimada desta versão à vaga.
+            Diagnóstico estimado desta versão para os requisitos principais.
           </p>
         </div>
-        <span className={cn("text-sm font-bold tabular-nums", scoreTextColor(breakdown.total))}>
-          {breakdown.total}
-          <span className="text-xs font-medium text-zinc-400">/{breakdown.maxTotal}</span>
-        </span>
+        <div className="shrink-0 text-right">
+          <span className={cn("text-4xl font-bold leading-none tabular-nums sm:text-[2.75rem]", scoreTextColor(totalPercentage))}>
+            {breakdown.total}
+          </span>
+          <span className="ml-1 align-baseline text-sm font-medium text-zinc-300 sm:text-base">/{breakdown.maxTotal}</span>
+        </div>
       </div>
 
       <div className="mt-4 space-y-3">
-        {breakdown.items.map((item) => (
-          <div key={item.id} className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                {item.label}
-              </span>
-              <span className="text-xs font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
-                {item.score}
-                <span className="font-normal text-zinc-400">/{item.max}</span>
-              </span>
-            </div>
-            <div
-              className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
-              role="progressbar"
-              aria-label={`Nota de ${item.label}`}
-              aria-valuemin={1}
-              aria-valuemax={item.max}
-              aria-valuenow={item.score}
-            >
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+          Composição da nota
+        </p>
+        {breakdown.items.map((item) => {
+          const itemPercentage = toPercentage(item.score, item.max)
+
+          return (
+            <div key={item.id} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                  {item.label}
+                </span>
+                <span className="text-xs font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
+                  {item.score}
+                  <span className="font-normal text-zinc-400">/{item.max}</span>
+                </span>
+              </div>
               <div
-                className={cn("h-full rounded-full transition-all duration-500", scoreColor(item.score))}
-                style={{ width: `${item.score}%` }}
-              />
+                className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
+                role="progressbar"
+                aria-label={`Nota de ${item.label}`}
+                aria-valuemin={1}
+                aria-valuemax={item.max}
+                aria-valuenow={item.score}
+              >
+                <div
+                  className={cn("h-full rounded-full transition-all duration-500", scoreColor(itemPercentage))}
+                  style={{ width: `${itemPercentage}%` }}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {breakdown.criticalGaps.length > 0 ? (
