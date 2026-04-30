@@ -718,6 +718,9 @@ export async function runJobTargetingPipeline(
       lowFitGateReason: targetingPlan.lowFitWarningGate?.reason,
       coreRequirementCoverageSupported: targetingPlan.coreRequirementCoverage?.supported,
       coreRequirementCoverageUnsupported: targetingPlan.coreRequirementCoverage?.unsupported,
+      explicitSkillCount: targetingPlan.targetEvidence?.filter((evidence) => evidence.evidenceLevel === 'explicit').length ?? 0,
+      inferredSkillCount: targetingPlan.targetEvidence?.filter((evidence) => evidence.evidenceLevel === 'inferred').length ?? 0,
+      missingEvidenceCount: targetingPlan.targetEvidence?.filter((evidence) => evidence.evidenceLevel === 'unsupported_gap').length ?? 0,
     }),
   )
 
@@ -737,6 +740,9 @@ export async function runJobTargetingPipeline(
     acceptedByUser: options?.userAcceptedLowFit === true,
     blockingSkipped: options?.skipLowFitRecoverableBlocking === true,
     coreUnsupportedSignals: targetingPlan.lowFitWarningGate?.coreRequirementCoverage.unsupportedSignals ?? [],
+    explicitSkillCount: targetingPlan.targetEvidence?.filter((evidence) => evidence.evidenceLevel === 'explicit').length ?? 0,
+    inferredSkillCount: targetingPlan.targetEvidence?.filter((evidence) => evidence.evidenceLevel === 'inferred').length ?? 0,
+    missingEvidenceCount: targetingPlan.targetEvidence?.filter((evidence) => evidence.evidenceLevel === 'unsupported_gap').length ?? 0,
   })
 
   const preRewriteLowFitBlocked = shouldPreRewriteLowFitBlock({
@@ -745,6 +751,11 @@ export async function runJobTargetingPipeline(
   })
 
   if (preRewriteLowFitBlocked) {
+    recordMetricCounter('compatibility.probable_detected', {
+      workflowMode: 'job_targeting',
+      sessionId: session.id,
+      riskLevel: targetingPlan.lowFitWarningGate?.riskLevel,
+    })
     let validation = applyLowFitWarningGateToValidation({
       validation: {
         blocked: false,
@@ -881,6 +892,12 @@ export async function runJobTargetingPipeline(
       reason: targetingPlan.lowFitWarningGate?.reason,
       elapsedMsFromStart: Date.now() - Date.parse(trace.startedAt),
     })
+    recordMetricCounter('compatibility.board_fallback_rendered', {
+      workflowMode: 'job_targeting',
+      sessionId: session.id,
+      renderSurface: 'validation_modal',
+    })
+
     logInfo('agent.job_targeting.validation_modal_shown', {
       sessionId: session.id,
       userId: session.userId,
@@ -910,6 +927,13 @@ export async function runJobTargetingPipeline(
       recoverableBlock: recoverableValidationBlock,
       error: 'Job targeting pre-rewrite low-fit block triggered.',
     }
+  }
+
+  if (options?.userAcceptedLowFit === true) {
+    recordMetricCounter('compatibility.probable_proceeded', {
+      workflowMode: 'job_targeting',
+      sessionId: session.id,
+    })
   }
 
   const rewriteResult = await rewriteResumeFull({
@@ -1563,6 +1587,13 @@ export async function runJobTargetingPipeline(
       lastFailureReason: undefined,
     }),
   })
+
+  if (options?.userAcceptedLowFit === true) {
+    recordMetricCounter('compatibility.probable_improved', {
+      workflowMode: 'job_targeting',
+      sessionId: session.id,
+    })
+  }
 
   logInfo(
     'agent.job_targeting.completed',

@@ -57,6 +57,10 @@ export type MetricCounterEventName =
   | 'architecture.highlight_detection.invalid_payload'
   | 'architecture.highlight_detection.outcome'
   | 'architecture.job_targeting.recommendations.count'
+  | 'compatibility.probable_detected'
+  | 'compatibility.probable_proceeded'
+  | 'compatibility.probable_improved'
+  | 'compatibility.board_fallback_rendered'
 
 export function recordMetricCounter(
   metric: MetricCounterEventName,
