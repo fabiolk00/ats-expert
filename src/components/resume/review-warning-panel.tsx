@@ -1,8 +1,7 @@
 "use client"
 
-import { AlertTriangle, CheckCircle2, Info, ShieldCheck } from "lucide-react"
+import { AlertCircle, AlertTriangle, Briefcase, CheckCircle2, Info } from "lucide-react"
 
-import { ReviewDiagnosticCard, repairMojibakeForDisplay } from "@/components/resume/review-diagnostic-card"
 import type { CvHighlightState } from "@/lib/resume/cv-highlight-artifact"
 import { cn } from "@/lib/utils"
 
@@ -11,159 +10,227 @@ type ReviewItem = NonNullable<CvHighlightState["reviewItems"]>[number]
 type ReviewWarningPanelProps = {
   items: ReviewItem[]
   hasInlineHighlights: boolean
-  onItemSelect?: (item: ReviewItem) => void
   className?: string
   scrollClassName?: string
 }
 
-function inferHumanCopy(item: ReviewItem): { sectionLabel: string } {
-  if (item.sectionLabel?.trim()) {
-    return { sectionLabel: repairMojibakeForDisplay(item.sectionLabel.trim()) }
-  }
-
-  const sectionLabel = item.section === "experience"
-    ? "Experiência"
-    : item.section === "skills"
-      ? "Skills"
-      : item.section === "education"
-        ? "Educação"
-        : item.section === "certifications"
-          ? "Certificações"
-          : item.section === "general"
-            ? "Geral"
-            : "Resumo"
-  return { sectionLabel }
+type ReviewPanelContent = {
+  relevantExperience: string[]
+  provenProfile: string
+  missingEvidence: string[]
+  whyReview: string
 }
 
-function SeverityBadge({ severity }: { severity: ReviewItem["severity"] }) {
-  if (severity === "review") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-700">
-        <CheckCircle2 className="h-3 w-3" />
-        Revisão
-      </span>
-    )
-  }
+const MOJIBAKE_MARKER_RE = new RegExp("(?:\\u00c3|\\u00c2|\\u00e2|\\ufffd)", "u")
+const FALLBACK_PROFILE = "O currículo original não deixou claro um perfil diretamente alinhado a esta vaga."
 
-  if (severity === "caution") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900">
-        <Info className="h-3 w-3" />
-        Atenção
-      </span>
-    )
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-900">
-      <AlertTriangle className="h-3 w-3" />
-      Revisar
-    </span>
-  )
+function markerCount(value: string): number {
+  return Array.from(value.matchAll(new RegExp(MOJIBAKE_MARKER_RE.source, "gu"))).length
 }
 
-function FallbackReviewItem({
-  item,
-  index,
-  onItemSelect,
-}: {
-  item: ReviewItem
-  index: number
-  onItemSelect?: (item: ReviewItem) => void
-}) {
-  const copy = inferHumanCopy(item)
-  const title = repairMojibakeForDisplay(item.title)
-  const explanation = repairMojibakeForDisplay(item.explanation || item.message)
-  const summary = repairMojibakeForDisplay(item.summary || "")
-  const whyItMatters = repairMojibakeForDisplay(item.whyItMatters || "")
-  const suggestedAction = repairMojibakeForDisplay(item.suggestedAction || "")
+function decodeLatin1Utf8(value: string): string | null {
+  if (!MOJIBAKE_MARKER_RE.test(value)) return value
+  if ([...value].some((char) => char.charCodeAt(0) > 255)) return null
 
-  return (
-    <button
-      key={`${item.severity}-${item.issueType ?? "review"}-${index}`}
-      type="button"
-      onClick={() => onItemSelect?.(item)}
-      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-left transition-colors hover:border-amber-300 hover:bg-amber-50 dark:border-zinc-800 dark:bg-zinc-900/70 dark:hover:border-amber-900 dark:hover:bg-amber-950/30"
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <SeverityBadge severity={item.severity} />
-        <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          {copy.sectionLabel}
-        </span>
-      </div>
-      <p className="mt-2 text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-        {title}
-      </p>
-      <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
-        {explanation}
-      </p>
-      {summary ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">{summary}</p> : null}
-      {whyItMatters ? <p className="mt-2 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Por que revisar:</strong> {whyItMatters}</p> : null}
-      {suggestedAction ? <p className="mt-1 text-xs leading-relaxed text-zinc-700 dark:text-zinc-200"><strong>Ação sugerida:</strong> {suggestedAction}</p> : null}
-    </button>
-  )
+  try {
+    const bytes = Uint8Array.from([...value].map((char) => char.charCodeAt(0)))
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+  } catch {
+    return null
+  }
 }
 
-export function ReviewWarningPanel({
+function repairMojibakeForDisplay(text: string): string {
+  let current = text
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const repaired = decodeLatin1Utf8(current)
+    if (!repaired || repaired === current) break
+    if (markerCount(repaired) > markerCount(current)) break
+    current = repaired
+  }
+
+  return current
+}
+
+function normalizeForComparison(value: string): string {
+  return repairMojibakeForDisplay(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s/+.-]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+}
+
+function dedupe(values: Array<string | undefined>): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  values.forEach((value) => {
+    const repaired = repairMojibakeForDisplay(value ?? "").trim()
+    const normalized = normalizeForComparison(repaired)
+    if (!repaired || !normalized || seen.has(normalized)) return
+    seen.add(normalized)
+    result.push(repaired)
+  })
+
+  return result
+}
+
+function isGenericProvenProfile(value: string): boolean {
+  const normalized = normalizeForComparison(value)
+  if (!normalized) return true
+
+  return normalized === "profissional"
+    || normalized === "perfil profissional"
+    || normalized === normalizeForComparison("experiência anterior")
+    || normalized.includes(normalizeForComparison("profissional com experiência técnica aderente"))
+    || normalized.includes(normalizeForComparison("profissional com experiência anterior"))
+    || normalized.includes(normalizeForComparison("experiência técnica comprovada no currículo original"))
+}
+
+function firstUsefulProvenProfile(items: ReviewItem[]): string {
+  const supportedEvidence = dedupe(items.flatMap((item) => item.supportedEvidence ?? []))
+  const candidates = dedupe([
+    ...items.flatMap((item) => [item.provenProfile, item.originalProfileLabel]),
+    supportedEvidence.length > 0 ? supportedEvidence.join(", ") : undefined,
+  ])
+
+  return candidates.find((candidate) => !isGenericProvenProfile(candidate)) ?? FALLBACK_PROFILE
+}
+
+function firstUsefulParagraph(items: ReviewItem[], field: "whyItMatters" | "summary" | "explanation" | "message"): string {
+  return dedupe(items.map((item) => item[field]))[0] ?? ""
+}
+
+function resolvePanelContent(items: ReviewItem[]): ReviewPanelContent {
+  const jobRequirements = dedupe(items.flatMap((item) => item.jobRequirements ?? []))
+  const itemTitles = dedupe(items.map((item) => item.title))
+  const missingEvidence = dedupe(items.flatMap((item) => [
+    ...(item.missingEvidence ?? []),
+    ...(item.unsupportedRequirements ?? []),
+  ]))
+
+  const relevantExperience = (jobRequirements.length > 0 ? jobRequirements : itemTitles).slice(0, 6)
+  const visibleMissingEvidence = (missingEvidence.length > 0 ? missingEvidence : itemTitles).slice(0, 4)
+  const whyReview = firstUsefulParagraph(items, "whyItMatters")
+    || firstUsefulParagraph(items, "summary")
+    || firstUsefulParagraph(items, "explanation")
+    || firstUsefulParagraph(items, "message")
+    || "Revise os pontos antes de enviar para evitar uma versão que pareça artificial ou sem sustentação no currículo original."
+
+  return {
+    relevantExperience,
+    provenProfile: firstUsefulProvenProfile(items),
+    missingEvidence: visibleMissingEvidence,
+    whyReview,
+  }
+}
+
+function formatBulletText(value: string): string {
+  const text = repairMojibakeForDisplay(value)
+    .trim()
+    .replace(/[.;:,]+$/u, "")
+
+  return text ? `${text};` : text
+}
+
+function AmberBulletList({
   items,
-  hasInlineHighlights,
-  onItemSelect,
-  className,
-  scrollClassName,
-}: ReviewWarningPanelProps) {
+  tone = "default",
+}: {
+  items: string[]
+  tone?: "default" | "warning"
+}) {
+  if (items.length === 0) return null
+
+  return (
+    <ul className="space-y-3">
+      {items.map((item) => (
+        <li key={normalizeForComparison(item)} className="flex items-start gap-3">
+          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
+          <span className={tone === "warning" ? "text-amber-950/80" : "text-gray-700"}>
+            {formatBulletText(item)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export function ReviewWarningPanel(props: ReviewWarningPanelProps) {
+  const { items, className, scrollClassName } = props
   const displayItems = items.filter((item) => item.severity === "risk" || item.severity === "caution" || item.severity === "review")
 
   if (displayItems.length === 0) {
     return null
   }
 
+  const content = resolvePanelContent(displayItems)
+
   return (
     <section
       data-testid="override-review-panel"
       className={cn(
-        "rounded-lg border border-amber-200 bg-white p-4 shadow-sm dark:border-amber-900/60 dark:bg-zinc-950",
+        "bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden",
         className,
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
-          <ShieldCheck className="h-4 w-4" />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-            Pontos para revisar
-          </h2>
-          <p className="mt-1 max-w-prose text-xs leading-relaxed text-zinc-600 dark:text-zinc-300">
-            Esta versão foi gerada mesmo com avisos de aderência à vaga. Recomendamos revisar os pontos abaixo antes de enviar.
-          </p>
-        </div>
+      <div className="bg-amber-50 border-b border-amber-100 px-6 py-4 flex items-start gap-3">
+        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-amber-800">
+          Esta versão foi gerada mesmo com avisos de aderência à vaga. Recomendamos revisar os pontos abaixo antes de enviar.
+        </p>
       </div>
 
-      {!hasInlineHighlights ? (
-        <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-          Não há trechos destacados automaticamente, mas existem pontos de revisão listados abaixo.
-        </p>
-      ) : null}
+      <div className="px-6 pt-8 pb-2 flex items-center gap-4">
+        <h1 className="text-2xl font-bold text-gray-900 whitespace-nowrap shrink-0">Pontos para revisar</h1>
+        <div className="flex-1 h-px bg-gray-200" />
+      </div>
 
       <div
         data-testid="override-review-panel-scroll"
         className={cn(
-          "mt-4 max-h-[min(70vh,42rem)] space-y-3 overflow-y-auto pr-1",
+          "px-6 pb-8 space-y-8 overflow-y-auto",
           scrollClassName,
         )}
       >
-        {displayItems.map((item, index) => (
-          item.kind === "low_fit_target_mismatch"
-            ? <ReviewDiagnosticCard key={`${item.kind}-${item.id}-${index}`} item={item} />
-            : (
-                <FallbackReviewItem
-                  key={`${item.severity}-${item.issueType ?? "review"}-${index}`}
-                  item={item}
-                  index={index}
-                  onItemSelect={onItemSelect}
-                />
-              )
-        ))}
+        <section className="pt-2">
+          <div className="flex items-center gap-2 mb-4">
+            <Briefcase className="w-5 h-5 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Experiência relevante</h2>
+          </div>
+          <AmberBulletList items={content.relevantExperience} />
+        </section>
+
+        <section className="border-t border-gray-100 pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircle2 className="w-5 h-5 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Seu perfil comprovado</h2>
+          </div>
+          <p className="text-gray-700 leading-relaxed">
+            {content.provenProfile}
+          </p>
+        </section>
+
+        <section className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-5 mt-2">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <h2 className="text-lg font-semibold text-amber-900">Pontos sem evidência suficiente</h2>
+          </div>
+          <AmberBulletList items={content.missingEvidence} tone="warning" />
+        </section>
+
+        <section className="border-t border-gray-100 pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Info className="w-5 h-5 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Por que revisar</h2>
+          </div>
+          <p className="text-gray-700 leading-relaxed">
+            {content.whyReview}
+          </p>
+        </section>
       </div>
     </section>
   )

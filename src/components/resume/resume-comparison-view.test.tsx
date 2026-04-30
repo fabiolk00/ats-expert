@@ -319,6 +319,8 @@ describe('ResumeComparisonView', () => {
         generationType="JOB_TARGETING"
         sessionId="sess_explanation"
         jobTargetingExplanation={buildJobTargetingExplanation()}
+        creditsRemaining={7}
+        maxCredits={12}
         onContinue={vi.fn()}
       />,
     )
@@ -336,6 +338,11 @@ describe('ResumeComparisonView', () => {
     expect(screen.queryByTestId('original-resume-document')).not.toBeInTheDocument()
     expect(screen.getByText('Currículo ATS Otimizado')).toBeInTheDocument()
     expect(screen.getByText('Use as dicas de ATS para ajustar seu currículo e, em seguida, baixe a versão editada em PDF.')).toBeInTheDocument()
+    expect(screen.getByText('Logo')).toBeInTheDocument()
+    expect(screen.getByTestId('comparison-credits-badge')).toHaveTextContent('Créditos disponíveis')
+    expect(screen.getByTestId('comparison-credits-badge')).toHaveTextContent('7 / 12')
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveAttribute('data-collapsed', 'false')
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('max-h-[calc(100vh-12rem)]')
     expect(screen.getByRole('button', { name: /ocultar currículo/i })).toBeInTheDocument()
   })
 
@@ -346,6 +353,7 @@ describe('ResumeComparisonView', () => {
         optimizedCvState={buildCvState('Optimized summary')}
         generationType="ATS_ENHANCEMENT"
         sessionId="sess_ats_compare"
+        creditsRemaining={3}
         onContinue={vi.fn()}
       />,
     )
@@ -354,6 +362,8 @@ describe('ResumeComparisonView', () => {
     expect(screen.getByTestId('original-resume-document')).toBeInTheDocument()
     expect(screen.getByTestId('optimized-resume-document')).toBeInTheDocument()
     expect(screen.queryByTestId('job-targeting-diagnostic-column')).not.toBeInTheDocument()
+    expect(screen.getByText('Logo')).toBeInTheDocument()
+    expect(screen.getByTestId('comparison-credits-badge')).toHaveTextContent('3')
     expect(screen.getByRole('button', { name: 'Voltar ao Perfil' })).toBeInTheDocument()
   })
 
@@ -404,11 +414,16 @@ describe('ResumeComparisonView', () => {
     expect(screen.queryByText(/Revise os itens abaixo antes de enviar/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Revise os trechos marcados antes de enviar/i)).not.toBeInTheDocument()
     expect(panel).toHaveTextContent('Pontos para revisar')
+    expect(panel).toHaveTextContent('Experiência relevante')
+    expect(panel).toHaveTextContent('Seu perfil comprovado')
+    expect(panel).toHaveTextContent('Pontos sem evidência suficiente')
+    expect(panel).toHaveTextContent('Por que revisar')
     expect(panel).toHaveTextContent('Skill sem comprovação clara')
     expect(panel).toHaveTextContent('Cargo da vaga assumido com pouca evidência')
-    expect(panel).toHaveTextContent('Não há trechos destacados automaticamente')
+    expect(panel).not.toHaveTextContent('Não há trechos destacados automaticamente')
     expect(screen.queryByText('Match da vaga')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /ocultar destaques/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /skill sem comprovação clara/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/trecho sustentado pelo currículo original/i)).not.toBeInTheDocument()
     expect(screen.getByTestId('optimized-resume-document')).not.toContainElement(panel)
   })
@@ -426,10 +441,11 @@ describe('ResumeComparisonView', () => {
       reviewItems: [
         buildReviewItem({
           id: "review-scroll-area",
-          title: "Gestão financeira sem evidência",
-          explanation: "Revise antes de enviar.",
-          message: "Revise antes de enviar.",
-        }),
+        title: "Gestão financeira sem evidência",
+        explanation: "Revise antes de enviar.",
+        message: "Revise antes de enviar.",
+        whyItMatters: "Revise antes de enviar.",
+      }),
       ],
     }
 
@@ -446,11 +462,15 @@ describe('ResumeComparisonView', () => {
     )
 
     expect(screen.getByTestId('optimized-resume-document')).toBeInTheDocument()
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveAttribute('data-collapsed', 'false')
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('max-h-[calc(100vh-12rem)]')
     expect(screen.getByTestId('override-review-panel-scroll')).toHaveClass('overflow-y-auto')
 
     await user.click(screen.getByRole('button', { name: /ocultar currículo/i }))
 
-    expect(screen.queryByTestId('optimized-resume-document')).not.toBeInTheDocument()
+    expect(screen.getByTestId('optimized-resume-document')).toBeInTheDocument()
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveAttribute('data-collapsed', 'true')
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('max-h-[52vh]')
     expect(screen.getByRole('button', { name: /abrir currículo/i })).toBeInTheDocument()
     expect(screen.getByTestId('override-review-panel')).toHaveTextContent('Pontos para revisar')
     expect(screen.getByTestId('override-review-panel-scroll')).toHaveClass('overflow-y-auto')
@@ -458,6 +478,8 @@ describe('ResumeComparisonView', () => {
     await user.click(screen.getByRole('button', { name: /abrir currículo/i }))
 
     expect(screen.getByTestId('optimized-resume-document')).toBeInTheDocument()
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveAttribute('data-collapsed', 'false')
+    expect(screen.getByTestId('job-target-resume-frame')).toHaveClass('max-h-[calc(100vh-12rem)]')
     expect(screen.getByTestId('override-review-panel')).toHaveTextContent('Pontos para revisar')
   })
 
@@ -484,6 +506,7 @@ describe('ResumeComparisonView', () => {
       reviewItems: [buildReviewItem({
         id: "review-mojibake",
         explanation: brokenMessage,
+        whyItMatters: brokenMessage,
         message: brokenMessage,
         issueType: 'review_copy',
       })],
@@ -503,43 +526,6 @@ describe('ResumeComparisonView', () => {
     expect(screen.getByTestId('override-review-panel')).toHaveTextContent(
       'Revise o currículo com atenção para evitar aproximação sem evidência.',
     )
-  })
-
-  it('scrolls to the optimized section when a review item is selected', async () => {
-    const scrollIntoView = vi.fn()
-    Element.prototype.scrollIntoView = scrollIntoView
-    const user = userEvent.setup()
-    const highlightState: CvHighlightState = {
-      source: 'rewritten_cv_state',
-      version: CV_HIGHLIGHT_ARTIFACT_VERSION,
-      highlightSource: 'job_targeting',
-      highlightMode: 'override_review',
-      highlightGeneratedAt: '2026-04-22T12:00:00.000Z',
-      generatedAt: '2026-04-22T12:00:00.000Z',
-      resolvedHighlights: [],
-      reviewItems: [buildReviewItem({
-        id: "review-scroll",
-        title: "Skill sem comprovação clara",
-        explanation: 'O resumo otimizado menciona skill sem evidência no currículo original.',
-        message: 'O resumo otimizado menciona skill sem evidência no currículo original.',
-        issueType: 'summary_skill_without_evidence',
-      })],
-    }
-
-    render(
-      <ResumeComparisonView
-        originalCvState={buildCvState('Original summary')}
-        optimizedCvState={buildCvState('Optimized summary')}
-        generationType="JOB_TARGETING"
-        sessionId="sess_scroll"
-        highlightState={highlightState}
-        onContinue={vi.fn()}
-      />,
-    )
-
-    await user.click(screen.getByRole('button', { name: /skill sem comprovação clara/i }))
-
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' })
   })
 
   it('renders plain text when no highlight artifact exists', () => {

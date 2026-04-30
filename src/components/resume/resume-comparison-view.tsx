@@ -1,10 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import type React from "react"
 import { ArrowLeft, ChevronDown, Download, Highlighter, Loader2, Pencil } from "lucide-react"
 
 import { ARTIFACT_REFRESH_EVENT, type ArtifactRefreshDetail } from "@/components/dashboard/events"
 import { ResumeEditorModal } from "@/components/dashboard/resume-editor-modal"
+import Logo from "@/components/logo"
 import { JobTargetingScoreCard } from "@/components/resume/job-targeting-score-card"
 import { ReviewWarningPanel } from "@/components/resume/review-warning-panel"
 import { Button } from "@/components/ui/button"
@@ -17,6 +19,7 @@ import {
   type CvHighlightTextSegment,
 } from "@/lib/resume/cv-highlight-artifact"
 import { getDownloadUrls, isRetryableDownloadLookupError } from "@/lib/dashboard/workspace-client"
+import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
 import type { JobTargetingExplanation, ResumeGenerationType } from "@/types/agent"
 import type { CVState } from "@/types/cv"
@@ -33,6 +36,8 @@ type ResumeComparisonViewProps = {
   jobTargetingExplanation?: JobTargetingExplanation
   optimizationNotes?: string[]
   backHref?: string
+  creditsRemaining?: number
+  maxCredits?: number
   onContinue: () => void
   onCvStateUpdate?: (cvState: CVState) => void
   className?: string
@@ -425,13 +430,11 @@ function JobTargetingDiagnosticColumn({
   reviewItems,
   hasInlineHighlights,
   isResumeOpen,
-  onReviewItemSelect,
 }: {
   jobTargetingExplanation?: JobTargetingExplanation
   reviewItems: ReviewItems
   hasInlineHighlights: boolean
   isResumeOpen: boolean
-  onReviewItemSelect: (item: ReviewItems[number]) => void
 }) {
   const hasScore = Boolean(jobTargetingExplanation?.scoreBreakdown)
   const hasReviewItems = reviewItems.length > 0
@@ -453,11 +456,86 @@ function JobTargetingDiagnosticColumn({
         <ReviewWarningPanel
           items={reviewItems}
           hasInlineHighlights={hasInlineHighlights}
-          onItemSelect={onReviewItemSelect}
           scrollClassName={isResumeOpen ? "lg:max-h-[min(52vh,32rem)]" : "lg:max-h-[min(76vh,46rem)]"}
         />
       ) : null}
     </section>
+  )
+}
+
+function JobTargetResumeFrame({
+  isOpen,
+  onToggle,
+  children,
+}: {
+  isOpen: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      data-testid="job-target-resume-frame"
+      data-collapsed={isOpen ? "false" : "true"}
+      className={cn(
+        "relative rounded-lg transition-[max-height] duration-300",
+        isOpen
+          ? "max-h-[calc(100vh-12rem)] overflow-y-auto pr-1"
+          : "max-h-[52vh] overflow-hidden",
+      )}
+    >
+      {children}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-3 pt-20",
+          isOpen
+            ? "bg-gradient-to-t from-white via-white/80 to-transparent dark:from-zinc-950 dark:via-zinc-950/80"
+            : "bg-gradient-to-t from-white via-white/90 to-transparent dark:from-zinc-950 dark:via-zinc-950/90",
+        )}
+      >
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          onClick={onToggle}
+          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-md transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+        >
+          {isOpen ? "Ocultar currículo" : "Abrir currículo"}
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5 transition-transform",
+              isOpen ? "rotate-180" : undefined,
+            )}
+          />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function AvailableCreditsBadge({
+  creditsRemaining,
+  maxCredits,
+}: {
+  creditsRemaining?: number
+  maxCredits?: number
+}) {
+  if (creditsRemaining === undefined) {
+    return null
+  }
+
+  const hasMaxCredits = maxCredits !== undefined && maxCredits > 0
+
+  return (
+    <div
+      data-testid="comparison-credits-badge"
+      className="inline-flex min-w-0 items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 sm:px-4"
+    >
+      <span className="hidden text-zinc-500 dark:text-zinc-400 sm:inline">
+        Créditos disponíveis
+      </span>
+      <span className="font-semibold text-zinc-950 dark:text-zinc-50">
+        {hasMaxCredits ? `${creditsRemaining} / ${maxCredits}` : creditsRemaining}
+      </span>
+    </div>
   )
 }
 
@@ -471,6 +549,9 @@ export function ResumeComparisonView({
   highlightState,
   jobTargetingExplanation,
   optimizationNotes = [],
+  backHref = PROFILE_SETUP_PATH,
+  creditsRemaining,
+  maxCredits,
   onContinue,
   onCvStateUpdate,
   className,
@@ -590,13 +671,6 @@ export function ResumeComparisonView({
     && !previewLock?.locked
     && (Boolean(jobTargetingExplanation?.scoreBreakdown) || hasReviewItems)
 
-  const handleReviewItemSelect = (item: NonNullable<CvHighlightState["reviewItems"]>[number]) => {
-    const section = item.section ?? "summary"
-    const target = document.querySelector(`[data-optimized-section="${section}"]`)
-      ?? document.querySelector('[data-optimized-section="summary"]')
-    target?.scrollIntoView({ behavior: "smooth", block: "center" })
-  }
-
   const handleDownload = async () => {
     try {
       setIsDownloading(true)
@@ -665,7 +739,14 @@ export function ResumeComparisonView({
           isVisible ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0",
         )}
       >
-        <div className="flex w-full justify-end">
+        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 sm:gap-4">
+          <Logo linkTo={backHref} size="default" className="shrink-0" />
+          <div className="flex min-w-0 justify-center">
+            <AvailableCreditsBadge
+              creditsRemaining={creditsRemaining}
+              maxCredits={maxCredits}
+            />
+          </div>
           <Button
             onClick={onContinue}
             size="sm"
@@ -732,40 +813,27 @@ export function ResumeComparisonView({
                   </button>
                 ) : null}
               </div>
-              {isJobTargeting ? (
-                <button
-                  type="button"
-                  aria-expanded={isJobTargetResumeOpen}
-                  onClick={() => setIsJobTargetResumeOpen((value) => !value)}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
-                >
-                  {isJobTargetResumeOpen ? "Ocultar currículo" : "Abrir currículo"}
-                  <ChevronDown
-                    className={cn(
-                      "h-3.5 w-3.5 transition-transform",
-                      isJobTargetResumeOpen ? "rotate-180" : undefined,
-                    )}
-                  />
-                </button>
-              ) : null}
             </div>
 
-            {(!isJobTargeting || isJobTargetResumeOpen) ? (
-              <>
-                {!previewLock?.locked ? (
-                  <p className="mb-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs leading-relaxed text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
-                    {RESUME_EDITING_HELP_TEXT}
-                  </p>
-                ) : null}
-                {isOverrideReviewHighlight && hasInlineHighlights ? (
-                  <div className="mb-3 rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-zinc-700 shadow-sm dark:border-amber-900/50 dark:bg-zinc-950 dark:text-zinc-200">
-                    <div className="flex flex-wrap gap-3">
-                      <span><strong>Comprovado:</strong> trecho sustentado pelo currículo original</span>
-                      <span><strong>Atenção:</strong> aproximação cautelosa</span>
-                      <span><strong>Revisar:</strong> ponto aceito com aviso</span>
-                    </div>
-                  </div>
-                ) : null}
+            {!previewLock?.locked ? (
+              <p className="mb-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs leading-relaxed text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+                {RESUME_EDITING_HELP_TEXT}
+              </p>
+            ) : null}
+            {isOverrideReviewHighlight && hasInlineHighlights ? (
+              <div className="mb-3 rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-zinc-700 shadow-sm dark:border-amber-900/50 dark:bg-zinc-950 dark:text-zinc-200">
+                <div className="flex flex-wrap gap-3">
+                  <span><strong>Comprovado:</strong> trecho sustentado pelo currículo original</span>
+                  <span><strong>Atenção:</strong> aproximação cautelosa</span>
+                  <span><strong>Revisar:</strong> ponto aceito com aviso</span>
+                </div>
+              </div>
+            ) : null}
+            {isJobTargeting ? (
+              <JobTargetResumeFrame
+                isOpen={isJobTargetResumeOpen}
+                onToggle={() => setIsJobTargetResumeOpen((value) => !value)}
+              >
                 <ResumeDocument
                   cvState={currentOptimizedCvState}
                   variant="optimized"
@@ -779,30 +847,43 @@ export function ResumeComparisonView({
                   showHighlights={showHighlights}
                   highlightState={currentHighlightState}
                 />
-                {!previewLock?.locked && downloadStatusMessage ? (
-                  <div
-                    data-testid="optimized-download-status"
-                    className={cn(
-                      "mt-3 rounded-lg border px-3 py-2 text-xs",
-                      downloadState.generationStatus === "failed"
-                        ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
-                        : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
-                    )}
-                  >
-                    {downloadStatusMessage}
-                  </div>
-                ) : null}
-              </>
+              </JobTargetResumeFrame>
+            ) : (
+              <ResumeDocument
+                cvState={currentOptimizedCvState}
+                variant="optimized"
+                originalCvState={originalCvState}
+                onEdit={previewLock?.locked ? undefined : () => setIsEditorOpen(true)}
+                onDownload={previewLock?.locked ? undefined : handleDownload}
+                isDownloading={isDownloading}
+                downloadDisabled={isDownloadDisabled}
+                downloadPending={isDownloadPending}
+                previewLock={previewLock}
+                showHighlights={showHighlights}
+                highlightState={currentHighlightState}
+              />
+            )}
+            {!previewLock?.locked && downloadStatusMessage ? (
+              <div
+                data-testid="optimized-download-status"
+                className={cn(
+                  "mt-3 rounded-lg border px-3 py-2 text-xs",
+                  downloadState.generationStatus === "failed"
+                    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+                    : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
+                )}
+              >
+                {downloadStatusMessage}
+              </div>
             ) : null}
           </div>
           {hasJobTargetingDiagnostics ? (
-            <JobTargetingDiagnosticColumn
-              jobTargetingExplanation={jobTargetingExplanation}
-              reviewItems={visibleReviewItems}
-              hasInlineHighlights={hasInlineHighlights}
-              isResumeOpen={isJobTargetResumeOpen}
-              onReviewItemSelect={handleReviewItemSelect}
-            />
+              <JobTargetingDiagnosticColumn
+                jobTargetingExplanation={jobTargetingExplanation}
+                reviewItems={visibleReviewItems}
+                hasInlineHighlights={hasInlineHighlights}
+                isResumeOpen={isJobTargetResumeOpen}
+              />
           ) : null}
           </div>
         </div>

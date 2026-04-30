@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation"
 
 import { ResumeComparisonView } from "@/components/resume/resume-comparison-view"
 import { Button } from "@/components/ui/button"
-import { getResumeComparison } from "@/lib/dashboard/workspace-client"
+import { getBillingSummary, getResumeComparison } from "@/lib/dashboard/workspace-client"
 import { PROFILE_SETUP_PATH } from "@/lib/routes/app"
-import type { ResumeComparisonResponse } from "@/types/dashboard"
+import type { BillingSummaryResponse, ResumeComparisonResponse } from "@/types/dashboard"
 
 export function ResumeComparisonPage({ sessionId }: { sessionId: string }) {
   const router = useRouter()
   const [comparison, setComparison] = useState<ResumeComparisonResponse | null>(null)
+  const [billingSummary, setBillingSummary] = useState<BillingSummaryResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,12 +25,16 @@ export function ResumeComparisonPage({ sessionId }: { sessionId: string }) {
         setIsLoading(true)
         setError(null)
 
-        const payload = await getResumeComparison(sessionId)
+        const [payload, nextBillingSummary] = await Promise.all([
+          getResumeComparison(sessionId),
+          getBillingSummary().catch(() => null),
+        ])
         if (!isMounted) {
           return
         }
 
         setComparison(payload)
+        setBillingSummary(nextBillingSummary)
       } catch (fetchError) {
         if (isMounted) {
           setError(fetchError instanceof Error ? fetchError.message : "Não foi possível carregar a comparação.")
@@ -86,6 +91,8 @@ export function ResumeComparisonPage({ sessionId }: { sessionId: string }) {
       jobTargetingExplanation={comparison.jobTargetingExplanation}
       optimizationNotes={comparison.optimizationSummary?.notes ?? []}
       backHref={PROFILE_SETUP_PATH}
+      creditsRemaining={billingSummary?.currentCredits}
+      maxCredits={billingSummary?.maxCredits}
       onContinue={() => router.push(PROFILE_SETUP_PATH)}
     />
   )
