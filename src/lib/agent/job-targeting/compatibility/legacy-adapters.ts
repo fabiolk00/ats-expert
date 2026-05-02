@@ -608,12 +608,12 @@ export function buildTargetingPlanFromAssessment(
     targetRole: assessment.targetRole,
     targetRoleConfidence: assessment.targetRoleConfidence,
     targetRoleSource: assessment.targetRoleSource,
-    focusKeywords: options.focusKeywords ?? basePlan?.focusKeywords ?? dedupe(
+    focusKeywords: options.focusKeywords ?? dedupe(
       assessment.requirements.flatMap((requirement) => requirement.extractedSignals),
     ).slice(0, 16),
-    mustEmphasize: options.mustEmphasize ?? basePlan?.mustEmphasize ?? adapterParts.safeTargetingEmphasis.safeDirectEmphasis,
+    mustEmphasize: options.mustEmphasize ?? adapterParts.safeTargetingEmphasis.safeDirectEmphasis,
     shouldDeemphasize: options.shouldDeemphasize ?? basePlan?.shouldDeemphasize ?? [],
-    missingButCannotInvent: options.missingButCannotInvent ?? basePlan?.missingButCannotInvent ?? dedupe(
+    missingButCannotInvent: options.missingButCannotInvent ?? dedupe(
       assessment.criticalGaps.map((gap) => displaySignal(gap.signal)),
     ),
     sectionStrategy,

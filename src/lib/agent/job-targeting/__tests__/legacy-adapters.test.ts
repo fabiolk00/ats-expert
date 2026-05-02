@@ -327,7 +327,7 @@ describe('legacy assessment adapters', () => {
     }))
   })
 
-  it('preserves the legacy TargetingPlan and explanation shapes with deterministic score fields', () => {
+  it('preserves the legacy TargetingPlan shape while deriving compatibility fields from assessment', () => {
     const source = assessment()
     const plan = buildTargetingPlanFromAssessment(source, { basePlan: basePlan() })
     const explanation = buildJobTargetingExplanationFromAssessment(source, {
@@ -338,8 +338,10 @@ describe('legacy assessment adapters', () => {
       targetRole: 'Target Role',
       targetRoleConfidence: 'high',
       targetRoleSource: 'heuristic',
-      focusKeywords: ['existing focus'],
-      mustEmphasize: ['existing emphasis'],
+      focusKeywords: ['Supported requirement', 'Adjacent requirement', 'Unsupported requirement'],
+      mustEmphasize: expect.arrayContaining(['Supported requirement']),
+      shouldDeemphasize: ['legacy item'],
+      missingButCannotInvent: ['Unsupported requirement'],
       targetEvidence: expect.arrayContaining([
         expect.objectContaining({ jobSignal: 'Supported requirement' }),
       ]),
@@ -371,6 +373,21 @@ describe('legacy assessment adapters', () => {
         jobRequirement: 'Unsupported requirement',
         mustNotInvent: true,
       })],
+    }))
+  })
+
+  it('keeps explicit assessment adapter options authoritative over derived compatibility fields', () => {
+    const plan = buildTargetingPlanFromAssessment(assessment(), {
+      basePlan: basePlan(),
+      focusKeywords: ['option focus'],
+      mustEmphasize: ['option emphasis'],
+      missingButCannotInvent: ['option gap'],
+    })
+
+    expect(plan).toEqual(expect.objectContaining({
+      focusKeywords: ['option focus'],
+      mustEmphasize: ['option emphasis'],
+      missingButCannotInvent: ['option gap'],
     }))
   })
 })
