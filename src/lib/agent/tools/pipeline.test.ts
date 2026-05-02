@@ -14,7 +14,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Session } from '@/types/agent'
 import type { TargetingPlan } from '@/types/agent'
 import type { CVState } from '@/types/cv'
+import type {
+  JobCompatibilityAssessment,
+  RequirementEvidence,
+  RequirementEvidenceSource,
+} from '@/lib/agent/job-targeting/compatibility/types'
 
+import { buildCompatibilityAssessmentFixture } from '@/lib/agent/job-targeting/__tests__/assessment-fixture'
 import { runAtsEnhancementPipeline } from '@/lib/agent/ats-enhancement-pipeline'
 import {
   buildAcceptedLowFitFallbackCvState,
@@ -29,6 +35,7 @@ import { resetOpenAICircuitBreakerForTest } from '@/lib/openai/chat'
 const {
   mockAnalyzeAtsGeneral,
   mockAnalyzeGap,
+  mockEvaluateJobCompatibility,
   mockBuildTargetingPlan,
   mockBuildTargetedRewritePlan,
   mockDeriveTargetFitAssessment,
@@ -45,6 +52,7 @@ const {
 } = vi.hoisted(() => ({
   mockAnalyzeAtsGeneral: vi.fn(),
   mockAnalyzeGap: vi.fn(),
+  mockEvaluateJobCompatibility: vi.fn(),
   mockBuildTargetingPlan: vi.fn(),
   mockBuildTargetedRewritePlan: vi.fn(),
   mockDeriveTargetFitAssessment: vi.fn(),
@@ -66,6 +74,10 @@ vi.mock('@/lib/agent/tools/ats-analysis', () => ({
 
 vi.mock('@/lib/agent/tools/gap-analysis', () => ({
   analyzeGap: mockAnalyzeGap,
+}))
+
+vi.mock('@/lib/agent/job-targeting/compatibility/assessment', () => ({
+  evaluateJobCompatibility: mockEvaluateJobCompatibility,
 }))
 
 vi.mock('@/lib/agent/tools/build-targeting-plan', () => ({
@@ -251,6 +263,101 @@ function buildDefaultTargetingPlan(overrides: Partial<TargetingPlan> = {}): Targ
   }
 }
 
+function cloneRequirementWithSource(
+  requirement: RequirementEvidence,
+  source: RequirementEvidenceSource,
+  overrides: Partial<RequirementEvidence> = {},
+): RequirementEvidence {
+  return {
+    ...requirement,
+    source,
+    audit: {
+      ...requirement.audit,
+      precedence: [source],
+    },
+    ...overrides,
+  }
+}
+
+function buildPipelineAssessment(): JobCompatibilityAssessment {
+  const base = buildCompatibilityAssessmentFixture({
+    targetRole: 'Analytics Engineer',
+    targetRoleConfidence: 'high',
+    targetRoleSource: 'heuristic',
+    catalog: {
+      catalogIds: ['generic-taxonomy', 'data-bi'],
+      catalogVersions: {
+        'generic-taxonomy': '1.0.0',
+        'data-bi': '1.2.0',
+      },
+    },
+  })
+  const supported = cloneRequirementWithSource(base.supportedRequirements[0]!, 'exact', {
+    id: 'req-supported-exact',
+    extractedSignals: ['SQL'],
+  })
+  const adjacent = cloneRequirementWithSource(base.adjacentRequirements[0]!, 'catalog_alias', {
+    id: 'req-adjacent-catalog',
+    extractedSignals: ['Power BI'],
+  })
+  const unsupported = cloneRequirementWithSource(base.unsupportedRequirements[0]!, 'llm_ambiguous', {
+    id: 'req-unsupported-llm',
+    extractedSignals: ['BigQuery'],
+  })
+  const fallback = cloneRequirementWithSource(base.unsupportedRequirements[0]!, 'fallback', {
+    id: 'req-unsupported-fallback',
+    extractedSignals: ['Stakeholder communication'],
+  })
+  const requirements = [supported, adjacent, unsupported, fallback]
+
+  return {
+    ...base,
+    requirements,
+    supportedRequirements: [supported],
+    adjacentRequirements: [adjacent],
+    unsupportedRequirements: [unsupported, fallback],
+    criticalGaps: [{
+      id: 'gap-bigquery',
+      signal: 'BigQuery',
+      kind: 'platform',
+      importance: 'core',
+      severity: 'critical',
+      rationale: 'No direct evidence.',
+      requirementIds: ['req-unsupported-llm'],
+      prohibitedTerms: ['BigQuery'],
+    }],
+    scoreBreakdown: {
+      ...base.scoreBreakdown,
+      total: 52,
+      counts: {
+        total: 4,
+        supported: 1,
+        adjacent: 1,
+        unsupported: 2,
+      },
+    },
+    lowFit: {
+      ...base.lowFit,
+      triggered: true,
+      blocking: false,
+      riskLevel: 'medium',
+    },
+    audit: {
+      ...base.audit,
+      assessmentVersion: 'job-compat-assessment-v1',
+      scoreVersion: 'job-compat-score-v1',
+      counters: {
+        ...base.audit.counters,
+        requirements: 4,
+        supported: 1,
+        adjacent: 1,
+        unsupported: 2,
+        criticalGaps: 1,
+      },
+    },
+  }
+}
+
 function buildRewriteValidationResult(overrides: Record<string, unknown> = {}) {
   return {
     blocked: false,
@@ -376,6 +483,7 @@ describe('ATS enhancement reliability hardening', () => {
       })
     })
     mockValidateRewrite.mockReturnValue(buildRewriteValidationResult())
+    mockEvaluateJobCompatibility.mockResolvedValue(buildPipelineAssessment())
     mockBuildTargetingPlan.mockReturnValue(buildDefaultTargetingPlan())
     mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan())
     mockDeriveTargetFitAssessment.mockReturnValue({
@@ -1748,6 +1856,7 @@ describe('ATS enhancement reliability hardening', () => {
 
   it('persists a completed job_targeting rewrite and logs target-role workflow completion', async () => {
     const session = buildSession()
+    const jobCompatibilityAssessment = buildPipelineAssessment()
     session.agentState.workflowMode = 'job_targeting'
     session.agentState.targetJobDescription = [
       'Cargo: Analytics Engineer',
@@ -1781,11 +1890,31 @@ describe('ATS enhancement reliability hardening', () => {
         }],
       })
     })
+    mockEvaluateJobCompatibility.mockResolvedValue(jobCompatibilityAssessment)
 
     const result = await runJobTargetingPipeline(session)
 
     expect(result.success).toBe(true)
+    expect(mockAnalyzeGap.mock.invocationCallOrder[0]).toBeLessThan(
+      mockEvaluateJobCompatibility.mock.invocationCallOrder[0]!,
+    )
+    expect(mockEvaluateJobCompatibility).toHaveBeenCalledWith({
+      cvState: session.cvState,
+      targetJobDescription: session.agentState.targetJobDescription,
+      gapAnalysis: {
+        matchScore: 68,
+        missingSkills: ['BigQuery'],
+        weakAreas: ['summary'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiÃªncia.'],
+      },
+      userId: session.userId,
+      sessionId: session.id,
+    })
+    expect(mockBuildTargetedRewritePlan).toHaveBeenCalledWith(expect.objectContaining({
+      jobCompatibilityAssessment,
+    }))
     expect(session.agentState.workflowMode).toBe('job_targeting')
+    expect(session.agentState.jobCompatibilityAssessment).toBe(jobCompatibilityAssessment)
     expect(session.agentState.targetingPlan).toMatchObject({
       targetRole: expect.any(String),
       targetRoleConfidence: expect.any(String),
@@ -1797,6 +1926,7 @@ describe('ATS enhancement reliability hardening', () => {
       version: 1,
       targetRole: 'Analytics Engineer',
       scoreBreakdown: expect.objectContaining({
+        total: 52,
         maxTotal: 100,
         items: expect.arrayContaining([
           expect.objectContaining({ id: 'skills', max: 100 }),
@@ -1811,7 +1941,23 @@ describe('ATS enhancement reliability hardening', () => {
         }),
       ]),
     })
+    expect(mockValidateRewrite).toHaveBeenCalledWith(
+      session.cvState,
+      expect.any(Object),
+      expect.objectContaining({
+        mode: 'job_targeting',
+        jobCompatibilityAssessment,
+      }),
+    )
     expect(result.jobTargetingExplanation).toBe(session.agentState.jobTargetingExplanation)
+    const persistedAgentStates = mockUpdateSession.mock.calls
+      .map(([, patch]) => (patch as { agentState?: Session['agentState'] }).agentState)
+      .filter((agentState): agentState is Session['agentState'] => Boolean(agentState))
+    expect(
+      persistedAgentStates
+        .filter((agentState) => agentState.gapAnalysis || agentState.targetingPlan)
+        .every((agentState) => agentState.jobCompatibilityAssessment === jobCompatibilityAssessment),
+    ).toBe(true)
     expect(mockGenerateCvHighlightState).toHaveBeenCalledTimes(1)
     expect(mockGenerateCvHighlightState).toHaveBeenCalledWith(
       expect.any(Object),
@@ -1851,6 +1997,54 @@ describe('ATS enhancement reliability hardening', () => {
       workflowMode: 'job_targeting',
       success: true,
     }))
+    expect(mockLogInfo).toHaveBeenCalledWith('job_targeting.compatibility.started', expect.objectContaining({
+      sessionId: session.id,
+      userId: session.userId,
+      cvStatePresent: true,
+      targetJobDescriptionPresent: true,
+      gapAnalysisPresent: true,
+    }))
+    for (const eventName of [
+      'job_targeting.compatibility.catalog_loaded',
+      'job_targeting.compatibility.requirements_extracted',
+      'job_targeting.compatibility.evidence_classified',
+      'job_targeting.compatibility.claim_policy_built',
+      'job_targeting.compatibility.score_calculated',
+      'job_targeting.compatibility.completed',
+    ]) {
+      expect(mockLogInfo).toHaveBeenCalledWith(eventName, expect.objectContaining({
+        sessionId: session.id,
+        userId: session.userId,
+        assessmentVersion: 'job-compat-assessment-v1',
+        catalogVersions: {
+          'generic-taxonomy': '1.0.0',
+          'data-bi': '1.2.0',
+        },
+        scoreVersion: 'job-compat-score-v1',
+        totalRequirements: 4,
+        supportedCount: 1,
+        adjacentCount: 1,
+        unsupportedCount: 2,
+        criticalGapCount: 1,
+        allowedClaimCount: 1,
+        cautiousClaimCount: 1,
+        forbiddenClaimCount: 1,
+        deterministicCount: 1,
+        catalogCount: 1,
+        llmCount: 1,
+        fallbackCount: 1,
+        lowFitTriggered: true,
+        lowFitBlocking: false,
+      }))
+    }
+    const serializedCompatibilityLogs = JSON.stringify(
+      mockLogInfo.mock.calls.filter(([eventName]) => (
+        typeof eventName === 'string' && eventName.startsWith('job_targeting.compatibility.')
+      )),
+    )
+    expect(serializedCompatibilityLogs).not.toContain(session.agentState.targetJobDescription)
+    expect(serializedCompatibilityLogs).not.toContain(session.cvState.email)
+    expect(serializedCompatibilityLogs).not.toContain(session.cvState.summary)
     expect(mockLogInfo).toHaveBeenCalledWith('agent.job_targeting.pipeline_trace', expect.objectContaining({
       sessionId: session.id,
       userId: session.userId,
@@ -2723,12 +2917,14 @@ describe('ATS enhancement reliability hardening', () => {
 
   it('blocks extreme low-fit vacancies before rewrite starts and skips rewrite, validation, highlight, and persistence', async () => {
     const session = buildSession()
+    const jobCompatibilityAssessment = buildPipelineAssessment()
     session.agentState.workflowMode = 'job_targeting'
     session.agentState.targetJobDescription = [
       'Cargo: Desenvolvedor Java',
       'Requisitos: 5+ anos em Java, Spring Boot, JPA/Hibernate, Kafka/RabbitMQ, microsserviços, Docker e CI/CD.',
     ].join('\n')
     session.agentState.rewriteStatus = 'pending'
+    mockEvaluateJobCompatibility.mockResolvedValue(jobCompatibilityAssessment)
 
     mockBuildTargetedRewritePlan.mockReturnValue(buildDefaultTargetingPlan({
       targetRole: 'Desenvolvedor Java',
@@ -2778,6 +2974,7 @@ describe('ATS enhancement reliability hardening', () => {
     const result = await runJobTargetingPipeline(session)
 
     expect(result.success).toBe(false)
+    expect(session.agentState.jobCompatibilityAssessment).toBe(jobCompatibilityAssessment)
     expect(result.validation).toEqual(expect.objectContaining({
       blocked: true,
       recoverable: true,
@@ -2797,6 +2994,15 @@ describe('ATS enhancement reliability hardening', () => {
     expect(mockValidateRewrite).not.toHaveBeenCalled()
     expect(mockGenerateCvHighlightState).not.toHaveBeenCalled()
     expect(mockCreateCvVersion).not.toHaveBeenCalled()
+    expect(mockUpdateSession).toHaveBeenLastCalledWith(session.id, expect.objectContaining({
+      agentState: expect.objectContaining({
+        rewriteStatus: 'failed',
+        jobCompatibilityAssessment,
+        targetingPlan: expect.objectContaining({
+          targetRole: 'Desenvolvedor Java',
+        }),
+      }),
+    }))
     expect(mockLogWarn).toHaveBeenCalledWith('agent.job_targeting.pre_rewrite_low_fit_blocked', expect.objectContaining({
       sessionId: session.id,
       targetRole: 'Desenvolvedor Java',
