@@ -34,6 +34,7 @@ describe("HeroSection", () => {
     expect(heading).toHaveClass("lg:text-left")
     expect(comparison.compareDocumentPosition(primaryCta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(comparison.compareDocumentPosition(secondaryCta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(primaryCta).toHaveAttribute("href", "/criar-conta")
     expect(screen.queryByText(/scroll para explorar/i)).not.toBeInTheDocument()
   })
 })
