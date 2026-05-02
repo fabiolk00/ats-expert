@@ -8,6 +8,7 @@ import { useSidebarContext } from "@/context/sidebar-context"
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
   DASHBOARD_WELCOME_GUIDE_PROFILE_PATH,
+  DASHBOARD_WELCOME_GUIDE_GENERATE_RESUME_PATH,
   DASHBOARD_WELCOME_GUIDE_RESUMES_PATH,
   DASHBOARD_WELCOME_GUIDE_TARGET_ATTR,
   dashboardWelcomeGuideSteps,
@@ -135,13 +136,20 @@ export function DashboardWelcomeGuide({ children }: { children: React.ReactNode 
 
     const isGuidePath =
       pathname.startsWith(DASHBOARD_WELCOME_GUIDE_PROFILE_PATH)
+      || pathname.startsWith(DASHBOARD_WELCOME_GUIDE_GENERATE_RESUME_PATH)
       || pathname === DASHBOARD_WELCOME_GUIDE_RESUMES_PATH
     if (!isGuidePath) {
       return
     }
 
+    if (!isOpen) {
+      const matchingStepIndex = dashboardWelcomeGuideSteps.findIndex((step) =>
+        pathname === step.path || pathname.startsWith(`${step.path}/`),
+      )
+      setCurrentStepIndex(Math.max(matchingStepIndex, 0))
+    }
     setIsOpen(true)
-  }, [currentStepIndex, hasHydrated, hasResolvedPreference, pathname, router, shouldStart])
+  }, [currentStepIndex, hasHydrated, hasResolvedPreference, isOpen, pathname, router, shouldStart])
 
   useEffect(() => {
     if (!isOpen) {

@@ -152,7 +152,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/dashboard/welcome-guide", () => ({
   dashboardWelcomeGuideTargets: {
-    profileAtsCta: "profile-ats-cta",
+    generateResumeNav: "generate-resume-nav",
   },
   getDashboardGuideTargetProps: () => ({}),
 }))
@@ -445,6 +445,16 @@ describe("UserDataPage", () => {
     expect(screen.queryByRole("button", { name: "Cancelar" })).not.toBeInTheDocument()
   })
 
+  it("can keep the profile setup surface free from inline generation actions", async () => {
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
+
+    render(<UserDataPage currentCredits={2} showProfileGenerationCta={false} />)
+
+    await screen.findByText("Ana Silva")
+
+    expect(screen.queryByRole("button", { name: /Melhorar curr/i })).not.toBeInTheDocument()
+  })
+
   it("opens the existing import flow from the profile header", async () => {
     const user = userEvent.setup()
     buildFetchMock(createJsonResponse(buildProfileResponse()))
@@ -625,6 +635,27 @@ describe("UserDataPage", () => {
     expect(fetchMock).not.toHaveBeenCalledWith("/api/profile/ats-enhancement", expect.anything())
     expect(toast.success).toHaveBeenCalled()
     expect(window.localStorage.getItem("curria:last-profile-generation-session-id")).toBe("sess_ats_123")
+  })
+
+  it("renders the dedicated generation surface directly and returns to profile route", async () => {
+    const user = userEvent.setup()
+    mockPathname = "/generate-resume"
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
+
+    render(
+      <UserDataPage
+        currentCredits={2}
+        initialView="enhancement"
+        showProfileGenerationCta={false}
+      />,
+    )
+
+    expect(await screen.findByTestId("ats-panel-cta")).toBeInTheDocument()
+    expect(screen.getByTestId("enhancement-intent-ats")).toHaveAttribute("aria-pressed", "true")
+
+    await user.click(screen.getByTestId("enhancement-back-button"))
+
+    expect(mockPush).toHaveBeenCalledWith("/profile-setup")
   })
 
   it("shows the vacancy textarea and CTA after selecting target-job intent", async () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { getSafeRedirectPath } from "@/lib/auth/redirects"
+import { GENERATE_RESUME_PATH } from "@/lib/routes/app"
 
 describe("getSafeRedirectPath", () => {
   it("falls back when the candidate is missing or external", () => {
@@ -18,9 +19,9 @@ describe("getSafeRedirectPath", () => {
     expect(getSafeRedirectPath("/dashboard?session=sess_123", "/profile-setup")).toBe(
       "/dashboard/resume/compare/sess_123",
     )
-    expect(getSafeRedirectPath("/dashboard/resumes/new", "/chat")).toBe("/profile-setup")
+    expect(getSafeRedirectPath("/dashboard/resumes/new", "/chat")).toBe(GENERATE_RESUME_PATH)
     expect(getSafeRedirectPath("/dashboard/resume/new?source=legacy", "/chat")).toBe(
-      "/profile-setup?source=legacy",
+      `${GENERATE_RESUME_PATH}?source=legacy`,
     )
     expect(getSafeRedirectPath("/dashboard/resumes/history/", "/chat")).toBe(
       "/dashboard/resumes-history",

@@ -8,17 +8,17 @@ import { loadOptionalBillingInfo } from "@/lib/asaas/optional-billing-info"
 import type { PlanSlug } from "@/lib/plans"
 
 export const metadata: Metadata = {
-  title: "Perfil profissional - CurrIA",
-  description: "Configure e revise o perfil base que alimenta novas sessões.",
+  title: "Gerar currículo - CurrIA",
+  description: "Gere uma versão ATS ou adapte seu currículo para uma vaga específica.",
 }
 
-export default async function ProfileSetupPage() {
+export default async function GenerateResumePage() {
   const [appUser, clerkUser] = await Promise.all([
     getCurrentAppUser(),
     isE2EAuthEnabled() ? Promise.resolve(null) : currentUser(),
   ])
   const billingInfo = appUser
-    ? (await loadOptionalBillingInfo(appUser.id, "profile_setup")).billingInfo
+    ? (await loadOptionalBillingInfo(appUser.id, "generate_resume")).billingInfo
     : null
   const activeRecurringPlan: PlanSlug | null =
     billingInfo?.hasActiveRecurringSubscription ? billingInfo.plan : null
@@ -28,6 +28,7 @@ export default async function ProfileSetupPage() {
       activeRecurringPlan={activeRecurringPlan}
       currentCredits={appUser?.creditAccount.creditsRemaining ?? 0}
       currentAppUserId={appUser?.id ?? null}
+      initialView="enhancement"
       showProfileGenerationCta={false}
       userImageUrl={clerkUser?.imageUrl ?? null}
     />

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { DashboardWelcomeGuide } from "./welcome-guide"
 import {
+  DASHBOARD_WELCOME_GUIDE_GENERATE_RESUME_PATH,
   DASHBOARD_WELCOME_GUIDE_PROFILE_PATH,
   DASHBOARD_WELCOME_GUIDE_RESUMES_PATH,
   dashboardWelcomeGuideTargets,
@@ -40,11 +41,11 @@ vi.mock("@/context/sidebar-context", () => ({
 
 function TestTargets({
   showProfile = true,
-  showAtsCta = true,
+  showGenerateResume = true,
   showResumes = true,
 }: {
   showProfile?: boolean
-  showAtsCta?: boolean
+  showGenerateResume?: boolean
   showResumes?: boolean
 }) {
   return (
@@ -55,9 +56,9 @@ function TestTargets({
             Perfil
           </button>
         ) : null}
-        {showAtsCta ? (
-          <button type="button" {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.profileAtsCta)}>
-            Melhorar para ATS
+        {showGenerateResume ? (
+          <button type="button" {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.generateResumeNav)}>
+            Gerar currículo
           </button>
         ) : null}
         {showResumes ? (
@@ -105,14 +106,14 @@ describe("DashboardWelcomeGuide", () => {
   it("does not start the guide on the true chat route", async () => {
     mockPathname = "/chat"
 
-    render(<TestTargets showProfile={false} showAtsCta={false} showResumes={false} />)
+    render(<TestTargets showProfile={false} showGenerateResume={false} showResumes={false} />)
 
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled())
     expect(mockReplace).not.toHaveBeenCalled()
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
-  it("opens on Perfil and advances through ATS and resume history in the expected order", async () => {
+  it("opens on Perfil and advances through generate resume and resume history in the expected order", async () => {
     const user = userEvent.setup()
     const { rerender } = render(<TestTargets />)
 
@@ -123,16 +124,24 @@ describe("DashboardWelcomeGuide", () => {
       dashboardWelcomeGuideTargets.profileNav,
     )
 
-    await user.click(within(initialDialog).getByRole("button", { name: "Próximo" }))
+    await user.click(within(initialDialog).getByRole("button", { name: /Pr/ }))
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith(DASHBOARD_WELCOME_GUIDE_GENERATE_RESUME_PATH)
+    })
+    mockPathname = DASHBOARD_WELCOME_GUIDE_GENERATE_RESUME_PATH
+    rerender(<TestTargets />)
 
     const secondDialog = await screen.findByRole("dialog")
-    expect(within(secondDialog).getByRole("heading", { name: "Melhorar para ATS" })).toBeInTheDocument()
+    expect(within(secondDialog).getByRole("heading", { name: "Gerar currículo" })).toBeInTheDocument()
     expect(screen.getByTestId("dashboard-welcome-guide-spotlight")).toHaveAttribute(
       "data-target-id",
-      dashboardWelcomeGuideTargets.profileAtsCta,
+      dashboardWelcomeGuideTargets.generateResumeNav,
     )
 
-    await user.click(within(secondDialog).getByRole("button", { name: "Próximo" }))
+    await user.click(within(secondDialog).getByRole("button", { name: /Pr/ }))
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith(DASHBOARD_WELCOME_GUIDE_RESUMES_PATH)
+    })
     mockPathname = DASHBOARD_WELCOME_GUIDE_RESUMES_PATH
     rerender(<TestTargets />)
 
@@ -142,6 +151,20 @@ describe("DashboardWelcomeGuide", () => {
       "data-target-id",
       dashboardWelcomeGuideTargets.resumesNav,
     )
+  })
+
+  it("starts directly on the concrete generate resume step when that route is open", async () => {
+    mockPathname = DASHBOARD_WELCOME_GUIDE_GENERATE_RESUME_PATH
+
+    render(<TestTargets showProfile={false} showResumes={false} />)
+
+    const dialog = await screen.findByRole("dialog")
+    expect(within(dialog).getByRole("heading", { name: "Gerar currículo" })).toBeInTheDocument()
+    expect(screen.getByTestId("dashboard-welcome-guide-spotlight")).toHaveAttribute(
+      "data-target-id",
+      dashboardWelcomeGuideTargets.generateResumeNav,
+    )
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 
   it("closes with Pular and persists the guide as seen", async () => {

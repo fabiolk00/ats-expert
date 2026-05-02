@@ -115,15 +115,26 @@ describe("DashboardSidebar", () => {
     expect(screen.getByText("Ver planos")).toBeInTheDocument()
   })
 
-  it("routes the primary action to guided profile setup", async () => {
+  it("routes the primary action to the dedicated generate resume page", async () => {
     const user = userEvent.setup()
 
     render(<DashboardSidebar />)
 
     await user.click(screen.getByRole("button", { name: "Gerar currículo" }))
 
-    expect(mockPush).toHaveBeenCalledWith("/profile-setup")
+    expect(mockPush).toHaveBeenCalledWith("/generate-resume")
     expect(mockReplace).not.toHaveBeenCalled()
+  })
+
+  it("marks the generate resume action as active on the dedicated route", () => {
+    mockUsePathname.mockReturnValue("/generate-resume")
+
+    render(<DashboardSidebar />)
+
+    expect(screen.getByRole("button", { name: /Gerar curr/i })).toHaveClass(
+      "bg-sidebar-accent",
+      "text-sidebar-accent-foreground",
+    )
   })
 
   it("shows history navigation without Pro chat access props", async () => {

@@ -1,4 +1,5 @@
 export const PROFILE_SETUP_PATH = "/profile-setup"
+export const GENERATE_RESUME_PATH = "/generate-resume"
 export const DASHBOARD_SESSIONS_PATH = "/dashboard/sessions"
 export const DASHBOARD_RESUMES_HISTORY_PATH = "/dashboard/resumes-history"
 
@@ -78,8 +79,12 @@ export function canonicalizeAppPath(candidate: string): string {
     if (
       pathname === LEGACY_PROFILE_SETUP_PATH
       || pathname === LEGACY_PROFILE_SETUP_ALIAS_PATH
-      || pathname === LEGACY_PROFILE_PATH
     ) {
+      url.pathname = GENERATE_RESUME_PATH
+      return formatRelativeUrl(url)
+    }
+
+    if (pathname === LEGACY_PROFILE_PATH) {
       url.pathname = PROFILE_SETUP_PATH
       return formatRelativeUrl(url)
     }

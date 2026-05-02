@@ -1,10 +1,17 @@
+import {
+  DASHBOARD_RESUMES_HISTORY_PATH,
+  GENERATE_RESUME_PATH,
+  PROFILE_SETUP_PATH,
+} from "@/lib/routes/app"
+
 export const DASHBOARD_WELCOME_GUIDE_TARGET_ATTR = "data-dashboard-guide-target"
-export const DASHBOARD_WELCOME_GUIDE_PROFILE_PATH = "/profile-setup"
-export const DASHBOARD_WELCOME_GUIDE_RESUMES_PATH = "/dashboard/resumes-history"
+export const DASHBOARD_WELCOME_GUIDE_PROFILE_PATH = PROFILE_SETUP_PATH
+export const DASHBOARD_WELCOME_GUIDE_GENERATE_RESUME_PATH = GENERATE_RESUME_PATH
+export const DASHBOARD_WELCOME_GUIDE_RESUMES_PATH = DASHBOARD_RESUMES_HISTORY_PATH
 
 export const dashboardWelcomeGuideTargets = {
   profileNav: "profile-nav",
-  profileAtsCta: "profile-ats-cta",
+  generateResumeNav: "generate-resume-nav",
   resumesNav: "resumes-nav",
 } as const
 
@@ -33,12 +40,12 @@ export const dashboardWelcomeGuideSteps: DashboardWelcomeGuideStepDefinition[] =
     requiresSidebar: true,
   },
   {
-    id: "profile-ats-cta",
-    title: "Melhorar para ATS",
+    id: "generate-resume",
+    title: "Gerar currículo",
     description:
-      "Quando seu perfil estiver revisado, use este botão para gerar sua primeira versão ATS com base nas informações salvas.",
-    targetId: dashboardWelcomeGuideTargets.profileAtsCta,
-    path: DASHBOARD_WELCOME_GUIDE_PROFILE_PATH,
+      "Este item abre a página dedicada para melhorar seu currículo para ATS ou adaptar uma versão para uma vaga específica.",
+    targetId: dashboardWelcomeGuideTargets.generateResumeNav,
+    path: DASHBOARD_WELCOME_GUIDE_GENERATE_RESUME_PATH,
     preferredSide: "left",
   },
   {

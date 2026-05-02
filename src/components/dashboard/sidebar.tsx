@@ -47,6 +47,7 @@ import {
 import { PLANS, PlanSlug } from "@/lib/plans"
 import {
   DASHBOARD_RESUMES_HISTORY_PATH,
+  GENERATE_RESUME_PATH,
   PROFILE_SETUP_PATH,
 } from "@/lib/routes/app"
 import { cn } from "@/lib/utils"
@@ -189,6 +190,7 @@ function SidebarContent({
   const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
   const router = useRouter()
+  const pathname = usePathname()
   const { signOut } = useClerk()
   const { user } = useUser()
   const hasBillingData = maxCredits !== undefined && creditsRemaining !== undefined
@@ -206,6 +208,8 @@ function SidebarContent({
   const planLabel = currentPlan ? `Plano ${PLANS[currentPlan].name}` : "Plano indisponível"
   const avatarSrc = profilePhotoUrl ?? userImageUrl ?? user?.imageUrl ?? undefined
   const isCollapsedDesktop = !isOpen && !isMobile
+  const isGenerateResumeActive =
+    pathname === GENERATE_RESUME_PATH || pathname.startsWith(`${GENERATE_RESUME_PATH}/`)
 
   useEffect(() => {
     let isMounted = true
@@ -253,7 +257,7 @@ function SidebarContent({
   }
 
   const handleNewResume = () => {
-    router.push(PROFILE_SETUP_PATH)
+    router.push(GENERATE_RESUME_PATH)
     onCloseMobile?.()
   }
 
@@ -296,13 +300,15 @@ function SidebarContent({
       type="button"
       onClick={handleNewResume}
       aria-label="Gerar currículo"
-      {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.profileAtsCta)}
+      {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.generateResumeNav)}
       className={cn(
         "flex items-center rounded-lg text-sm font-medium transition-colors",
         isOpen || isMobile
           ? "w-full gap-3 px-3 py-2"
           : "h-10 w-10 justify-center px-0 py-0",
-        "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+        isGenerateResumeActive
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
       )}
     >
       <Sparkles className="h-4 w-4 shrink-0 text-sidebar-foreground/75" strokeWidth={1.75} />

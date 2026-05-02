@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   buildResumeComparisonPath,
   canonicalizeAppPath,
+  GENERATE_RESUME_PATH,
   PROFILE_SETUP_PATH,
 } from "./app"
 
@@ -19,6 +20,12 @@ describe("app route helpers", () => {
     expect(canonicalizeAppPath("/chat")).toBe(PROFILE_SETUP_PATH)
     expect(canonicalizeAppPath("/chat?session=sess_123")).toBe("/dashboard/resume/compare/sess_123")
     expect(canonicalizeAppPath("/chat/sess_123")).toBe("/dashboard/resume/compare/sess_123")
+  })
+
+  it("canonicalizes legacy new-resume links to the dedicated generate resume page", () => {
+    expect(canonicalizeAppPath("/dashboard/resumes/new")).toBe(GENERATE_RESUME_PATH)
+    expect(canonicalizeAppPath("/dashboard/resume/new")).toBe(GENERATE_RESUME_PATH)
+    expect(canonicalizeAppPath("/profile")).toBe(PROFILE_SETUP_PATH)
   })
 
   it("builds resume comparison paths for historical sessions", () => {

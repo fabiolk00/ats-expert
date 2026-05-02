@@ -33,7 +33,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { dashboardWelcomeGuideTargets, getDashboardGuideTargetProps } from "@/lib/dashboard/welcome-guide"
 import {
   getBillingSummary,
   getDownloadUrls,
@@ -70,11 +69,15 @@ type ProfileResponse = {
   } | null
 }
 
+type UserDataInitialView = "profile" | "enhancement"
+
 type UserDataPageProps = {
   activeRecurringPlan?: PlanSlug | null
   currentCredits?: number
   userImageUrl?: string | null
   currentAppUserId?: string | null
+  initialView?: UserDataInitialView
+  showProfileGenerationCta?: boolean
 }
 
 type AtsFeature = {
@@ -85,7 +88,7 @@ type AtsFeature = {
 
 type SetupGenerationMode = "ats_enhancement" | "job_targeting"
 type EnhancementIntent = "ats" | "target_job"
-type ProfileView = "profile" | "editor" | "enhancement"
+type ProfileView = UserDataInitialView | "editor"
 type EditableResumeSection =
   | "personal"
   | "summary"
@@ -604,12 +607,14 @@ export default function UserDataPage({
   activeRecurringPlan = null,
   currentCredits = 0,
   currentAppUserId = null,
+  initialView = "profile",
+  showProfileGenerationCta = true,
 }: UserDataPageProps) {
   const router = useRouter()
   const pathname = usePathname()
   const editorContainerRef = useRef<HTMLDivElement | null>(null)
   const targetJobDescriptionRef = useRef<HTMLTextAreaElement | null>(null)
-  const [activeView, setActiveView] = useState<ProfileView>("profile")
+  const [activeView, setActiveView] = useState<ProfileView>(initialView)
   const [requestedEditorSection, setRequestedEditorSection] = useState<EditableResumeSection | null>(null)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [resumeData, setResumeData] = useState<CVState>(() => normalizeResumeData())
@@ -845,6 +850,15 @@ export default function UserDataPage({
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleReturnToProfile = (): void => {
+    if (pathname !== PROFILE_SETUP_PATH) {
+      router.push(PROFILE_SETUP_PATH)
+      return
+    }
+
+    setActiveView("profile")
   }
 
   const generationMode: SetupGenerationMode = targetJobDescription.trim() ? "job_targeting" : "ats_enhancement"
@@ -1388,6 +1402,7 @@ export default function UserDataPage({
                 {isDownloadingPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                 Download PDF
               </Button>
+              {showProfileGenerationCta ? (
               <Button
                 type="button"
                 onClick={() => setActiveView("enhancement")}
@@ -1396,6 +1411,7 @@ export default function UserDataPage({
                 <Sparkles className="h-3.5 w-3.5" />
                 Melhorar currículo com IA
               </Button>
+              ) : null}
             </div>
           </div>
         </header>
@@ -1627,7 +1643,7 @@ export default function UserDataPage({
                 type="button"
                 variant="ghost"
                 className="-ml-3 mb-2 h-8 px-3 text-muted-foreground hover:bg-transparent hover:text-foreground"
-                onClick={() => setActiveView("profile")}
+                onClick={handleReturnToProfile}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Voltar ao perfil
@@ -1821,7 +1837,6 @@ export default function UserDataPage({
                     type="button"
                     disabled={setupGenerationButtonDisabled}
                     onClick={() => void handleSetupGeneration()}
-                    {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.profileAtsCta)}
                     className="h-11 gap-2 rounded-xl bg-black px-5 text-sm font-medium text-white hover:bg-black/90"
                     data-testid="ats-panel-cta"
                   >
@@ -1842,7 +1857,7 @@ export default function UserDataPage({
                     type="button"
                     variant="outline"
                     disabled={isBusy}
-                    onClick={() => setActiveView("profile")}
+                    onClick={handleReturnToProfile}
                     className="h-11 rounded-xl border-slate-200 bg-white px-5 text-sm text-slate-700 hover:bg-slate-50"
                   >
                     Voltar ao perfil
@@ -1893,7 +1908,7 @@ export default function UserDataPage({
               data-testid="enhancement-back-button"
               aria-label="Voltar ao perfil"
               className="-ml-3 h-8 px-3 text-slate-500 hover:bg-transparent hover:text-slate-900"
-              onClick={() => setActiveView("profile")}
+              onClick={handleReturnToProfile}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Voltar ao perfil
@@ -2069,7 +2084,6 @@ export default function UserDataPage({
                   type="button"
                   disabled={setupGenerationButtonDisabled}
                   onClick={handleEnhancementSubmit}
-                  {...getDashboardGuideTargetProps(dashboardWelcomeGuideTargets.profileAtsCta)}
                   className="h-11 w-full gap-2 rounded-xl bg-black px-5 text-sm font-medium text-white hover:bg-black/90"
                   data-testid="ats-panel-cta"
                 >

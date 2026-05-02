@@ -36,7 +36,7 @@ Current Plan: 01 completed
 Total Plans in Phase: 1
 Status: In progress
 Last activity: 2026-05-02
-Last Activity Description: Completed quick task 260501-w4e: Colocar em branco os titulos dos cards do carrossel Explore Resumes.
+Last Activity Description: Completed quick task 260501-w6t: Criar rota generate-resume separar geracao do profile-setup atualizar sidebar e validar welcome guide.
 
 Progress: [##########] 100%
 
@@ -180,6 +180,7 @@ Baseline carried forward from earlier shipped milestones:
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
+| 260501-w6t | Criar rota generate-resume separar geracao do profile-setup atualizar sidebar e validar welcome guide | 2026-05-02 | working-tree | Validated | [260501-w6t-criar-rota-generate-resume-separar-gerac](./quick/260501-w6t-criar-rota-generate-resume-separar-gerac/) |
 | 260501-w4e | Colocar em branco os titulos dos cards do carrossel Explore Resumes | 2026-05-02 | working-tree | Validated | [260501-w4e-colocar-em-branco-os-titulos-dos-cards-d](./quick/260501-w4e-colocar-em-branco-os-titulos-dos-cards-d/) |
 | 260501-vsc | Aplicar fundacao tipografica espacamento radius cores e elevation no projeto inteiro via tokens globais e componentes base | 2026-05-02 | working-tree | Validated | [260501-vsc-aplicar-fundacao-tipografica-espacamento](./quick/260501-vsc-aplicar-fundacao-tipografica-espacamento/) |
 | 260501-vid | Adaptar pricing cards e tabela de comparacao aos tokens e regras de layout preservando planos e precos atuais | 2026-05-02 | working-tree | Validated | [260501-vid-adaptar-pricing-cards-e-tabela-de-compar](./quick/260501-vid-adaptar-pricing-cards-e-tabela-de-compar/) |

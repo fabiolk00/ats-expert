@@ -1,9 +1,9 @@
 import React from "react"
-import { describe, expect, it, beforeEach, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
 import "@testing-library/jest-dom"
 
-import ProfileSetupPage from "./page"
+import GenerateResumePage from "./page"
 
 const mockGetCurrentAppUser = vi.fn()
 const mockLoadOptionalBillingInfo = vi.fn()
@@ -28,7 +28,7 @@ vi.mock("@/lib/asaas/optional-billing-info", () => ({
 
 vi.mock("@/lib/billing/ai-chat-access.server", () => ({
   getAiChatAccess: () => {
-    throw new Error("profile setup must not load AI chat entitlement")
+    throw new Error("generate resume must not load AI chat entitlement")
   },
 }))
 
@@ -37,12 +37,14 @@ vi.mock("@/components/resume/user-data-page", () => ({
     activeRecurringPlan,
     currentCredits,
     currentAppUserId,
+    initialView,
     showProfileGenerationCta,
     userImageUrl,
   }: {
     activeRecurringPlan: string | null
     currentCredits: number
     currentAppUserId: string | null
+    initialView?: string
     showProfileGenerationCta?: boolean
     userImageUrl: string | null
   }) => (
@@ -51,13 +53,14 @@ vi.mock("@/components/resume/user-data-page", () => ({
       data-active-recurring-plan={activeRecurringPlan ?? ""}
       data-current-credits={String(currentCredits)}
       data-current-app-user-id={currentAppUserId ?? ""}
+      data-initial-view={initialView ?? ""}
       data-show-profile-generation-cta={String(showProfileGenerationCta)}
       data-user-image-url={userImageUrl ?? ""}
     />
   ),
 }))
 
-describe("ProfileSetupPage", () => {
+describe("GenerateResumePage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockIsE2EAuthEnabled.mockReturnValue(false)
@@ -66,7 +69,7 @@ describe("ProfileSetupPage", () => {
     })
   })
 
-  it("renders profile setup for authenticated users without AI chat entitlement", async () => {
+  it("renders the generation surface directly without AI chat entitlement", async () => {
     mockGetCurrentAppUser.mockResolvedValue({
       id: "usr_123",
       creditAccount: {
@@ -81,33 +84,15 @@ describe("ProfileSetupPage", () => {
       },
     })
 
-    const jsx = await ProfileSetupPage()
+    const jsx = await GenerateResumePage()
     render(jsx)
 
     expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-current-app-user-id", "usr_123")
     expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-current-credits", "7")
     expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-active-recurring-plan", "monthly")
+    expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-initial-view", "enhancement")
     expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-show-profile-generation-cta", "false")
     expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-user-image-url", "https://example.com/avatar.png")
-    expect(mockLoadOptionalBillingInfo).toHaveBeenCalledWith("usr_123", "profile_setup")
-  })
-
-  it("renders with no recurring plan when billing data is unavailable", async () => {
-    mockGetCurrentAppUser.mockResolvedValue({
-      id: "usr_123",
-      creditAccount: {
-        creditsRemaining: 0,
-      },
-    })
-    mockLoadOptionalBillingInfo.mockResolvedValue({
-      billingNotice: "temporarily unavailable",
-      billingInfo: null,
-    })
-
-    const jsx = await ProfileSetupPage()
-    render(jsx)
-
-    expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-active-recurring-plan", "")
-    expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-current-credits", "0")
+    expect(mockLoadOptionalBillingInfo).toHaveBeenCalledWith("usr_123", "generate_resume")
   })
 })
