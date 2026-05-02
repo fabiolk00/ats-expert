@@ -52,13 +52,14 @@ const differentialImportancePatterns = [
 ]
 
 const responsibilitySectionPattern = /\b(responsibilities|responsibility|activities|tasks|duties|atribuicoes|atividades|responsabilidades)\b/i
+const educationRequirementPattern = /\b(education|degree|academic|formacao|graduacao|bacharelado|licenciatura)\b/i
 
 const kindPatterns: Array<{
   kind: JobCompatibilityRequirementKind
   id: string
   pattern: RegExp
 }> = [
-  { kind: 'education', id: 'education', pattern: /\b(education|degree|academic|formacao|graduacao|bacharelado|licenciatura)\b/i },
+  { kind: 'education', id: 'education', pattern: educationRequirementPattern },
   { kind: 'responsibility', id: 'experience', pattern: /\b(experience|background|track\s+record|vivencia|experiencia)\b/i },
   { kind: 'responsibility', id: 'responsibility', pattern: responsibilitySectionPattern },
   { kind: 'responsibility', id: 'action_coordinate', pattern: /\b(coordinate|deliver|maintain|support|prepare|manage|analyze|conduzir|coordenar|entregar)\b/i },
@@ -206,6 +207,11 @@ function splitSentences(value: string): string[] {
 
 function splitCompositeRequirement(value: string): string[] {
   const withoutLead = cleanRequirementText(value).replace(requirementLeadPattern, '')
+
+  if (educationRequirementPattern.test(withoutLead)) {
+    return [capitalizeFirstLetter(withoutLead)]
+  }
+
   const shouldSplitConjunction = /\b(?:must|requires?|required|needs?|preferred|nice\s+to\s+have)\b/i.test(value)
   const commaReady = shouldSplitConjunction
     ? withoutLead.replace(/\s+(?:and|or)\s+/gi, ', ')

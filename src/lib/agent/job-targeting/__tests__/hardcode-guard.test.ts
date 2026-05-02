@@ -67,9 +67,14 @@ describe('job targeting runtime hardcode guard', () => {
       .sort()
 
     expect(runtimeFiles).toEqual(expect.arrayContaining([
+      'src/lib/agent/job-targeting/compatibility/assessment.ts',
+      'src/lib/agent/job-targeting/compatibility/claim-policy.ts',
       'src/lib/agent/job-targeting/compatibility/evidence-extraction.ts',
       'src/lib/agent/job-targeting/compatibility/matcher.ts',
       'src/lib/agent/job-targeting/compatibility/requirement-decomposition.ts',
+      'src/lib/agent/job-targeting/compatibility/requirement-extraction.ts',
+      'src/lib/agent/job-targeting/compatibility/score.ts',
+      'src/lib/agent/job-targeting/compatibility/structured-validation.ts',
       'src/lib/agent/job-targeting/compatibility/types.ts',
       'src/lib/agent/job-targeting/domain-equivalents.ts',
       'src/lib/agent/job-targeting/skill-adjacency.ts',
