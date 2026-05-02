@@ -240,8 +240,8 @@ describe('buildJobTargetingScoreBreakdown', () => {
       maxTotal: 100,
       items: [
         { id: 'skills', label: 'Habilidades', score: 30, max: 100 },
-        { id: 'experience', label: 'ExperiÃªncia', score: 50, max: 100 },
-        { id: 'education', label: 'FormaÃ§Ã£o', score: 70, max: 100 },
+        { id: 'experience', label: 'Experiência', score: 50, max: 100 },
+        { id: 'education', label: 'Formação', score: 70, max: 100 },
       ],
       criticalGaps: ['Unsupported requirement'],
     })

@@ -3,6 +3,8 @@ import {
   type SkillAdjacencyRule,
 } from '@/lib/agent/job-targeting/skill-adjacency'
 import { buildCanonicalSignal } from '@/lib/agent/job-targeting/semantic-normalization'
+import { buildTargetRecommendationsFromAssessment as buildAdapterTargetRecommendationsFromAssessment } from '@/lib/agent/job-targeting/compatibility/legacy-adapters'
+import type { JobCompatibilityAssessment } from '@/lib/agent/job-targeting/compatibility/types'
 import type {
   CoreRequirement,
   TargetRecommendation,
@@ -108,11 +110,18 @@ function formatRequirementLabel(value: string): string {
 function formatSentenceRequirement(value: string): string {
   const label = formatRequirementLabel(value)
 
-  if (/^(?:P&L|DAX|SQL|BI|Power BI)\b/u.test(label)) {
+  if (shouldPreserveSentenceCase(label)) {
     return label
   }
 
   return `${label.charAt(0).toLocaleLowerCase('pt-BR')}${label.slice(1)}`
+}
+
+function shouldPreserveSentenceCase(label: string): boolean {
+  const [firstToken, secondToken] = label.split(/\s+/u)
+  const acronymPattern = /^[A-Z0-9&/+.-]{2,}$/u
+
+  return acronymPattern.test(firstToken ?? '') || acronymPattern.test(secondToken ?? '')
 }
 
 function tokenizeRequirement(value: string): Set<string> {
@@ -398,4 +407,10 @@ export function buildTargetRecommendations(
     .map(({ recommendation }) => recommendation)
 
   return removeRedundantRecommendations(recommendations).slice(0, maxRecommendations)
+}
+
+export function buildTargetRecommendationsFromAssessment(
+  assessment: JobCompatibilityAssessment,
+): TargetRecommendation[] {
+  return buildAdapterTargetRecommendationsFromAssessment(assessment)
 }

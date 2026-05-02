@@ -26,7 +26,9 @@ function resolveJobTargetingExplanationForClient(
   }
 
   if (explanation.scoreBreakdown || !context.session.agentState.targetingPlan) {
-    return explanation
+    if (!context.session.agentState.jobCompatibilityAssessment) {
+      return explanation
+    }
   }
 
   return {
@@ -34,6 +36,7 @@ function resolveJobTargetingExplanationForClient(
     scoreBreakdown: buildJobTargetingScoreBreakdownFromPlan({
       targetingPlan: context.session.agentState.targetingPlan,
       cvState: context.session.cvState,
+      jobCompatibilityAssessment: context.session.agentState.jobCompatibilityAssessment,
     }),
   }
 }

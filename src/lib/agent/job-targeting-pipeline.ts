@@ -16,7 +16,10 @@ import {
   isRecoverableValidationBlock,
   isSummaryOnlyRecoverableValidation,
 } from '@/lib/agent/job-targeting/recoverable-validation'
-import { buildTargetRecommendations } from '@/lib/agent/job-targeting/target-recommendations'
+import {
+  buildTargetRecommendations,
+  buildTargetRecommendationsFromAssessment,
+} from '@/lib/agent/job-targeting/target-recommendations'
 import { buildJobTargetingScoreBreakdownFromPlan } from '@/lib/agent/job-targeting/score-breakdown'
 import {
   applyLowFitWarningGateToValidation,
@@ -330,6 +333,7 @@ function buildJobTargetingExplanation(params: {
   optimizedCvState: Session['cvState']
   targetingPlan: NonNullable<Session['agentState']['targetingPlan']>
 }): JobTargetingExplanation {
+  const assessment = params.session.agentState.jobCompatibilityAssessment
   const { coreRequirements, preferredRequirements } = splitCoreAndPreferredRequirements(
     params.targetingPlan.coreRequirementCoverage?.requirements ?? [],
   )
@@ -342,15 +346,18 @@ function buildJobTargetingExplanation(params: {
     scoreBreakdown: buildJobTargetingScoreBreakdownFromPlan({
       targetingPlan: params.targetingPlan,
       cvState: params.session.cvState,
+      jobCompatibilityAssessment: assessment,
     }),
-    targetRecommendations: buildTargetRecommendations({
-      targetRole: params.targetingPlan.targetRole,
-      coreRequirements,
-      preferredRequirements,
-      supportedSignals,
-      adjacentSignals,
-      resumeSkillSignals: params.session.cvState.skills,
-    }),
+    targetRecommendations: assessment
+      ? buildTargetRecommendationsFromAssessment(assessment)
+      : buildTargetRecommendations({
+        targetRole: params.targetingPlan.targetRole,
+        coreRequirements,
+        preferredRequirements,
+        supportedSignals,
+        adjacentSignals,
+        resumeSkillSignals: params.session.cvState.skills,
+      }),
     generatedAt: new Date().toISOString(),
     source: 'job_targeting',
     version: 1,

@@ -1,4 +1,6 @@
 import { buildCanonicalSignal } from '@/lib/agent/job-targeting/semantic-normalization'
+import { buildDisplayScoreFromAssessment } from '@/lib/agent/job-targeting/compatibility/legacy-adapters'
+import type { JobCompatibilityAssessment } from '@/lib/agent/job-targeting/compatibility/types'
 import type {
   CoreRequirement,
   JobTargetingScoreBreakdown,
@@ -71,7 +73,7 @@ function classifyRequirement(signal: string): ScoreDimension {
     return 'education'
   }
 
-  if (/\b(?:sql|python|power bi|dax|excel|sap|salesforce|jira|scrum|kanban|agil|metodologia|ferramenta|cloud|aws|azure|gcp|linguagem|stack|dados|bi|dashboard|etl|api|sistema)\b/iu.test(normalized)) {
+  if (/\b(?:habilidade|compet[eÃª]ncia|t[eÃ©]cnica|tecnologia|ferramenta|tooling|plataforma|sistema|linguagem|stack|metodologia|processo|automa[cÃ§][aÃ£]o|integra[cÃ§][aÃ£]o|dados|dashboard|relat[oÃ³]rio|indicador|an[aÃ¡]lise|software)\b/iu.test(normalized)) {
     return 'skills'
   }
 
@@ -236,10 +238,15 @@ export function buildJobTargetingScoreBreakdown(
 }
 
 export function buildJobTargetingScoreBreakdownFromPlan(input: {
-  targetingPlan: TargetingPlan
+  targetingPlan?: TargetingPlan
   cvState: CVState
+  jobCompatibilityAssessment?: JobCompatibilityAssessment
 }): JobTargetingScoreBreakdown {
-  const requirements = input.targetingPlan.coreRequirementCoverage?.requirements ?? []
+  if (input.jobCompatibilityAssessment) {
+    return buildJobTargetingScoreBreakdownFromAssessment(input.jobCompatibilityAssessment)
+  }
+
+  const requirements = input.targetingPlan?.coreRequirementCoverage?.requirements ?? []
 
   return buildJobTargetingScoreBreakdown({
     cvState: input.cvState,
@@ -249,7 +256,13 @@ export function buildJobTargetingScoreBreakdownFromPlan(input: {
       || requirement.requirementKind === 'preferred'
       || requirement.requirementKind === 'nice_to_have'
     )),
-    targetEvidence: input.targetingPlan.targetEvidence,
-    criticalGapSignals: input.targetingPlan.coreRequirementCoverage?.topUnsupportedSignalsForDisplay,
+    targetEvidence: input.targetingPlan?.targetEvidence,
+    criticalGapSignals: input.targetingPlan?.coreRequirementCoverage?.topUnsupportedSignalsForDisplay,
   })
+}
+
+export function buildJobTargetingScoreBreakdownFromAssessment(
+  assessment: JobCompatibilityAssessment,
+): JobTargetingScoreBreakdown {
+  return buildDisplayScoreFromAssessment(assessment)
 }

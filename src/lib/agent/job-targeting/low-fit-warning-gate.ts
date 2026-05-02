@@ -1,4 +1,6 @@
 import { repairUtf8Mojibake } from '@/lib/text/repair-utf8-mojibake'
+import { buildLowFitWarningGateFromAssessment as buildAdapterLowFitWarningGateFromAssessment } from '@/lib/agent/job-targeting/compatibility/legacy-adapters'
+import type { JobCompatibilityAssessment } from '@/lib/agent/job-targeting/compatibility/types'
 import type {
   LowFitWarningGate,
   RewriteValidationResult,
@@ -143,6 +145,12 @@ export function buildLowFitWarningGate(params: {
     explicitEvidenceRatio,
     coreRequirementCoverage: coreCoverage,
   }
+}
+
+export function buildLowFitWarningGateFromAssessment(
+  assessment: JobCompatibilityAssessment,
+): LowFitWarningGate {
+  return buildAdapterLowFitWarningGateFromAssessment(assessment)
 }
 
 export function shouldPreRewriteLowFitBlock(params: {
