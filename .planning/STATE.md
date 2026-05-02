@@ -7,7 +7,7 @@ current_phase_name: adicionar camada dinamica de evidencia semantica para target
 current_plan: 01 completed
 status: verifying
 stopped_at: Completed 260502-g04-09-PLAN.md
-last_updated: "2026-05-02T20:04:00.000Z"
+last_updated: "2026-05-02T20:24:00.000Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 73
@@ -36,7 +36,7 @@ Current Plan: 01 completed
 Total Plans in Phase: 1
 Status: Phase complete — ready for verification
 Last activity: 2026-05-02
-Last Activity Description: Completed quick task 260502-nby: automated shadow batch validation, cutover reporting, and Playwright coverage for JobCompatibilityAssessment.
+Last Activity Description: Completed quick task 260502-nwy: hardened shadow batch representativeness, run config reporting, real gap analysis mode, and rewrite validation gates.
 
 Progress: [##########] 100%
 
@@ -50,6 +50,7 @@ Baseline carried forward from earlier shipped milestones:
 - Quick 260502-g04-08: 16min, 2 tasks, 19 files.
 - Quick 260502-g04-09: 10min, 3 tasks, 4 files.
 - Quick 260502-nby: shadow batch runner, cutover analyzer, and Playwright E2E guard.
+- Quick 260502-nwy: representativeness hardening for shadow batch cutover evidence.
 
 ## Accumulated Context
 
@@ -197,6 +198,7 @@ Baseline carried forward from earlier shipped milestones:
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
+| 260502-nwy | Harden job targeting shadow batch representativeness | 2026-05-02 | 2030439 | Validated | [260502-nwy-harden-job-targeting-shadow-batch-repres](./quick/260502-nwy-harden-job-targeting-shadow-batch-repres/) |
 | 260502-nby | Automatizar validacao de 500 casos reais do Job Targeting com Shadow Runner e Playwright E2E | 2026-05-02 | 56f617c | Validated | [260502-nby-automatizar-valida-o-de-500-casos-reais-](./quick/260502-nby-automatizar-valida-o-de-500-casos-reais-/) |
 | 260502-fs2 | Corrigir falso negativo no diagnostico de compatibilidade do Job Targeting | 2026-05-02 | d097069 | Validated | [260502-fs2-corrigir-falso-negativo-no-diagnostico-d](./quick/260502-fs2-corrigir-falso-negativo-no-diagnostico-d/) |
 | 260502-fiy | Ajustar fallback signup gratuito para profile-setup e copy CTA landing mantendo redirect_to pago | 2026-05-02 | 0947f58 | Validated | [260502-fiy-ajustar-fallback-signup-gratuito-para-pr](./quick/260502-fiy-ajustar-fallback-signup-gratuito-para-pr/) |
