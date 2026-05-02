@@ -9,6 +9,7 @@ import {
   syncClerkUserProfile,
 } from '@/lib/auth/app-user'
 import { logError, logInfo, logWarn, serializeError } from '@/lib/observability/structured-log'
+import type { SignupMethod } from '@/types/user'
 
 export const runtime = 'nodejs'
 
@@ -43,6 +44,82 @@ function getRedisClient(): Redis {
 function readEventUserId(event: WebhookEvent): string | undefined {
   const data = event.data as { id?: unknown }
   return typeof data.id === 'string' ? data.id : undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null
+}
+
+function readExternalAccountProvider(account: unknown): string | null {
+  if (!isRecord(account)) {
+    return null
+  }
+
+  const provider = readString(account.provider)
+  if (provider) {
+    return provider
+  }
+
+  if (isRecord(account.verification)) {
+    return readString(account.verification.strategy)
+  }
+
+  return null
+}
+
+function resolveSignupMethod(data: unknown): SignupMethod {
+  if (!isRecord(data) || !Array.isArray(data.external_accounts)) {
+    return 'email'
+  }
+
+  const providers = data.external_accounts
+    .map(readExternalAccountProvider)
+    .filter((provider): provider is string => Boolean(provider))
+
+  if (providers.some((provider) => provider.toLowerCase().includes('google'))) {
+    return 'google'
+  }
+
+  return providers.length > 0 ? 'unknown' : 'email'
+}
+
+function readClerkProfileSyncInput(data: unknown): {
+  clerkUserId: string
+  email: string | null
+  displayName: string | null
+  emailVerifiedAt: string | null
+} {
+  if (!isRecord(data)) {
+    throw new Error('Clerk user payload is not an object.')
+  }
+
+  const clerkUserId = readString(data.id)
+  if (!clerkUserId) {
+    throw new Error('Clerk user payload is missing id.')
+  }
+
+  const [primaryEmail] = Array.isArray(data.email_addresses) ? data.email_addresses : []
+  const email = isRecord(primaryEmail) ? readString(primaryEmail.email_address) : null
+  const verification = isRecord(primaryEmail) && isRecord(primaryEmail.verification)
+    ? primaryEmail.verification
+    : null
+  const emailVerifiedAt = verification?.status === 'verified'
+    ? new Date().toISOString()
+    : null
+  const displayName = [readString(data.first_name), readString(data.last_name)]
+    .filter(Boolean)
+    .join(' ') || null
+
+  return {
+    clerkUserId,
+    email,
+    displayName,
+    emailVerifiedAt,
+  }
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -141,25 +218,17 @@ export async function POST(req: Request): Promise<Response> {
   try {
     switch (evt.type) {
       case 'user.created': {
-        const { id } = evt.data
-        await getOrCreateAppUserByClerkUserId(id)
+        const profile = readClerkProfileSyncInput(evt.data)
+        await getOrCreateAppUserByClerkUserId(profile.clerkUserId)
+        await syncClerkUserProfile({
+          ...profile,
+          signupMethod: resolveSignupMethod(evt.data),
+        })
         break
       }
 
       case 'user.updated': {
-        const { id, email_addresses, first_name, last_name } = evt.data
-        const email = email_addresses[0]?.email_address ?? null
-        const emailVerifiedAt =
-          email_addresses[0]?.verification?.status === 'verified'
-            ? new Date().toISOString()
-            : null
-        const name = [first_name, last_name].filter(Boolean).join(' ') || null
-        await syncClerkUserProfile({
-          clerkUserId: id,
-          email,
-          displayName: name,
-          emailVerifiedAt,
-        })
+        await syncClerkUserProfile(readClerkProfileSyncInput(evt.data))
         break
       }
 

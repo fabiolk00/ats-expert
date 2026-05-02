@@ -282,6 +282,13 @@ describe('clerk webhook route', () => {
     expect(mockWebhookConstructor).toHaveBeenCalledWith('whsec_123')
     expect(mockWebhookVerify).toHaveBeenCalled()
     expect(mockGetOrCreateAppUserByClerkUserId).toHaveBeenCalledWith('user_123')
+    expect(mockSyncClerkUserProfile).toHaveBeenCalledWith({
+      clerkUserId: 'user_123',
+      displayName: null,
+      email: null,
+      emailVerifiedAt: null,
+      signupMethod: 'email',
+    })
     expect(mockLogInfo).toHaveBeenCalledWith('clerk.webhook.processed', expect.objectContaining({
       requestMethod: 'POST',
       requestPath: '/api/webhook/clerk',
@@ -290,5 +297,38 @@ describe('clerk webhook route', () => {
       clerkUserId: 'user_123',
       success: true,
     }))
+  })
+
+  it('stores google as the signup method when a user.created event has a Google external account', async () => {
+    mockWebhookVerify.mockReturnValue({
+      type: 'user.created',
+      data: {
+        id: 'user_google',
+        first_name: 'Ana',
+        last_name: 'Silva',
+        email_addresses: [{
+          email_address: 'ana@example.com',
+          verification: { status: 'verified' },
+        }],
+        external_accounts: [{ provider: 'oauth_google' }],
+      },
+    })
+
+    const { POST } = await loadRoute()
+    const response = await POST(new Request('http://localhost/api/webhook/clerk', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'user.created' }),
+    }))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true })
+    expect(mockGetOrCreateAppUserByClerkUserId).toHaveBeenCalledWith('user_google')
+    expect(mockSyncClerkUserProfile).toHaveBeenCalledWith({
+      clerkUserId: 'user_google',
+      displayName: 'Ana Silva',
+      email: 'ana@example.com',
+      emailVerifiedAt: expect.any(String),
+      signupMethod: 'google',
+    })
   })
 })

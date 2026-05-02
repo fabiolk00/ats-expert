@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 
 import { E2E_AUTH_COOKIE_NAME, resolveE2EAppUser } from '@/lib/auth/e2e-auth'
 import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
-import type { AppUser, AuthProvider, UserStatus } from '@/types/user'
+import type { AppUser, AuthProvider, SignupMethod, UserStatus } from '@/types/user'
 
 const CLERK_PROVIDER: AuthProvider = 'clerk'
 
@@ -201,6 +201,7 @@ export async function syncClerkUserProfile(input: {
   clerkUserId: string
   email: string | null
   displayName: string | null
+  signupMethod?: SignupMethod
   emailVerifiedAt?: string | null
 }): Promise<void> {
   const appUserId = await findAppUserIdByClerkUserId(input.clerkUserId)
@@ -222,13 +223,24 @@ export async function syncClerkUserProfile(input: {
     throw new Error(`Failed to sync app user profile: ${userError.message}`)
   }
 
+  const identityUpdates: {
+    email: string | null
+    email_verified_at: string | null
+    signup_method?: SignupMethod
+    updated_at: string
+  } = {
+    email: input.email,
+    email_verified_at: input.emailVerifiedAt ?? null,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (input.signupMethod) {
+    identityUpdates.signup_method = input.signupMethod
+  }
+
   const { error: identityError } = await supabase
     .from('user_auth_identities')
-    .update({
-      email: input.email,
-      email_verified_at: input.emailVerifiedAt ?? null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(identityUpdates)
     .eq('provider', CLERK_PROVIDER)
     .eq('provider_subject', input.clerkUserId)
 

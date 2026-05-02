@@ -1,5 +1,7 @@
 export type AuthProvider = 'clerk'
 
+export type SignupMethod = 'email' | 'google' | 'unknown'
+
 export type UserStatus = 'active' | 'disabled'
 
 export type UserAuthIdentity = {
@@ -7,6 +9,7 @@ export type UserAuthIdentity = {
   userId: string
   provider: AuthProvider
   providerSubject: string
+  signupMethod?: SignupMethod
   email?: string
   emailVerifiedAt?: Date
   createdAt: Date
