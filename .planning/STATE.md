@@ -6,8 +6,8 @@ current_phase: 108
 current_phase_name: adicionar camada dinamica de evidencia semantica para targeted rewrite de job_targeting
 current_plan: 01 completed
 status: verifying
-stopped_at: Completed 260502-g04-05-PLAN.md
-last_updated: "2026-05-02T16:14:24.020Z"
+stopped_at: Completed 260502-g04-06-PLAN.md
+last_updated: "2026-05-02T16:34:10.479Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 73
@@ -36,7 +36,7 @@ Current Plan: 01 completed
 Total Plans in Phase: 1
 Status: Phase complete — ready for verification
 Last activity: 2026-05-02
-Last Activity Description: Completed quick task 260502-g04-05: Generic catalog-driven matcher for Job Targeting compatibility refactor.
+Last Activity Description: Completed quick task 260502-g04-06: Canonical Job Targeting compatibility assessment with score, claim policy, and validation.
 
 Progress: [##########] 100%
 
@@ -169,6 +169,9 @@ Baseline carried forward from earlier shipped milestones:
 - [Phase Quick 260502-g04-05]: Category and adjacent-category matches require residual requirement support so named requirements are not inflated by neighboring catalog families.
 - [Phase Quick 260502-g04-05]: Canonical matcher outputs now live in src/lib/agent/job-targeting/compatibility/types.ts instead of expanding interim src/types/agent.ts contracts.
 - [Phase Quick 260502-g04-05]: Anti-equivalence blocks direct unsafe support and only remains adjacent when catalog adjacency plus residual requirement text are both evidenced.
+- [Phase Quick 260502-g04-06]: Canonical public compatibility contract is now compatibility/types.ts with matcher output using productGroup, evidenceLevel, rewritePermission, source, grouped claimPolicy, scoreBreakdown, and lowFit.blocking.
+- [Phase Quick 260502-g04-06]: evaluateJobCompatibility loads all existing catalog packs by default through one centralized assessment path list and remains usable from raw job-description text.
+- [Phase Quick 260502-g04-06]: Empty compatibility score dimensions are treated as neutral at 0.5 so absent dimensions do not become implicit hard failures.
 
 ### Pending Todos
 
@@ -266,9 +269,10 @@ Baseline carried forward from earlier shipped milestones:
 | 260428-u03 | Job Targeting 2.0 explanations, safe recommendations, and rewrite diff | 2026-04-29 | e487795 | Validated | [260428-u03-job-targeting-2-0-explanations-safe-reco](./quick/260428-u03-job-targeting-2-0-explanations-safe-reco/) |
 | 260428-upq-01 | Smart Generation canonical route and start lock for ATS and job targeting | 2026-04-29 | 73303e9 | Validated | [260428-upq-refactor-smart-generation-as-core-pdf-on](./quick/260428-upq-refactor-smart-generation-as-core-pdf-on/) |
 | 260502-g04-05 | Generic catalog-driven matcher for Job Targeting compatibility refactor | 2026-05-02 | abefb4b | Validated | [260502-g04-refatorar-job-targeting-para-motor-gener](./quick/260502-g04-refatorar-job-targeting-para-motor-gener/) |
+| 260502-g04-06 | Canonical Job Targeting compatibility assessment with score, claim policy, and validation | 2026-05-02 | 53924b6 | Validated | [260502-g04-refatorar-job-targeting-para-motor-gener](./quick/260502-g04-refatorar-job-targeting-para-motor-gener/) |
 
 ## Session Continuity
 
-Last session: 2026-05-02T16:13:49.715Z
-Stopped at: Completed 260502-g04-05-PLAN.md
+Last session: 2026-05-02T16:34:10.474Z
+Stopped at: Completed 260502-g04-06-PLAN.md
 Resume file: None
