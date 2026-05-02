@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest'
 import {
   buildGeneratedClaimTracesFromCvState,
   validateGeneratedClaims,
-  type GeneratedClaimTrace,
 } from '@/lib/agent/job-targeting/compatibility/structured-validation'
-import type { JobCompatibilityClaimPolicy } from '@/lib/agent/job-targeting/compatibility/types'
+import type {
+  GeneratedClaimTrace,
+  JobCompatibilityClaimPolicy,
+} from '@/lib/agent/job-targeting/compatibility/types'
 import type { CVState } from '@/types/cv'
 
 const policy: JobCompatibilityClaimPolicy = {
@@ -135,19 +137,19 @@ describe('structured compatibility validation', () => {
     expect(traces).toEqual(expect.arrayContaining([
       expect.objectContaining({
         section: 'summary',
-        text: generatedCvState.summary,
+        generatedText: generatedCvState.summary,
       }),
       expect.objectContaining({
         section: 'skills',
-        text: 'Unsupported signal',
+        generatedText: 'Unsupported signal',
       }),
       expect.objectContaining({
         section: 'education',
-        text: 'Unsupported education Example University 2020',
+        generatedText: 'Unsupported education Example University 2020',
       }),
       expect.objectContaining({
         section: 'certifications',
-        text: 'Unsupported certification Example issuer 2024',
+        generatedText: 'Unsupported certification Example issuer 2024',
       }),
     ]))
   })
@@ -176,14 +178,63 @@ describe('structured compatibility validation', () => {
   it('allows cautious target signals when they are verbalized with related evidence', () => {
     const result = validateGeneratedClaims({
       generatedClaimTraces: [{
-        id: 'summary',
         section: 'summary',
-        text: 'Experience related to Adjacent target signal based on Related resume signal.',
+        itemPath: 'summary',
+        generatedText: 'Experience related to Adjacent target signal based on Related resume signal.',
+        expressedSignals: ['Adjacent target signal'],
+        usedClaimPolicyIds: ['claim-cautious-adjacent'],
+        evidenceBasis: ['Related resume signal'],
+        prohibitedTermsFound: [],
+        validationStatus: 'valid',
+        rationale: 'test',
       }],
       claimPolicy: policy,
     })
 
     expect(result.valid).toBe(true)
     expect(result.issues).toEqual([])
+  })
+
+  it('blocks generated CV content that is missing claim trace coverage', () => {
+    const result = validateGeneratedClaims({
+      generatedCvState,
+      generatedClaimTraces: [],
+      requireClaimTrace: true,
+      claimPolicy: policy,
+    })
+
+    expect(result.blocked).toBe(true)
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'missing_claim_trace',
+        section: 'summary',
+        traceId: 'summary',
+      }),
+    ]))
+  })
+
+  it('blocks expressed signals not present in allowed or cautious claim policy', () => {
+    const result = validateGeneratedClaims({
+      generatedClaimTraces: [{
+        section: 'experience',
+        itemPath: 'experience.0.bullets.0',
+        generatedText: 'Delivered a new unsupported operating model.',
+        expressedSignals: ['New unsupported operating model'],
+        usedClaimPolicyIds: [],
+        evidenceBasis: [],
+        prohibitedTermsFound: [],
+        validationStatus: 'warning',
+        rationale: 'new_text_without_claim_policy',
+      }],
+      claimPolicy: policy,
+    })
+
+    expect(result.blocked).toBe(true)
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        type: 'unsupported_expressed_signal',
+        term: 'New unsupported operating model',
+      }),
+    ])
   })
 })

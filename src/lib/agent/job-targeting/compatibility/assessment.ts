@@ -121,6 +121,7 @@ export async function evaluateJobCompatibility({
         criticalGaps: criticalGaps.length,
         reviewNeededGaps: reviewNeededGaps.length,
       },
+      warnings: scoreBreakdown.warnings,
       ...buildRunIds({ userId, sessionId }),
     },
   }
@@ -316,10 +317,14 @@ function calculateLowFitState(
   )).length
   const unsupportedCoreRatio = totalCoreCount === 0 ? 0 : unsupportedCoreCount / totalCoreCount
   const minimumScore = 25
-  const blocking = score < minimumScore
+  const noRequirementsExtracted = requirements.length === 0
+  const veryLowScoreWithSparseEvidence = score < minimumScore && supportedOrAdjacentCount <= 2
+  const blocking = noRequirementsExtracted
+    || veryLowScoreWithSparseEvidence
     || (unsupportedCoreCount >= 3 && supportedOrAdjacentCount <= 2)
   const reasons = [
-    ...(score < minimumScore ? ['very_low_compatibility_score'] : []),
+    ...(noRequirementsExtracted ? ['no_requirements_extracted'] : []),
+    ...(veryLowScoreWithSparseEvidence ? ['very_low_compatibility_score'] : []),
     ...(unsupportedCoreCount >= 3 && supportedOrAdjacentCount <= 2
       ? ['too_many_unsupported_core_requirements']
       : []),

@@ -6,6 +6,7 @@ import type {
 } from '@/lib/agent/job-targeting/catalog/catalog-types'
 import type {
   ClaimPermission,
+  EvidenceQualifier,
   InternalEvidenceLevel,
   ProductEvidenceGroup,
   RequirementEvidence,
@@ -13,6 +14,7 @@ import type {
   RequirementImportance,
   RequirementKind,
 } from '@/lib/agent/job-targeting/compatibility/types'
+import { isWeakEvidenceQualifier } from './evidence-qualifiers'
 
 export const JOB_COMPATIBILITY_MATCHER_VERSION = 'job-compat-matcher-v1'
 
@@ -40,13 +42,20 @@ export interface MatcherResumeEvidence {
   section?: string
   sourceKind?: string
   cvPath?: string
+  sourceConfidence?: number
+  qualifier?: EvidenceQualifier
 }
 
-export interface AmbiguityResolverDecision {
-  productEvidenceGroup: ProductEvidenceGroup
+export type LLMResolverOutput = {
+  suggestedEvidenceLevel:
+    | 'strong_contextual_inference'
+    | 'semantic_bridge_only'
+    | 'unsupported_gap'
   evidenceIds?: string[]
-  confidence?: number
-  rationaleCode?: string
+  confidence: number
+  rationale: string
+  supportingResumeSpans: string[]
+  matchedResumeTerms: string[]
 }
 
 export type RequirementEvidenceAmbiguityResolver = (input: {
@@ -54,7 +63,7 @@ export type RequirementEvidenceAmbiguityResolver = (input: {
   decomposedSignals: MatcherRequirement[]
   resumeEvidence: MatcherResumeEvidence[]
   catalog: LoadedJobTargetingCatalog
-}) => AmbiguityResolverDecision | null | undefined
+}) => LLMResolverOutput | null | undefined
 
 export interface ClassifyRequirementEvidenceInput {
   requirement: MatcherRequirement
@@ -91,6 +100,10 @@ type TermOccurrence = {
   term: IndexedTerm
   matchLevel: 'exact' | 'catalog_alias'
   evidence?: MatcherResumeEvidence
+}
+
+type CategoryOccurrence = {
+  category: IndexedCategory
 }
 
 type MatchCandidate = {
@@ -146,6 +159,9 @@ export function classifyRequirementEvidence({
   const catalogIndex = buildCatalogIndex(catalog)
   const requirementText = requirement.normalizedText ?? requirement.text
   const requirementTerms = findTermOccurrences(requirementText, catalogIndex)
+  const requirementCategories = requirementTerms.length === 0
+    ? findCategoryOccurrences(requirementText, catalogIndex)
+    : []
   const evidenceTerms = resumeEvidence.flatMap((item) => (
     findTermOccurrences(item.normalizedText ?? item.text, catalogIndex)
       .map((occurrence) => ({ ...occurrence, evidence: item }))
@@ -158,7 +174,9 @@ export function classifyRequirementEvidence({
     : null
   const antiEquivalenceMatch = findAntiEquivalenceMatch(requirement, requirementTerms, evidenceTerms, catalogIndex)
   const categoryMatch = findCategoryMatch(requirement, requirementTerms, evidenceTerms, catalogIndex, 'catalog_category')
+    ?? findCategoryLabelMatch(requirement, requirementCategories, evidenceTerms, catalogIndex, 'catalog_category')
   const adjacentMatch = findCategoryMatch(requirement, requirementTerms, evidenceTerms, catalogIndex, 'adjacent_category')
+    ?? findCategoryLabelMatch(requirement, requirementCategories, evidenceTerms, catalogIndex, 'adjacent_category')
   const resolverMatch = findResolverMatch({
     requirement,
     decomposedSignals,
@@ -242,25 +260,43 @@ function findTermOccurrences(value: string, catalogIndex: CatalogIndex): TermOcc
   return occurrences
 }
 
+function findCategoryOccurrences(value: string, catalogIndex: CatalogIndex): CategoryOccurrence[] {
+  const valueTokens = tokens(value)
+  const occurrences: CategoryOccurrence[] = []
+
+  catalogIndex.categoriesById.forEach((category) => {
+    if (containsTokenSequence(valueTokens, tokens(category.category.label))) {
+      occurrences.push({ category })
+    }
+  })
+
+  return occurrences
+}
+
 function findSameTermMatch(
   requirementTerms: TermOccurrence[],
   evidenceTerms: TermOccurrence[],
   requestedLevel: 'exact' | 'catalog_alias',
 ): MatchCandidate | null {
   for (const requirementTerm of requirementTerms) {
-    const match = evidenceTerms.find((evidenceTerm) => (
+    const matches = evidenceTerms.filter((evidenceTerm) => (
       evidenceTerm.term.term.id === requirementTerm.term.term.id
       && (
         requestedLevel === 'catalog_alias'
         || (requirementTerm.matchLevel === 'exact' && evidenceTerm.matchLevel === 'exact')
       )
+      && evidenceTerm.evidence
     ))
 
-    if (!match?.evidence) {
+    if (matches.length === 0) {
       continue
     }
+    const firstMatch = matches[0]
+    const evidence = uniqueById(matches
+      .map((match) => match.evidence)
+      .filter((item): item is MatcherResumeEvidence => Boolean(item)))
 
-    const source = requirementTerm.matchLevel === 'exact' && match.matchLevel === 'exact'
+    const source = requirementTerm.matchLevel === 'exact' && firstMatch?.matchLevel === 'exact'
       ? 'exact'
       : 'catalog_alias'
 
@@ -273,9 +309,9 @@ function findSameTermMatch(
       source,
       level: source === 'exact' ? 'explicit' : 'catalog_alias',
       permission: source === 'exact' ? 'can_claim_directly' : 'can_claim_normalized',
-      evidence: [match.evidence],
+      evidence,
       requirementTermIds: [requirementTerm.term.term.id],
-      resumeTermIds: [match.term.term.id],
+      resumeTermIds: unique(matches.map((match) => match.term.term.id)),
       categoryIds: requirementTerm.term.term.categoryIds,
       prohibitedTerms: [],
       confidence: source === 'exact' ? 1 : 0.92,
@@ -295,10 +331,11 @@ function findDirectTextMatch(
   }
 
   const requirementTokens = meaningfulTokens(requirement.text)
-  const match = resumeEvidence
+  const matches = resumeEvidence
     .map((item) => ({ item, score: textOverlapScore(requirementTokens, meaningfulTokens(item.text)) }))
     .filter(({ score }) => score.overlapCount > 0)
-    .sort((left, right) => right.score.score - left.score.score)[0]
+    .sort((left, right) => right.score.score - left.score.score)
+  const match = matches[0]
 
   if (!match) {
     return null
@@ -308,12 +345,16 @@ function findDirectTextMatch(
     match.score.containsPhrase
     || (match.score.overlapCount >= 2 && match.score.score >= 0.5)
   ) {
+      const supportingEvidence = uniqueById(matches
+        .filter(({ score }) => score.containsPhrase || score.score >= 0.34)
+        .map(({ item }) => item))
+
       return {
         group: 'supported',
         source: 'exact',
         level: 'explicit',
         permission: 'can_claim_directly',
-        evidence: [match.item],
+        evidence: supportingEvidence,
         requirementTermIds: [],
         resumeTermIds: [],
         categoryIds: [],
@@ -495,6 +536,57 @@ function findCategoryMatch(
   return null
 }
 
+function findCategoryLabelMatch(
+  requirement: MatcherRequirement,
+  requirementCategories: CategoryOccurrence[],
+  evidenceTerms: TermOccurrence[],
+  catalogIndex: CatalogIndex,
+  level: 'catalog_category' | 'adjacent_category',
+): MatchCandidate | null {
+  for (const requirementCategory of requirementCategories) {
+    const matches = evidenceTerms.filter((evidenceTerm) => (
+      evidenceTerm.evidence
+      && (
+        hasCategoryRelationship(
+          [requirementCategory.category.category.id],
+          evidenceTerm.term.term.categoryIds,
+          catalogIndex,
+          level,
+        )
+        || (
+          level === 'catalog_category'
+          && evidenceTerm.term.term.categoryIds.includes(requirementCategory.category.category.id)
+        )
+      )
+    ))
+
+    if (matches.length === 0) {
+      continue
+    }
+
+    return {
+      group: level === 'catalog_category' ? 'supported' : 'adjacent',
+      source: 'catalog_category',
+      level: level === 'catalog_category' ? 'category_equivalent' : 'semantic_bridge_only',
+      permission: level === 'catalog_category' ? 'can_claim_normalized' : 'can_bridge_carefully',
+      evidence: uniqueById(matches
+        .map((match) => match.evidence)
+        .filter((item): item is MatcherResumeEvidence => Boolean(item))),
+      requirementTermIds: [],
+      resumeTermIds: unique(matches.map((match) => match.term.term.id)),
+      categoryIds: unique([
+        requirementCategory.category.category.id,
+        ...matches.flatMap((match) => match.term.term.categoryIds),
+      ]),
+      prohibitedTerms: [],
+      confidence: level === 'catalog_category' ? 0.78 : 0.54,
+      rationaleCode: `${level}_label`,
+    }
+  }
+
+  return null
+}
+
 function hasCategoryRelationship(
   leftCategoryIds: string[],
   rightCategoryIds: string[],
@@ -547,25 +639,45 @@ function findResolverMatch({
     return null
   }
 
+  if (!isValidResolverDecision(decision)) {
+    return unsupportedCandidate(requirement)
+  }
+
   const evidenceById = new Map(resumeEvidence.map((item) => [item.id, item]))
   const matchedEvidence = (decision.evidenceIds ?? [])
     .map((id) => evidenceById.get(id))
     .filter((item): item is MatcherResumeEvidence => Boolean(item))
+  const hasSupportingSpans = decision.supportingResumeSpans.some((span) => span.trim())
+    || matchedEvidence.length > 0
+  const suggestedLevel = hasSupportingSpans
+    ? decision.suggestedEvidenceLevel
+    : 'semantic_bridge_only'
+  const group = suggestedLevel === 'unsupported_gap' ? 'unsupported' : 'adjacent'
 
   return {
-    group: decision.productEvidenceGroup,
+    group,
     source: 'llm_ambiguous',
-    level: evidenceLevelForGroup(decision.productEvidenceGroup),
-    permission: permissionForGroup(decision.productEvidenceGroup),
+    level: suggestedLevel,
+    permission: permissionForResolverLevel(suggestedLevel),
     evidence: matchedEvidence,
     requirementTermIds: [],
     resumeTermIds: [],
     categoryIds: [],
-    prohibitedTerms: [],
+    prohibitedTerms: suggestedLevel === 'unsupported_gap' ? [requirement.text] : [],
     confidence: decision.confidence ?? 0.5,
-    rationaleCode: decision.rationaleCode ?? 'llm_ambiguity_resolved',
+    rationaleCode: decision.rationale || 'llm_ambiguity_resolved',
     ambiguityResolved: true,
   }
+}
+
+function isValidResolverDecision(decision: LLMResolverOutput): boolean {
+  if (!Number.isFinite(decision.confidence) || decision.confidence < 0 || decision.confidence > 1) {
+    return false
+  }
+
+  return decision.suggestedEvidenceLevel === 'strong_contextual_inference'
+    || decision.suggestedEvidenceLevel === 'semantic_bridge_only'
+    || decision.suggestedEvidenceLevel === 'unsupported_gap'
 }
 
 function unsupportedCandidate(requirement: MatcherRequirement): MatchCandidate {
@@ -593,17 +705,18 @@ function toRequirementEvidence({
   catalogIndex: CatalogIndex
   candidate: MatchCandidate
 }): RequirementEvidence {
-  const requirementTermLabels = labelsForTermIds(candidate.requirementTermIds, catalogIndex)
-  const resumeTermLabels = labelsForTermIds(candidate.resumeTermIds, catalogIndex)
+  const finalCandidate = applyEvidenceStrengthPolicy(requirement, candidate)
+  const requirementTermLabels = labelsForTermIds(finalCandidate.requirementTermIds, catalogIndex)
+  const resumeTermLabels = labelsForTermIds(finalCandidate.resumeTermIds, catalogIndex)
   const extractedSignals = unique([
     ...requirementTermLabels,
     ...(requirementTermLabels.length === 0 ? [requirement.text] : []),
   ])
   const matchedResumeTerms = unique([
     ...resumeTermLabels,
-    ...candidate.evidence.map((item) => item.text),
+    ...finalCandidate.evidence.map((item) => item.text),
   ])
-  const catalogTermIds = unique([...candidate.requirementTermIds, ...candidate.resumeTermIds])
+  const catalogTermIds = unique([...finalCandidate.requirementTermIds, ...finalCandidate.resumeTermIds])
 
   return {
     id: requirement.id,
@@ -612,36 +725,91 @@ function toRequirementEvidence({
     extractedSignals,
     kind: requirement.kind ?? 'unknown',
     importance: requirement.importance ?? 'secondary',
-    productGroup: candidate.group,
-    evidenceLevel: candidate.level,
-    rewritePermission: candidate.permission,
+    productGroup: finalCandidate.group,
+    evidenceLevel: finalCandidate.level,
+    rewritePermission: finalCandidate.permission,
     matchedResumeTerms,
-    supportingResumeSpans: candidate.evidence.map((item) => ({
+    supportingResumeSpans: finalCandidate.evidence.map((item) => ({
       id: item.id,
       text: item.text,
       ...(item.section === undefined ? {} : { section: item.section }),
       ...(item.sourceKind === undefined ? {} : { sourceKind: item.sourceKind }),
       ...(item.cvPath === undefined ? {} : { cvPath: item.cvPath }),
     })),
-    confidence: candidate.confidence,
-    rationale: candidate.rationaleCode,
-    source: candidate.source,
+    confidence: finalCandidate.confidence,
+    rationale: finalCandidate.rationaleCode,
+    source: finalCandidate.source,
     catalogTermIds,
-    catalogCategoryIds: unique(candidate.categoryIds),
-    prohibitedTerms: unique(candidate.prohibitedTerms),
+    catalogCategoryIds: unique(finalCandidate.categoryIds),
+    prohibitedTerms: unique(finalCandidate.prohibitedTerms),
     audit: {
       matcherVersion: JOB_COMPATIBILITY_MATCHER_VERSION,
       precedence: MATCHER_PRECEDENCE,
       catalogIds: catalogIndex.catalogIds,
       catalogVersions: catalogIndex.catalogVersions,
       catalogTermIds,
-      catalogCategoryIds: unique(candidate.categoryIds),
-      ...(candidate.antiEquivalenceTermIds === undefined
+      catalogCategoryIds: unique(finalCandidate.categoryIds),
+      ...(finalCandidate.antiEquivalenceTermIds === undefined
         ? {}
-        : { antiEquivalenceTermIds: unique(candidate.antiEquivalenceTermIds) }),
-      ...(candidate.ambiguityResolved === undefined ? {} : { ambiguityResolved: candidate.ambiguityResolved }),
+        : { antiEquivalenceTermIds: unique(finalCandidate.antiEquivalenceTermIds) }),
+      ...(finalCandidate.ambiguityResolved === undefined ? {} : { ambiguityResolved: finalCandidate.ambiguityResolved }),
     },
   }
+}
+
+function applyEvidenceStrengthPolicy(
+  requirement: MatcherRequirement,
+  candidate: MatchCandidate,
+): MatchCandidate {
+  if (candidate.group === 'unsupported' || candidate.evidence.length === 0) {
+    return candidate
+  }
+
+  const strongestSourceConfidence = Math.max(
+    ...candidate.evidence.map((item) => item.sourceConfidence ?? 0.75),
+  )
+  const qualifiers = candidate.evidence.map((item) => item.qualifier ?? 'unknown')
+  const hasNegativeEvidence = qualifiers.includes('negative')
+  const hasWeakEvidence = qualifiers.some(isWeakEvidenceQualifier)
+  const confidence = roundTo(candidate.confidence * strongestSourceConfidence, 2)
+
+  if (hasNegativeEvidence) {
+    return {
+      ...candidate,
+      group: 'unsupported',
+      level: 'unsupported_gap',
+      permission: 'must_not_claim',
+      prohibitedTerms: unique([...candidate.prohibitedTerms, requirement.text]),
+      confidence: Math.min(confidence, 0.2),
+      rationaleCode: `${candidate.rationaleCode}:negative_evidence`,
+    }
+  }
+
+  if (
+    candidate.group === 'supported'
+    && (
+      confidence < 0.6
+      || (hasWeakEvidence && !requirementAllowsWeakEvidence(requirement.text))
+    )
+  ) {
+    return {
+      ...candidate,
+      group: 'adjacent',
+      level: 'semantic_bridge_only',
+      permission: 'can_bridge_carefully',
+      confidence,
+      rationaleCode: `${candidate.rationaleCode}:reduced_by_evidence_strength`,
+    }
+  }
+
+  return {
+    ...candidate,
+    confidence,
+  }
+}
+
+function requirementAllowsWeakEvidence(value: string): boolean {
+  return /\b(?:b[aá]sic[ao]|basic|introduct[oó]ri[ao]|introductory|familiarity|no[cç][oõ]es)\b/iu.test(value)
 }
 
 function permissionForGroup(group: ProductEvidenceGroup): ClaimPermission {
@@ -651,6 +819,18 @@ function permissionForGroup(group: ProductEvidenceGroup): ClaimPermission {
 
   if (group === 'adjacent') {
     return 'can_bridge_carefully'
+  }
+
+  return 'must_not_claim'
+}
+
+function permissionForResolverLevel(level: LLMResolverOutput['suggestedEvidenceLevel']): ClaimPermission {
+  if (level === 'strong_contextual_inference') {
+    return 'can_bridge_carefully'
+  }
+
+  if (level === 'semantic_bridge_only') {
+    return 'can_mention_as_related_context'
   }
 
   return 'must_not_claim'
@@ -762,4 +942,22 @@ function stemToken(token: string): string {
 
 function unique<T>(items: T[]): T[] {
   return [...new Set(items)]
+}
+
+function uniqueById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>()
+
+  return items.filter((item) => {
+    if (seen.has(item.id)) {
+      return false
+    }
+
+    seen.add(item.id)
+    return true
+  })
+}
+
+function roundTo(value: number, places: number): number {
+  const factor = 10 ** places
+  return Math.round(value * factor) / factor
 }

@@ -14,15 +14,27 @@ export interface CatalogAuditMetadata {
   notes?: string
 }
 
+export interface CatalogGovernance {
+  validatedBy: string
+  validatedAt: string
+  reviewRequired: true
+  semanticRiskLevel: 'low' | 'medium' | 'high'
+  rationale: string
+  goldenCaseIds: string[]
+  reviewers?: string[]
+}
+
 export interface CatalogAlias {
   value: string
   goldenCaseIds: string[]
+  governance: CatalogGovernance
   audit?: CatalogAuditMetadata
 }
 
 export interface CatalogCategoryRelationship {
   categoryId: string
   goldenCaseIds: string[]
+  governance: CatalogGovernance
   rationale?: string
   audit?: CatalogAuditMetadata
 }
@@ -31,6 +43,7 @@ export interface CatalogTerm {
   id: string
   label: string
   goldenCaseIds: string[]
+  governance: CatalogGovernance
   aliases: CatalogAlias[]
   categoryIds: string[]
   audit?: CatalogAuditMetadata
@@ -40,6 +53,7 @@ export interface CatalogCategory {
   id: string
   label: string
   goldenCaseIds: string[]
+  governance: CatalogGovernance
   parentCategoryIds: string[]
   equivalentCategoryIds: CatalogCategoryRelationship[]
   adjacentCategoryIds: CatalogCategoryRelationship[]
@@ -50,6 +64,7 @@ export interface CatalogAntiEquivalence {
   leftTermId: string
   rightTermId: string
   goldenCaseIds: string[]
+  governance: CatalogGovernance
   rationale?: string
   audit?: CatalogAuditMetadata
 }
@@ -70,6 +85,7 @@ export interface JobTargetingCatalogPack {
   version: string
   domain: string
   goldenCaseIds: string[]
+  governance: CatalogGovernance
   requirementKinds: CatalogRequirementKind[]
   scoreDimensions: CatalogScoreDimension[]
   sectionWeights: CatalogSectionWeights

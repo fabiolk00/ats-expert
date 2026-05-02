@@ -1,6 +1,9 @@
 import { buildTargetedRewritePermissionIssues } from '@/lib/agent/job-targeting/validation-policy'
 import { buildTargetingPlanFromAssessment } from '@/lib/agent/job-targeting/compatibility/legacy-adapters'
-import type { JobCompatibilityAssessment } from '@/lib/agent/job-targeting/compatibility/types'
+import type {
+  GeneratedClaimTrace,
+  JobCompatibilityAssessment,
+} from '@/lib/agent/job-targeting/compatibility/types'
 import { repairUtf8Mojibake } from '@/lib/text/repair-utf8-mojibake'
 import type { RewriteValidationResult, TargetingPlan, ValidationIssue, WorkflowMode } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
@@ -11,6 +14,7 @@ type ValidateRewriteContext = {
   gapAnalysis?: GapAnalysisResult
   targetingPlan?: TargetingPlan
   jobCompatibilityAssessment?: JobCompatibilityAssessment
+  generatedClaimTrace?: GeneratedClaimTrace[]
 }
 
 function normalize(value: string | undefined): string {
@@ -334,6 +338,7 @@ export function validateRewrite(
         optimizedCvState,
         targetingPlan: effectiveTargetingPlan,
         jobCompatibilityAssessment: context.jobCompatibilityAssessment,
+        generatedClaimTrace: context.generatedClaimTrace,
       }))
 
       const claimedRoles = extractRoleClaimsFromSummary(optimizedCvState.summary)

@@ -13,15 +13,35 @@ const catalogAuditMetadataSchema = z.object({
   notes: nonEmptyStringSchema.optional(),
 }).strict()
 
+const catalogGovernanceSchema = z.object({
+  validatedBy: nonEmptyStringSchema,
+  validatedAt: nonEmptyStringSchema,
+  reviewRequired: z.literal(true),
+  semanticRiskLevel: z.enum(['low', 'medium', 'high']),
+  rationale: nonEmptyStringSchema,
+  goldenCaseIds: goldenCaseIdsSchema,
+  reviewers: z.array(nonEmptyStringSchema).optional(),
+}).strict().superRefine((value, context) => {
+  if (value.semanticRiskLevel === 'high' && (value.reviewers?.length ?? 0) < 2) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['reviewers'],
+      message: 'High-risk catalog governance requires at least two reviewers.',
+    })
+  }
+})
+
 const catalogAliasSchema = z.object({
   value: nonEmptyStringSchema,
   goldenCaseIds: goldenCaseIdsSchema,
+  governance: catalogGovernanceSchema,
   audit: catalogAuditMetadataSchema.optional(),
 }).strict()
 
 const catalogCategoryRelationshipSchema = z.object({
   categoryId: nonEmptyStringSchema,
   goldenCaseIds: goldenCaseIdsSchema,
+  governance: catalogGovernanceSchema,
   rationale: nonEmptyStringSchema.optional(),
   audit: catalogAuditMetadataSchema.optional(),
 }).strict()
@@ -30,6 +50,7 @@ const catalogTermSchema = z.object({
   id: nonEmptyStringSchema,
   label: nonEmptyStringSchema,
   goldenCaseIds: goldenCaseIdsSchema,
+  governance: catalogGovernanceSchema,
   aliases: z.array(catalogAliasSchema),
   categoryIds: z.array(nonEmptyStringSchema),
   audit: catalogAuditMetadataSchema.optional(),
@@ -39,6 +60,7 @@ const catalogCategorySchema = z.object({
   id: nonEmptyStringSchema,
   label: nonEmptyStringSchema,
   goldenCaseIds: goldenCaseIdsSchema,
+  governance: catalogGovernanceSchema,
   parentCategoryIds: z.array(nonEmptyStringSchema).default([]),
   equivalentCategoryIds: z.array(catalogCategoryRelationshipSchema).default([]),
   adjacentCategoryIds: z.array(catalogCategoryRelationshipSchema).default([]),
@@ -49,6 +71,7 @@ const catalogAntiEquivalenceSchema = z.object({
   leftTermId: nonEmptyStringSchema,
   rightTermId: nonEmptyStringSchema,
   goldenCaseIds: goldenCaseIdsSchema,
+  governance: catalogGovernanceSchema,
   rationale: nonEmptyStringSchema.optional(),
   audit: catalogAuditMetadataSchema.optional(),
 }).strict()
@@ -58,6 +81,7 @@ export const jobTargetingCatalogPackSchema = z.object({
   version: nonEmptyStringSchema,
   domain: nonEmptyStringSchema,
   goldenCaseIds: goldenCaseIdsSchema,
+  governance: catalogGovernanceSchema,
   requirementKinds: z.array(z.enum([
     'skill',
     'experience',

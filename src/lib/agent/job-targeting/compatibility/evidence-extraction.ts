@@ -4,6 +4,10 @@ import type {
 } from '@/lib/agent/job-targeting/compatibility/types'
 import type { CVState } from '@/types/cv'
 
+import {
+  detectEvidenceQualifier,
+  RESUME_EVIDENCE_SOURCE_CONFIDENCE,
+} from './evidence-qualifiers'
 import { normalizeCompatibilityText } from './requirement-decomposition'
 
 export const EVIDENCE_EXTRACTION_VERSION = 'evidence-extraction-v1'
@@ -98,6 +102,8 @@ function addEvidence(
     section: item.section,
     sourceKind: item.sourceKind,
     cvPath: item.cvPath,
+    sourceConfidence: RESUME_EVIDENCE_SOURCE_CONFIDENCE[item.sourceKind],
+    qualifier: detectEvidenceQualifier(text),
     ...(item.entryIndex === undefined ? {} : { entryIndex: item.entryIndex }),
     ...(item.bulletIndex === undefined ? {} : { bulletIndex: item.bulletIndex }),
   })

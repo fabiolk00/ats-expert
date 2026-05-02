@@ -96,4 +96,20 @@ describe('job targeting runtime hardcode guard', () => {
 
     expect(violations).toEqual([])
   })
+
+  it('keeps compatibility core from importing specific domain packs', () => {
+    const compatibilityFiles = collectFiles('src/lib/agent/job-targeting/compatibility')
+      .filter((filePath) => filePath.endsWith('.ts'))
+      .map(normalizePath)
+      .sort()
+    const violations = compatibilityFiles.flatMap((filePath) => {
+      const source = readFileSync(filePath, 'utf8')
+
+      return /catalog\/domain-packs|catalog\\domain-packs/u.test(source)
+        ? [`${filePath} imports catalog domain-packs directly`]
+        : []
+    })
+
+    expect(violations).toEqual([])
+  })
 })

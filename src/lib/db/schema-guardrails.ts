@@ -103,6 +103,10 @@ export const TABLE_CONVENTIONS: Record<string, TableConvention> = {
     id: 'domain',
     timestamps: 'mutable',
   },
+  job_compatibility_feedback: {
+    id: 'generic',
+    timestamps: 'mutable',
+  },
   credit_consumptions: {
     id: 'generic',
     timestamps: 'mutable',

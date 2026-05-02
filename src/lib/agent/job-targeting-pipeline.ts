@@ -2,6 +2,7 @@ import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 import { buildOverrideReviewHighlightState } from '@/lib/agent/highlight/override-review-highlights'
 import { buildTargetedRewritePlan } from '@/lib/agent/tools/build-targeting-plan'
 import { evaluateJobCompatibility } from '@/lib/agent/job-targeting/compatibility/assessment'
+import { getJobCompatibilityAssessmentMode } from '@/lib/agent/job-targeting/compatibility/feature-flags'
 import { summarizeHighlightState } from '@/lib/agent/highlight-observability'
 import { evaluateCareerFitRisk } from '@/lib/agent/profile-review'
 import {
@@ -414,6 +415,48 @@ function logCompatibilityAssessmentLifecycle(
   logInfo('job_targeting.compatibility.completed', payload)
 }
 
+function logCompatibilityShadowComparison(params: {
+  session: Session
+  assessment: JobCompatibilityAssessment
+  targetingPlan: NonNullable<Session['agentState']['targetingPlan']>
+  gapAnalysisScore: number
+}): void {
+  const legacyScore = params.targetingPlan.lowFitWarningGate?.matchScore ?? params.gapAnalysisScore
+  const assessmentScore = params.assessment.scoreBreakdown.total
+  const legacyCriticalGapsCount = params.targetingPlan.coreRequirementCoverage?.unsupported ?? 0
+  const assessmentCriticalGapsCount = params.assessment.criticalGaps.length
+  const legacyLowFitTriggered = params.targetingPlan.lowFitWarningGate?.triggered ?? false
+  const assessmentLowFitTriggered = params.assessment.lowFit.triggered
+  const legacyUnsupportedCount = params.targetingPlan.targetEvidence?.filter((item) => (
+    item.evidenceLevel === 'unsupported_gap'
+  )).length ?? 0
+
+  logInfo('job_targeting.compatibility.shadow_comparison', {
+    sessionId: params.session.id,
+    userId: params.session.userId,
+    legacyScore,
+    assessmentScore,
+    scoreDelta: assessmentScore - legacyScore,
+    legacyCriticalGapsCount,
+    assessmentCriticalGapsCount,
+    criticalGapDelta: assessmentCriticalGapsCount - legacyCriticalGapsCount,
+    legacyLowFitTriggered,
+    assessmentLowFitTriggered,
+    lowFitDelta: legacyLowFitTriggered !== assessmentLowFitTriggered,
+    legacyUnsupportedCount,
+    assessmentUnsupportedCount: params.assessment.unsupportedRequirements.length,
+    assessmentSupportedCount: params.assessment.supportedRequirements.length,
+    assessmentAdjacentCount: params.assessment.adjacentRequirements.length,
+    assessmentForbiddenClaimCount: params.assessment.claimPolicy.forbiddenClaims.length,
+    assessmentVersion: params.assessment.audit.assessmentVersion,
+    scoreVersion: params.assessment.audit.scoreVersion,
+    catalogVersion: Object.entries(params.assessment.catalog.catalogVersions)
+      .map(([id, version]) => `${id}@${version}`)
+      .join(','),
+    generatedAt: new Date().toISOString(),
+  })
+}
+
 function buildJobTargetingExplanation(params: {
   session: Session
   optimizedCvState: Session['cvState']
@@ -483,6 +526,8 @@ const NON_OVERRIDABLE_STRUCTURED_CLAIM_POLICY_CODES = new Set([
   'unsupported_certification',
   'unsupported_education_claim',
   'target_role_asserted_without_permission',
+  'missing_claim_trace',
+  'unsupported_expressed_signal',
 ])
 
 type RewriteValidation = NonNullable<Session['agentState']['rewriteValidation']>
@@ -717,23 +762,40 @@ export async function runJobTargetingPipeline(
       targetFitAssessment,
     },
   })
-  logInfo('job_targeting.compatibility.started', {
-    workflowMode: 'job_targeting',
-    sessionId: session.id,
-    userId: session.userId,
-    cvStatePresent: true,
-    targetJobDescriptionPresent: true,
-    gapAnalysisPresent: true,
-    careerFitEvaluationPresent: Boolean(careerFitEvaluation),
-  })
-  const jobCompatibilityAssessment = await evaluateJobCompatibility({
-    cvState: session.cvState,
-    targetJobDescription,
-    gapAnalysis: gapAnalysisResult,
-    userId: session.userId,
-    sessionId: session.id,
-  })
-  logCompatibilityAssessmentLifecycle(session, jobCompatibilityAssessment)
+  const compatibilityMode = getJobCompatibilityAssessmentMode()
+  let evaluatedJobCompatibilityAssessment: JobCompatibilityAssessment | undefined
+
+  if (compatibilityMode.enabled) {
+    logInfo('job_targeting.compatibility.started', {
+      workflowMode: 'job_targeting',
+      sessionId: session.id,
+      userId: session.userId,
+      cvStatePresent: true,
+      targetJobDescriptionPresent: true,
+      gapAnalysisPresent: true,
+      careerFitEvaluationPresent: Boolean(careerFitEvaluation),
+      shadowMode: compatibilityMode.shadowMode,
+      sourceOfTruth: compatibilityMode.sourceOfTruth,
+    })
+    evaluatedJobCompatibilityAssessment = await evaluateJobCompatibility({
+      cvState: session.cvState,
+      targetJobDescription,
+      gapAnalysis: gapAnalysisResult,
+      userId: session.userId,
+      sessionId: session.id,
+    })
+    logCompatibilityAssessmentLifecycle(session, evaluatedJobCompatibilityAssessment)
+  }
+
+  const jobCompatibilityAssessment = compatibilityMode.sourceOfTruth
+    ? evaluatedJobCompatibilityAssessment
+    : undefined
+  const compatibilityStatePatch: Partial<Session['agentState']> = {
+    ...(jobCompatibilityAssessment === undefined ? {} : { jobCompatibilityAssessment }),
+    ...(compatibilityMode.shadowMode && evaluatedJobCompatibilityAssessment
+      ? { jobCompatibilityAssessmentShadow: evaluatedJobCompatibilityAssessment }
+      : {}),
+  }
 
   await persistPipelineAgentState({
     ...session.agentState,
@@ -741,7 +803,7 @@ export async function runJobTargetingPipeline(
     gapAnalysis,
     targetFitAssessment,
     careerFitEvaluation: careerFitEvaluation ?? undefined,
-    jobCompatibilityAssessment,
+    ...compatibilityStatePatch,
     atsWorkflowRun: buildWorkflowRun(session, {
       currentStage: 'targeting_plan',
     }),
@@ -771,8 +833,16 @@ export async function runJobTargetingPipeline(
     mode: 'job_targeting',
     rewriteIntent: 'targeted_rewrite',
     careerFitEvaluation: careerFitEvaluation ?? undefined,
-    jobCompatibilityAssessment,
+    ...(jobCompatibilityAssessment === undefined ? {} : { jobCompatibilityAssessment }),
   })
+  if (compatibilityMode.shadowMode && evaluatedJobCompatibilityAssessment) {
+    logCompatibilityShadowComparison({
+      session,
+      assessment: evaluatedJobCompatibilityAssessment,
+      targetingPlan,
+      gapAnalysisScore: gapAnalysisResult.matchScore,
+    })
+  }
   const jobKeywords = extractJobKeywords({
     gapAnalysis,
     targetingPlan,
@@ -823,7 +893,7 @@ export async function runJobTargetingPipeline(
     gapAnalysis,
     targetFitAssessment,
     careerFitEvaluation: careerFitEvaluation ?? undefined,
-    jobCompatibilityAssessment,
+    ...compatibilityStatePatch,
     targetingPlan,
     atsWorkflowRun: buildWorkflowRun(session, {
       currentStage: 'rewrite_plan',
@@ -845,7 +915,7 @@ export async function runJobTargetingPipeline(
       gapAnalysis,
       targetFitAssessment,
       careerFitEvaluation: careerFitEvaluation ?? undefined,
-      jobCompatibilityAssessment,
+      ...compatibilityStatePatch,
       targetingPlan,
       extractionWarning: 'low_confidence_role',
       atsWorkflowRun: buildWorkflowRun(session, {
@@ -989,7 +1059,7 @@ export async function runJobTargetingPipeline(
       gapAnalysis,
       targetFitAssessment,
       careerFitEvaluation: careerFitEvaluation ?? undefined,
-      jobCompatibilityAssessment,
+      ...compatibilityStatePatch,
       targetingPlan,
       extractionWarning: targetingPlan.targetRoleConfidence === 'low' ? 'low_confidence_role' : undefined,
       rewriteStatus: 'failed',
@@ -1095,6 +1165,7 @@ export async function runJobTargetingPipeline(
     targetJobDescription,
     gapAnalysis: gapAnalysisResult,
     targetingPlan,
+    ...(jobCompatibilityAssessment === undefined ? {} : { jobCompatibilityAssessment }),
     userId: session.userId,
     sessionId: session.id,
   })
@@ -1114,7 +1185,7 @@ export async function runJobTargetingPipeline(
       gapAnalysis,
       targetFitAssessment,
       careerFitEvaluation: careerFitEvaluation ?? undefined,
-      jobCompatibilityAssessment,
+      ...compatibilityStatePatch,
       targetingPlan,
       rewriteStatus: 'failed',
       atsWorkflowRun: buildWorkflowRun(session, {
@@ -1155,12 +1226,15 @@ export async function runJobTargetingPipeline(
 
   let finalizedOptimizedCvState = rewriteResult.optimizedCvState
   let finalizedOptimizationSummary = rewriteResult.summary
+  let finalizedGeneratedClaimTrace = rewriteResult.generatedClaimTrace
+  let finalizedSectionRewritePlans = rewriteResult.sectionRewritePlans
   let validation = validateRewrite(session.cvState, finalizedOptimizedCvState, {
     mode: 'job_targeting',
     targetJobDescription,
     gapAnalysis: gapAnalysisResult,
     targetingPlan,
     jobCompatibilityAssessment,
+    generatedClaimTrace: finalizedGeneratedClaimTrace,
   })
   let summaryRetryAttempted = false
   let summaryRetrySucceeded = false
@@ -1206,6 +1280,7 @@ export async function runJobTargetingPipeline(
         gapAnalysis: gapAnalysisResult,
         targetingPlan,
         jobCompatibilityAssessment,
+        generatedClaimTrace: finalizedGeneratedClaimTrace,
       })
       summaryRetrySucceeded = !validation.blocked
 
@@ -1554,7 +1629,7 @@ export async function runJobTargetingPipeline(
     gapAnalysis,
     targetFitAssessment,
     careerFitEvaluation: careerFitEvaluation ?? undefined,
-    jobCompatibilityAssessment,
+    ...compatibilityStatePatch,
     targetingPlan,
     extractionWarning: targetingPlan.targetRoleConfidence === 'low' ? 'low_confidence_role' : undefined,
     rewriteStatus: validation.blocked ? 'failed' : 'completed',
@@ -1564,7 +1639,9 @@ export async function runJobTargetingPipeline(
     optimizedAt: validation.blocked ? previousOptimizedAt : optimizedAt,
     optimizationSummary: validation.blocked ? previousOptimizationSummary : finalizedOptimizationSummary,
     lastRewriteMode: validation.blocked ? previousLastRewriteMode : 'job_targeting',
-      rewriteValidation: validation,
+    sectionRewritePlans: finalizedSectionRewritePlans,
+    generatedClaimTrace: finalizedGeneratedClaimTrace,
+    rewriteValidation: validation,
     blockedTargetedRewriteDraft: blockedDraft,
     recoverableValidationBlock,
     atsWorkflowRun: buildWorkflowRun(session, {

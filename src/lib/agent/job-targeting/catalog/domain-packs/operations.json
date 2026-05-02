@@ -46,12 +46,32 @@
           "value": "SAP ERP",
           "goldenCaseIds": [
             "erp-specific-tool-missing"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for operations.sap.",
+            "goldenCaseIds": [
+              "erp-specific-tool-missing"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "operations.erp-systems"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "id": "operations.totvs",
@@ -64,12 +84,32 @@
           "value": "TOTVS Protheus",
           "goldenCaseIds": [
             "erp-specific-tool-missing"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for operations.totvs.",
+            "goldenCaseIds": [
+              "erp-specific-tool-missing"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "operations.erp-systems"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "id": "operations.erp",
@@ -82,12 +122,32 @@
           "value": "enterprise resource planning",
           "goldenCaseIds": [
             "erp-specific-tool-missing"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for operations.erp.",
+            "goldenCaseIds": [
+              "erp-specific-tool-missing"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "operations.erp-systems"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "id": "operations.autocad",
@@ -100,12 +160,32 @@
           "value": "CAD drawings",
           "goldenCaseIds": [
             "erp-specific-tool-missing"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for operations.autocad.",
+            "goldenCaseIds": [
+              "erp-specific-tool-missing"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "operations.engineering-tools"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "id": "operations.rpa",
@@ -118,12 +198,32 @@
           "value": "robotic process automation",
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for operations.rpa.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "operations.process-automation"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa"
+        ]
+      }
     },
     {
       "id": "operations.power-automate",
@@ -136,12 +236,32 @@
           "value": "Microsoft Power Automate",
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for operations.power-automate.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "operations.workflow-automation"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa"
+        ]
+      }
     },
     {
       "id": "operations.process-mapping",
@@ -154,12 +274,32 @@
           "value": "process mapping",
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for operations.process-mapping.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "operations.operations-management"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa"
+        ]
+      }
     },
     {
       "id": "operations.supply-chain",
@@ -172,12 +312,32 @@
           "value": "logistics operations",
           "goldenCaseIds": [
             "erp-specific-tool-missing"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for operations.supply-chain.",
+            "goldenCaseIds": [
+              "erp-specific-tool-missing"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "operations.operations-management"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     }
   ],
   "categories": [
@@ -195,9 +355,29 @@
           "goldenCaseIds": [
             "erp-specific-tool-missing"
           ],
-          "rationale": "Operations management is adjacent to ERP usage."
+          "rationale": "Operations management is adjacent to ERP usage.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Operations management is adjacent to ERP usage.",
+            "goldenCaseIds": [
+              "erp-specific-tool-missing"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "id": "operations.engineering-tools",
@@ -213,9 +393,29 @@
           "goldenCaseIds": [
             "erp-specific-tool-missing"
           ],
-          "rationale": "Engineering tool evidence can be adjacent to operational process work."
+          "rationale": "Engineering tool evidence can be adjacent to operational process work.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Engineering tool evidence can be adjacent to operational process work.",
+            "goldenCaseIds": [
+              "erp-specific-tool-missing"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "id": "operations.process-automation",
@@ -231,9 +431,29 @@
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
           ],
-          "rationale": "Workflow automation can be adjacent to RPA but does not prove robotic automation."
+          "rationale": "Workflow automation can be adjacent to RPA but does not prove robotic automation.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Workflow automation can be adjacent to RPA but does not prove robotic automation.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa"
+        ]
+      }
     },
     {
       "id": "operations.workflow-automation",
@@ -249,9 +469,29 @@
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
           ],
-          "rationale": "Workflow automation is adjacent evidence for RPA requirements."
+          "rationale": "Workflow automation is adjacent evidence for RPA requirements.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Workflow automation is adjacent evidence for RPA requirements.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa"
+        ]
+      }
     },
     {
       "id": "operations.operations-management",
@@ -268,9 +508,30 @@
           "goldenCaseIds": [
             "erp-specific-tool-missing"
           ],
-          "rationale": "Managing operations can be adjacent to ERP use but not a named system match."
+          "rationale": "Managing operations can be adjacent to ERP use but not a named system match.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Managing operations can be adjacent to ERP use but not a named system match.",
+            "goldenCaseIds": [
+              "erp-specific-tool-missing"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for operations.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing",
+          "automation-adjacent-without-rpa"
+        ]
+      }
     }
   ],
   "antiEquivalences": [
@@ -280,7 +541,17 @@
       "goldenCaseIds": [
         "erp-specific-tool-missing"
       ],
-      "rationale": "Generic ERP evidence must not imply SAP."
+      "rationale": "Generic ERP evidence must not imply SAP.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Generic ERP evidence must not imply SAP.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "leftTermId": "operations.erp",
@@ -288,7 +559,17 @@
       "goldenCaseIds": [
         "erp-specific-tool-missing"
       ],
-      "rationale": "Generic ERP evidence must not imply Totvs."
+      "rationale": "Generic ERP evidence must not imply Totvs.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Generic ERP evidence must not imply Totvs.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "leftTermId": "operations.power-automate",
@@ -296,7 +577,17 @@
       "goldenCaseIds": [
         "automation-adjacent-without-rpa"
       ],
-      "rationale": "Power Automate evidence is adjacent to automation but must not become a direct RPA claim."
+      "rationale": "Power Automate evidence is adjacent to automation but must not become a direct RPA claim.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Power Automate evidence is adjacent to automation but must not become a direct RPA claim.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa"
+        ]
+      }
     },
     {
       "leftTermId": "operations.autocad",
@@ -304,11 +595,33 @@
       "goldenCaseIds": [
         "erp-specific-tool-missing"
       ],
-      "rationale": "Engineering design tooling must not imply ERP operation."
+      "rationale": "Engineering design tooling must not imply ERP operation.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Engineering design tooling must not imply ERP operation.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     }
   ],
   "audit": {
     "source": "quick-260502-g04-plan-02",
     "updatedAt": "2026-05-02"
+  },
+  "governance": {
+    "validatedBy": "curria-job-targeting-hardening",
+    "validatedAt": "2026-05-02",
+    "reviewRequired": true,
+    "semanticRiskLevel": "medium",
+    "rationale": "Catalog governance for operations.",
+    "goldenCaseIds": [
+      "erp-specific-tool-missing",
+      "automation-adjacent-without-rpa",
+      "data-bi-tool-without-related-transform-tool"
+    ]
   }
 }

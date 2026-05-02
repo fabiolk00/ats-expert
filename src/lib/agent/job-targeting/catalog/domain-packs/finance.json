@@ -47,12 +47,33 @@
           "value": "SAP financeiro",
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for finance.sap-fi.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "finance.accounting-system"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system",
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "id": "finance.totvs-financeiro",
@@ -66,12 +87,33 @@
           "value": "Totvs RM financeiro",
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for finance.totvs-financeiro.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "finance.accounting-system"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system",
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "id": "finance.excel",
@@ -84,12 +126,32 @@
           "value": "planilhas financeiras",
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for finance.excel.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "finance.spreadsheet-analysis"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     },
     {
       "id": "finance.financial-statements",
@@ -102,18 +164,48 @@
           "value": "demonstracoes financeiras",
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for finance.financial-statements.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         },
         {
           "value": "financial statements",
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for finance.financial-statements.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "finance.financial-reporting"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     },
     {
       "id": "finance.fpa",
@@ -126,18 +218,48 @@
           "value": "financial planning and analysis",
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for finance.fpa.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         },
         {
           "value": "orcamento e forecast",
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for finance.fpa.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "finance.planning-analysis"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     },
     {
       "id": "finance.accounting",
@@ -151,12 +273,33 @@
           "value": "accounting",
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for finance.accounting.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "finance.accounting-practice"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system",
+          "correlated-education-good-fit"
+        ]
+      }
     },
     {
       "id": "finance.erp-finance",
@@ -170,12 +313,33 @@
           "value": "financial ERP",
           "goldenCaseIds": [
             "erp-specific-tool-missing"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for finance.erp-finance.",
+            "goldenCaseIds": [
+              "erp-specific-tool-missing"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "finance.accounting-system"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing",
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     }
   ],
   "categories": [
@@ -194,9 +358,30 @@
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
           ],
-          "rationale": "Accounting practice is adjacent to system use but does not prove a specific system."
+          "rationale": "Accounting practice is adjacent to system use but does not prove a specific system.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Accounting practice is adjacent to system use but does not prove a specific system.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system",
+          "erp-specific-tool-missing"
+        ]
+      }
     },
     {
       "id": "finance.spreadsheet-analysis",
@@ -212,9 +397,29 @@
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
           ],
-          "rationale": "Spreadsheet analysis can support planning but does not prove FP&A ownership."
+          "rationale": "Spreadsheet analysis can support planning but does not prove FP&A ownership.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Spreadsheet analysis can support planning but does not prove FP&A ownership.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     },
     {
       "id": "finance.financial-reporting",
@@ -229,7 +434,17 @@
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
           ],
-          "rationale": "Reporting and accounting practice can be direct evidence for financial analyst duties."
+          "rationale": "Reporting and accounting practice can be direct evidence for financial analyst duties.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Reporting and accounting practice can be direct evidence for financial analyst duties.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
       ],
       "adjacentCategoryIds": [
@@ -238,9 +453,29 @@
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
           ],
-          "rationale": "Reporting can support planning analysis but does not prove forecasting."
+          "rationale": "Reporting can support planning analysis but does not prove forecasting.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Reporting can support planning analysis but does not prove forecasting.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     },
     {
       "id": "finance.planning-analysis",
@@ -256,9 +491,29 @@
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
           ],
-          "rationale": "Planning analysis is adjacent to reporting."
+          "rationale": "Planning analysis is adjacent to reporting.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Planning analysis is adjacent to reporting.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     },
     {
       "id": "finance.accounting-practice",
@@ -274,7 +529,17 @@
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
           ],
-          "rationale": "Accounting practice can directly support financial reporting evidence."
+          "rationale": "Accounting practice can directly support financial reporting evidence.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Accounting practice can directly support financial reporting evidence.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
       ],
       "adjacentCategoryIds": [
@@ -283,9 +548,30 @@
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
           ],
-          "rationale": "Accounting practice does not prove a named accounting system."
+          "rationale": "Accounting practice does not prove a named accounting system.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Accounting practice does not prove a named accounting system.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for finance.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system",
+          "correlated-education-good-fit"
+        ]
+      }
     }
   ],
   "antiEquivalences": [
@@ -295,7 +581,17 @@
       "goldenCaseIds": [
         "finance-analyst-missing-accounting-system"
       ],
-      "rationale": "Excel analysis must not imply SAP FI experience."
+      "rationale": "Excel analysis must not imply SAP FI experience.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Excel analysis must not imply SAP FI experience.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     },
     {
       "leftTermId": "finance.excel",
@@ -303,7 +599,17 @@
       "goldenCaseIds": [
         "finance-analyst-missing-accounting-system"
       ],
-      "rationale": "Spreadsheet work must not imply a specific accounting system."
+      "rationale": "Spreadsheet work must not imply a specific accounting system.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Spreadsheet work must not imply a specific accounting system.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     },
     {
       "leftTermId": "finance.erp-finance",
@@ -311,11 +617,33 @@
       "goldenCaseIds": [
         "erp-specific-tool-missing"
       ],
-      "rationale": "Generic ERP finance evidence must not imply SAP FI."
+      "rationale": "Generic ERP finance evidence must not imply SAP FI.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Generic ERP finance evidence must not imply SAP FI.",
+        "goldenCaseIds": [
+          "erp-specific-tool-missing"
+        ]
+      }
     }
   ],
   "audit": {
     "source": "quick-260502-g04-plan-02",
     "updatedAt": "2026-05-02"
+  },
+  "governance": {
+    "validatedBy": "curria-job-targeting-hardening",
+    "validatedAt": "2026-05-02",
+    "reviewRequired": true,
+    "semanticRiskLevel": "medium",
+    "rationale": "Catalog governance for finance.",
+    "goldenCaseIds": [
+      "finance-analyst-missing-accounting-system",
+      "correlated-education-good-fit",
+      "erp-specific-tool-missing"
+    ]
   }
 }

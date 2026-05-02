@@ -11,11 +11,20 @@ import { buildOutputContractContext } from '@/lib/agent/context/schemas/build-ou
 import { buildWorkflowContext } from '@/lib/agent/context/workflows/build-workflow-context'
 import { buildRewriteTargetPlan } from '@/lib/agent/job-targeting/rewrite-target-plan'
 import { buildTargetedRewritePermissions } from '@/lib/agent/job-targeting/rewrite-permissions'
+import {
+  buildGeneratedClaimTraceFromSectionPlans,
+  buildSectionRewritePlan,
+} from '@/lib/agent/job-targeting/compatibility/rewrite-trace'
 import { buildRewritePlan } from '@/lib/agent/tools/build-rewrite-plan'
 import { formatResumeRewriteGuardrails } from '@/lib/agent/tools/resume-rewrite-guidelines'
 import { buildTargetedRewritePlan } from '@/lib/agent/tools/build-targeting-plan'
 import { rewriteSection } from '@/lib/agent/tools/rewrite-section'
 import type { AtsAnalysisResult, CoreRequirement, RewriteSectionInput, TargetingPlan } from '@/types/agent'
+import type {
+  GeneratedClaimTrace,
+  JobCompatibilityAssessment,
+  SectionRewritePlan,
+} from '@/lib/agent/job-targeting/compatibility/types'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
 
 type RewriteSectionName = RewriteSectionInput['section']
@@ -223,6 +232,34 @@ function buildTargetedPermissionInstructions(targetingPlan: TargetingPlan): stri
   return lines
 }
 
+function buildClaimPolicyInstructions(assessment?: JobCompatibilityAssessment): string[] {
+  if (!assessment) {
+    return []
+  }
+
+  const allowed = assessment.claimPolicy.allowedClaims.map((claim) => (
+    `- ${claim.id}: allowed "${claim.signal}" using ${claim.allowedTerms.join(', ') || 'resume evidence'}.`
+  ))
+  const cautious = assessment.claimPolicy.cautiousClaims.map((claim) => (
+    `- ${claim.id}: cautious "${claim.signal}". Use only related evidence: ${claim.allowedTerms.join(', ') || 'resume evidence'}. Template: ${claim.verbalizationTemplate ?? 'Use cautious bridge wording.'}`
+  ))
+  const forbidden = assessment.claimPolicy.forbiddenClaims.map((claim) => (
+    `- ${claim.id}: forbidden "${claim.signal}". Do not use: ${claim.prohibitedTerms.join(', ') || claim.signal}.`
+  ))
+
+  return [
+    'Structured claim policy is binding for this rewrite.',
+    'For each rewritten bullet, summary line, skill, education item, or certification item, use only allowed or cautious claim policy ids.',
+    'Never express a forbidden claim. Cautious claims must use cautious bridge wording and real evidence basis.',
+    'Allowed claim policy ids:',
+    ...(allowed.length > 0 ? allowed : ['- none']),
+    'Cautious claim policy ids:',
+    ...(cautious.length > 0 ? cautious : ['- none']),
+    'Forbidden claim policy ids:',
+    ...(forbidden.length > 0 ? forbidden : ['- none']),
+  ]
+}
+
 function splitTargetRequirements(targetingPlan: TargetingPlan): {
   coreRequirements: CoreRequirement[]
   preferredRequirements: CoreRequirement[]
@@ -389,6 +426,7 @@ function buildTargetJobSectionInstructions(
   gapAnalysis: GapAnalysisResult,
   targetingPlan: TargetingPlan,
   targetJobDescription: string,
+  assessment?: JobCompatibilityAssessment,
 ): string {
   const safeDirectEmphasis = targetingPlan.safeTargetingEmphasis?.safeDirectEmphasis ?? []
   const cautiousBridges = targetingPlan.safeTargetingEmphasis?.cautiousBridgeEmphasis ?? []
@@ -416,6 +454,7 @@ function buildTargetJobSectionInstructions(
       : '',
     `Gap snapshot: match score ${gapAnalysis.matchScore}/100; missing skills ${gapAnalysis.missingSkills.join(', ') || 'none'}; weak areas ${gapAnalysis.weakAreas.join(', ') || 'none'}.`,
     ...buildTargetedPermissionInstructions(targetingPlan),
+    ...buildClaimPolicyInstructions(assessment),
     ...buildSectionTargetPlanInstructions(targetingPlan, section),
   ].filter(Boolean)
 
@@ -737,6 +776,7 @@ type JobTargetingRewriteParams = {
   targetJobDescription: string
   gapAnalysis: GapAnalysisResult
   targetingPlan?: TargetingPlan
+  jobCompatibilityAssessment?: JobCompatibilityAssessment
   userId: string
   sessionId: string
 }
@@ -754,6 +794,8 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
     retriedSections: RewriteSectionName[]
     compactedSections: RewriteSectionName[]
   }
+  sectionRewritePlans?: SectionRewritePlan[]
+  generatedClaimTrace?: GeneratedClaimTrace[]
   error?: string
 }> {
   try {
@@ -763,6 +805,7 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
     const sectionAttempts: Partial<Record<RewriteSectionName, number>> = {}
     const retriedSections: RewriteSectionName[] = []
     const compactedSections: RewriteSectionName[] = []
+    const sectionRewritePlans: SectionRewritePlan[] = []
     const sections: RewriteSectionName[] = ['summary', 'experience', 'skills', 'education', 'certifications']
     const rewritePlan = params.mode === 'ats_enhancement'
       ? buildRewritePlan(params.cvState, params.atsAnalysis)
@@ -799,6 +842,7 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
             params.gapAnalysis,
             targetingPlan!,
             params.targetJobDescription,
+            params.jobCompatibilityAssessment,
           )
         : buildSectionInstructions(section, params.atsAnalysis, rewritePlan!)
       const targetKeywords = params.mode === 'job_targeting'
@@ -931,6 +975,14 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
         section,
         sectionData,
       )
+      if (params.mode === 'job_targeting' && params.jobCompatibilityAssessment) {
+        sectionRewritePlans.push(buildSectionRewritePlan({
+          section,
+          originalCvState: params.cvState,
+          generatedCvState: optimizedCvState,
+          claimPolicy: params.jobCompatibilityAssessment.claimPolicy,
+        }))
+      }
       changedSections.push(section)
       if (result.output.success) {
         notes.push(...result.output.changes_made)
@@ -958,6 +1010,12 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
         retriedSections,
         compactedSections,
       },
+      ...(sectionRewritePlans.length === 0
+        ? {}
+        : {
+          sectionRewritePlans,
+          generatedClaimTrace: buildGeneratedClaimTraceFromSectionPlans(sectionRewritePlans),
+        }),
     }
   } catch (error) {
     return {

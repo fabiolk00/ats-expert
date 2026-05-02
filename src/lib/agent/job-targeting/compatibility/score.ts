@@ -34,14 +34,28 @@ export function calculateJobCompatibilityScore(
       calculateDimensionBreakdown(dimension, requirements),
     ]),
   ) as Record<JobCompatibilityScoreDimensionId, JobCompatibilityScoreDimensionBreakdown>
-  const weightedTotal = SCORE_DIMENSIONS.reduce(
-    (total, dimension) => total + dimensionDetails[dimension].weightedScore,
+  const activeDimensions = SCORE_DIMENSIONS.filter((dimension) => (
+    dimensionDetails[dimension].requirementCount > 0
+  ))
+  const totalActiveWeight = activeDimensions.reduce(
+    (total, dimension) => total + JOB_COMPATIBILITY_SCORE_WEIGHTS[dimension],
     0,
   )
+  const activeWeights = Object.fromEntries(activeDimensions.map((dimension) => [
+    dimension,
+    totalActiveWeight === 0 ? 0 : roundTo(JOB_COMPATIBILITY_SCORE_WEIGHTS[dimension] / totalActiveWeight, 4),
+  ])) as Partial<Record<JobCompatibilityScoreDimensionId, number>>
+  const weightedTotal = activeDimensions.reduce(
+    (total, dimension) => total + (
+      dimensionDetails[dimension].rawScore * (activeWeights[dimension] ?? 0)
+    ),
+    0,
+  )
+  const warnings = requirements.length === 0 ? ['no_requirements_extracted'] : []
 
   return {
     version: JOB_COMPATIBILITY_SCORE_VERSION,
-    total: Math.round(weightedTotal * 100),
+    total: requirements.length === 0 ? 1 : Math.round(weightedTotal * 100),
     maxTotal: 100,
     adjacentDiscount: JOB_COMPATIBILITY_ADJACENT_DISCOUNT,
     dimensions: {
@@ -56,10 +70,13 @@ export function calculateJobCompatibilityScore(
       unsupported: countByProductGroup(requirements, 'unsupported'),
     },
     weights: JOB_COMPATIBILITY_SCORE_WEIGHTS,
+    activeWeights,
+    warnings,
     formula: {
       supportedValue: 1,
       adjacentValue: JOB_COMPATIBILITY_ADJACENT_DISCOUNT,
       unsupportedValue: 0,
+      confidenceMultiplier: true,
     },
     audit: {
       dimensionDetails,
@@ -76,10 +93,12 @@ function calculateDimensionBreakdown(
   ))
   const requirementCount = dimensionRequirements.length
   const rawScore = requirementCount === 0
-    ? 0.5
+    ? 0
     : roundTo(
       dimensionRequirements.reduce(
-        (total, requirement) => total + PRODUCT_GROUP_VALUES[requirement.productGroup],
+        (total, requirement) => total + (
+          PRODUCT_GROUP_VALUES[requirement.productGroup] * confidenceForScore(requirement)
+        ),
         0,
       ) / requirementCount,
       2,
@@ -95,6 +114,14 @@ function calculateDimensionBreakdown(
     rawScore,
     weightedScore: roundTo(rawScore * JOB_COMPATIBILITY_SCORE_WEIGHTS[dimension], 2),
   }
+}
+
+function confidenceForScore(requirement: RequirementEvidence): number {
+  if (requirement.productGroup === 'unsupported') {
+    return 1
+  }
+
+  return Math.max(0, Math.min(1, requirement.confidence || 0))
 }
 
 function scoreDimensionForRequirementKind(kind: RequirementKind): JobCompatibilityScoreDimensionId {

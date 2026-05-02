@@ -45,18 +45,48 @@
           "value": "Google Adwords",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for marketing.google-ads.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         },
         {
           "value": "paid search",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for marketing.google-ads.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "marketing.paid-media"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "marketing.meta-ads",
@@ -69,12 +99,32 @@
           "value": "Facebook Ads",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for marketing.meta-ads.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "marketing.paid-media"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "marketing.crm",
@@ -87,12 +137,32 @@
           "value": "customer relationship management",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for marketing.crm.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "marketing.crm-platform"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "marketing.hubspot",
@@ -105,12 +175,32 @@
           "value": "HubSpot CRM",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for marketing.hubspot.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "marketing.crm-platform"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "marketing.salesforce-marketing-cloud",
@@ -123,12 +213,32 @@
           "value": "Salesforce",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for marketing.salesforce-marketing-cloud.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "marketing.crm-platform"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "marketing.lifecycle-marketing",
@@ -141,12 +251,32 @@
           "value": "retention marketing",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for marketing.lifecycle-marketing.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "marketing.retention-marketing"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "marketing.seo",
@@ -159,12 +289,32 @@
           "value": "organic search",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for marketing.seo.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "marketing.content-marketing"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     }
   ],
   "categories": [
@@ -182,9 +332,29 @@
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
           ],
-          "rationale": "Paid and organic acquisition are adjacent acquisition channels."
+          "rationale": "Paid and organic acquisition are adjacent acquisition channels.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Paid and organic acquisition are adjacent acquisition channels.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "marketing.crm-platform",
@@ -193,24 +363,53 @@
         "marketing-ads-good-fit-with-missing-crm"
       ],
       "parentCategoryIds": [],
-      "equivalentCategoryIds": [
+      "equivalentCategoryIds": [],
+      "adjacentCategoryIds": [
         {
           "categoryId": "marketing.retention-marketing",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
           ],
-          "rationale": "CRM platform evidence can directly support retention marketing work."
-        }
-      ],
-      "adjacentCategoryIds": [
+          "rationale": "CRM platform evidence is strong adjacent context for retention marketing but should not become a direct lifecycle claim.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "CRM platform evidence is strong adjacent context for retention marketing but should not become a direct lifecycle claim.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
+        },
         {
           "categoryId": "marketing.paid-media",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
           ],
-          "rationale": "CRM and paid media can support the same funnel but do not prove each other."
+          "rationale": "CRM and paid media can support the same funnel but do not prove each other.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "CRM and paid media can support the same funnel but do not prove each other.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "marketing.retention-marketing",
@@ -219,24 +418,53 @@
         "marketing-ads-good-fit-with-missing-crm"
       ],
       "parentCategoryIds": [],
-      "equivalentCategoryIds": [
+      "equivalentCategoryIds": [],
+      "adjacentCategoryIds": [
         {
           "categoryId": "marketing.crm-platform",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
           ],
-          "rationale": "Retention marketing can directly support CRM campaign evidence."
-        }
-      ],
-      "adjacentCategoryIds": [
+          "rationale": "Retention marketing and CRM evidence are adjacent funnel work but should keep claims cautious unless the term is explicit.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Retention marketing and CRM evidence are adjacent funnel work but should keep claims cautious unless the term is explicit.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
+        },
         {
           "categoryId": "marketing.content-marketing",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
           ],
-          "rationale": "Content can support lifecycle campaigns but is not the same skill."
+          "rationale": "Content can support lifecycle campaigns but is not the same skill.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Content can support lifecycle campaigns but is not the same skill.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "marketing.content-marketing",
@@ -252,9 +480,29 @@
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
           ],
-          "rationale": "Content and paid media are adjacent acquisition workstreams."
+          "rationale": "Content and paid media are adjacent acquisition workstreams.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Content and paid media are adjacent acquisition workstreams.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for marketing.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     }
   ],
   "antiEquivalences": [
@@ -264,7 +512,17 @@
       "goldenCaseIds": [
         "marketing-ads-good-fit-with-missing-crm"
       ],
-      "rationale": "Paid acquisition evidence must not imply CRM operation."
+      "rationale": "Paid acquisition evidence must not imply CRM operation.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Paid acquisition evidence must not imply CRM operation.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "leftTermId": "marketing.hubspot",
@@ -272,11 +530,32 @@
       "goldenCaseIds": [
         "marketing-ads-good-fit-with-missing-crm"
       ],
-      "rationale": "One CRM tool must not imply another named CRM tool."
+      "rationale": "One CRM tool must not imply another named CRM tool.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "One CRM tool must not imply another named CRM tool.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     }
   ],
   "audit": {
     "source": "quick-260502-g04-plan-02",
     "updatedAt": "2026-05-02"
+  },
+  "governance": {
+    "validatedBy": "curria-job-targeting-hardening",
+    "validatedAt": "2026-05-02",
+    "reviewRequired": true,
+    "semanticRiskLevel": "medium",
+    "rationale": "Catalog governance for marketing.",
+    "goldenCaseIds": [
+      "marketing-ads-good-fit-with-missing-crm",
+      "correlated-education-good-fit"
+    ]
   }
 }

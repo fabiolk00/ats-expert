@@ -3,7 +3,10 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import type { LoadedJobTargetingCatalog } from '@/lib/agent/job-targeting/catalog/catalog-types'
+import type {
+  CatalogGovernance,
+  LoadedJobTargetingCatalog,
+} from '@/lib/agent/job-targeting/catalog/catalog-types'
 import { loadJobTargetingCatalog } from '@/lib/agent/job-targeting/catalog/catalog-loader'
 import {
   classifyRequirementEvidence,
@@ -36,6 +39,17 @@ const lockedGoldenCaseIds = [
   'marketing-ads-good-fit-with-missing-crm',
   'finance-analyst-missing-accounting-system',
 ] as const
+
+function governance(goldenCaseIds = ['case']): CatalogGovernance {
+  return {
+    validatedBy: 'matcher-test',
+    validatedAt: '2026-05-02',
+    reviewRequired: true,
+    semanticRiskLevel: 'low',
+    rationale: 'Test catalog relationship for generic matcher behavior.',
+    goldenCaseIds,
+  }
+}
 
 type GoldenRequirement = {
   id: string
@@ -239,6 +253,7 @@ describe('catalog-driven requirement evidence matcher', () => {
         version: 'test',
         domain: 'generic',
         goldenCaseIds: ['case'],
+        governance: governance(),
         requirementKinds: ['skill'],
         scoreDimensions: [{ id: 'skills', weight: 1 }],
         sectionWeights: { skills: 1, experience: 0, education: 0 },
@@ -248,6 +263,7 @@ describe('catalog-driven requirement evidence matcher', () => {
             id: 'term.required',
             label: 'Required Term',
             goldenCaseIds: ['case'],
+            governance: governance(),
             aliases: [],
             categoryIds: ['category.required'],
           },
@@ -255,6 +271,7 @@ describe('catalog-driven requirement evidence matcher', () => {
             id: 'term.evidence',
             label: 'Evidence Term',
             goldenCaseIds: ['case'],
+            governance: governance(),
             aliases: [],
             categoryIds: ['category.evidence'],
           },
@@ -264,14 +281,20 @@ describe('catalog-driven requirement evidence matcher', () => {
             id: 'category.required',
             label: 'Required Category',
             goldenCaseIds: ['case'],
+            governance: governance(),
             parentCategoryIds: [],
-            equivalentCategoryIds: [{ categoryId: 'category.evidence', goldenCaseIds: ['case'] }],
+            equivalentCategoryIds: [{
+              categoryId: 'category.evidence',
+              goldenCaseIds: ['case'],
+              governance: governance(),
+            }],
             adjacentCategoryIds: [],
           },
           {
             id: 'category.evidence',
             label: 'Evidence Category',
             goldenCaseIds: ['case'],
+            governance: governance(),
             parentCategoryIds: [],
             equivalentCategoryIds: [],
             adjacentCategoryIds: [],
@@ -319,6 +342,163 @@ describe('catalog-driven requirement evidence matcher', () => {
       productGroup: 'unsupported',
       evidenceLevel: 'unsupported_gap',
       source: 'fallback',
+    })
+  })
+
+  it('keeps the ambiguity resolver capped at adjacent evidence', async () => {
+    const catalog = await loadJobTargetingCatalog({ domainPackPaths })
+    const result = classifyRequirementEvidence({
+      requirement: requirement({ id: 'ambiguous-strong', text: 'Cross-functional platform ownership' }),
+      resumeEvidence: evidence([{ id: 'ambiguous-evidence', text: 'Partnered with leaders on recurring initiatives' }]),
+      catalog,
+      ambiguityResolver: () => ({
+        suggestedEvidenceLevel: 'strong_contextual_inference',
+        confidence: 0.95,
+        rationale: 'related context only',
+        supportingResumeSpans: ['Partnered with leaders on recurring initiatives'],
+        matchedResumeTerms: ['Partnered with leaders'],
+        evidenceIds: ['ambiguous-evidence'],
+      }),
+    })
+
+    expect(result).toMatchObject({
+      productGroup: 'adjacent',
+      evidenceLevel: 'strong_contextual_inference',
+      rewritePermission: 'can_bridge_carefully',
+      source: 'llm_ambiguous',
+    })
+  })
+
+  it('treats invalid ambiguity resolver output as unsupported', async () => {
+    const catalog = await loadJobTargetingCatalog({ domainPackPaths })
+    const result = classifyRequirementEvidence({
+      requirement: requirement({ id: 'ambiguous-invalid', text: 'Cross-functional platform ownership' }),
+      resumeEvidence: evidence([{ id: 'ambiguous-evidence', text: 'Partnered with leaders on recurring initiatives' }]),
+      catalog,
+      ambiguityResolver: () => ({
+        suggestedEvidenceLevel: 'explicit',
+        confidence: 0.95,
+        rationale: 'invalid promotion',
+        supportingResumeSpans: ['Partnered with leaders'],
+        matchedResumeTerms: ['Partnered with leaders'],
+      } as never),
+    })
+
+    expect(result).toMatchObject({
+      productGroup: 'unsupported',
+      evidenceLevel: 'unsupported_gap',
+      rewritePermission: 'must_not_claim',
+    })
+  })
+
+  it('does not let the ambiguity resolver bypass anti-equivalence', async () => {
+    const catalog = await loadJobTargetingCatalog({ domainPackPaths })
+    const result = classifyRequirementEvidence({
+      requirement: requirement({ id: 'anti-before-llm', text: 'Power Query data transformations' }),
+      resumeEvidence: evidence([{ id: 'blocked', text: 'Power BI dashboarding with SQL extracts' }]),
+      catalog,
+      ambiguityResolver: () => ({
+        suggestedEvidenceLevel: 'strong_contextual_inference',
+        confidence: 0.99,
+        rationale: 'should not win',
+        supportingResumeSpans: ['Power BI dashboarding with SQL extracts'],
+        matchedResumeTerms: ['Power BI'],
+        evidenceIds: ['blocked'],
+      }),
+    })
+
+    expect(result).toMatchObject({
+      productGroup: 'unsupported',
+      source: 'catalog_anti_equivalence',
+      rewritePermission: 'must_not_claim',
+    })
+  })
+
+  it('never promotes resolver output without supporting spans to supported', async () => {
+    const catalog = await loadJobTargetingCatalog({ domainPackPaths })
+    const result = classifyRequirementEvidence({
+      requirement: requirement({ id: 'ambiguous-no-spans', text: 'Cross-functional platform ownership' }),
+      resumeEvidence: evidence([{ id: 'ambiguous-evidence', text: 'Partnered with leaders on recurring initiatives' }]),
+      catalog,
+      ambiguityResolver: () => ({
+        suggestedEvidenceLevel: 'strong_contextual_inference',
+        confidence: 0.95,
+        rationale: 'missing spans',
+        supportingResumeSpans: [],
+        matchedResumeTerms: [],
+      }),
+    })
+
+    expect(result).toMatchObject({
+      productGroup: 'adjacent',
+      evidenceLevel: 'semantic_bridge_only',
+      rewritePermission: 'can_mention_as_related_context',
+    })
+  })
+
+  it('uses the strongest resume evidence source when the same term appears in skills and experience', async () => {
+    const catalog = await loadJobTargetingCatalog({ domainPackPaths })
+    const result = classifyRequirementEvidence({
+      requirement: requirement({ id: 'source-confidence', text: 'Power BI' }),
+      resumeEvidence: evidence([
+        {
+          id: 'skills-only',
+          text: 'Power BI',
+          section: 'skills',
+          sourceKind: 'skill',
+          sourceConfidence: 0.65,
+        },
+        {
+          id: 'experience-proof',
+          text: 'Delivered Power BI dashboards for executives',
+          section: 'experience',
+          sourceKind: 'experience_bullet',
+          sourceConfidence: 1,
+        },
+      ]),
+      catalog,
+    })
+
+    expect(result.productGroup).toBe('supported')
+    expect(result.confidence).toBe(1)
+    expect(result.supportingResumeSpans.map((span) => span.id)).toEqual([
+      'skills-only',
+      'experience-proof',
+    ])
+  })
+
+  it('downgrades weak source confidence and negative qualifiers conservatively', async () => {
+    const catalog = await loadJobTargetingCatalog({ domainPackPaths })
+
+    expect(classifyRequirementEvidence({
+      requirement: requirement({ id: 'summary-only', text: 'Power BI' }),
+      resumeEvidence: evidence([{
+        id: 'summary-only',
+        text: 'Power BI',
+        section: 'summary',
+        sourceKind: 'summary_sentence',
+        sourceConfidence: 0.55,
+      }]),
+      catalog,
+    })).toMatchObject({
+      productGroup: 'adjacent',
+      rewritePermission: 'can_bridge_carefully',
+    })
+
+    expect(classifyRequirementEvidence({
+      requirement: requirement({ id: 'negative', text: 'Power BI' }),
+      resumeEvidence: evidence([{
+        id: 'negative',
+        text: 'Sem experiencia com Power BI',
+        section: 'experience',
+        sourceKind: 'experience_bullet',
+        sourceConfidence: 1,
+        qualifier: 'negative',
+      }]),
+      catalog,
+    })).toMatchObject({
+      productGroup: 'unsupported',
+      rewritePermission: 'must_not_claim',
     })
   })
 

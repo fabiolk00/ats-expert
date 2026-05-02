@@ -9,7 +9,7 @@
 //
 // All five files must be included. Running a subset masks cross-file regressions.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Session } from '@/types/agent'
 import type { TargetingPlan } from '@/types/agent'
@@ -465,8 +465,15 @@ function buildOpenAIResponse(text: string) {
 }
 
 describe('ATS enhancement reliability hardening', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_ENABLED', 'true')
+    vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_SHADOW_MODE', 'false')
+    vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_SOURCE_OF_TRUTH', 'true')
     resetOpenAICircuitBreakerForTest()
     mockUpdateSession.mockResolvedValue(undefined)
     mockCreateCvVersion.mockResolvedValue({
@@ -2083,6 +2090,57 @@ describe('ATS enhancement reliability hardening', () => {
     }))
   })
 
+  it('runs JobCompatibilityAssessment in shadow mode without changing rewrite source of truth', async () => {
+    vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_ENABLED', 'true')
+    vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_SHADOW_MODE', 'true')
+    vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_SOURCE_OF_TRUTH', 'false')
+
+    const session = buildSession()
+    const jobCompatibilityAssessment = buildPipelineAssessment()
+    session.agentState.workflowMode = 'job_targeting'
+    session.agentState.targetJobDescription = [
+      'Cargo: Analytics Engineer',
+      'Responsabilidades: construir dashboards e automacoes de dados.',
+      'Requisitos: SQL, Power BI, BigQuery.',
+    ].join('\n')
+    session.agentState.rewriteStatus = 'pending'
+    mockEvaluateJobCompatibility.mockResolvedValue(jobCompatibilityAssessment)
+    mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => ({
+      output: buildSuccessfulRewriteOutput({
+        ...buildCvState(),
+        summary: 'Analista de dados com foco em SQL, Power BI e automacao orientada a negocio.',
+      }, section),
+    }))
+
+    const result = await runJobTargetingPipeline(session)
+    const buildPlanInput = mockBuildTargetedRewritePlan.mock.calls[0]?.[0] as {
+      jobCompatibilityAssessment?: JobCompatibilityAssessment
+    }
+
+    expect(result.success).toBe(true)
+    expect(buildPlanInput.jobCompatibilityAssessment).toBeUndefined()
+    expect(session.agentState.jobCompatibilityAssessment).toBeUndefined()
+    expect(session.agentState.jobCompatibilityAssessmentShadow).toBe(jobCompatibilityAssessment)
+    expect(mockValidateRewrite).toHaveBeenCalledWith(
+      session.cvState,
+      expect.any(Object),
+      expect.not.objectContaining({
+        jobCompatibilityAssessment,
+      }),
+    )
+    expect(mockLogInfo).toHaveBeenCalledWith('job_targeting.compatibility.shadow_comparison', expect.objectContaining({
+      sessionId: session.id,
+      userId: session.userId,
+      legacyScore: 68,
+      assessmentScore: jobCompatibilityAssessment.scoreBreakdown.total,
+      scoreDelta: expect.any(Number),
+      assessmentSupportedCount: jobCompatibilityAssessment.supportedRequirements.length,
+      assessmentAdjacentCount: jobCompatibilityAssessment.adjacentRequirements.length,
+      assessmentUnsupportedCount: jobCompatibilityAssessment.unsupportedRequirements.length,
+      assessmentForbiddenClaimCount: jobCompatibilityAssessment.claimPolicy.forbiddenClaims.length,
+    }))
+  })
+
   it('replaces a previous ATS highlight artifact with a job_targeting highlight on successful targeting', async () => {
     const session = buildSession()
     session.agentState.workflowMode = 'job_targeting'
@@ -3470,6 +3528,16 @@ describe('ATS enhancement reliability hardening', () => {
       code: 'unsafe_direct_claim',
       issueType: 'unsupported_claim',
       message: 'Structured cautious claim promoted directly.',
+    },
+    {
+      code: 'missing_claim_trace',
+      issueType: 'unsupported_claim',
+      message: 'Generated text missing claim trace.',
+    },
+    {
+      code: 'unsupported_expressed_signal',
+      issueType: 'unsupported_claim',
+      message: 'Generated text expressed an unsupported signal.',
     },
   ] as const)('keeps accepted low-fit override blocked for structured $code issues', async ({ code, issueType, message }) => {
     const session = buildSession()

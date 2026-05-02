@@ -46,18 +46,48 @@
           "value": "Java backend",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.java.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         },
         {
           "value": "Java development",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.java.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "software-engineering.backend-language"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.javascript",
@@ -70,12 +100,32 @@
           "value": "JS",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.javascript.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "software-engineering.frontend-language"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.typescript",
@@ -88,12 +138,32 @@
           "value": "TS",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.typescript.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "software-engineering.frontend-language"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.nodejs",
@@ -106,12 +176,32 @@
           "value": "Node",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.nodejs.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "software-engineering.backend-runtime"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.rest-apis",
@@ -125,18 +215,49 @@
           "value": "APIs REST",
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.rest-apis.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         },
         {
           "value": "API integrations",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.rest-apis.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "software-engineering.api-integration"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa",
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.spring-boot",
@@ -149,12 +270,32 @@
           "value": "Spring",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.spring-boot.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "software-engineering.backend-framework"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.git",
@@ -167,12 +308,32 @@
           "value": "version control",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.git.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "software-engineering.delivery-practice"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.cloud",
@@ -185,18 +346,48 @@
           "value": "AWS",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.cloud.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         },
         {
           "value": "Azure",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for software-engineering.cloud.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "software-engineering.cloud-platform"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     }
   ],
   "categories": [
@@ -214,9 +405,29 @@
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
           ],
-          "rationale": "Runtime experience is adjacent to backend language evidence."
+          "rationale": "Runtime experience is adjacent to backend language evidence.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Runtime experience is adjacent to backend language evidence.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.frontend-language",
@@ -232,9 +443,29 @@
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
           ],
-          "rationale": "Frontend delivery can be adjacent to API integration."
+          "rationale": "Frontend delivery can be adjacent to API integration.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Frontend delivery can be adjacent to API integration.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.backend-runtime",
@@ -250,9 +481,29 @@
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
           ],
-          "rationale": "Runtime and framework evidence are adjacent but not interchangeable."
+          "rationale": "Runtime and framework evidence are adjacent but not interchangeable.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Runtime and framework evidence are adjacent but not interchangeable.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.backend-framework",
@@ -268,9 +519,29 @@
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
           ],
-          "rationale": "Framework use can support backend experience without proving a different language."
+          "rationale": "Framework use can support backend experience without proving a different language.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Framework use can support backend experience without proving a different language.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.api-integration",
@@ -287,9 +558,30 @@
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
           ],
-          "rationale": "Integration work is adjacent to delivery practice."
+          "rationale": "Integration work is adjacent to delivery practice.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Integration work is adjacent to delivery practice.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa",
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.delivery-practice",
@@ -305,9 +597,29 @@
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
           ],
-          "rationale": "Cloud delivery can be adjacent to engineering practice."
+          "rationale": "Cloud delivery can be adjacent to engineering practice.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Cloud delivery can be adjacent to engineering practice.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "software-engineering.cloud-platform",
@@ -323,9 +635,29 @@
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
           ],
-          "rationale": "Cloud platform exposure can be adjacent to API delivery."
+          "rationale": "Cloud platform exposure can be adjacent to API delivery.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Cloud platform exposure can be adjacent to API delivery.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for software-engineering.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     }
   ],
   "antiEquivalences": [
@@ -335,7 +667,17 @@
       "goldenCaseIds": [
         "software-engineering-low-fit-from-data-profile"
       ],
-      "rationale": "Java evidence must not be treated as JavaScript evidence."
+      "rationale": "Java evidence must not be treated as JavaScript evidence.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Java evidence must not be treated as JavaScript evidence.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "leftTermId": "software-engineering.java",
@@ -343,7 +685,17 @@
       "goldenCaseIds": [
         "software-engineering-low-fit-from-data-profile"
       ],
-      "rationale": "Java evidence must not be treated as TypeScript evidence."
+      "rationale": "Java evidence must not be treated as TypeScript evidence.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Java evidence must not be treated as TypeScript evidence.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "leftTermId": "software-engineering.spring-boot",
@@ -351,11 +703,33 @@
       "goldenCaseIds": [
         "software-engineering-low-fit-from-data-profile"
       ],
-      "rationale": "A specific backend framework does not prove a different runtime."
+      "rationale": "A specific backend framework does not prove a different runtime.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "A specific backend framework does not prove a different runtime.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     }
   ],
   "audit": {
     "source": "quick-260502-g04-plan-02",
     "updatedAt": "2026-05-02"
+  },
+  "governance": {
+    "validatedBy": "curria-job-targeting-hardening",
+    "validatedAt": "2026-05-02",
+    "reviewRequired": true,
+    "semanticRiskLevel": "medium",
+    "rationale": "Catalog governance for software-engineering.",
+    "goldenCaseIds": [
+      "software-engineering-low-fit-from-data-profile",
+      "automation-adjacent-without-rpa",
+      "data-bi-good-fit-with-specific-gaps"
+    ]
   }
 }

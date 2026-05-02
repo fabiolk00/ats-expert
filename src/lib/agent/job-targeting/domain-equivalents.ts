@@ -391,6 +391,27 @@ function categoryAndTermHaveRelationship(
   })
 }
 
+function termsHaveCategoryRelationship(
+  leftTermRef: CatalogTermRef,
+  rightTermRef: CatalogTermRef,
+  index: CatalogIndex,
+  relationship: 'equivalent' | 'adjacent',
+): boolean {
+  if (termPairIsBlocked(leftTermRef, rightTermRef, index)) {
+    return false
+  }
+
+  return leftTermRef.term.categoryIds.some((leftCategoryId) => {
+    const leftCategory = index.categoriesById.get(leftCategoryId)
+
+    return Boolean(leftCategory && rightTermRef.term.categoryIds.some((rightCategoryId) => {
+      const rightCategory = index.categoriesById.get(rightCategoryId)
+
+      return Boolean(rightCategory && categoriesAreRelated(leftCategory, rightCategory, relationship))
+    }))
+  })
+}
+
 function collectRuleResumeMatches(
   resumeCatalogEvidence: ReturnType<typeof findResumeCatalogEvidence>,
   matchingJobSignals: CatalogSignalMatch[],
@@ -400,6 +421,7 @@ function collectRuleResumeMatches(
   const matches = resumeCatalogEvidence.filter((resumeEntry) => matchingJobSignals.some((jobMatch) => (
     jobMatch.terms.some((jobTerm) => resumeEntry.terms.some((resumeTerm) => (
       termPairHasRelationship(jobTerm, resumeTerm, index, relationship)
+      || termsHaveCategoryRelationship(jobTerm, resumeTerm, index, relationship)
     )))
     || jobMatch.categories.some((jobCategory) => resumeEntry.terms.some((resumeTerm) => (
       categoryAndTermHaveRelationship(jobCategory, resumeTerm, index, relationship)
@@ -410,6 +432,42 @@ function collectRuleResumeMatches(
   )))
 
   return Array.from(new Map(matches.map((entry) => [`${entry.evidence.term}|${entry.evidence.span}`, entry.evidence])).values())
+}
+
+function jobMatchesIncludeBlockedTermPair(
+  matchingJobSignals: CatalogSignalMatch[],
+  index: CatalogIndex,
+): boolean {
+  const termsById = new Map<string, CatalogTermRef>()
+
+  matchingJobSignals.forEach((match) => {
+    match.terms.forEach((termRef) => {
+      termsById.set(termRef.term.id, termRef)
+    })
+  })
+
+  const terms = Array.from(termsById.values())
+  for (let leftIndex = 0; leftIndex < terms.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < terms.length; rightIndex += 1) {
+      const leftTerm = terms[leftIndex]
+      const rightTerm = terms[rightIndex]
+
+      if (leftTerm && rightTerm && termPairIsBlocked(leftTerm, rightTerm, index)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+function jobMatchesIncludeAntiEquivalentTerm(
+  matchingJobSignals: CatalogSignalMatch[],
+  index: CatalogIndex,
+): boolean {
+  return matchingJobSignals.some((match) => match.terms.some((termRef) => (
+    Array.from(index.antiEquivalentPairs).some((pairKey) => pairKey.split('::').includes(termRef.term.id))
+  )))
 }
 
 function buildDomainEquivalentRules(): DomainEquivalentRule[] {
@@ -478,6 +536,13 @@ export function findDomainEquivalentMatch(
       supportingResumeSpans: equivalentMatches.map((entry) => entry.span),
       rationale: 'The job signal is supported by catalog-equivalent resume evidence.',
     }
+  }
+
+  if (
+    jobMatchesIncludeBlockedTermPair(jobMatches, index)
+    || jobMatchesIncludeAntiEquivalentTerm(jobMatches, index)
+  ) {
+    return null
   }
 
   const adjacentMatches = collectRuleResumeMatches(resumeCatalogEvidence, jobMatches, 'adjacent', index)

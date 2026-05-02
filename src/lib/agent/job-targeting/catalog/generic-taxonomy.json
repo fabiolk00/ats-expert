@@ -38,5 +38,15 @@
   "audit": {
     "source": "quick-260502-g04-plan-01",
     "updatedAt": "2026-05-02"
+  },
+  "governance": {
+    "validatedBy": "curria-job-targeting-hardening",
+    "validatedAt": "2026-05-02",
+    "reviewRequired": true,
+    "semanticRiskLevel": "medium",
+    "rationale": "Catalog governance for generic-taxonomy.",
+    "goldenCaseIds": [
+      "catalog-contract-generic-taxonomy"
+    ]
   }
 }

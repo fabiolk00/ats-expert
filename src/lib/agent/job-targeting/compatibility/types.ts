@@ -68,6 +68,50 @@ export type JobCompatibilityEvidenceSourceKind =
   | 'education_entry'
   | 'certification_entry'
 
+export type EvidenceQualifier =
+  | 'negative'
+  | 'basic'
+  | 'introductory'
+  | 'learning'
+  | 'familiarity'
+  | 'expired'
+  | 'strong'
+  | 'unknown'
+
+export type GeneratedClaimTraceSection =
+  | 'summary'
+  | 'experience'
+  | 'skills'
+  | 'education'
+  | 'certifications'
+
+export type GeneratedClaimTraceValidationStatus = 'valid' | 'warning' | 'invalid'
+
+export interface SectionRewritePlan {
+  section: GeneratedClaimTraceSection
+  items: Array<{
+    targetPath: string
+    intendedText: string
+    claimPolicyIds: string[]
+    expressedSignals: string[]
+    evidenceBasis: string[]
+    permissionLevel: Extract<ClaimPolicyPermission, 'allowed' | 'cautious'>
+    prohibitedTermsAcknowledged: string[]
+  }>
+}
+
+export interface GeneratedClaimTrace {
+  section: GeneratedClaimTraceSection
+  itemPath: string
+  generatedText: string
+  expressedSignals: string[]
+  usedClaimPolicyIds: string[]
+  evidenceBasis: string[]
+  prohibitedTermsFound: string[]
+  validationStatus: GeneratedClaimTraceValidationStatus
+  rationale: string
+}
+
 export type JobCompatibilityRequirementKind = RequirementKind
 export type JobCompatibilityRequirementImportance = RequirementImportance
 
@@ -99,6 +143,8 @@ export interface JobCompatibilityEvidence {
   section: JobCompatibilityEvidenceSection
   sourceKind: JobCompatibilityEvidenceSourceKind
   cvPath: string
+  sourceConfidence: number
+  qualifier: EvidenceQualifier
   entryIndex?: number
   bulletIndex?: number
   catalogTermIds?: string[]
@@ -186,10 +232,13 @@ export interface JobCompatibilityScoreBreakdown {
     unsupported: number
   }
   weights: Record<JobCompatibilityScoreDimensionId, number>
+  activeWeights: Partial<Record<JobCompatibilityScoreDimensionId, number>>
+  warnings: string[]
   formula: {
     supportedValue: 1
     adjacentValue: 0.5
     unsupportedValue: 0
+    confidenceMultiplier: true
   }
   audit: {
     dimensionDetails: Record<JobCompatibilityScoreDimensionId, JobCompatibilityScoreDimensionBreakdown>
@@ -261,6 +310,7 @@ export interface JobCompatibilityAssessment {
       criticalGaps: number
       reviewNeededGaps: number
     }
+    warnings: string[]
     runIds?: {
       userId?: string
       sessionId?: string

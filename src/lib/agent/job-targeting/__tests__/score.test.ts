@@ -34,7 +34,7 @@ function requirement(
 }
 
 describe('job compatibility score', () => {
-  it('uses the locked job-compat-score-v1 weights and adjacent discount', () => {
+  it('uses locked weights when all dimensions are present', () => {
     const score = calculateJobCompatibilityScore([
       requirement({ id: 'skill-supported', kind: 'skill', productGroup: 'supported' }),
       requirement({ id: 'skill-adjacent', kind: 'skill', productGroup: 'adjacent' }),
@@ -48,6 +48,11 @@ describe('job compatibility score', () => {
     expect(score.maxTotal).toBe(100)
     expect(score.adjacentDiscount).toBe(0.5)
     expect(score.weights).toEqual({
+      skills: 0.34,
+      experience: 0.46,
+      education: 0.2,
+    })
+    expect(score.activeWeights).toEqual({
       skills: 0.34,
       experience: 0.46,
       education: 0.2,
@@ -83,27 +88,77 @@ describe('job compatibility score', () => {
     })
   })
 
-  it('keeps empty dimensions neutral while preserving audit counts', () => {
+  it('redistributes education weight when education requirements are absent', () => {
+    const score = calculateJobCompatibilityScore([
+      requirement({ id: 'skill-supported', kind: 'skill', productGroup: 'supported' }),
+      requirement({ id: 'experience-unsupported', kind: 'responsibility', productGroup: 'unsupported' }),
+    ])
+
+    expect(score.total).toBe(43)
+    expect(score.activeWeights).toEqual({
+      skills: 0.425,
+      experience: 0.575,
+    })
+    expect(score.audit.dimensionDetails.experience).toMatchObject({
+      requirementCount: 1,
+      rawScore: 0,
+    })
+    expect(score.audit.dimensionDetails.education).toMatchObject({
+      requirementCount: 0,
+      rawScore: 0,
+      weightedScore: 0,
+    })
+  })
+
+  it('redistributes experience weight when experience requirements are absent', () => {
+    const score = calculateJobCompatibilityScore([
+      requirement({ id: 'skill-supported', kind: 'skill', productGroup: 'supported' }),
+      requirement({ id: 'education-unsupported', kind: 'education', productGroup: 'unsupported' }),
+    ])
+
+    expect(score.total).toBe(63)
+    expect(score.activeWeights).toEqual({
+      skills: 0.6296,
+      education: 0.3704,
+    })
+  })
+
+  it('uses a single active dimension as 100 percent of the score', () => {
     const score = calculateJobCompatibilityScore([
       requirement({ id: 'skill-supported', kind: 'skill', productGroup: 'supported' }),
     ])
 
-    expect(score.total).toBe(67)
-    expect(score.counts).toEqual({
-      total: 1,
-      supported: 1,
-      adjacent: 0,
-      unsupported: 0,
+    expect(score.total).toBe(100)
+    expect(score.activeWeights).toEqual({
+      skills: 1,
     })
-    expect(score.audit.dimensionDetails.experience).toMatchObject({
-      requirementCount: 0,
-      rawScore: 0.5,
-      weightedScore: 0.23,
-    })
-    expect(score.audit.dimensionDetails.education).toMatchObject({
-      requirementCount: 0,
-      rawScore: 0.5,
-      weightedScore: 0.1,
-    })
+  })
+
+  it('uses a documented conservative fallback when no requirements are extracted', () => {
+    const score = calculateJobCompatibilityScore([])
+
+    expect(score.total).toBe(1)
+    expect(score.activeWeights).toEqual({})
+    expect(score.warnings).toContain('no_requirements_extracted')
+  })
+
+  it('applies evidence confidence to supported and adjacent contributions', () => {
+    const score = calculateJobCompatibilityScore([
+      requirement({
+        id: 'skill-supported-from-skills-only',
+        kind: 'skill',
+        productGroup: 'supported',
+        confidence: 0.65,
+      }),
+      requirement({
+        id: 'skill-adjacent',
+        kind: 'skill',
+        productGroup: 'adjacent',
+        confidence: 0.8,
+      }),
+    ])
+
+    expect(score.total).toBe(53)
+    expect(score.dimensions.skills).toBe(53)
   })
 })

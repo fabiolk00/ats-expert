@@ -128,4 +128,53 @@ describe('resume evidence extraction', () => {
       'experience[0].bullets[1]',
     ])
   })
+
+  it('annotates source confidence and generic evidence qualifiers', () => {
+    const cvState: CVState = {
+      fullName: 'Candidate Name',
+      email: 'candidate@example.com',
+      phone: '+55 11 99999-0000',
+      summary: 'Conhecimento basico em planejamento operacional.',
+      skills: ['Aprendendo rotinas de automacao'],
+      experience: [
+        {
+          title: 'Analyst',
+          company: 'Example Organization',
+          startDate: '2021',
+          endDate: 'present',
+          bullets: [
+            'Sem experiencia com sistemas dedicados de atendimento',
+            'Experiencia avancada em melhoria de processos',
+          ],
+        },
+      ],
+      education: [],
+      certifications: [],
+    }
+
+    const evidence = extractResumeEvidence(cvState)
+
+    expect(evidence).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        sourceKind: 'summary_sentence',
+        sourceConfidence: 0.55,
+        qualifier: 'basic',
+      }),
+      expect.objectContaining({
+        sourceKind: 'skill',
+        sourceConfidence: 0.65,
+        qualifier: 'learning',
+      }),
+      expect.objectContaining({
+        text: 'Sem experiencia com sistemas dedicados de atendimento',
+        sourceConfidence: 1,
+        qualifier: 'negative',
+      }),
+      expect.objectContaining({
+        text: 'Experiencia avancada em melhoria de processos',
+        sourceConfidence: 1,
+        qualifier: 'strong',
+      }),
+    ]))
+  })
 })

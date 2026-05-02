@@ -45,12 +45,32 @@
           "value": "Salesforce CRM",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for sales.salesforce.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "sales.crm-platform"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for sales.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "sales.hubspot",
@@ -63,12 +83,32 @@
           "value": "HubSpot Sales Hub",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for sales.hubspot.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "sales.crm-platform"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for sales.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "sales.crm",
@@ -81,12 +121,32 @@
           "value": "customer relationship management",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for sales.crm.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "sales.crm-platform"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for sales.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "sales.enterprise-sales",
@@ -99,12 +159,32 @@
           "value": "vendas enterprise",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for sales.enterprise-sales.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "sales.account-strategy"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for sales.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     },
     {
       "id": "sales.pipeline-management",
@@ -117,12 +197,32 @@
           "value": "gestao de funil",
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for sales.pipeline-management.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "sales.sales-process"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for sales.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "sales.account-management",
@@ -135,12 +235,32 @@
           "value": "gestao de contas",
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for sales.account-management.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "sales.account-strategy"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for sales.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     }
   ],
   "categories": [
@@ -157,7 +277,17 @@
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
           ],
-          "rationale": "CRM use can directly support pipeline process evidence."
+          "rationale": "CRM use can directly support pipeline process evidence.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "CRM use can directly support pipeline process evidence.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "adjacentCategoryIds": [
@@ -166,9 +296,29 @@
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
           ],
-          "rationale": "CRM work can be adjacent to account strategy."
+          "rationale": "CRM work can be adjacent to account strategy.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "CRM work can be adjacent to account strategy.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for sales.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "sales.sales-process",
@@ -183,7 +333,17 @@
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
           ],
-          "rationale": "Pipeline management can directly support CRM workflow evidence."
+          "rationale": "Pipeline management can directly support CRM workflow evidence.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Pipeline management can directly support CRM workflow evidence.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
       ],
       "adjacentCategoryIds": [
@@ -192,9 +352,29 @@
           "goldenCaseIds": [
             "software-engineering-low-fit-from-data-profile"
           ],
-          "rationale": "Sales process is adjacent to account strategy."
+          "rationale": "Sales process is adjacent to account strategy.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Sales process is adjacent to account strategy.",
+            "goldenCaseIds": [
+              "software-engineering-low-fit-from-data-profile"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for sales.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "id": "sales.account-strategy",
@@ -210,9 +390,29 @@
           "goldenCaseIds": [
             "marketing-ads-good-fit-with-missing-crm"
           ],
-          "rationale": "Account strategy can be adjacent to sales process."
+          "rationale": "Account strategy can be adjacent to sales process.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Account strategy can be adjacent to sales process.",
+            "goldenCaseIds": [
+              "marketing-ads-good-fit-with-missing-crm"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for sales.",
+        "goldenCaseIds": [
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
     }
   ],
   "antiEquivalences": [
@@ -222,7 +422,17 @@
       "goldenCaseIds": [
         "marketing-ads-good-fit-with-missing-crm"
       ],
-      "rationale": "Generic CRM evidence must not imply Salesforce."
+      "rationale": "Generic CRM evidence must not imply Salesforce.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Generic CRM evidence must not imply Salesforce.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     },
     {
       "leftTermId": "sales.hubspot",
@@ -230,11 +440,32 @@
       "goldenCaseIds": [
         "marketing-ads-good-fit-with-missing-crm"
       ],
-      "rationale": "One CRM platform must not imply another named platform."
+      "rationale": "One CRM platform must not imply another named platform.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "One CRM platform must not imply another named platform.",
+        "goldenCaseIds": [
+          "marketing-ads-good-fit-with-missing-crm"
+        ]
+      }
     }
   ],
   "audit": {
     "source": "quick-260502-g04-plan-02",
     "updatedAt": "2026-05-02"
+  },
+  "governance": {
+    "validatedBy": "curria-job-targeting-hardening",
+    "validatedAt": "2026-05-02",
+    "reviewRequired": true,
+    "semanticRiskLevel": "medium",
+    "rationale": "Catalog governance for sales.",
+    "goldenCaseIds": [
+      "marketing-ads-good-fit-with-missing-crm",
+      "software-engineering-low-fit-from-data-profile"
+    ]
   }
 }

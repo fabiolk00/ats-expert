@@ -46,10 +46,17 @@ function scoreBreakdown(overrides: Partial<JobCompatibilityScoreBreakdown> = {})
       experience: 0.46,
       education: 0.2,
     },
+    activeWeights: {
+      skills: 0.34,
+      experience: 0.46,
+      education: 0.2,
+    },
+    warnings: [],
     formula: {
       supportedValue: 1,
       adjacentValue: 0.5,
       unsupportedValue: 0,
+      confidenceMultiplier: true,
     },
     audit: {
       dimensionDetails: {
@@ -229,6 +236,7 @@ export function buildCompatibilityAssessmentFixture(
         criticalGaps: 1,
         reviewNeededGaps: 0,
       },
+      warnings: [],
     },
     ...overrides,
   }

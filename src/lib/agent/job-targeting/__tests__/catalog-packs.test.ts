@@ -76,6 +76,50 @@ function collectPackGoldenCaseIds(pack: JobTargetingCatalogPack): string[] {
   return [...ids].sort()
 }
 
+function expectGovernance(
+  governance: JobTargetingCatalogPack['governance'],
+  context: string,
+) {
+  expect(governance.validatedBy, `${context} missing validatedBy`).toEqual(expect.any(String))
+  expect(governance.validatedAt, `${context} missing validatedAt`).toEqual(expect.any(String))
+  expect(governance.reviewRequired, `${context} must require review`).toBe(true)
+  expect(['low', 'medium', 'high'], `${context} invalid semantic risk`).toContain(governance.semanticRiskLevel)
+  expect(governance.rationale, `${context} missing rationale`).toEqual(expect.any(String))
+  expect(governance.goldenCaseIds.length, `${context} missing golden cases`).toBeGreaterThan(0)
+  if (governance.semanticRiskLevel === 'high') {
+    expect(governance.reviewers?.length ?? 0, `${context} high risk needs reviewers`).toBeGreaterThanOrEqual(2)
+  }
+}
+
+function expectPackGovernance(pack: JobTargetingCatalogPack) {
+  expectGovernance(pack.governance, `${pack.id}`)
+
+  pack.terms.forEach((term) => {
+    expectGovernance(term.governance, `${pack.id}:${term.id}`)
+    term.aliases.forEach((alias) => {
+      expectGovernance(alias.governance, `${pack.id}:${term.id}:${alias.value}`)
+    })
+  })
+
+  pack.categories.forEach((category) => {
+    expectGovernance(category.governance, `${pack.id}:${category.id}`)
+    category.equivalentCategoryIds.forEach((relationship) => {
+      expectGovernance(relationship.governance, `${pack.id}:${category.id}:equivalent:${relationship.categoryId}`)
+    })
+    category.adjacentCategoryIds.forEach((relationship) => {
+      expectGovernance(relationship.governance, `${pack.id}:${category.id}:adjacent:${relationship.categoryId}`)
+    })
+  })
+
+  pack.antiEquivalences.forEach((antiEquivalence) => {
+    expectGovernance(
+      antiEquivalence.governance,
+      `${pack.id}:${antiEquivalence.leftTermId}:${antiEquivalence.rightTermId}`,
+    )
+    expect(antiEquivalence.governance.rationale).toEqual(expect.any(String))
+  })
+}
+
 function expectPackReferencesToResolve(pack: JobTargetingCatalogPack) {
   const termIds = new Set(pack.terms.map((term) => term.id))
   const categoryIds = new Set(pack.categories.map((category) => category.id))
@@ -150,6 +194,7 @@ describe('job targeting catalog domain packs', () => {
 
     loaded.domainPacks.forEach((pack) => {
       expectPackReferencesToResolve(pack)
+      expectPackGovernance(pack)
       collectPackGoldenCaseIds(pack).forEach((id) => {
         expect(lockedGoldenCaseIds, `${pack.id} references unlocked golden case ${id}`).toContain(id)
         allCatalogGoldenCaseIds.add(id)

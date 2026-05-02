@@ -46,12 +46,32 @@
           "value": "talent acquisition",
           "goldenCaseIds": [
             "correlated-education-good-fit"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for hr.recruiting.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "hr.talent-acquisition"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     },
     {
       "id": "hr.ats",
@@ -64,12 +84,32 @@
           "value": "applicant tracking system",
           "goldenCaseIds": [
             "correlated-education-good-fit"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for hr.ats.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "hr.hr-systems"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     },
     {
       "id": "hr.payroll",
@@ -82,12 +122,32 @@
           "value": "payroll",
           "goldenCaseIds": [
             "correlated-education-good-fit"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for hr.payroll.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "hr.hr-systems"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     },
     {
       "id": "hr.people-analytics",
@@ -100,18 +160,48 @@
           "value": "HR analytics",
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for hr.people-analytics.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         },
         {
           "value": "RH analytics",
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for hr.people-analytics.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "hr.people-analytics"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "hr.training",
@@ -124,12 +214,32 @@
           "value": "learning and development",
           "goldenCaseIds": [
             "correlated-education-good-fit"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for hr.training.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "hr.learning-development"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     },
     {
       "id": "hr.compensation",
@@ -142,12 +252,32 @@
           "value": "compensation and benefits",
           "goldenCaseIds": [
             "correlated-education-good-fit"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for hr.compensation.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "hr.compensation"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     },
     {
       "id": "hr.hris",
@@ -160,12 +290,32 @@
           "value": "human resources information system",
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for hr.hris.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "hr.hr-systems"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa"
+        ]
+      }
     }
   ],
   "categories": [
@@ -183,9 +333,29 @@
           "goldenCaseIds": [
             "correlated-education-good-fit"
           ],
-          "rationale": "Recruiting process evidence can be adjacent to applicant tracking system use."
+          "rationale": "Recruiting process evidence can be adjacent to applicant tracking system use.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Recruiting process evidence can be adjacent to applicant tracking system use.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     },
     {
       "id": "hr.hr-systems",
@@ -202,9 +372,30 @@
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
           ],
-          "rationale": "HR systems can be adjacent to reporting and analytics."
+          "rationale": "HR systems can be adjacent to reporting and analytics.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "HR systems can be adjacent to reporting and analytics.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit",
+          "automation-adjacent-without-rpa"
+        ]
+      }
     },
     {
       "id": "hr.people-analytics",
@@ -220,9 +411,29 @@
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
           ],
-          "rationale": "Analytics can be adjacent to HR system operation."
+          "rationale": "Analytics can be adjacent to HR system operation.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Analytics can be adjacent to HR system operation.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "hr.learning-development",
@@ -238,9 +449,29 @@
           "goldenCaseIds": [
             "correlated-education-good-fit"
           ],
-          "rationale": "Learning work can be adjacent to broader people operations."
+          "rationale": "Learning work can be adjacent to broader people operations.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Learning work can be adjacent to broader people operations.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     },
     {
       "id": "hr.compensation",
@@ -256,9 +487,29 @@
           "goldenCaseIds": [
             "correlated-education-good-fit"
           ],
-          "rationale": "Compensation work can be adjacent to HR system use."
+          "rationale": "Compensation work can be adjacent to HR system use.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Compensation work can be adjacent to HR system use.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for hr.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     }
   ],
   "antiEquivalences": [
@@ -268,7 +519,17 @@
       "goldenCaseIds": [
         "correlated-education-good-fit"
       ],
-      "rationale": "Recruiting system evidence must not imply payroll system experience."
+      "rationale": "Recruiting system evidence must not imply payroll system experience.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Recruiting system evidence must not imply payroll system experience.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     },
     {
       "leftTermId": "hr.people-analytics",
@@ -276,11 +537,33 @@
       "goldenCaseIds": [
         "data-bi-good-fit-with-specific-gaps"
       ],
-      "rationale": "People analytics evidence must not imply payroll operation."
+      "rationale": "People analytics evidence must not imply payroll operation.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "People analytics evidence must not imply payroll operation.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     }
   ],
   "audit": {
     "source": "quick-260502-g04-plan-02",
     "updatedAt": "2026-05-02"
+  },
+  "governance": {
+    "validatedBy": "curria-job-targeting-hardening",
+    "validatedAt": "2026-05-02",
+    "reviewRequired": true,
+    "semanticRiskLevel": "medium",
+    "rationale": "Catalog governance for hr.",
+    "goldenCaseIds": [
+      "correlated-education-good-fit",
+      "data-bi-good-fit-with-specific-gaps",
+      "automation-adjacent-without-rpa"
+    ]
   }
 }

@@ -48,18 +48,49 @@
           "value": "Microsoft Power BI",
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.power-bi.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         },
         {
           "value": "BI dashboards",
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.power-bi.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "data-bi.visualization"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps",
+          "data-bi-tool-without-related-transform-tool"
+        ]
+      }
     },
     {
       "id": "data-bi.power-query",
@@ -72,18 +103,48 @@
           "value": "M language",
           "goldenCaseIds": [
             "data-bi-tool-without-related-transform-tool"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.power-query.",
+            "goldenCaseIds": [
+              "data-bi-tool-without-related-transform-tool"
+            ]
+          }
         },
         {
           "value": "ETL no Power Query",
           "goldenCaseIds": [
             "data-bi-tool-without-related-transform-tool"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.power-query.",
+            "goldenCaseIds": [
+              "data-bi-tool-without-related-transform-tool"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "data-bi.data-transformation"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-tool-without-related-transform-tool"
+        ]
+      }
     },
     {
       "id": "data-bi.tableau",
@@ -96,12 +157,32 @@
           "value": "Tableau dashboards",
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.tableau.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "data-bi.visualization"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "data-bi.excel",
@@ -115,18 +196,49 @@
           "value": "Advanced Excel",
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.excel.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         },
         {
           "value": "Excel avancado",
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.excel.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "data-bi.spreadsheet-analysis"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps",
+          "finance-analyst-missing-accounting-system"
+        ]
+      }
     },
     {
       "id": "data-bi.sql",
@@ -140,12 +252,195 @@
           "value": "database queries",
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.sql.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "data-bi.data-query"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps",
+          "software-engineering-low-fit-from-data-profile"
+        ]
+      }
+    },
+    {
+      "id": "data-bi.database-systems",
+      "label": "Database systems",
+      "goldenCaseIds": [
+        "data-bi-good-fit-with-specific-gaps"
+      ],
+      "aliases": [
+        {
+          "value": "bases de dados",
+          "goldenCaseIds": [
+            "data-bi-good-fit-with-specific-gaps"
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Portuguese database requirement wording should map to the generic database systems category.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
+        },
+        {
+          "value": "database systems",
+          "goldenCaseIds": [
+            "data-bi-good-fit-with-specific-gaps"
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "English database requirement wording should map to the generic database systems category.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
+        }
+      ],
+      "categoryIds": [
+        "data-bi.database-systems"
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Database systems requirements can be supported by query/database evidence without naming a specific tool.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
+    },
+    {
+      "id": "data-bi.data-modeling",
+      "label": "Data modeling",
+      "goldenCaseIds": [
+        "data-bi-good-fit-with-specific-gaps"
+      ],
+      "aliases": [
+        {
+          "value": "modelagem de dados",
+          "goldenCaseIds": [
+            "data-bi-good-fit-with-specific-gaps"
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Portuguese data modeling wording should map to data modeling evidence.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
+        }
+      ],
+      "categoryIds": [
+        "data-bi.data-modeling"
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Data modeling requirements can be supported by explicit data modeling evidence.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
+    },
+    {
+      "id": "data-bi.data-governance",
+      "label": "Data governance",
+      "goldenCaseIds": [
+        "data-bi-good-fit-with-specific-gaps"
+      ],
+      "aliases": [
+        {
+          "value": "governanca de dados",
+          "goldenCaseIds": [
+            "data-bi-good-fit-with-specific-gaps"
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Portuguese data governance wording should map to data governance evidence.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
+        },
+        {
+          "value": "qualidade de dados",
+          "goldenCaseIds": [
+            "data-bi-good-fit-with-specific-gaps"
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Data quality evidence is part of governed data delivery.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
+        },
+        {
+          "value": "qualidade dos dados",
+          "goldenCaseIds": [
+            "data-bi-good-fit-with-specific-gaps"
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Inflected Portuguese data quality wording should map to data governance evidence.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
+        }
+      ],
+      "categoryIds": [
+        "data-bi.data-governance"
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Data governance and quality requirements can be supported by explicit governance or quality evidence.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "data-bi.dax",
@@ -158,12 +453,32 @@
           "value": "Power BI measures",
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.dax.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "data-bi.semantic-modeling"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "data-bi.python-data",
@@ -177,12 +492,125 @@
           "value": "Python data automation",
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
-          ]
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Catalog governance for data-bi.python-data.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
       ],
       "categoryIds": [
         "data-bi.data-automation"
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa",
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
+    },
+    {
+      "id": "data-bi.information-systems-degree",
+      "label": "Sistemas de Informação",
+      "goldenCaseIds": [
+        "correlated-education-good-fit"
+      ],
+      "aliases": [
+        {
+          "value": "Information Systems",
+          "goldenCaseIds": [
+            "correlated-education-good-fit"
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Information systems education belongs to the technology education family.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
+        }
+      ],
+      "categoryIds": [
+        "data-bi.technology-education"
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Information systems education supports technology-related education requirements.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
+    },
+    {
+      "id": "data-bi.systems-analysis-degree",
+      "label": "Análise e Desenvolvimento de Sistemas",
+      "goldenCaseIds": [
+        "correlated-education-good-fit"
+      ],
+      "aliases": [
+        {
+          "value": "Analise e Desenvolvimento de Sistemas",
+          "goldenCaseIds": [
+            "correlated-education-good-fit"
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Accent-insensitive education alias for systems analysis degree evidence.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
+        },
+        {
+          "value": "ADS",
+          "goldenCaseIds": [
+            "correlated-education-good-fit"
+          ],
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Common acronym for Análise e Desenvolvimento de Sistemas in Brazilian resumes.",
+            "goldenCaseIds": [
+              "correlated-education-good-fit"
+            ]
+          }
+        }
+      ],
+      "categoryIds": [
+        "data-bi.technology-education"
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Systems analysis education supports technology-related education requirements.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     }
   ],
   "categories": [
@@ -199,7 +627,17 @@
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
           ],
-          "rationale": "Dashboards and visualization tools are evaluated as the same evidence family."
+          "rationale": "Dashboards and visualization tools are evaluated as the same evidence family.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Dashboards and visualization tools are evaluated as the same evidence family.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
       ],
       "adjacentCategoryIds": [
@@ -208,9 +646,29 @@
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
           ],
-          "rationale": "Storytelling is adjacent to visualization delivery but does not prove a specific tool."
+          "rationale": "Storytelling is adjacent to visualization delivery but does not prove a specific tool.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Storytelling is adjacent to visualization delivery but does not prove a specific tool.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "data-bi.dashboarding",
@@ -225,7 +683,17 @@
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
           ],
-          "rationale": "Dashboarding is treated as direct visualization evidence."
+          "rationale": "Dashboarding is treated as direct visualization evidence.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Dashboarding is treated as direct visualization evidence.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
       ],
       "adjacentCategoryIds": [
@@ -234,9 +702,29 @@
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
           ],
-          "rationale": "Semantic modeling supports dashboards but is not the same deliverable."
+          "rationale": "Semantic modeling supports dashboards but is not the same deliverable.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Semantic modeling supports dashboards but is not the same deliverable.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "data-bi.data-transformation",
@@ -252,9 +740,29 @@
           "goldenCaseIds": [
             "data-bi-tool-without-related-transform-tool"
           ],
-          "rationale": "Query skills are adjacent to transformation work but do not prove a named transform tool."
+          "rationale": "Query skills are adjacent to transformation work but do not prove a named transform tool.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Query skills are adjacent to transformation work but do not prove a named transform tool.",
+            "goldenCaseIds": [
+              "data-bi-tool-without-related-transform-tool"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-tool-without-related-transform-tool"
+        ]
+      }
     },
     {
       "id": "data-bi.spreadsheet-analysis",
@@ -271,9 +779,30 @@
           "goldenCaseIds": [
             "finance-analyst-missing-accounting-system"
           ],
-          "rationale": "Spreadsheet work can support analysis evidence but does not prove database querying."
+          "rationale": "Spreadsheet work can support analysis evidence but does not prove database querying.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Spreadsheet work can support analysis evidence but does not prove database querying.",
+            "goldenCaseIds": [
+              "finance-analyst-missing-accounting-system"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "finance-analyst-missing-accounting-system",
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "data-bi.data-query",
@@ -289,9 +818,125 @@
           "goldenCaseIds": [
             "data-bi-tool-without-related-transform-tool"
           ],
-          "rationale": "Querying is adjacent to transformation, not a named ETL tool match."
+          "rationale": "Querying is adjacent to transformation, not a named ETL tool match.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Querying is adjacent to transformation, not a named ETL tool match.",
+            "goldenCaseIds": [
+              "data-bi-tool-without-related-transform-tool"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
+    },
+    {
+      "id": "data-bi.database-systems",
+      "label": "Database systems",
+      "goldenCaseIds": [
+        "data-bi-good-fit-with-specific-gaps"
+      ],
+      "parentCategoryIds": [],
+      "equivalentCategoryIds": [
+        {
+          "categoryId": "data-bi.data-query",
+          "goldenCaseIds": [
+            "data-bi-good-fit-with-specific-gaps"
+          ],
+          "rationale": "Database systems requirements can be evidenced by SQL/querying work.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Database systems requirements can be evidenced by SQL/querying work.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
+        }
+      ],
+      "adjacentCategoryIds": [],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for generic database systems evidence.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
+    },
+    {
+      "id": "data-bi.data-modeling",
+      "label": "Data modeling",
+      "goldenCaseIds": [
+        "data-bi-good-fit-with-specific-gaps"
+      ],
+      "parentCategoryIds": [],
+      "equivalentCategoryIds": [
+        {
+          "categoryId": "data-bi.semantic-modeling",
+          "goldenCaseIds": [
+            "data-bi-good-fit-with-specific-gaps"
+          ],
+          "rationale": "Data modeling and semantic modeling are treated as the same modeling evidence family for BI requirements.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Data modeling and semantic modeling are treated as the same modeling evidence family for BI requirements.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
+        }
+      ],
+      "adjacentCategoryIds": [],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data modeling evidence.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
+    },
+    {
+      "id": "data-bi.data-governance",
+      "label": "Data governance",
+      "goldenCaseIds": [
+        "data-bi-good-fit-with-specific-gaps"
+      ],
+      "parentCategoryIds": [],
+      "equivalentCategoryIds": [],
+      "adjacentCategoryIds": [],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data governance and quality evidence.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "data-bi.semantic-modeling",
@@ -307,9 +952,29 @@
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
           ],
-          "rationale": "Modeling supports BI reporting but does not prove a visualization tool by itself."
+          "rationale": "Modeling supports BI reporting but does not prove a visualization tool by itself.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Modeling supports BI reporting but does not prove a visualization tool by itself.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "data-bi.data-storytelling",
@@ -325,9 +990,29 @@
           "goldenCaseIds": [
             "data-bi-good-fit-with-specific-gaps"
           ],
-          "rationale": "Storytelling is adjacent to dashboard and report delivery."
+          "rationale": "Storytelling is adjacent to dashboard and report delivery.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Storytelling is adjacent to dashboard and report delivery.",
+            "goldenCaseIds": [
+              "data-bi-good-fit-with-specific-gaps"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "data-bi-good-fit-with-specific-gaps"
+        ]
+      }
     },
     {
       "id": "data-bi.data-automation",
@@ -343,9 +1028,49 @@
           "goldenCaseIds": [
             "automation-adjacent-without-rpa"
           ],
-          "rationale": "Automation evidence is adjacent to transformation workflows."
+          "rationale": "Automation evidence is adjacent to transformation workflows.",
+          "governance": {
+            "validatedBy": "curria-job-targeting-hardening",
+            "validatedAt": "2026-05-02",
+            "reviewRequired": true,
+            "semanticRiskLevel": "medium",
+            "rationale": "Automation evidence is adjacent to transformation workflows.",
+            "goldenCaseIds": [
+              "automation-adjacent-without-rpa"
+            ]
+          }
         }
-      ]
+      ],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Catalog governance for data-bi.",
+        "goldenCaseIds": [
+          "automation-adjacent-without-rpa"
+        ]
+      }
+    },
+    {
+      "id": "data-bi.technology-education",
+      "label": "Technology education",
+      "goldenCaseIds": [
+        "correlated-education-good-fit"
+      ],
+      "parentCategoryIds": [],
+      "equivalentCategoryIds": [],
+      "adjacentCategoryIds": [],
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Technology-related degrees are comparable education evidence for data and systems roles.",
+        "goldenCaseIds": [
+          "correlated-education-good-fit"
+        ]
+      }
     }
   ],
   "antiEquivalences": [
@@ -355,11 +1080,34 @@
       "goldenCaseIds": [
         "data-bi-tool-without-related-transform-tool"
       ],
-      "rationale": "Power BI reporting evidence must not imply Power Query transformation experience."
+      "rationale": "Power BI reporting evidence must not imply Power Query transformation experience.",
+      "governance": {
+        "validatedBy": "curria-job-targeting-hardening",
+        "validatedAt": "2026-05-02",
+        "reviewRequired": true,
+        "semanticRiskLevel": "medium",
+        "rationale": "Power BI reporting evidence must not imply Power Query transformation experience.",
+        "goldenCaseIds": [
+          "data-bi-tool-without-related-transform-tool"
+        ]
+      }
     }
   ],
   "audit": {
     "source": "quick-260502-g04-plan-02",
     "updatedAt": "2026-05-02"
+  },
+  "governance": {
+    "validatedBy": "curria-job-targeting-hardening",
+    "validatedAt": "2026-05-02",
+    "reviewRequired": true,
+    "semanticRiskLevel": "medium",
+    "rationale": "Catalog governance for data-bi.",
+    "goldenCaseIds": [
+      "data-bi-good-fit-with-specific-gaps",
+      "data-bi-tool-without-related-transform-tool",
+      "correlated-education-good-fit",
+      "automation-adjacent-without-rpa"
+    ]
   }
 }

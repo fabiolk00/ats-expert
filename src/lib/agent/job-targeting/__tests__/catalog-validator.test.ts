@@ -13,11 +13,23 @@ import {
 
 const tempDirs: string[] = []
 
+function governance(goldenCaseIds = ['catalog-contract']) {
+  return {
+    validatedBy: 'catalog-validator-test',
+    validatedAt: '2026-05-02',
+    reviewRequired: true,
+    semanticRiskLevel: 'low',
+    rationale: 'Validator fixture governance.',
+    goldenCaseIds,
+  }
+}
+
 const validPack = {
   id: 'catalog.valid',
   version: '2026-05-02',
   domain: 'generic-test',
   goldenCaseIds: ['catalog-contract'],
+  governance: governance(),
   requirementKinds: ['skill', 'experience', 'education'],
   scoreDimensions: [
     { id: 'skills', weight: 0.34 },
@@ -35,10 +47,12 @@ const validPack = {
       id: 'term.primary',
       label: 'Primary requirement',
       goldenCaseIds: ['catalog-contract'],
+      governance: governance(),
       aliases: [
         {
           value: 'Alternate requirement label',
           goldenCaseIds: ['catalog-contract'],
+          governance: governance(),
         },
       ],
       categoryIds: ['category.primary'],
@@ -49,16 +63,19 @@ const validPack = {
       id: 'category.primary',
       label: 'Primary category',
       goldenCaseIds: ['catalog-contract'],
+      governance: governance(),
       equivalentCategoryIds: [
         {
           categoryId: 'category.related',
           goldenCaseIds: ['catalog-contract'],
+          governance: governance(),
         },
       ],
       adjacentCategoryIds: [
         {
           categoryId: 'category.adjacent',
           goldenCaseIds: ['catalog-contract'],
+          governance: governance(),
         },
       ],
     },
@@ -68,6 +85,7 @@ const validPack = {
       leftTermId: 'term.primary',
       rightTermId: 'term.blocked',
       goldenCaseIds: ['catalog-contract'],
+      governance: governance(),
     },
   ],
 }
@@ -112,6 +130,7 @@ describe('job targeting catalog validator', () => {
     expect(parsed.version).toBe('2026-05-02')
     expect(parsed.terms[0]?.aliases[0]?.goldenCaseIds).toEqual(['catalog-contract'])
     expect(parsed.categories[0]?.adjacentCategoryIds[0]?.goldenCaseIds).toEqual(['catalog-contract'])
+    expect(parsed.terms[0]?.governance.validatedBy).toBe('catalog-validator-test')
   })
 
   it('rejects packs missing required top-level fields', () => {
@@ -132,6 +151,20 @@ describe('job targeting catalog validator', () => {
     }
 
     expectValidationPath(invalidPack, 'terms.0.goldenCaseIds')
+  })
+
+  it('rejects catalog terms without governance metadata', () => {
+    const invalidPack = {
+      ...validPack,
+      terms: [
+        {
+          ...validPack.terms[0],
+          governance: undefined,
+        },
+      ],
+    }
+
+    expectValidationPath(invalidPack, 'terms.0.governance')
   })
 
   it('rejects aliases without non-empty goldenCaseIds', () => {
@@ -185,6 +218,24 @@ describe('job targeting catalog validator', () => {
     }
 
     expectValidationPath(invalidPack, 'antiEquivalences.0.goldenCaseIds')
+  })
+
+  it('requires two reviewers for high-risk governance records', () => {
+    const invalidPack = {
+      ...validPack,
+      terms: [
+        {
+          ...validPack.terms[0],
+          governance: {
+            ...governance(),
+            semanticRiskLevel: 'high',
+            reviewers: ['reviewer-one'],
+          },
+        },
+      ],
+    }
+
+    expectValidationPath(invalidPack, 'terms.0.governance.reviewers')
   })
 
   it('validates the generic taxonomy without domain examples', () => {

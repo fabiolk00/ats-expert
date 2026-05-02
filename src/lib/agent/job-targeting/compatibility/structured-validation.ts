@@ -1,5 +1,7 @@
 import type {
   ClaimPolicyItem,
+  GeneratedClaimTrace,
+  GeneratedClaimTraceSection,
   JobCompatibilityClaimPolicy,
   StructuredValidationVersion,
 } from '@/lib/agent/job-targeting/compatibility/types'
@@ -8,14 +10,6 @@ import type { CVState } from '@/types/cv'
 
 export const STRUCTURED_VALIDATION_VERSION = 'job-compat-structured-validation-v1'
 
-export type GeneratedClaimTraceSection =
-  | 'full_text'
-  | 'summary'
-  | 'skills'
-  | 'experience'
-  | 'education'
-  | 'certifications'
-
 export type StructuredValidationIssueType =
   | 'forbidden_term'
   | 'unsupported_skill_added'
@@ -23,13 +17,8 @@ export type StructuredValidationIssueType =
   | 'unsupported_education_claim'
   | 'target_role_asserted_without_permission'
   | 'unsafe_direct_claim'
-
-export interface GeneratedClaimTrace {
-  id: string
-  section: GeneratedClaimTraceSection
-  text: string
-  cvPath?: string
-}
+  | 'missing_claim_trace'
+  | 'unsupported_expressed_signal'
 
 export interface StructuredValidationIssue {
   id: string
@@ -47,6 +36,7 @@ export interface ValidateGeneratedClaimsInput {
   generatedText?: string
   generatedCvState?: CVState
   generatedClaimTraces?: GeneratedClaimTrace[]
+  requireClaimTrace?: boolean
   claimPolicy: JobCompatibilityClaimPolicy
   targetRole?: {
     value?: string
@@ -65,27 +55,27 @@ export function validateGeneratedClaims({
   generatedText,
   generatedCvState,
   generatedClaimTraces,
+  requireClaimTrace = false,
   claimPolicy,
   targetRole,
 }: ValidateGeneratedClaimsInput): StructuredValidationResult {
-  const traces = resolveGeneratedClaimTraces({
+  const traces = generatedClaimTraces ?? resolveGeneratedClaimTraces({
     generatedText,
     generatedCvState,
-    generatedClaimTraces,
   })
   const issues = [
-    ...claimPolicy.forbiddenClaims.flatMap((item) => (
-      validateForbiddenTerms({
-        traces,
-        item,
+    ...(requireClaimTrace && generatedCvState
+      ? validateTraceCoverage({
+        generatedCvState,
+        traces: generatedClaimTraces ?? [],
       })
-    )),
-    ...claimPolicy.cautiousClaims.flatMap((item) => (
-      validateCautiousTerms({
-        traces,
-        item,
-      })
-    )),
+      : []),
+    ...validateTraceExpressedSignals({
+      traces,
+      claimPolicy,
+    }),
+    ...claimPolicy.forbiddenClaims.flatMap((item) => validateForbiddenTerms({ traces, item })),
+    ...claimPolicy.cautiousClaims.flatMap((item) => validateCautiousTerms({ traces, item })),
     ...validateTargetRole({
       traces,
       targetRole,
@@ -101,76 +91,147 @@ export function validateGeneratedClaims({
 }
 
 export function buildGeneratedClaimTracesFromCvState(cvState: CVState): GeneratedClaimTrace[] {
-  return [
-    trace('summary', 'summary', cvState.summary, 'summary'),
-    ...cvState.skills.map((skill, index) => (
-      trace(`skills-${index}`, 'skills', skill, `skills.${index}`)
-    )),
-    ...cvState.experience.flatMap((entry, entryIndex) => [
-      trace(
-        `experience-${entryIndex}-heading`,
-        'experience',
-        [entry.title, entry.company].filter(Boolean).join(' '),
-        `experience.${entryIndex}`,
-      ),
-      ...entry.bullets.map((bullet, bulletIndex) => (
-        trace(
-          `experience-${entryIndex}-bullet-${bulletIndex}`,
-          'experience',
-          bullet,
-          `experience.${entryIndex}.bullets.${bulletIndex}`,
-        )
-      )),
-    ]),
-    ...cvState.education.map((entry, index) => (
-      trace(
-        `education-${index}`,
-        'education',
-        [entry.degree, entry.institution, entry.year, entry.gpa].filter(Boolean).join(' '),
-        `education.${index}`,
-      )
-    )),
-    ...(cvState.certifications ?? []).map((entry, index) => (
-      trace(
-        `certifications-${index}`,
-        'certifications',
-        [entry.name, entry.issuer, entry.year].filter(Boolean).join(' '),
-        `certifications.${index}`,
-      )
-    )),
-  ].filter((item) => item.text.trim().length > 0)
+  return flattenCvState(cvState).map((item) => ({
+    section: item.section,
+    itemPath: item.itemPath,
+    generatedText: item.generatedText,
+    expressedSignals: [],
+    usedClaimPolicyIds: [],
+    evidenceBasis: [],
+    prohibitedTermsFound: [],
+    validationStatus: 'valid',
+    rationale: 'legacy_trace_from_cv_state',
+  }))
 }
 
 function resolveGeneratedClaimTraces(input: {
   generatedText?: string
   generatedCvState?: CVState
-  generatedClaimTraces?: GeneratedClaimTrace[]
 }): GeneratedClaimTrace[] {
-  if (input.generatedClaimTraces) {
-    return input.generatedClaimTraces
-  }
-
   if (input.generatedCvState) {
     return buildGeneratedClaimTracesFromCvState(input.generatedCvState)
   }
 
   return input.generatedText?.trim()
-    ? [trace('full-text', 'full_text', input.generatedText)]
+    ? [{
+      section: 'summary',
+      itemPath: 'full_text',
+      generatedText: input.generatedText,
+      expressedSignals: [],
+      usedClaimPolicyIds: [],
+      evidenceBasis: [],
+      prohibitedTermsFound: [],
+      validationStatus: 'valid',
+      rationale: 'legacy_trace_from_text',
+    }]
     : []
 }
 
+function flattenCvState(cvState: CVState): GeneratedClaimTrace[] {
+  return [
+    trace('summary', 'summary', cvState.summary),
+    ...cvState.skills.map((skill, index) => trace('skills', `skills.${index}`, skill)),
+    ...cvState.experience.flatMap((entry, entryIndex) => [
+      trace('experience', `experience.${entryIndex}.title`, [entry.title, entry.company].filter(Boolean).join(' ')),
+      ...entry.bullets.map((bullet, bulletIndex) => (
+        trace('experience', `experience.${entryIndex}.bullets.${bulletIndex}`, bullet)
+      )),
+    ]),
+    ...cvState.education.map((entry, index) => (
+      trace('education', `education.${index}`, [entry.degree, entry.institution, entry.year, entry.gpa].filter(Boolean).join(' '))
+    )),
+    ...(cvState.certifications ?? []).map((entry, index) => (
+      trace('certifications', `certifications.${index}`, [entry.name, entry.issuer, entry.year].filter(Boolean).join(' '))
+    )),
+  ].filter((item) => item.generatedText.trim().length > 0)
+}
+
 function trace(
-  id: string,
   section: GeneratedClaimTraceSection,
-  text: string,
-  cvPath?: string,
+  itemPath: string,
+  generatedText: string,
 ): GeneratedClaimTrace {
   return {
-    id,
     section,
-    text,
-    cvPath,
+    itemPath,
+    generatedText,
+    expressedSignals: [],
+    usedClaimPolicyIds: [],
+    evidenceBasis: [],
+    prohibitedTermsFound: [],
+    validationStatus: 'valid',
+    rationale: 'generated_from_cv_state',
   }
+}
+
+function validateTraceCoverage({
+  generatedCvState,
+  traces,
+}: {
+  generatedCvState: CVState
+  traces: GeneratedClaimTrace[]
+}): StructuredValidationIssue[] {
+  const tracePaths = new Set(traces.map((item) => item.itemPath))
+
+  return flattenCvState(generatedCvState)
+    .filter((item) => !tracePaths.has(item.itemPath))
+    .map((item) => ({
+      id: `missing_claim_trace-${item.itemPath}`,
+      type: 'missing_claim_trace' as const,
+      severity: 'error' as const,
+      term: item.itemPath,
+      requirementIds: [],
+      section: item.section,
+      traceId: item.itemPath,
+      generatedText: item.generatedText,
+    }))
+}
+
+function validateTraceExpressedSignals({
+  traces,
+  claimPolicy,
+}: {
+  traces: GeneratedClaimTrace[]
+  claimPolicy: JobCompatibilityClaimPolicy
+}): StructuredValidationIssue[] {
+  const allowedClaimIds = new Set([
+    ...claimPolicy.allowedClaims,
+    ...claimPolicy.cautiousClaims,
+  ].map((item) => item.id))
+  const allowedSignals = new Set([
+    ...claimPolicy.allowedClaims,
+    ...claimPolicy.cautiousClaims,
+  ].flatMap((item) => [item.signal, ...item.allowedTerms]).map(normalizeForTermMatch))
+
+  return traces.flatMap((item) => {
+    const missingPolicyForExpressedSignal = item.expressedSignals
+      .filter((signal) => normalizeForTermMatch(signal).length > 0)
+      .filter((signal) => !allowedSignals.has(normalizeForTermMatch(signal)))
+    const invalidClaimIds = item.usedClaimPolicyIds.filter((id) => !allowedClaimIds.has(id))
+
+    return [
+      ...missingPolicyForExpressedSignal.map((signal, index) => ({
+        id: `unsupported_expressed_signal-${item.itemPath}-${index + 1}`,
+        type: 'unsupported_expressed_signal' as const,
+        severity: 'error' as const,
+        term: signal,
+        requirementIds: [],
+        section: item.section,
+        traceId: item.itemPath,
+        generatedText: item.generatedText,
+      })),
+      ...invalidClaimIds.map((id, index) => ({
+        id: `unsupported_expressed_signal-${item.itemPath}-policy-${index + 1}`,
+        type: 'unsupported_expressed_signal' as const,
+        severity: 'error' as const,
+        term: id,
+        requirementIds: [],
+        section: item.section,
+        traceId: item.itemPath,
+        generatedText: item.generatedText,
+      })),
+    ]
+  })
 }
 
 function validateForbiddenTerms({
@@ -182,20 +243,23 @@ function validateForbiddenTerms({
 }): StructuredValidationIssue[] {
   return traces.flatMap((candidateTrace) => (
     item.prohibitedTerms
-      .filter((term) => containsTerm(candidateTrace.text, term))
+      .filter((term) => (
+        containsTerm(candidateTrace.generatedText, term)
+        || candidateTrace.prohibitedTermsFound.some((found) => containsTerm(found, term))
+      ))
       .map((term, index) => {
         const type = classifyForbiddenIssueType(candidateTrace)
 
         return {
-          id: `${type}-${item.id}-${candidateTrace.id}-${index + 1}`,
+          id: `${type}-${item.id}-${candidateTrace.itemPath}-${index + 1}`,
           type,
           severity: 'error' as const,
           term,
           claimPolicyItemId: item.id,
           requirementIds: item.requirementIds,
           section: candidateTrace.section,
-          traceId: candidateTrace.id,
-          generatedText: candidateTrace.text,
+          traceId: candidateTrace.itemPath,
+          generatedText: candidateTrace.generatedText,
         }
       })
   ))
@@ -208,22 +272,25 @@ function validateCautiousTerms({
   traces: GeneratedClaimTrace[]
   item: ClaimPolicyItem
 }): StructuredValidationIssue[] {
-  return traces.flatMap((candidateTrace) => (
-    item.prohibitedTerms
-      .filter((term) => containsTerm(candidateTrace.text, term))
-      .filter(() => !hasCautiousVerbalization(candidateTrace, item))
-      .map((term, index) => ({
-        id: `unsafe_direct_claim-${item.id}-${candidateTrace.id}-${index + 1}`,
-        type: 'unsafe_direct_claim' as const,
-        severity: 'error' as const,
-        term,
-        claimPolicyItemId: item.id,
-        requirementIds: item.requirementIds,
-        section: candidateTrace.section,
-        traceId: candidateTrace.id,
-        generatedText: candidateTrace.text,
-      }))
-  ))
+  return traces
+    .filter((candidateTrace) => (
+      candidateTrace.usedClaimPolicyIds.includes(item.id)
+      || candidateTrace.expressedSignals.some((signal) => containsTerm(signal, item.signal))
+      || containsTerm(candidateTrace.generatedText, item.signal)
+      || item.prohibitedTerms.some((term) => containsTerm(candidateTrace.generatedText, term))
+    ))
+    .filter((candidateTrace) => !hasCautiousVerbalization(candidateTrace, item))
+    .map((candidateTrace, index) => ({
+      id: `unsafe_direct_claim-${item.id}-${candidateTrace.itemPath}-${index + 1}`,
+      type: 'unsafe_direct_claim' as const,
+      severity: 'error' as const,
+      term: item.signal,
+      claimPolicyItemId: item.id,
+      requirementIds: item.requirementIds,
+      section: candidateTrace.section,
+      traceId: candidateTrace.itemPath,
+      generatedText: candidateTrace.generatedText,
+    }))
 }
 
 function validateTargetRole({
@@ -242,22 +309,21 @@ function validateTargetRole({
     .filter((candidateTrace) => (
       candidateTrace.section === 'summary'
       || candidateTrace.section === 'experience'
-      || candidateTrace.section === 'full_text'
     ))
-    .filter((candidateTrace) => containsTerm(candidateTrace.text, role))
+    .filter((candidateTrace) => containsTerm(candidateTrace.generatedText, role))
     .filter((candidateTrace) => (
       targetRole?.permission !== 'can_bridge_to_target_role'
-      || !hasCautiousLanguage(candidateTrace.text)
+      || !hasCautiousLanguage(candidateTrace.generatedText)
     ))
     .map((candidateTrace, index) => ({
-      id: `target_role_asserted_without_permission-${candidateTrace.id}-${index + 1}`,
+      id: `target_role_asserted_without_permission-${candidateTrace.itemPath}-${index + 1}`,
       type: 'target_role_asserted_without_permission',
       severity: 'error',
       term: role,
       requirementIds: [],
       section: candidateTrace.section,
-      traceId: candidateTrace.id,
-      generatedText: candidateTrace.text,
+      traceId: candidateTrace.itemPath,
+      generatedText: candidateTrace.generatedText,
     }))
 }
 
@@ -291,10 +357,11 @@ function hasCautiousVerbalization(candidateTrace: GeneratedClaimTrace, item: Cla
   const supportTerms = [
     ...item.allowedTerms,
     ...item.evidenceBasis.map((basis) => basis.text),
+    ...candidateTrace.evidenceBasis,
   ]
 
-  return hasCautiousLanguage(candidateTrace.text)
-    && supportTerms.some((term) => containsTerm(candidateTrace.text, term))
+  return hasCautiousLanguage(candidateTrace.generatedText)
+    && supportTerms.some((term) => containsTerm(candidateTrace.generatedText, term))
 }
 
 function hasCautiousLanguage(value: string): boolean {

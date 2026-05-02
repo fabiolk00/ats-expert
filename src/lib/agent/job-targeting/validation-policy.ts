@@ -5,7 +5,10 @@ import {
   validateGeneratedClaims,
   type StructuredValidationIssue,
 } from '@/lib/agent/job-targeting/compatibility/structured-validation'
-import type { JobCompatibilityAssessment } from '@/lib/agent/job-targeting/compatibility/types'
+import type {
+  GeneratedClaimTrace,
+  JobCompatibilityAssessment,
+} from '@/lib/agent/job-targeting/compatibility/types'
 import { buildCanonicalSignal, normalizeSemanticText } from '@/lib/agent/job-targeting/semantic-normalization'
 
 const BRIDGE_LANGUAGE_TERMS = [
@@ -71,6 +74,10 @@ function mapStructuredIssueType(issue: StructuredValidationIssue): NonNullable<V
       return 'target_role_overclaim'
     case 'unsafe_direct_claim':
       return 'unsupported_claim'
+    case 'missing_claim_trace':
+      return 'unsupported_claim'
+    case 'unsupported_expressed_signal':
+      return 'unsupported_claim'
     case 'forbidden_term':
       return 'forbidden_claim'
   }
@@ -90,6 +97,12 @@ function messageForStructuredIssue(issue: StructuredValidationIssue): string {
       return 'A versÃ£o targetizada transformou uma evidÃªncia cautelosa em claim direta.'
     case 'forbidden_term':
       return 'A versÃ£o targetizada declarou um requisito proibido pela avaliaÃ§Ã£o de compatibilidade.'
+    case 'missing_claim_trace':
+      return 'A versao targetizada incluiu texto novo sem trace estruturado de claim.'
+    case 'unsupported_expressed_signal':
+      return 'A versao targetizada expressou um sinal que nao esta permitido pela policy estruturada.'
+    default:
+      return 'A versao targetizada violou a policy estruturada de compatibilidade.'
   }
 }
 
@@ -97,9 +110,12 @@ function buildAssessmentClaimPolicyIssues(params: {
   optimizedCvState: CVState
   assessment: JobCompatibilityAssessment
   targetingPlan?: TargetingPlan
+  generatedClaimTrace?: GeneratedClaimTrace[]
 }): ValidationIssue[] {
   const structuredValidation = validateGeneratedClaims({
     generatedCvState: params.optimizedCvState,
+    generatedClaimTraces: params.generatedClaimTrace,
+    requireClaimTrace: Boolean(params.generatedClaimTrace),
     claimPolicy: params.assessment.claimPolicy,
     targetRole: {
       value: params.assessment.targetRole,
@@ -111,7 +127,7 @@ function buildAssessmentClaimPolicyIssues(params: {
     code: issue.type,
     severity: 'high' as const,
     message: messageForStructuredIssue(issue),
-    section: issue.section === 'full_text' ? undefined : issue.section,
+    section: issue.section,
     issueType: mapStructuredIssueType(issue),
     offendingSignal: issue.term,
     offendingText: issue.generatedText,
@@ -193,6 +209,7 @@ export function buildTargetedRewritePermissionIssues(params: {
   optimizedCvState: CVState
   targetingPlan?: TargetingPlan
   jobCompatibilityAssessment?: JobCompatibilityAssessment
+  generatedClaimTrace?: GeneratedClaimTrace[]
 }): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   const assessmentTargetingPlan = params.jobCompatibilityAssessment
@@ -206,6 +223,7 @@ export function buildTargetedRewritePermissionIssues(params: {
       optimizedCvState: params.optimizedCvState,
       assessment: params.jobCompatibilityAssessment,
       targetingPlan,
+      generatedClaimTrace: params.generatedClaimTrace,
     })
     : []
   const targetEvidence = getTargetEvidence(targetingPlan)

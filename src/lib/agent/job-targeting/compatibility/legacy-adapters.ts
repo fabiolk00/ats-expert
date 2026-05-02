@@ -1,3 +1,8 @@
+/**
+ * @deprecated since 2026-05-02.
+ * This adapter exists only for brownfield migration from legacy targeting structures.
+ * Remove by 2026-07-31 after UI/rewrite/validation consume JobCompatibilityAssessment directly.
+ */
 import { buildCanonicalSignal } from '@/lib/agent/job-targeting/semantic-normalization'
 import type {
   JobCompatibilityAssessment,
