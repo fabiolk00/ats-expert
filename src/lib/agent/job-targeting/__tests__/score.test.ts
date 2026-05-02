@@ -46,13 +46,18 @@ describe('job compatibility score', () => {
     expect(score.version).toBe('job-compat-score-v1')
     expect(score.total).toBe(63)
     expect(score.maxTotal).toBe(100)
-    expect(score.scoreBreakdown.adjacentDiscount).toBe(0.5)
-    expect(score.scoreBreakdown.weights).toEqual({
+    expect(score.adjacentDiscount).toBe(0.5)
+    expect(score.weights).toEqual({
       skills: 0.34,
       experience: 0.46,
       education: 0.2,
     })
-    expect(score.scoreBreakdown.dimensions.skills).toMatchObject({
+    expect(score.dimensions).toEqual({
+      skills: 50,
+      experience: 100,
+      education: 0,
+    })
+    expect(score.audit.dimensionDetails.skills).toMatchObject({
       requirementCount: 3,
       supportedCount: 1,
       adjacentCount: 1,
@@ -60,7 +65,7 @@ describe('job compatibility score', () => {
       rawScore: 0.5,
       weightedScore: 0.17,
     })
-    expect(score.scoreBreakdown.dimensions.experience).toMatchObject({
+    expect(score.audit.dimensionDetails.experience).toMatchObject({
       requirementCount: 1,
       supportedCount: 1,
       adjacentCount: 0,
@@ -68,7 +73,7 @@ describe('job compatibility score', () => {
       rawScore: 1,
       weightedScore: 0.46,
     })
-    expect(score.scoreBreakdown.dimensions.education).toMatchObject({
+    expect(score.audit.dimensionDetails.education).toMatchObject({
       requirementCount: 1,
       supportedCount: 0,
       adjacentCount: 0,
@@ -84,18 +89,18 @@ describe('job compatibility score', () => {
     ])
 
     expect(score.total).toBe(67)
-    expect(score.scoreBreakdown.counts).toEqual({
+    expect(score.counts).toEqual({
       total: 1,
       supported: 1,
       adjacent: 0,
       unsupported: 0,
     })
-    expect(score.scoreBreakdown.dimensions.experience).toMatchObject({
+    expect(score.audit.dimensionDetails.experience).toMatchObject({
       requirementCount: 0,
       rawScore: 0.5,
       weightedScore: 0.23,
     })
-    expect(score.scoreBreakdown.dimensions.education).toMatchObject({
+    expect(score.audit.dimensionDetails.education).toMatchObject({
       requirementCount: 0,
       rawScore: 0.5,
       weightedScore: 0.1,

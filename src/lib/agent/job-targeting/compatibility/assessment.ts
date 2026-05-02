@@ -30,6 +30,7 @@ import {
 } from './score'
 
 export const JOB_COMPATIBILITY_ASSESSMENT_VERSION = 'job-compat-assessment-v1'
+const FALLBACK_TARGET_ROLE = 'Vaga Alvo'
 
 export const DEFAULT_JOB_TARGETING_DOMAIN_PACK_PATHS = [
   'src/lib/agent/job-targeting/catalog/domain-packs/data-bi.json',
@@ -70,6 +71,7 @@ export async function evaluateJobCompatibility({
   const loadedCatalog = catalog ?? await loadJobTargetingCatalog({
     domainPackPaths: [...DEFAULT_JOB_TARGETING_DOMAIN_PACK_PATHS],
   })
+  const targetRole = extractTargetRole(targetJobDescription)
   const extractedRequirements = extractJobRequirements({ targetJobDescription })
   const resumeEvidence = extractResumeEvidence(cvState)
   const requirements = extractedRequirements.map((requirement) => classifyRequirementEvidence({
@@ -96,6 +98,7 @@ export async function evaluateJobCompatibility({
 
   return {
     version: JOB_COMPATIBILITY_ASSESSMENT_VERSION,
+    ...targetRole,
     requirements,
     supportedRequirements,
     adjacentRequirements,
@@ -132,6 +135,48 @@ export async function evaluateJobCompatibility({
       ...buildRunIds({ userId, sessionId }),
     },
   }
+}
+
+function extractTargetRole(
+  targetJobDescription: string,
+): Pick<JobCompatibilityAssessment, 'targetRole' | 'targetRoleConfidence' | 'targetRoleSource'> {
+  const explicitLabelPattern = /^\s*(?:role|title|position|cargo|vaga|t[ií]tulo)\s*[:=-]\s*(.+?)\s*$/iu
+  const lines = targetJobDescription
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  for (const line of lines) {
+    const candidate = line.match(explicitLabelPattern)?.[1]
+    const targetRole = candidate === undefined ? '' : cleanTargetRole(candidate)
+
+    if (targetRole && !isGenericSectionLabel(targetRole)) {
+      return {
+        targetRole,
+        targetRoleConfidence: 'high',
+        targetRoleSource: 'heuristic',
+      }
+    }
+  }
+
+  return {
+    targetRole: FALLBACK_TARGET_ROLE,
+    targetRoleConfidence: 'low',
+    targetRoleSource: 'fallback',
+  }
+}
+
+function cleanTargetRole(value: string): string {
+  return value
+    .replace(/^[\-*\u2022]\s*/u, '')
+    .replace(/\s+/gu, ' ')
+    .replace(/[.;|]+$/u, '')
+    .trim()
+}
+
+function isGenericSectionLabel(value: string): boolean {
+  return /^(?:requirements?|responsabilidades?|requisitos?|qualifica[cç][oõ]es?|atividades|descri[cç][aã]o|about the role|about the job)$/iu
+    .test(normalize(value))
 }
 
 function buildGaps({
@@ -261,7 +306,9 @@ function calculateLowFitState(
   ]
 
   return {
+    triggered: blocking,
     blocking,
+    ...(reasons[0] === undefined ? {} : { reason: reasons[0] }),
     riskLevel: blocking ? 'high' : riskLevelFor({
       score,
       unsupportedCoreRatio,

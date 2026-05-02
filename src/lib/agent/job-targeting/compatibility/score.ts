@@ -28,14 +28,14 @@ const SCORE_DIMENSIONS = ['skills', 'experience', 'education'] as const satisfie
 export function calculateJobCompatibilityScore(
   requirements: RequirementEvidence[],
 ): JobCompatibilityScoreBreakdown {
-  const dimensions = Object.fromEntries(
+  const dimensionDetails = Object.fromEntries(
     SCORE_DIMENSIONS.map((dimension) => [
       dimension,
       calculateDimensionBreakdown(dimension, requirements),
     ]),
   ) as Record<JobCompatibilityScoreDimensionId, JobCompatibilityScoreDimensionBreakdown>
   const weightedTotal = SCORE_DIMENSIONS.reduce(
-    (total, dimension) => total + dimensions[dimension].weightedScore,
+    (total, dimension) => total + dimensionDetails[dimension].weightedScore,
     0,
   )
 
@@ -43,21 +43,26 @@ export function calculateJobCompatibilityScore(
     version: JOB_COMPATIBILITY_SCORE_VERSION,
     total: Math.round(weightedTotal * 100),
     maxTotal: 100,
-    scoreBreakdown: {
-      adjacentDiscount: JOB_COMPATIBILITY_ADJACENT_DISCOUNT,
-      weights: JOB_COMPATIBILITY_SCORE_WEIGHTS,
-      dimensions,
-      counts: {
-        total: requirements.length,
-        supported: countByProductGroup(requirements, 'supported'),
-        adjacent: countByProductGroup(requirements, 'adjacent'),
-        unsupported: countByProductGroup(requirements, 'unsupported'),
-      },
-      formula: {
-        supportedValue: 1,
-        adjacentValue: JOB_COMPATIBILITY_ADJACENT_DISCOUNT,
-        unsupportedValue: 0,
-      },
+    adjacentDiscount: JOB_COMPATIBILITY_ADJACENT_DISCOUNT,
+    dimensions: {
+      skills: Math.round(dimensionDetails.skills.rawScore * 100),
+      experience: Math.round(dimensionDetails.experience.rawScore * 100),
+      education: Math.round(dimensionDetails.education.rawScore * 100),
+    },
+    counts: {
+      total: requirements.length,
+      supported: countByProductGroup(requirements, 'supported'),
+      adjacent: countByProductGroup(requirements, 'adjacent'),
+      unsupported: countByProductGroup(requirements, 'unsupported'),
+    },
+    weights: JOB_COMPATIBILITY_SCORE_WEIGHTS,
+    formula: {
+      supportedValue: 1,
+      adjacentValue: JOB_COMPATIBILITY_ADJACENT_DISCOUNT,
+      unsupportedValue: 0,
+    },
+    audit: {
+      dimensionDetails,
     },
   }
 }

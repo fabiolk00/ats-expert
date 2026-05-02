@@ -8,6 +8,7 @@ import type {
   Phase,
 } from './cv'
 import type { AtsReadinessScoreContract } from '@/lib/ats/scoring/types'
+import type { JobCompatibilityAssessment } from '@/lib/agent/job-targeting/compatibility/types'
 import type { CvHighlightState } from '@/lib/resume/cv-highlight-artifact'
 import type { ToolErrorCode, ToolFailure } from '@/lib/agent/tool-errors'
 
@@ -464,6 +465,7 @@ export type AgentState = {
     result: GapAnalysisResult
     analyzedAt: string
   }
+  jobCompatibilityAssessment?: JobCompatibilityAssessment
   targetingPlan?: TargetingPlan
   atsAnalysis?: {
     result: AtsAnalysisResult

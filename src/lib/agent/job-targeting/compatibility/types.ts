@@ -47,6 +47,7 @@ export type JobCompatibilityAssessmentVersion = 'job-compat-assessment-v1'
 export type JobCompatibilityScoreVersion = 'job-compat-score-v1'
 export type JobCompatibilityClaimPolicyVersion = 'job-compat-claim-policy-v1'
 export type StructuredValidationVersion = 'job-compat-structured-validation-v1'
+export type JobCompatibilityTargetRoleSource = 'heuristic' | 'llm' | 'fallback'
 
 export type JobCompatibilityScoreDimensionId = 'skills' | 'experience' | 'education'
 
@@ -176,21 +177,22 @@ export interface JobCompatibilityScoreBreakdown {
   version: JobCompatibilityScoreVersion
   total: number
   maxTotal: 100
-  scoreBreakdown: {
-    adjacentDiscount: 0.5
-    weights: Record<JobCompatibilityScoreDimensionId, number>
-    dimensions: Record<JobCompatibilityScoreDimensionId, JobCompatibilityScoreDimensionBreakdown>
-    counts: {
-      total: number
-      supported: number
-      adjacent: number
-      unsupported: number
-    }
-    formula: {
-      supportedValue: 1
-      adjacentValue: 0.5
-      unsupportedValue: 0
-    }
+  adjacentDiscount: 0.5
+  dimensions: Record<JobCompatibilityScoreDimensionId, number>
+  counts: {
+    total: number
+    supported: number
+    adjacent: number
+    unsupported: number
+  }
+  weights: Record<JobCompatibilityScoreDimensionId, number>
+  formula: {
+    supportedValue: 1
+    adjacentValue: 0.5
+    unsupportedValue: 0
+  }
+  audit: {
+    dimensionDetails: Record<JobCompatibilityScoreDimensionId, JobCompatibilityScoreDimensionBreakdown>
   }
 }
 
@@ -206,7 +208,9 @@ export interface JobCompatibilityGap {
 }
 
 export interface JobCompatibilityLowFitState {
+  triggered: boolean
   blocking: boolean
+  reason?: string
   riskLevel: 'low' | 'medium' | 'high'
   reasons: string[]
   thresholdAudit: {
@@ -221,8 +225,9 @@ export interface JobCompatibilityLowFitState {
 
 export interface JobCompatibilityAssessment {
   version: JobCompatibilityAssessmentVersion
-  targetRole?: string
-  targetRoleConfidence?: 'low' | 'medium' | 'high'
+  targetRole: string
+  targetRoleConfidence: 'low' | 'medium' | 'high'
+  targetRoleSource: JobCompatibilityTargetRoleSource
   requirements: RequirementEvidence[]
   supportedRequirements: RequirementEvidence[]
   adjacentRequirements: RequirementEvidence[]
