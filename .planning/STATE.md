@@ -36,7 +36,7 @@ Current Plan: 01 completed
 Total Plans in Phase: 1
 Status: In progress
 Last activity: 2026-05-02
-Last Activity Description: Completed quick task 260501-vsc: Aplicar fundacao tipografica espacamento radius cores e elevation no projeto inteiro via tokens globais e componentes base.
+Last Activity Description: Completed quick task 260501-w4e: Colocar em branco os titulos dos cards do carrossel Explore Resumes.
 
 Progress: [##########] 100%
 
@@ -180,6 +180,7 @@ Baseline carried forward from earlier shipped milestones:
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
+| 260501-w4e | Colocar em branco os titulos dos cards do carrossel Explore Resumes | 2026-05-02 | working-tree | Validated | [260501-w4e-colocar-em-branco-os-titulos-dos-cards-d](./quick/260501-w4e-colocar-em-branco-os-titulos-dos-cards-d/) |
 | 260501-vsc | Aplicar fundacao tipografica espacamento radius cores e elevation no projeto inteiro via tokens globais e componentes base | 2026-05-02 | working-tree | Validated | [260501-vsc-aplicar-fundacao-tipografica-espacamento](./quick/260501-vsc-aplicar-fundacao-tipografica-espacamento/) |
 | 260501-vid | Adaptar pricing cards e tabela de comparacao aos tokens e regras de layout preservando planos e precos atuais | 2026-05-02 | working-tree | Validated | [260501-vid-adaptar-pricing-cards-e-tabela-de-compar](./quick/260501-vid-adaptar-pricing-cards-e-tabela-de-compar/) |
 | 260501-val | Corrigir buraco no layout do curriculo job-target aberto e alinhar tipografia de Pontos para revisar | 2026-05-02 | working-tree | Validated | [260501-val-corrigir-buraco-no-layout-do-curr-culo-j](./quick/260501-val-corrigir-buraco-no-layout-do-curr-culo-j/) |
