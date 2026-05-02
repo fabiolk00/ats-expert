@@ -821,7 +821,7 @@ Plans:
 **Goal:** Enriquecer o rewrite direcionado por target com uma classificacao dinamica e domain-agnostic de evidencia semantica, permitindo normalizacao, equivalencia e pontes honestas sem inventar experiencia.
 **Requirements**: [JOB-TARGET-EVIDENCE-01, JOB-TARGET-EVIDENCE-REWRITE-01, JOB-TARGET-EVIDENCE-ISO-01, JOB-TARGET-EVIDENCE-TEST-01]
 **Depends on:** Phase 107
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 **Success Criteria** (what must be TRUE):
   1. O `job_targeting` com target ativo deixa de operar apenas no binario presente/ausente e passa a distinguir evidencias explicitas, alias normalizados, equivalentes tecnicos, inferencias contextuais fortes, pontes semanticas e gaps sem suporte.
