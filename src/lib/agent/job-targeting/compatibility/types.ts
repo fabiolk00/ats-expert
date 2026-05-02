@@ -1,43 +1,119 @@
 export type ProductEvidenceGroup = 'supported' | 'adjacent' | 'unsupported'
 
 export type InternalEvidenceLevel =
-  | 'exact'
+  | 'explicit'
   | 'catalog_alias'
-  | 'catalog_anti_equivalence'
-  | 'catalog_category'
-  | 'adjacent_category'
-  | 'llm_ambiguity_resolved'
-  | 'unsupported'
+  | 'category_equivalent'
+  | 'strong_contextual_inference'
+  | 'semantic_bridge_only'
+  | 'unsupported_gap'
 
-export type ClaimPermission = 'allowed' | 'cautious' | 'forbidden'
+export type ClaimPermission =
+  | 'can_claim_directly'
+  | 'can_claim_normalized'
+  | 'can_bridge_carefully'
+  | 'can_mention_as_related_context'
+  | 'must_not_claim'
+
+export type ClaimPolicyPermission = 'allowed' | 'cautious' | 'forbidden'
 
 export type RequirementKind =
+  | 'tool'
   | 'skill'
-  | 'experience'
+  | 'platform'
+  | 'methodology'
   | 'education'
+  | 'certification'
+  | 'industry'
+  | 'business_domain'
   | 'responsibility'
-  | 'preferred'
+  | 'seniority'
+  | 'soft_skill'
+  | 'language'
   | 'unknown'
 
 export type RequirementImportance = 'core' | 'secondary' | 'differential'
 
-export type JobCompatibilityScoreDimensionId = 'skills' | 'experience' | 'education'
+export type RequirementEvidenceSource =
+  | 'exact'
+  | 'catalog_alias'
+  | 'catalog_category'
+  | 'catalog_anti_equivalence'
+  | 'composite_decomposition'
+  | 'llm_ambiguous'
+  | 'fallback'
 
 export type JobCompatibilityAssessmentVersion = 'job-compat-assessment-v1'
 export type JobCompatibilityScoreVersion = 'job-compat-score-v1'
+export type JobCompatibilityClaimPolicyVersion = 'job-compat-claim-policy-v1'
+export type StructuredValidationVersion = 'job-compat-structured-validation-v1'
 
-export interface RequirementEvidenceSource {
+export type JobCompatibilityScoreDimensionId = 'skills' | 'experience' | 'education'
+
+export type JobCompatibilityRequirementSourceKind = 'section_heading' | 'sentence' | 'list_item'
+
+export type JobCompatibilityEvidenceSection =
+  | 'summary'
+  | 'skills'
+  | 'experience'
+  | 'education'
+  | 'certifications'
+
+export type JobCompatibilityEvidenceSourceKind =
+  | 'summary_sentence'
+  | 'skill'
+  | 'experience_title'
+  | 'experience_bullet'
+  | 'education_entry'
+  | 'certification_entry'
+
+export type JobCompatibilityRequirementKind = RequirementKind
+export type JobCompatibilityRequirementImportance = RequirementImportance
+
+export interface JobCompatibilityRequirement {
   id: string
   text: string
-  section?: string
-  sourceKind?: string
+  normalizedText: string
+  kind: RequirementKind
+  importance: RequirementImportance
+  scoreDimension: JobCompatibilityScoreDimensionId
+  source: {
+    section: string
+    heading?: string
+    sourceKind: JobCompatibilityRequirementSourceKind
+    sentenceIndex?: number
+    listIndex?: number
+  }
+  catalogTermIds?: string[]
+  audit?: {
+    extractorVersion: string
+    signalIds: string[]
+  }
+}
+
+export interface JobCompatibilityEvidence {
+  id: string
+  text: string
+  normalizedText: string
+  section: JobCompatibilityEvidenceSection
+  sourceKind: JobCompatibilityEvidenceSourceKind
+  cvPath: string
+  entryIndex?: number
+  bulletIndex?: number
+  catalogTermIds?: string[]
+}
+
+export interface RequirementEvidenceSpan {
+  id: string
+  text: string
+  section?: JobCompatibilityEvidenceSection | string
+  sourceKind?: JobCompatibilityEvidenceSourceKind | string
   cvPath?: string
 }
 
 export interface RequirementEvidenceAudit {
   matcherVersion: string
-  matchSource: InternalEvidenceLevel
-  precedence: readonly InternalEvidenceLevel[]
+  precedence: readonly RequirementEvidenceSource[]
   catalogIds: string[]
   catalogVersions: Record<string, string>
   catalogTermIds: string[]
@@ -47,32 +123,42 @@ export interface RequirementEvidenceAudit {
 }
 
 export interface RequirementEvidence {
-  requirementId: string
-  requirementText: string
-  requirementKind: RequirementKind
-  requirementImportance: RequirementImportance
-  productEvidenceGroup: ProductEvidenceGroup
-  internalEvidenceLevel: InternalEvidenceLevel
-  claimPermission: ClaimPermission
-  evidenceIds: string[]
-  matchedEvidence: RequirementEvidenceSource[]
+  id: string
+  originalRequirement: string
+  normalizedRequirement: string
+  extractedSignals: string[]
+  kind: RequirementKind
+  importance: RequirementImportance
+  productGroup: ProductEvidenceGroup
+  evidenceLevel: InternalEvidenceLevel
+  rewritePermission: ClaimPermission
+  matchedResumeTerms: string[]
+  supportingResumeSpans: RequirementEvidenceSpan[]
+  confidence: number
+  rationale: string
+  source: RequirementEvidenceSource
   catalogTermIds: string[]
   catalogCategoryIds: string[]
   prohibitedTerms: string[]
-  confidence: number
-  rationaleCode: string
   audit: RequirementEvidenceAudit
 }
 
 export interface ClaimPolicyItem {
-  requirementId: string
-  permission: ClaimPermission
-  productEvidenceGroup: ProductEvidenceGroup
-  evidenceIds: string[]
+  id: string
+  signal: string
+  permission: ClaimPolicyPermission
+  verbalizationTemplate?: string
+  evidenceBasis: RequirementEvidenceSpan[]
   allowedTerms: string[]
   prohibitedTerms: string[]
-  cautiousTemplate?: string
-  reasonCode: string
+  rationale: string
+  requirementIds: string[]
+}
+
+export interface JobCompatibilityClaimPolicy {
+  allowedClaims: ClaimPolicyItem[]
+  cautiousClaims: ClaimPolicyItem[]
+  forbiddenClaims: ClaimPolicyItem[]
 }
 
 export interface JobCompatibilityScoreDimensionBreakdown {
@@ -90,34 +176,46 @@ export interface JobCompatibilityScoreBreakdown {
   version: JobCompatibilityScoreVersion
   total: number
   maxTotal: 100
-  adjacentDiscount: number
-  dimensions: Record<JobCompatibilityScoreDimensionId, JobCompatibilityScoreDimensionBreakdown>
-  formula: {
-    supportedValue: 1
-    adjacentValue: 0.5
-    unsupportedValue: 0
+  scoreBreakdown: {
+    adjacentDiscount: 0.5
+    weights: Record<JobCompatibilityScoreDimensionId, number>
+    dimensions: Record<JobCompatibilityScoreDimensionId, JobCompatibilityScoreDimensionBreakdown>
+    counts: {
+      total: number
+      supported: number
+      adjacent: number
+      unsupported: number
+    }
+    formula: {
+      supportedValue: 1
+      adjacentValue: 0.5
+      unsupportedValue: 0
+    }
   }
 }
 
 export interface JobCompatibilityGap {
-  requirementId: string
-  text: string
+  id: string
+  signal: string
   kind: RequirementKind
   importance: RequirementImportance
   severity: 'critical' | 'review'
-  reasonCode: string
+  rationale: string
+  requirementIds: string[]
   prohibitedTerms?: string[]
 }
 
 export interface JobCompatibilityLowFitState {
-  triggered: boolean
+  blocking: boolean
   riskLevel: 'low' | 'medium' | 'high'
   reasons: string[]
   thresholdAudit: {
     score: number
-    minimumScore?: number
-    unsupportedCoreCount?: number
-    unsupportedCoreRatio?: number
+    minimumScore: number
+    unsupportedCoreCount: number
+    totalCoreCount: number
+    unsupportedCoreRatio: number
+    supportedOrAdjacentCount: number
   }
 }
 
@@ -129,8 +227,8 @@ export interface JobCompatibilityAssessment {
   supportedRequirements: RequirementEvidence[]
   adjacentRequirements: RequirementEvidence[]
   unsupportedRequirements: RequirementEvidence[]
-  claimPolicy: ClaimPolicyItem[]
-  score: JobCompatibilityScoreBreakdown
+  claimPolicy: JobCompatibilityClaimPolicy
+  scoreBreakdown: JobCompatibilityScoreBreakdown
   criticalGaps: JobCompatibilityGap[]
   reviewNeededGaps: JobCompatibilityGap[]
   lowFit: JobCompatibilityLowFitState
@@ -141,15 +239,26 @@ export interface JobCompatibilityAssessment {
   audit: {
     generatedAt: string
     assessmentVersion: JobCompatibilityAssessmentVersion
+    requirementExtractionVersion: string
+    evidenceExtractionVersion: string
     matcherVersion: string
+    claimPolicyVersion: JobCompatibilityClaimPolicyVersion
     scoreVersion: JobCompatibilityScoreVersion
-    counts: {
+    counters: {
       requirements: number
+      resumeEvidence: number
       supported: number
       adjacent: number
       unsupported: number
+      allowedClaims: number
+      cautiousClaims: number
+      forbiddenClaims: number
       criticalGaps: number
       reviewNeededGaps: number
+    }
+    runIds?: {
+      userId?: string
+      sessionId?: string
     }
   }
 }

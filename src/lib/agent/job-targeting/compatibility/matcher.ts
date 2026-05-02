@@ -9,6 +9,7 @@ import type {
   InternalEvidenceLevel,
   ProductEvidenceGroup,
   RequirementEvidence,
+  RequirementEvidenceSource,
   RequirementImportance,
   RequirementKind,
 } from '@/lib/agent/job-targeting/compatibility/types'
@@ -20,10 +21,9 @@ export const MATCHER_PRECEDENCE = [
   'catalog_alias',
   'catalog_anti_equivalence',
   'catalog_category',
-  'adjacent_category',
-  'llm_ambiguity_resolved',
-  'unsupported',
-] as const satisfies readonly InternalEvidenceLevel[]
+  'llm_ambiguous',
+  'fallback',
+] as const satisfies readonly RequirementEvidenceSource[]
 
 export interface MatcherRequirement {
   id: string
@@ -95,10 +95,12 @@ type TermOccurrence = {
 
 type MatchCandidate = {
   group: ProductEvidenceGroup
+  source: RequirementEvidenceSource
   level: InternalEvidenceLevel
   permission: ClaimPermission
   evidence: MatcherResumeEvidence[]
-  termIds: string[]
+  requirementTermIds: string[]
+  resumeTermIds: string[]
   categoryIds: string[]
   prohibitedTerms: string[]
   confidence: number
@@ -258,24 +260,26 @@ function findSameTermMatch(
       continue
     }
 
-    const level = requirementTerm.matchLevel === 'exact' && match.matchLevel === 'exact'
+    const source = requirementTerm.matchLevel === 'exact' && match.matchLevel === 'exact'
       ? 'exact'
       : 'catalog_alias'
 
-    if (level !== requestedLevel) {
+    if (source !== requestedLevel) {
       continue
     }
 
     return {
       group: 'supported',
-      level,
-      permission: 'allowed',
+      source,
+      level: source === 'exact' ? 'explicit' : 'catalog_alias',
+      permission: source === 'exact' ? 'can_claim_directly' : 'can_claim_normalized',
       evidence: [match.evidence],
-      termIds: [requirementTerm.term.term.id],
+      requirementTermIds: [requirementTerm.term.term.id],
+      resumeTermIds: [match.term.term.id],
       categoryIds: requirementTerm.term.term.categoryIds,
       prohibitedTerms: [],
-      confidence: level === 'exact' ? 1 : 0.92,
-      rationaleCode: level,
+      confidence: source === 'exact' ? 1 : 0.92,
+      rationaleCode: source,
     }
   }
 
@@ -304,15 +308,17 @@ function findDirectTextMatch(
     match.score.containsPhrase
     || (match.score.overlapCount >= 2 && match.score.score >= 0.5)
   ) {
-    return {
-      group: 'supported',
-      level: 'exact',
-      permission: 'allowed',
-      evidence: [match.item],
-      termIds: [],
-      categoryIds: [],
-      prohibitedTerms: [],
-      confidence: Math.max(0.72, match.score.score),
+      return {
+        group: 'supported',
+        source: 'exact',
+        level: 'explicit',
+        permission: 'can_claim_directly',
+        evidence: [match.item],
+        requirementTermIds: [],
+        resumeTermIds: [],
+        categoryIds: [],
+        prohibitedTerms: [],
+        confidence: Math.max(0.72, match.score.score),
       rationaleCode: 'direct_text_match',
     }
   }
@@ -338,10 +344,12 @@ function findEducationTextMatch(
 
       return {
         group: isPrimaryAlternative ? 'supported' : 'adjacent',
-        level: isPrimaryAlternative ? 'exact' : 'adjacent_category',
-        permission: isPrimaryAlternative ? 'allowed' : 'cautious',
+        source: isPrimaryAlternative ? 'exact' : 'composite_decomposition',
+        level: isPrimaryAlternative ? 'explicit' : 'semantic_bridge_only',
+        permission: isPrimaryAlternative ? 'can_claim_directly' : 'can_bridge_carefully',
         evidence: [item],
-        termIds: [],
+        requirementTermIds: [],
+        resumeTermIds: [],
         categoryIds: [],
         prohibitedTerms: [],
         confidence: isPrimaryAlternative ? 0.86 : 0.62,
@@ -354,10 +362,12 @@ function findEducationTextMatch(
     if (score.overlapCount >= 1 && score.score >= 0.34) {
       return {
         group: 'supported',
-        level: 'exact',
-        permission: 'allowed',
+        source: 'exact',
+        level: 'explicit',
+        permission: 'can_claim_directly',
         evidence: [item],
-        termIds: [],
+        requirementTermIds: [],
+        resumeTermIds: [],
         categoryIds: [],
         prohibitedTerms: [],
         confidence: Math.max(0.7, score.score),
@@ -409,10 +419,12 @@ function findAntiEquivalenceMatch(
 
     return {
       group: shouldRemainAdjacent ? 'adjacent' : 'unsupported',
-      level: 'catalog_anti_equivalence',
-      permission: shouldRemainAdjacent ? 'cautious' : 'forbidden',
+      source: 'catalog_anti_equivalence',
+      level: shouldRemainAdjacent ? 'semantic_bridge_only' : 'unsupported_gap',
+      permission: shouldRemainAdjacent ? 'can_mention_as_related_context' : 'must_not_claim',
       evidence: [evidenceTerm.evidence],
-      termIds: [requirementTerm.term.term.id, evidenceTerm.term.term.id],
+      requirementTermIds: [requirementTerm.term.term.id],
+      resumeTermIds: [evidenceTerm.term.term.id],
       categoryIds: [...requirementTerm.term.term.categoryIds, ...evidenceTerm.term.term.categoryIds],
       prohibitedTerms: shouldRemainAdjacent ? [] : [requirementTerm.term.term.label],
       confidence: shouldRemainAdjacent ? 0.56 : 0.98,
@@ -467,10 +479,12 @@ function findCategoryMatch(
 
     return {
       group: level === 'catalog_category' ? 'supported' : 'adjacent',
-      level,
-      permission: level === 'catalog_category' ? 'allowed' : 'cautious',
+      source: 'catalog_category',
+      level: level === 'catalog_category' ? 'category_equivalent' : 'semantic_bridge_only',
+      permission: level === 'catalog_category' ? 'can_claim_normalized' : 'can_bridge_carefully',
       evidence: [match.evidence],
-      termIds: [requirementTerm.term.term.id, match.term.term.id],
+      requirementTermIds: [requirementTerm.term.term.id],
+      resumeTermIds: [match.term.term.id],
       categoryIds: [...requirementTerm.term.term.categoryIds, ...match.term.term.categoryIds],
       prohibitedTerms: [],
       confidence: level === 'catalog_category' ? 0.82 : 0.58,
@@ -540,10 +554,12 @@ function findResolverMatch({
 
   return {
     group: decision.productEvidenceGroup,
-    level: 'llm_ambiguity_resolved',
+    source: 'llm_ambiguous',
+    level: evidenceLevelForGroup(decision.productEvidenceGroup),
     permission: permissionForGroup(decision.productEvidenceGroup),
     evidence: matchedEvidence,
-    termIds: [],
+    requirementTermIds: [],
+    resumeTermIds: [],
     categoryIds: [],
     prohibitedTerms: [],
     confidence: decision.confidence ?? 0.5,
@@ -555,10 +571,12 @@ function findResolverMatch({
 function unsupportedCandidate(requirement: MatcherRequirement): MatchCandidate {
   return {
     group: 'unsupported',
-    level: 'unsupported',
-    permission: 'forbidden',
+    source: 'fallback',
+    level: 'unsupported_gap',
+    permission: 'must_not_claim',
     evidence: [],
-    termIds: [],
+    requirementTermIds: [],
+    resumeTermIds: [],
     categoryIds: [],
     prohibitedTerms: [requirement.text],
     confidence: 0,
@@ -575,34 +593,48 @@ function toRequirementEvidence({
   catalogIndex: CatalogIndex
   candidate: MatchCandidate
 }): RequirementEvidence {
+  const requirementTermLabels = labelsForTermIds(candidate.requirementTermIds, catalogIndex)
+  const resumeTermLabels = labelsForTermIds(candidate.resumeTermIds, catalogIndex)
+  const extractedSignals = unique([
+    ...requirementTermLabels,
+    ...(requirementTermLabels.length === 0 ? [requirement.text] : []),
+  ])
+  const matchedResumeTerms = unique([
+    ...resumeTermLabels,
+    ...candidate.evidence.map((item) => item.text),
+  ])
+  const catalogTermIds = unique([...candidate.requirementTermIds, ...candidate.resumeTermIds])
+
   return {
-    requirementId: requirement.id,
-    requirementText: requirement.text,
-    requirementKind: requirement.kind ?? 'unknown',
-    requirementImportance: requirement.importance ?? 'secondary',
-    productEvidenceGroup: candidate.group,
-    internalEvidenceLevel: candidate.level,
-    claimPermission: candidate.permission,
-    evidenceIds: candidate.evidence.map((item) => item.id),
-    matchedEvidence: candidate.evidence.map((item) => ({
+    id: requirement.id,
+    originalRequirement: requirement.text,
+    normalizedRequirement: requirement.normalizedText ?? normalizeTextForAudit(requirement.text),
+    extractedSignals,
+    kind: requirement.kind ?? 'unknown',
+    importance: requirement.importance ?? 'secondary',
+    productGroup: candidate.group,
+    evidenceLevel: candidate.level,
+    rewritePermission: candidate.permission,
+    matchedResumeTerms,
+    supportingResumeSpans: candidate.evidence.map((item) => ({
       id: item.id,
       text: item.text,
       ...(item.section === undefined ? {} : { section: item.section }),
       ...(item.sourceKind === undefined ? {} : { sourceKind: item.sourceKind }),
       ...(item.cvPath === undefined ? {} : { cvPath: item.cvPath }),
     })),
-    catalogTermIds: unique(candidate.termIds),
+    confidence: candidate.confidence,
+    rationale: candidate.rationaleCode,
+    source: candidate.source,
+    catalogTermIds,
     catalogCategoryIds: unique(candidate.categoryIds),
     prohibitedTerms: unique(candidate.prohibitedTerms),
-    confidence: candidate.confidence,
-    rationaleCode: candidate.rationaleCode,
     audit: {
       matcherVersion: JOB_COMPATIBILITY_MATCHER_VERSION,
-      matchSource: candidate.level,
       precedence: MATCHER_PRECEDENCE,
       catalogIds: catalogIndex.catalogIds,
       catalogVersions: catalogIndex.catalogVersions,
-      catalogTermIds: unique(candidate.termIds),
+      catalogTermIds,
       catalogCategoryIds: unique(candidate.categoryIds),
       ...(candidate.antiEquivalenceTermIds === undefined
         ? {}
@@ -614,14 +646,36 @@ function toRequirementEvidence({
 
 function permissionForGroup(group: ProductEvidenceGroup): ClaimPermission {
   if (group === 'supported') {
-    return 'allowed'
+    return 'can_claim_normalized'
   }
 
   if (group === 'adjacent') {
-    return 'cautious'
+    return 'can_bridge_carefully'
   }
 
-  return 'forbidden'
+  return 'must_not_claim'
+}
+
+function evidenceLevelForGroup(group: ProductEvidenceGroup): InternalEvidenceLevel {
+  if (group === 'supported') {
+    return 'strong_contextual_inference'
+  }
+
+  if (group === 'adjacent') {
+    return 'semantic_bridge_only'
+  }
+
+  return 'unsupported_gap'
+}
+
+function labelsForTermIds(termIds: string[], catalogIndex: CatalogIndex): string[] {
+  return termIds
+    .map((termId) => catalogIndex.termsById.get(termId)?.term.label)
+    .filter((label): label is string => Boolean(label))
+}
+
+function normalizeTextForAudit(value: string): string {
+  return tokens(value).join(' ')
 }
 
 function educationAlternatives(value: string): string[][] {

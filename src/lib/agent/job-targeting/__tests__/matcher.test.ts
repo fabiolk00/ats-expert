@@ -100,10 +100,10 @@ function evidence(items: Array<Partial<MatcherResumeEvidence> & Pick<MatcherResu
   }))
 }
 
-function groupIds(results: RequirementEvidence[], group: RequirementEvidence['productEvidenceGroup']): string[] {
+function groupIds(results: RequirementEvidence[], group: RequirementEvidence['productGroup']): string[] {
   return results
-    .filter((result) => result.productEvidenceGroup === group)
-    .map((result) => result.requirementId)
+    .filter((result) => result.productGroup === group)
+    .map((result) => result.id)
     .sort()
 }
 
@@ -133,7 +133,7 @@ function toMatcherRequirement(requirement: GoldenRequirement): MatcherRequiremen
   return {
     id: requirement.id,
     text: requirement.text,
-    kind: requirement.kind,
+    kind: requirement.kind === 'experience' ? 'responsibility' : requirement.kind,
     importance: requirement.priority === 'required' ? 'core' : 'differential',
   }
 }
@@ -152,11 +152,11 @@ function hasLowFitInput(results: RequirementEvidence[], requirements: GoldenRequ
       .map((item) => item.id),
   )
   const unsupportedRequiredCount = results.filter((result) => (
-    requiredIds.has(result.requirementId)
-    && result.productEvidenceGroup === 'unsupported'
+    requiredIds.has(result.id)
+    && result.productGroup === 'unsupported'
   )).length
   const supportedOrAdjacentCount = results.filter((result) => (
-    result.productEvidenceGroup !== 'unsupported'
+    result.productGroup !== 'unsupported'
   )).length
 
   return unsupportedRequiredCount >= 3 && supportedOrAdjacentCount <= 2
@@ -177,10 +177,11 @@ describe('catalog-driven requirement evidence matcher', () => {
       resumeEvidence: precedenceEvidence,
       catalog,
     })).toMatchObject({
-      productEvidenceGroup: 'supported',
-      internalEvidenceLevel: 'exact',
-      claimPermission: 'allowed',
-      evidenceIds: ['exact'],
+      productGroup: 'supported',
+      evidenceLevel: 'explicit',
+      rewritePermission: 'can_claim_directly',
+      source: 'exact',
+      supportingResumeSpans: [expect.objectContaining({ id: 'exact' })],
     })
 
     expect(classifyRequirementEvidence({
@@ -188,10 +189,11 @@ describe('catalog-driven requirement evidence matcher', () => {
       resumeEvidence: evidence([{ id: 'alias', text: 'BI dashboards' }]),
       catalog,
     })).toMatchObject({
-      productEvidenceGroup: 'supported',
-      internalEvidenceLevel: 'catalog_alias',
-      claimPermission: 'allowed',
-      evidenceIds: ['alias'],
+      productGroup: 'supported',
+      evidenceLevel: 'catalog_alias',
+      rewritePermission: 'can_claim_normalized',
+      source: 'catalog_alias',
+      supportingResumeSpans: [expect.objectContaining({ id: 'alias' })],
     })
 
     expect(classifyRequirementEvidence({
@@ -199,9 +201,10 @@ describe('catalog-driven requirement evidence matcher', () => {
       resumeEvidence: evidence([{ id: 'blocked', text: 'Power BI dashboarding with SQL extracts' }]),
       catalog,
     })).toMatchObject({
-      productEvidenceGroup: 'unsupported',
-      internalEvidenceLevel: 'catalog_anti_equivalence',
-      claimPermission: 'forbidden',
+      productGroup: 'unsupported',
+      evidenceLevel: 'unsupported_gap',
+      rewritePermission: 'must_not_claim',
+      source: 'catalog_anti_equivalence',
     })
 
     expect(classifyRequirementEvidence({
@@ -209,9 +212,11 @@ describe('catalog-driven requirement evidence matcher', () => {
       resumeEvidence: precedenceEvidence,
       catalog,
     })).toMatchObject({
-      productEvidenceGroup: 'adjacent',
-      claimPermission: 'cautious',
-      evidenceIds: ['adjacent'],
+      productGroup: 'adjacent',
+      evidenceLevel: 'semantic_bridge_only',
+      rewritePermission: 'can_mention_as_related_context',
+      source: 'catalog_anti_equivalence',
+      supportingResumeSpans: [expect.objectContaining({ id: 'adjacent' })],
     })
 
     expect(classifyRequirementEvidence({
@@ -219,10 +224,11 @@ describe('catalog-driven requirement evidence matcher', () => {
       resumeEvidence: precedenceEvidence,
       catalog,
     })).toMatchObject({
-      productEvidenceGroup: 'unsupported',
-      internalEvidenceLevel: 'unsupported',
-      claimPermission: 'forbidden',
-      evidenceIds: [],
+      productGroup: 'unsupported',
+      evidenceLevel: 'unsupported_gap',
+      rewritePermission: 'must_not_claim',
+      source: 'fallback',
+      supportingResumeSpans: [],
     })
   })
 
@@ -285,10 +291,11 @@ describe('catalog-driven requirement evidence matcher', () => {
       resumeEvidence: evidence([{ id: 'category-evidence', text: 'Evidence Term' }]),
       catalog,
     })).toMatchObject({
-      productEvidenceGroup: 'supported',
-      internalEvidenceLevel: 'catalog_category',
-      claimPermission: 'allowed',
-      evidenceIds: ['category-evidence'],
+      productGroup: 'supported',
+      evidenceLevel: 'category_equivalent',
+      rewritePermission: 'can_claim_normalized',
+      source: 'catalog_category',
+      supportingResumeSpans: [expect.objectContaining({ id: 'category-evidence' })],
     })
   })
 
@@ -301,15 +308,17 @@ describe('catalog-driven requirement evidence matcher', () => {
     }
 
     expect(classifyRequirementEvidence(ambiguousInput)).toMatchObject({
-      productEvidenceGroup: 'unsupported',
-      internalEvidenceLevel: 'unsupported',
+      productGroup: 'unsupported',
+      evidenceLevel: 'unsupported_gap',
+      source: 'fallback',
     })
     expect(classifyRequirementEvidence({
       ...ambiguousInput,
       ambiguityResolver: () => null,
     })).toMatchObject({
-      productEvidenceGroup: 'unsupported',
-      internalEvidenceLevel: 'unsupported',
+      productGroup: 'unsupported',
+      evidenceLevel: 'unsupported_gap',
+      source: 'fallback',
     })
   })
 
