@@ -5,12 +5,11 @@ import { callOpenAIWithRetry, getChatCompletionText, getChatCompletionUsage } fr
 import {
   buildAcronym,
   buildCanonicalSignal,
-  buildLexicalVariants,
-  computeTokenOverlap,
   hasLexicalAliasMatch,
   includesNormalizedPhrase,
   normalizeSemanticText,
 } from '@/lib/agent/job-targeting/semantic-normalization'
+import { findDomainEquivalentMatch } from '@/lib/agent/job-targeting/domain-equivalents'
 import type { EvidenceLevel, RewritePermission, TargetEvidence, TargetingPlan } from '@/types/agent'
 import type { CVState, GapAnalysisResult } from '@/types/cv'
 
@@ -33,7 +32,7 @@ type ClassifiedEvidenceItem = {
 
 type TargetSignal = {
   value: string
-  source: 'target_role' | 'focus_keyword' | 'must_emphasize' | 'missing_gap'
+  source: 'target_role' | 'focus_keyword' | 'must_emphasize' | 'missing_gap' | 'core_requirement'
 }
 
 function buildResumeEvidenceEntries(cvState: CVState): ResumeEvidenceEntry[] {
@@ -80,7 +79,7 @@ function buildResumeEvidenceEntries(cvState: CVState): ResumeEvidenceEntry[] {
   return entries
 }
 
-function collectTargetSignals(targetingPlan: TargetingPlan): TargetSignal[] {
+function collectTargetSignals(targetingPlan: TargetingPlan, coreRequirementSignals: string[] = []): TargetSignal[] {
   const rawSignals: TargetSignal[] = []
 
   if (targetingPlan.targetRoleConfidence !== 'low' && targetingPlan.targetRole.trim()) {
@@ -98,6 +97,9 @@ function collectTargetSignals(targetingPlan: TargetingPlan): TargetSignal[] {
   })
   targetingPlan.missingButCannotInvent.forEach((value) => {
     rawSignals.push({ value, source: 'missing_gap' })
+  })
+  coreRequirementSignals.forEach((value) => {
+    rawSignals.push({ value, source: 'core_requirement' })
   })
 
   const seen = new Set<string>()
@@ -256,6 +258,18 @@ function classifyDeterministically(signal: TargetSignal, resumeEvidence: ResumeE
         rationale: 'The resume contains matching API and REST evidence in the same span, supporting REST API experience as a technical equivalent.',
       })
     }
+  }
+
+  const domainEquivalentMatch = findDomainEquivalentMatch(signal.value, resumeEvidence)
+  if (domainEquivalentMatch) {
+    return buildTargetEvidenceRecord(signal.value, {
+      jobSignal: signal.value,
+      evidenceLevel: domainEquivalentMatch.evidenceLevel,
+      confidence: domainEquivalentMatch.confidence,
+      matchedResumeTerms: domainEquivalentMatch.matchedResumeTerms,
+      supportingResumeSpans: domainEquivalentMatch.supportingResumeSpans,
+      rationale: domainEquivalentMatch.rationale,
+    })
   }
 
   const signalAcronym = buildAcronym(signal.value)
@@ -489,11 +503,12 @@ export async function classifyTargetEvidence(params: {
   cvState: CVState
   targetingPlan: TargetingPlan
   gapAnalysis: GapAnalysisResult
+  coreRequirementSignals?: string[]
   userId?: string
   sessionId?: string
 }): Promise<TargetEvidence[]> {
   const resumeEvidence = buildResumeEvidenceEntries(params.cvState)
-  const signals = collectTargetSignals(params.targetingPlan)
+  const signals = collectTargetSignals(params.targetingPlan, params.coreRequirementSignals ?? [])
 
   if (resumeEvidence.length === 0) {
     return signals.map(buildDefaultUnsupported)

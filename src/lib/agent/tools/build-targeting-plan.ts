@@ -1,5 +1,8 @@
 import { AGENT_CONFIG, MODEL_CONFIG } from '@/lib/agent/config'
-import { buildCoreRequirementCoverage } from '@/lib/agent/job-targeting/core-requirement-coverage'
+import {
+  buildCoreRequirementCoverage,
+  extractCoreRequirementSignalsFromDescription,
+} from '@/lib/agent/job-targeting/core-requirement-coverage'
 import { classifyTargetEvidence } from '@/lib/agent/job-targeting/evidence-classifier'
 import { buildLowFitWarningGate } from '@/lib/agent/job-targeting/low-fit-warning-gate'
 import { buildTargetRolePositioning } from '@/lib/agent/job-targeting/recoverable-validation'
@@ -158,11 +161,13 @@ export async function buildTargetedRewritePlan(params: BuildTargetedRewritePlanI
   }
 
   const basePlan = await buildBaseTargetingPlan(params)
+  const coreRequirementSignals = extractCoreRequirementSignalsFromDescription(params.targetJobDescription)
 
   const targetEvidence = await classifyTargetEvidence({
     cvState: params.cvState,
     targetingPlan: basePlan,
     gapAnalysis: params.gapAnalysis,
+    coreRequirementSignals,
     userId: params.userId,
     sessionId: params.sessionId,
   })

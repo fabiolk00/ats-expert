@@ -5,6 +5,7 @@ import {
   includesNormalizedPhrase,
   normalizeSemanticText,
 } from '@/lib/agent/job-targeting/semantic-normalization'
+import { decomposeRequirementSignal } from '@/lib/agent/job-targeting/domain-equivalents'
 import type {
   CoreRequirement,
   CoreRequirementCoverage,
@@ -18,7 +19,7 @@ type RequirementSection = 'requirements' | 'responsibilities' | 'differential' |
 
 const CORE_HEADING_RE = /^(requisitos?(?:\s+obrigatorios)?|requirements?|must(?:\s+have)?|mandatory|qualificacoes|qualifications|pre[\s-]?requisitos?|o que esperamos de voce)\b/i
 const DIFFERENTIAL_HEADING_RE = /^(diferenciais?|sera(?:o)?\s+um\s+diferencial|ser[aã]o\s+diferenciais|desejavel|desejaveis|differentials?|nice\s+to\s+have|plus|diferencial\s+competitivo)\b/i
-const SECONDARY_HEADING_RE = /^(responsabilidades?|atividades|atribuicoes|responsibilities|what\s+you(?:'ll|\s+will)?\s+do|e o seu dia a dia como sera)\b/i
+const SECONDARY_HEADING_RE = /^(responsabilidades?|atividades|atribuicoes|descri[cç][aã]o|responsibilities|description|what\s+you(?:'ll|\s+will)?\s+do|e o seu dia a dia como sera)\b/i
 const CORE_LINE_RE = /\b(obrigatori[oa]s?|required|must|dominio|experience with|experi[eê]ncia com|experi[eê]ncia forte|strong experience|profissional com|conhecimento em|conhecimento com|viv[eê]ncia em|viv[eê]ncia com|ser[aá] respons[aá]vel por|atuar[aá] com|mais de \d+ anos|\d+\+?\s*(?:anos|years))\b/i
 const BENEFITS_HEADING_RE = /^(o que temos (?:pra|para) te oferecer|o que oferecemos|beneficios?(?: e vantagens)?|por que trabalhar conosco|nosso plano de carreira|mais do que um plano de carreira|cultura|sobre nos|quem somos)\b/i
 const SUPPORTED_CORE_LEVELS = new Set<EvidenceLevel>([
@@ -327,7 +328,7 @@ function scoreDisplaySignal(requirement: CoreRequirement): number {
 export function buildCoreRequirementDisplaySignals(requirements: CoreRequirement[]): string[] {
   const candidates = requirements
     .filter((requirement) => requirement.importance === 'core')
-    .filter((requirement) => !SUPPORTED_CORE_LEVELS.has(requirement.evidenceLevel)
+    .filter((requirement) => requirement.evidenceLevel === 'unsupported_gap'
       || requirement.rewritePermission === 'must_not_claim')
     .map((requirement, index) => ({
       signal: cleanDisplaySignal(requirement.signal),
@@ -713,35 +714,44 @@ function inferRequirementKind(params: {
   return undefined
 }
 
-function findMatchingEvidence(signal: string, targetEvidence: TargetEvidence[]): TargetEvidence | undefined {
+function matchesEvidenceCandidate(signal: string, evidence: TargetEvidence): boolean {
   const normalizedSignal = normalizeSemanticText(signal)
   const canonicalSignal = buildCanonicalSignal(signal)
 
-  return targetEvidence.find((evidence) => {
-    const candidates = [
-      evidence.jobSignal,
-      evidence.canonicalSignal,
-      ...evidence.allowedRewriteForms,
-      ...evidence.forbiddenRewriteForms,
-      ...evidence.matchedResumeTerms,
-    ]
+  const candidates = [
+    evidence.jobSignal,
+    evidence.canonicalSignal,
+    ...evidence.allowedRewriteForms,
+    ...evidence.forbiddenRewriteForms,
+    ...evidence.matchedResumeTerms,
+  ]
 
-    return candidates.some((candidate) => {
-      const normalizedCandidate = normalizeSemanticText(candidate)
-      const canonicalCandidate = buildCanonicalSignal(candidate)
+  return candidates.some((candidate) => {
+    const normalizedCandidate = normalizeSemanticText(candidate)
+    const canonicalCandidate = buildCanonicalSignal(candidate)
 
-      return Boolean(
-        normalizedCandidate
-        && canonicalCandidate
-        && (
-          canonicalCandidate === canonicalSignal
-          || includesNormalizedPhrase(normalizedSignal, normalizedCandidate)
-          || includesNormalizedPhrase(normalizedCandidate, normalizedSignal)
-          || hasLexicalAliasMatch(signal, candidate)
-        ),
-      )
-    })
+    return Boolean(
+      normalizedCandidate
+      && canonicalCandidate
+      && (
+        canonicalCandidate === canonicalSignal
+        || includesNormalizedPhrase(normalizedSignal, normalizedCandidate)
+        || includesNormalizedPhrase(normalizedCandidate, normalizedSignal)
+        || hasLexicalAliasMatch(signal, candidate)
+      ),
+    )
   })
+}
+
+function findMatchingEvidence(signal: string, targetEvidence: TargetEvidence[]): TargetEvidence | undefined {
+  const candidateSignals = dedupe([
+    signal,
+    ...decomposeRequirementSignal(signal).map((subSignal) => subSignal.signal),
+  ])
+
+  return targetEvidence.find((evidence) => (
+    candidateSignals.some((candidateSignal) => matchesEvidenceCandidate(candidateSignal, evidence))
+  ))
 }
 
 function upsertRequirement(bucket: Map<string, CoreRequirement>, requirement: CoreRequirement): void {
@@ -925,4 +935,42 @@ export function buildCoreRequirementCoverage(params: {
     topUnsupportedSignalsForDisplay,
     preferredSignalsForDisplay,
   }
+}
+
+export function extractCoreRequirementSignalsFromDescription(targetJobDescription: string): string[] {
+  const shapedJobDescription = shapeTargetJobDescription(targetJobDescription).content
+  const lines = mergeContinuationLines(shapedJobDescription
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean))
+
+  const signals: string[] = []
+  let activeSection: RequirementSection | undefined
+
+  lines.forEach((line) => {
+    const normalizedLine = normalizeSemanticText(line)
+
+    if (BENEFITS_HEADING_RE.test(normalizedLine)) {
+      activeSection = 'benefits'
+    } else if (CORE_HEADING_RE.test(normalizedLine)) {
+      activeSection = 'requirements'
+    } else if (DIFFERENTIAL_HEADING_RE.test(normalizedLine)) {
+      activeSection = 'differential'
+    } else if (SECONDARY_HEADING_RE.test(normalizedLine)) {
+      activeSection = 'responsibilities'
+    }
+
+    if (activeSection === 'benefits' || isPureSectionHeading(line) || isLikelyIntroductoryHeading(line)) {
+      return
+    }
+
+    extractRequirementFragments(line).forEach((fragment) => {
+      signals.push(fragment)
+      decomposeRequirementSignal(fragment).forEach((subSignal) => {
+        signals.push(subSignal.signal)
+      })
+    })
+  })
+
+  return dedupe(signals).slice(0, 80)
 }
