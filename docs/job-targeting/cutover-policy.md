@@ -6,7 +6,27 @@ The JobCompatibilityAssessment must run in shadow mode before it becomes the pro
 
 - `JOB_COMPATIBILITY_ASSESSMENT_ENABLED=false`: the new assessment does not run.
 - `JOB_COMPATIBILITY_ASSESSMENT_ENABLED=true` + `JOB_COMPATIBILITY_ASSESSMENT_SHADOW_MODE=true` + `JOB_COMPATIBILITY_ASSESSMENT_SOURCE_OF_TRUTH=false`: the new assessment runs, is persisted as `agentState.jobCompatibilityAssessmentShadow`, and logs comparison metrics. It must not alter UI, score, rewrite, validation, or low-fit decisions.
-- `JOB_COMPATIBILITY_ASSESSMENT_ENABLED=true` + `JOB_COMPATIBILITY_ASSESSMENT_SHADOW_MODE=false` + `JOB_COMPATIBILITY_ASSESSMENT_SOURCE_OF_TRUTH=true`: the new assessment is persisted as `agentState.jobCompatibilityAssessment` and may drive score, claim policy, low-fit, rewrite, and validation.
+- `JOB_COMPATIBILITY_ASSESSMENT_ENABLED=true` + `JOB_COMPATIBILITY_ASSESSMENT_SOURCE_OF_TRUTH=true` + `JOB_COMPATIBILITY_ASSESSMENT_CUTOVER_APPROVED=false`: source-of-truth is blocked and the effective mode remains shadow. This protects production from accidental promotion before metrics are approved.
+- `JOB_COMPATIBILITY_ASSESSMENT_ENABLED=true` + `JOB_COMPATIBILITY_ASSESSMENT_SHADOW_MODE=false` + `JOB_COMPATIBILITY_ASSESSMENT_SOURCE_OF_TRUTH=true` + `JOB_COMPATIBILITY_ASSESSMENT_CUTOVER_APPROVED=true`: the new assessment is persisted as `agentState.jobCompatibilityAssessment` and may drive score, claim policy, low-fit, rewrite, and validation.
+
+## Shadow Batch Validation
+
+Run volume validation through the batch runner, not through 500 browser sessions:
+
+```bash
+tsx scripts/job-targeting/run-shadow-batch.ts \
+  --input .local/job-targeting-shadow-cases/cases.jsonl \
+  --output .local/job-targeting-shadow-results/results.jsonl \
+  --limit 500 \
+  --concurrency 3
+```
+
+The runner writes one JSONL result per case, persists shadow comparisons when `--persist` is used, and generates:
+
+- `.local/job-targeting-shadow-results/report.json`
+- `.local/job-targeting-shadow-results/report.md`
+
+The report must contain `CUTOVER_READY=true` before `JOB_COMPATIBILITY_ASSESSMENT_CUTOVER_APPROVED=true` can be set.
 
 ## Promotion Criteria
 

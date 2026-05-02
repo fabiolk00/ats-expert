@@ -43,6 +43,7 @@ const {
   mockValidateRewrite,
   mockGenerateCvHighlightState,
   mockCreateCvVersion,
+  mockCreateJobCompatibilityShadowComparison,
   mockUpdateSession,
   mockLogInfo,
   mockLogWarn,
@@ -60,6 +61,7 @@ const {
   mockValidateRewrite: vi.fn(),
   mockGenerateCvHighlightState: vi.fn(),
   mockCreateCvVersion: vi.fn(),
+  mockCreateJobCompatibilityShadowComparison: vi.fn(),
   mockUpdateSession: vi.fn(),
   mockLogInfo: vi.fn(),
   mockLogWarn: vi.fn(),
@@ -99,6 +101,10 @@ vi.mock('@/lib/agent/tools/validate-rewrite', () => ({
 
 vi.mock('@/lib/db/cv-versions', () => ({
   createCvVersion: mockCreateCvVersion,
+}))
+
+vi.mock('@/lib/db/job-compatibility-shadow-comparison', () => ({
+  createJobCompatibilityShadowComparison: mockCreateJobCompatibilityShadowComparison,
 }))
 
 vi.mock('@/lib/db/sessions', () => ({
@@ -474,6 +480,7 @@ describe('ATS enhancement reliability hardening', () => {
     vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_ENABLED', 'true')
     vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_SHADOW_MODE', 'false')
     vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_SOURCE_OF_TRUTH', 'true')
+    vi.stubEnv('JOB_COMPATIBILITY_ASSESSMENT_CUTOVER_APPROVED', 'true')
     resetOpenAICircuitBreakerForTest()
     mockUpdateSession.mockResolvedValue(undefined)
     mockCreateCvVersion.mockResolvedValue({
@@ -483,6 +490,7 @@ describe('ATS enhancement reliability hardening', () => {
       source: 'job-targeting',
       createdAt: new Date('2026-04-22T12:00:00.000Z'),
     })
+    mockCreateJobCompatibilityShadowComparison.mockResolvedValue(undefined)
     mockGenerateCvHighlightState.mockImplementation(async (_cvState, context) => {
       context?.onCompleted?.(buildHighlightDetectionOutcome())
       return buildHighlightStateFixture({
@@ -2138,6 +2146,16 @@ describe('ATS enhancement reliability hardening', () => {
       assessmentAdjacentCount: jobCompatibilityAssessment.adjacentRequirements.length,
       assessmentUnsupportedCount: jobCompatibilityAssessment.unsupportedRequirements.length,
       assessmentForbiddenClaimCount: jobCompatibilityAssessment.claimPolicy.forbiddenClaims.length,
+    }))
+    expect(mockCreateJobCompatibilityShadowComparison).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: session.id,
+      userId: session.userId,
+      source: 'pipeline_shadow',
+      legacy: expect.objectContaining({
+        score: 68,
+        lowFitTriggered: false,
+      }),
+      assessment: jobCompatibilityAssessment,
     }))
   })
 

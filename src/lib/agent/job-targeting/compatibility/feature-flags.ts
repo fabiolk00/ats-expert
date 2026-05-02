@@ -2,6 +2,9 @@ export type JobCompatibilityAssessmentMode = {
   enabled: boolean
   shadowMode: boolean
   sourceOfTruth: boolean
+  sourceOfTruthRequested: boolean
+  cutoverApproved: boolean
+  sourceOfTruthBlocked: boolean
 }
 
 function readBooleanFlag(
@@ -20,11 +23,17 @@ export function getJobCompatibilityAssessmentMode(
 ): JobCompatibilityAssessmentMode {
   const enabled = readBooleanFlag(env.JOB_COMPATIBILITY_ASSESSMENT_ENABLED, true)
   const shadowMode = readBooleanFlag(env.JOB_COMPATIBILITY_ASSESSMENT_SHADOW_MODE, true)
-  const sourceOfTruth = readBooleanFlag(env.JOB_COMPATIBILITY_ASSESSMENT_SOURCE_OF_TRUTH, false)
+  const sourceOfTruthRequested = readBooleanFlag(env.JOB_COMPATIBILITY_ASSESSMENT_SOURCE_OF_TRUTH, false)
+  const cutoverApproved = readBooleanFlag(env.JOB_COMPATIBILITY_ASSESSMENT_CUTOVER_APPROVED, false)
+  const sourceOfTruth = enabled && sourceOfTruthRequested && cutoverApproved && !shadowMode
+  const sourceOfTruthBlocked = enabled && sourceOfTruthRequested && !cutoverApproved
 
   return {
     enabled,
-    shadowMode: enabled && shadowMode && !sourceOfTruth,
-    sourceOfTruth: enabled && sourceOfTruth && !shadowMode,
+    shadowMode: enabled && (shadowMode || sourceOfTruthBlocked) && !sourceOfTruth,
+    sourceOfTruth,
+    sourceOfTruthRequested: enabled && sourceOfTruthRequested,
+    cutoverApproved,
+    sourceOfTruthBlocked,
   }
 }

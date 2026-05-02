@@ -506,6 +506,7 @@ export async function classifyTargetEvidence(params: {
   coreRequirementSignals?: string[]
   userId?: string
   sessionId?: string
+  disableLlm?: boolean
 }): Promise<TargetEvidence[]> {
   const resumeEvidence = buildResumeEvidenceEntries(params.cvState)
   const signals = collectTargetSignals(params.targetingPlan, params.coreRequirementSignals ?? [])
@@ -527,12 +528,14 @@ export async function classifyTargetEvidence(params: {
     unresolvedSignals.push(signal)
   })
 
-  const llmMatches = await classifyUnresolvedSignalsWithLLM({
-    unresolvedSignals,
-    resumeEvidence,
-    userId: params.userId,
-    sessionId: params.sessionId,
-  })
+  const llmMatches = params.disableLlm
+    ? new Map<string, TargetEvidence>()
+    : await classifyUnresolvedSignalsWithLLM({
+        unresolvedSignals,
+        resumeEvidence,
+        userId: params.userId,
+        sessionId: params.sessionId,
+      })
 
   return signals.map((signal) => {
     const canonical = buildCanonicalSignal(signal.value)

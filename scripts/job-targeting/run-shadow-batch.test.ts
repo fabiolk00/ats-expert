@@ -1,0 +1,198 @@
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { runShadowBatch } from '@/lib/agent/job-targeting/shadow-batch-runner'
+import type { JobTargetingShadowCase } from '@/lib/agent/job-targeting/shadow-case-types'
+import type { CVState } from '@/types/cv'
+
+const {
+  mockBuildTargetedRewritePlan,
+  mockEvaluateJobCompatibility,
+  mockCreateJobCompatibilityShadowComparison,
+} = vi.hoisted(() => ({
+  mockBuildTargetedRewritePlan: vi.fn(),
+  mockEvaluateJobCompatibility: vi.fn(),
+  mockCreateJobCompatibilityShadowComparison: vi.fn(),
+}))
+
+vi.mock('@/lib/agent/tools/build-targeting-plan', () => ({
+  buildTargetedRewritePlan: mockBuildTargetedRewritePlan,
+}))
+
+vi.mock('@/lib/agent/job-targeting/compatibility/assessment', () => ({
+  evaluateJobCompatibility: mockEvaluateJobCompatibility,
+}))
+
+vi.mock('@/lib/db/job-compatibility-shadow-comparison', () => ({
+  createJobCompatibilityShadowComparison: mockCreateJobCompatibilityShadowComparison,
+}))
+
+const cvState: CVState = {
+  fullName: 'Pessoa Teste',
+  email: 'teste@example.com',
+  phone: '+55 11 99999-0000',
+  summary: 'Analista com experiencia em dados.',
+  experience: [],
+  skills: ['SQL'],
+  education: [],
+  certifications: [],
+}
+
+function buildCase(id: string): JobTargetingShadowCase {
+  return {
+    id,
+    source: 'synthetic',
+    domain: 'data-bi',
+    cvState,
+    targetJobDescription: 'Cargo: Analista de Dados\nRequisitos: SQL',
+    metadata: {
+      anonymized: true,
+    },
+  }
+}
+
+function buildPlan() {
+  return {
+    targetRole: 'Analista de Dados',
+    targetRoleConfidence: 'high',
+    targetRoleSource: 'heuristic',
+    focusKeywords: [],
+    mustEmphasize: [],
+    shouldDeemphasize: [],
+    missingButCannotInvent: [],
+    sectionStrategy: {
+      summary: [],
+      experience: [],
+      skills: [],
+      education: [],
+      certifications: [],
+    },
+    targetEvidence: [{
+      jobSignal: 'SQL',
+      canonicalSignal: 'SQL',
+      evidenceLevel: 'explicit',
+      rewritePermission: 'can_claim_directly',
+      matchedResumeTerms: ['SQL'],
+      supportingResumeSpans: ['SQL'],
+      rationale: 'explicit',
+      confidence: 1,
+      allowedRewriteForms: ['SQL'],
+      forbiddenRewriteForms: [],
+      validationSeverityIfViolated: 'none',
+    }],
+    lowFitWarningGate: {
+      triggered: false,
+      blocking: false,
+      riskLevel: 'low',
+      matchScore: 80,
+      unsupportedGapCount: 0,
+      unsupportedGapRatio: 0,
+      explicitEvidenceCount: 1,
+      explicitEvidenceRatio: 1,
+      coreRequirementCoverage: {
+        total: 1,
+        supported: 1,
+        unsupported: 0,
+        unsupportedSignals: [],
+        topUnsupportedSignalsForDisplay: [],
+        preferredSignalsForDisplay: [],
+        requirements: [],
+      },
+    },
+  }
+}
+
+function buildAssessment() {
+  return {
+    scoreBreakdown: {
+      total: 82,
+      scoreVersion: 'job-compat-score-v1',
+    },
+    lowFit: { triggered: false },
+    supportedRequirements: [{}],
+    adjacentRequirements: [],
+    unsupportedRequirements: [],
+    criticalGaps: [],
+    reviewNeededGaps: [],
+    claimPolicy: {
+      forbiddenClaims: [],
+    },
+    audit: {
+      assessmentVersion: 'job-compat-assessment-v1',
+      scoreVersion: 'job-compat-score-v1',
+    },
+    catalog: {
+      catalogVersions: { generic: '1.0.0' },
+    },
+  }
+}
+
+describe('runShadowBatch', () => {
+  let tempDir: string
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), 'curria-shadow-batch-'))
+    vi.clearAllMocks()
+    mockBuildTargetedRewritePlan.mockResolvedValue(buildPlan())
+    mockEvaluateJobCompatibility.mockResolvedValue(buildAssessment())
+    mockCreateJobCompatibilityShadowComparison.mockResolvedValue(undefined)
+  })
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true })
+  })
+
+  async function writeCases(cases: JobTargetingShadowCase[]): Promise<{ input: string; output: string }> {
+    const input = path.join(tempDir, 'cases.jsonl')
+    const output = path.join(tempDir, 'results.jsonl')
+    await writeFile(input, cases.map((testCase) => JSON.stringify(testCase)).join('\n'), 'utf8')
+    return { input, output }
+  }
+
+  it('processes multiple cases and writes JSONL results', async () => {
+    const { input, output } = await writeCases([buildCase('case-1'), buildCase('case-2')])
+
+    const summary = await runShadowBatch({ inputPath: input, outputPath: output, concurrency: 2 })
+    const lines = (await readFile(output, 'utf8')).trim().split(/\r?\n/u)
+
+    expect(summary).toEqual(expect.objectContaining({ total: 2, successful: 2, failed: 0 }))
+    expect(lines).toHaveLength(2)
+    expect(JSON.parse(lines[0] ?? '{}')).toEqual(expect.objectContaining({
+      caseId: 'case-1',
+      runtime: expect.objectContaining({ success: true }),
+    }))
+  })
+
+  it('respects limit', async () => {
+    const { input, output } = await writeCases([buildCase('case-1'), buildCase('case-2')])
+
+    const summary = await runShadowBatch({ inputPath: input, outputPath: output, limit: 1 })
+
+    expect(summary.total).toBe(1)
+    expect(mockBuildTargetedRewritePlan).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks a per-case error without killing the whole batch', async () => {
+    mockBuildTargetedRewritePlan.mockImplementation(async ({ sessionId }: { sessionId?: string }) => {
+      if (sessionId?.includes('case-2')) {
+        throw new Error('case failed')
+      }
+      return buildPlan()
+    })
+    const { input, output } = await writeCases([buildCase('case-1'), buildCase('case-2')])
+
+    const summary = await runShadowBatch({ inputPath: input, outputPath: output, concurrency: 2 })
+    const results = (await readFile(output, 'utf8')).trim().split(/\r?\n/u).map((line) => JSON.parse(line))
+
+    expect(summary).toEqual(expect.objectContaining({ total: 2, successful: 1, failed: 1 }))
+    expect(results.find((result) => result.caseId === 'case-2')).toEqual(expect.objectContaining({
+      runtime: expect.objectContaining({
+        success: false,
+        error: 'case failed',
+      }),
+    }))
+  })
+})

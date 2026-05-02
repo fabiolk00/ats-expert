@@ -31,6 +31,7 @@ import { rewriteResumeFull } from '@/lib/agent/tools/rewrite-resume-full'
 import { rewriteSection } from '@/lib/agent/tools/rewrite-section'
 import { validateRewrite } from '@/lib/agent/tools/validate-rewrite'
 import { createCvVersion } from '@/lib/db/cv-versions'
+import { createJobCompatibilityShadowComparison } from '@/lib/db/job-compatibility-shadow-comparison'
 import { updateSession } from '@/lib/db/sessions'
 import { deriveTargetFitAssessment } from '@/lib/agent/target-fit'
 import { executeWithStageRetry } from '@/lib/agent/job-targeting-retry'
@@ -415,12 +416,12 @@ function logCompatibilityAssessmentLifecycle(
   logInfo('job_targeting.compatibility.completed', payload)
 }
 
-function logCompatibilityShadowComparison(params: {
+async function recordCompatibilityShadowComparison(params: {
   session: Session
   assessment: JobCompatibilityAssessment
   targetingPlan: NonNullable<Session['agentState']['targetingPlan']>
   gapAnalysisScore: number
-}): void {
+}): Promise<void> {
   const legacyScore = params.targetingPlan.lowFitWarningGate?.matchScore ?? params.gapAnalysisScore
   const assessmentScore = params.assessment.scoreBreakdown.total
   const legacyCriticalGapsCount = params.targetingPlan.coreRequirementCoverage?.unsupported ?? 0
@@ -455,6 +456,29 @@ function logCompatibilityShadowComparison(params: {
       .join(','),
     generatedAt: new Date().toISOString(),
   })
+
+  try {
+    await createJobCompatibilityShadowComparison({
+      userId: params.session.userId,
+      sessionId: params.session.id,
+      source: 'pipeline_shadow',
+      legacy: {
+        score: legacyScore,
+        lowFitTriggered: legacyLowFitTriggered,
+        unsupportedCount: legacyUnsupportedCount,
+        criticalGaps: params.targetingPlan.coreRequirementCoverage?.topUnsupportedSignalsForDisplay
+          ?? params.targetingPlan.coreRequirementCoverage?.unsupportedSignals
+          ?? [],
+      },
+      assessment: params.assessment,
+    })
+  } catch (error) {
+    logWarn('job_targeting.compatibility.shadow_comparison_persist_failed', {
+      sessionId: params.session.id,
+      userId: params.session.userId,
+      error: serializeError(error),
+    })
+  }
 }
 
 function buildJobTargetingExplanation(params: {
@@ -765,6 +789,17 @@ export async function runJobTargetingPipeline(
   const compatibilityMode = getJobCompatibilityAssessmentMode()
   let evaluatedJobCompatibilityAssessment: JobCompatibilityAssessment | undefined
 
+  if (compatibilityMode.sourceOfTruthBlocked) {
+    logWarn('job_targeting.compatibility.source_of_truth_blocked_without_cutover_approval', {
+      workflowMode: 'job_targeting',
+      sessionId: session.id,
+      userId: session.userId,
+      sourceOfTruthRequested: compatibilityMode.sourceOfTruthRequested,
+      cutoverApproved: compatibilityMode.cutoverApproved,
+      effectiveShadowMode: compatibilityMode.shadowMode,
+    })
+  }
+
   if (compatibilityMode.enabled) {
     logInfo('job_targeting.compatibility.started', {
       workflowMode: 'job_targeting',
@@ -836,7 +871,7 @@ export async function runJobTargetingPipeline(
     ...(jobCompatibilityAssessment === undefined ? {} : { jobCompatibilityAssessment }),
   })
   if (compatibilityMode.shadowMode && evaluatedJobCompatibilityAssessment) {
-    logCompatibilityShadowComparison({
+    await recordCompatibilityShadowComparison({
       session,
       assessment: evaluatedJobCompatibilityAssessment,
       targetingPlan,

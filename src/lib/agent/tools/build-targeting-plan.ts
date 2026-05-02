@@ -178,6 +178,7 @@ export async function buildTargetedRewritePlan(params: BuildTargetedRewritePlanI
     coreRequirementSignals,
     userId: params.userId,
     sessionId: params.sessionId,
+    disableLlm: params.disableLlm,
   })
   const rewritePermissions = buildTargetedRewritePermissions(targetEvidence)
   const initialTargetRolePositioning = buildTargetRolePositioning({
@@ -451,6 +452,7 @@ type BuildTargetingPlanParams = {
   jobCompatibilityAssessment?: JobCompatibilityAssessment
   userId?: string
   sessionId?: string
+  disableLlm?: boolean
 }
 
 export type BuildTargetedRewritePlanInput = BuildTargetingPlanParams & {
@@ -475,6 +477,9 @@ async function buildBaseTargetingPlan(params: BuildTargetingPlanParams): Promise
   } else if (heuristic.confidence === 'high') {
     extractedRole = heuristic
     targetRoleSource = 'heuristic'
+  } else if (params.disableLlm) {
+    extractedRole = { targetRole: FALLBACK_TARGET_ROLE, confidence: 'low' }
+    targetRoleSource = 'fallback'
   } else {
     const llmExtraction = await extractTargetRoleWithLLM(targetJobDescription, {
       userId: params.userId,

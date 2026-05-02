@@ -58,6 +58,7 @@ docs/openai-baselines/20*/
 docs/openai-model-selection-runs/20*/
 
 # Local planning scratch and debug artifacts
+.local/
 .planning/.tmp-copy-audit.json
 .planning/debug/
 .tmp_profile_zip_ref/

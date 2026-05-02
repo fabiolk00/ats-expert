@@ -107,6 +107,10 @@ export const TABLE_CONVENTIONS: Record<string, TableConvention> = {
     id: 'generic',
     timestamps: 'mutable',
   },
+  job_compatibility_shadow_comparison: {
+    id: 'generic',
+    timestamps: 'append_only',
+  },
   credit_consumptions: {
     id: 'generic',
     timestamps: 'mutable',
