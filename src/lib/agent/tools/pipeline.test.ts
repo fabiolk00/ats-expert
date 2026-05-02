@@ -528,6 +528,39 @@ describe('ATS enhancement reliability hardening', () => {
     })
   })
 
+  it('preserves rewrite section error code and failed section for batch diagnostics', async () => {
+    mockRewriteSection.mockResolvedValue({
+      output: {
+        success: false,
+        code: 'UNAUTHORIZED',
+        error: 'Failed to rewrite resume section.',
+      },
+    })
+
+    const result = await rewriteResumeFull({
+      mode: 'job_targeting',
+      cvState: buildCvState(),
+      targetJobDescription: 'Cargo: Analytics Engineer\nRequisitos: SQL e BigQuery',
+      gapAnalysis: {
+        matchScore: 68,
+        missingSkills: ['BigQuery'],
+        weakAreas: ['summary'],
+        improvementSuggestions: ['Aproxime o resumo da vaga sem inventar experiencia.'],
+      },
+      targetingPlan: buildDefaultTargetingPlan(),
+      jobCompatibilityAssessment: buildPipelineAssessment(),
+      userId: 'shadow_batch',
+      sessionId: 'shadow_case_debug',
+    })
+
+    expect(result).toEqual(expect.objectContaining({
+      success: false,
+      error: 'Failed to rewrite resume section.',
+      errorCode: 'UNAUTHORIZED',
+      failedSection: 'summary',
+    }))
+  })
+
   it('retries a malformed section rewrite and compacts large experience payloads', async () => {
     mockRewriteSection.mockImplementation(async ({ section }: { section: string }) => {
       if (section === 'experience' && mockRewriteSection.mock.calls.filter(([input]: [{ section: string }]) => input.section === 'experience').length === 1) {

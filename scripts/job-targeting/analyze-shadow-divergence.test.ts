@@ -96,6 +96,25 @@ describe('analyze-shadow-divergence', () => {
     expect(report.cutoverReasons).toContain('factual_validation_violations_present')
   })
 
+  it('marks CUTOVER_READY=false when rewrite validation has operational issues', () => {
+    const records = Array.from({ length: 500 }, (_, index) => (index === 0
+      ? readyResult(index, {
+        validation: {
+          executed: true,
+          blocked: false,
+          factualViolation: false,
+          issueTypes: ['rewrite_model_call_failed', 'shadow_trace_fallback_used'],
+        },
+      })
+      : readyResult(index)))
+
+    const report = buildShadowDivergenceReport(records)
+
+    expect(report.CUTOVER_READY).toBe(false)
+    expect(report.rewriteValidationOperationalIssueCases).toBe(1)
+    expect(report.cutoverReasons).toContain('rewrite_validation_operational_issues_present')
+  })
+
   it('includes aggregated run config and can mark ready when provided gap analysis covers all cases', () => {
     const report = buildShadowDivergenceReport(Array.from({ length: 500 }, (_, index) => readyResult(index)))
 

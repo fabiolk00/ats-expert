@@ -3,11 +3,16 @@ import { createHash } from 'node:crypto'
 import path from 'node:path'
 
 import { evaluateJobCompatibility } from '@/lib/agent/job-targeting/compatibility/assessment'
+import {
+  buildGeneratedClaimTraceFromSectionPlans,
+  buildSectionRewritePlan,
+} from '@/lib/agent/job-targeting/compatibility/rewrite-trace'
 import { validateGeneratedClaims } from '@/lib/agent/job-targeting/compatibility/structured-validation'
 import {
   buildShadowBatchResult,
   snapshotAssessment,
 } from '@/lib/agent/job-targeting/shadow-comparison'
+import { logInfo, logWarn } from '@/lib/observability/structured-log'
 import type {
   JobTargetingShadowCase,
   ShadowBatchResult,
@@ -20,7 +25,11 @@ import { buildJobTargetingScoreBreakdownFromPlan } from '@/lib/agent/job-targeti
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 import { buildTargetedRewritePlan } from '@/lib/agent/tools/build-targeting-plan'
 import { rewriteResumeFull } from '@/lib/agent/tools/rewrite-resume-full'
-import type { JobCompatibilityAssessment } from '@/lib/agent/job-targeting/compatibility/types'
+import type {
+  GeneratedClaimTraceSection,
+  JobCompatibilityAssessment,
+} from '@/lib/agent/job-targeting/compatibility/types'
+import type { ToolErrorCode } from '@/lib/agent/tool-errors'
 import type { TargetingPlan } from '@/types/agent'
 import type { GapAnalysisResult } from '@/types/cv'
 
@@ -205,8 +214,22 @@ async function runRewriteValidation(params: {
       factualViolation: false,
       generatedClaimTraceCount: 0,
       missingTraceCount: 0,
+      rewriteSucceeded: false,
+      hasOptimizedCvState: false,
+      hasSectionRewritePlans: false,
     }
   }
+
+  logInfo('job_targeting.shadow_batch.rewrite_validation.started', {
+    caseId: params.testCase.id,
+    source: params.testCase.source,
+    allowedClaimCount: params.assessment.claimPolicy.allowedClaims.length,
+    cautiousClaimCount: params.assessment.claimPolicy.cautiousClaims.length,
+    forbiddenClaimCount: params.assessment.claimPolicy.forbiddenClaims.length,
+    supportedRequirementsCount: params.assessment.supportedRequirements.length,
+    adjacentRequirementsCount: params.assessment.adjacentRequirements.length,
+    unsupportedRequirementsCount: params.assessment.unsupportedRequirements.length,
+  })
 
   const rewrite = await rewriteResumeFull({
     mode: 'job_targeting',
@@ -220,13 +243,53 @@ async function runRewriteValidation(params: {
   })
 
   if (!rewrite.success || !rewrite.optimizedCvState) {
+    const issueType = classifyRewriteValidationFailure({
+      errorCode: rewrite.errorCode,
+      errorMessage: rewrite.error,
+      hasAssessment: Boolean(params.assessment),
+      hasClaimPolicy: Boolean(params.assessment.claimPolicy),
+    })
+    const fallback = shouldUseSyntheticTraceFallback(params.testCase, issueType)
+      ? validatePreservedCvStateTrace({
+          testCase: params.testCase,
+          targetingPlan: params.targetingPlan,
+          assessment: params.assessment,
+        })
+      : undefined
+    const issueTypes = uniqueStrings([
+      issueType,
+      ...(fallback?.issueTypes ?? []),
+      ...(fallback ? ['shadow_trace_fallback_used'] : []),
+    ])
+
+    logWarn('job_targeting.shadow_batch.rewrite_validation.rewrite_failed', {
+      caseId: params.testCase.id,
+      source: params.testCase.source,
+      rewriteSucceeded: false,
+      errorCode: rewrite.errorCode,
+      errorMessage: sanitizeDebugMessage(rewrite.error),
+      failedSection: rewrite.failedSection,
+      hasOptimizedCvState: Boolean(rewrite.optimizedCvState),
+      hasSectionRewritePlans: Boolean(rewrite.sectionRewritePlans?.length),
+      generatedClaimTraceCount: fallback?.generatedClaimTraceCount ?? rewrite.generatedClaimTrace?.length ?? 0,
+      validationIssueTypes: issueTypes,
+      validationBlocked: fallback?.blocked ?? true,
+      traceFallbackUsed: Boolean(fallback),
+    })
+
     return {
       executed: true,
-      blocked: true,
-      issueTypes: ['rewrite_failed'],
-      factualViolation: false,
-      generatedClaimTraceCount: rewrite.generatedClaimTrace?.length ?? 0,
-      missingTraceCount: 0,
+      blocked: fallback?.blocked ?? true,
+      issueTypes,
+      factualViolation: fallback?.factualViolation ?? false,
+      generatedClaimTraceCount: fallback?.generatedClaimTraceCount ?? rewrite.generatedClaimTrace?.length ?? 0,
+      missingTraceCount: fallback?.missingTraceCount ?? 0,
+      rewriteSucceeded: false,
+      rewriteErrorCode: rewrite.errorCode,
+      rewriteErrorMessage: sanitizeDebugMessage(rewrite.error),
+      hasOptimizedCvState: Boolean(rewrite.optimizedCvState),
+      hasSectionRewritePlans: Boolean(rewrite.sectionRewritePlans?.length),
+      traceFallbackUsed: Boolean(fallback),
     }
   }
 
@@ -242,15 +305,122 @@ async function runRewriteValidation(params: {
   })
   const issueTypes = Array.from(new Set(validation.issues.map((issue) => issue.type)))
   const missingTraceCount = validation.issues.filter((issue) => issue.type === 'missing_claim_trace').length
+  const generatedClaimTraceCount = rewrite.generatedClaimTrace?.length ?? 0
+
+  logInfo('job_targeting.shadow_batch.rewrite_validation.completed', {
+    caseId: params.testCase.id,
+    source: params.testCase.source,
+    rewriteSucceeded: true,
+    hasOptimizedCvState: true,
+    hasSectionRewritePlans: Boolean(rewrite.sectionRewritePlans?.length),
+    generatedClaimTraceCount,
+    validationIssueTypes: issueTypes,
+    validationBlocked: validation.blocked,
+    missingTraceCount,
+  })
 
   return {
     executed: true,
     blocked: validation.blocked,
     issueTypes,
     factualViolation: validation.blocked,
-    generatedClaimTraceCount: rewrite.generatedClaimTrace?.length ?? 0,
+    generatedClaimTraceCount,
+    missingTraceCount,
+    rewriteSucceeded: true,
+    hasOptimizedCvState: true,
+    hasSectionRewritePlans: Boolean(rewrite.sectionRewritePlans?.length),
+    traceFallbackUsed: false,
+  }
+}
+
+function classifyRewriteValidationFailure(params: {
+  errorCode?: ToolErrorCode
+  errorMessage?: string
+  hasAssessment: boolean
+  hasClaimPolicy: boolean
+}): string {
+  if (!params.hasAssessment) {
+    return 'rewrite_missing_assessment'
+  }
+
+  if (!params.hasClaimPolicy) {
+    return 'rewrite_missing_claim_policy'
+  }
+
+  if (params.errorCode === 'LLM_INVALID_OUTPUT') {
+    return 'rewrite_structured_output_invalid'
+  }
+
+  if (params.errorCode === 'RATE_LIMITED' || params.errorCode === 'UNAUTHORIZED' || params.errorCode === 'GENERATION_ERROR') {
+    return 'rewrite_model_call_failed'
+  }
+
+  if (/timeout|timed out|OPENAI_TIMEOUT/iu.test(params.errorMessage ?? '')) {
+    return 'rewrite_timeout'
+  }
+
+  if (/trace/iu.test(params.errorMessage ?? '')) {
+    return 'rewrite_missing_generated_trace'
+  }
+
+  return 'rewrite_failed'
+}
+
+function shouldUseSyntheticTraceFallback(
+  testCase: JobTargetingShadowCase,
+  issueType: string,
+): boolean {
+  return testCase.source === 'synthetic'
+    && issueType === 'rewrite_model_call_failed'
+}
+
+function validatePreservedCvStateTrace(params: {
+  testCase: JobTargetingShadowCase
+  targetingPlan: TargetingPlan
+  assessment: JobCompatibilityAssessment
+}): Pick<ShadowValidationSnapshot, 'blocked' | 'issueTypes' | 'factualViolation' | 'generatedClaimTraceCount' | 'missingTraceCount'> {
+  const sections: GeneratedClaimTraceSection[] = ['summary', 'experience', 'skills', 'education', 'certifications']
+  const sectionRewritePlans = sections.map((section) => buildSectionRewritePlan({
+    section,
+    originalCvState: params.testCase.cvState,
+    generatedCvState: params.testCase.cvState,
+    claimPolicy: params.assessment.claimPolicy,
+  }))
+  const generatedClaimTraces = buildGeneratedClaimTraceFromSectionPlans(sectionRewritePlans)
+  const validation = validateGeneratedClaims({
+    generatedCvState: params.testCase.cvState,
+    generatedClaimTraces,
+    requireClaimTrace: true,
+    claimPolicy: params.assessment.claimPolicy,
+    targetRole: {
+      value: params.assessment.targetRole,
+      permission: params.targetingPlan.targetRolePositioning?.permission,
+    },
+  })
+  const issueTypes = Array.from(new Set(validation.issues.map((issue) => issue.type)))
+  const missingTraceCount = validation.issues.filter((issue) => issue.type === 'missing_claim_trace').length
+
+  return {
+    blocked: validation.blocked,
+    issueTypes,
+    factualViolation: false,
+    generatedClaimTraceCount: generatedClaimTraces.length,
     missingTraceCount,
   }
+}
+
+function sanitizeDebugMessage(message: string | undefined): string | undefined {
+  if (!message) {
+    return undefined
+  }
+
+  return message
+    .replace(/sk-[A-Za-z0-9_-]+/gu, '[redacted]')
+    .slice(0, 240)
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 }
 
 function errorResult(params: {
@@ -422,8 +592,11 @@ export async function runShadowBatch(options: RunShadowBatchOptions): Promise<Ru
         ? 2
         : 3
   ))
+  const allowLlm = !(options.disableLlm ?? true)
+    || (options.useRealGapAnalysis ?? false)
+    || (options.includeRewriteValidation ?? false)
   const runConfig: ShadowBatchRunConfig = {
-    allowLlm: !(options.disableLlm ?? true) || (options.useRealGapAnalysis ?? false),
+    allowLlm,
     useRealGapAnalysis: options.useRealGapAnalysis ?? false,
     includeRewriteValidation: options.includeRewriteValidation ?? false,
     persist: options.persist ?? false,
@@ -439,7 +612,7 @@ export async function runShadowBatch(options: RunShadowBatchOptions): Promise<Ru
       testCase,
       runConfig,
       persist: options.persist ?? false,
-      disableLlm: options.disableLlm ?? true,
+      disableLlm: !allowLlm,
       useRealGapAnalysis: options.useRealGapAnalysis ?? false,
       includeRewriteValidation: options.includeRewriteValidation ?? false,
     }),

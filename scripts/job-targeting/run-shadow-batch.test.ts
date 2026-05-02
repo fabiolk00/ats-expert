@@ -301,7 +301,6 @@ describe('runShadowBatch', () => {
       inputPath: input,
       outputPath: output,
       includeRewriteValidation: true,
-      disableLlm: false,
       concurrency: 1,
     })
     const result = JSON.parse((await readFile(output, 'utf8')).trim())
@@ -310,6 +309,9 @@ describe('runShadowBatch', () => {
       mode: 'job_targeting',
       userId: 'shadow_batch',
       sessionId: 'shadow_case_case-rewrite',
+      jobCompatibilityAssessment: expect.objectContaining({
+        claimPolicy: expect.any(Object),
+      }),
     }))
     expect(result.runConfig).toEqual(expect.objectContaining({
       includeRewriteValidation: true,
@@ -322,6 +324,65 @@ describe('runShadowBatch', () => {
       factualViolation: false,
       generatedClaimTraceCount: 2,
     }))
+  })
+
+  it('classifies model rewrite failures specifically and uses a transparent synthetic trace fallback', async () => {
+    mockRewriteResumeFull.mockResolvedValueOnce({
+      success: false,
+      error: 'Failed to rewrite resume section.',
+      errorCode: 'UNAUTHORIZED',
+      failedSection: 'summary',
+    })
+    const { input, output } = await writeCases([buildCase('case-rewrite-failure')])
+
+    await runShadowBatch({
+      inputPath: input,
+      outputPath: output,
+      includeRewriteValidation: true,
+      concurrency: 1,
+    })
+    const result = JSON.parse((await readFile(output, 'utf8')).trim())
+
+    expect(result.validation).toEqual(expect.objectContaining({
+      executed: true,
+      blocked: false,
+      factualViolation: false,
+      rewriteSucceeded: false,
+      rewriteErrorCode: 'UNAUTHORIZED',
+      traceFallbackUsed: true,
+    }))
+    expect(result.validation.issueTypes).toEqual(expect.arrayContaining([
+      'rewrite_model_call_failed',
+      'shadow_trace_fallback_used',
+    ]))
+    expect(result.validation.generatedClaimTraceCount).toBeGreaterThan(0)
+  })
+
+  it('reports missing generated traces as missing_claim_trace instead of generic rewrite_failed', async () => {
+    mockRewriteResumeFull.mockResolvedValueOnce({
+      success: true,
+      optimizedCvState: cvState,
+      generatedClaimTrace: [],
+      sectionRewritePlans: [],
+    })
+    const { input, output } = await writeCases([buildCase('case-missing-trace')])
+
+    await runShadowBatch({
+      inputPath: input,
+      outputPath: output,
+      includeRewriteValidation: true,
+      concurrency: 1,
+    })
+    const result = JSON.parse((await readFile(output, 'utf8')).trim())
+
+    expect(result.validation).toEqual(expect.objectContaining({
+      executed: true,
+      blocked: true,
+      rewriteSucceeded: true,
+      generatedClaimTraceCount: 0,
+    }))
+    expect(result.validation.issueTypes).toContain('missing_claim_trace')
+    expect(result.validation.issueTypes).not.toContain('rewrite_failed')
   })
 
   it('marks a per-case error without killing the whole batch', async () => {

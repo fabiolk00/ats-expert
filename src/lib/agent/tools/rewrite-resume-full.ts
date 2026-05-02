@@ -19,7 +19,14 @@ import { buildRewritePlan } from '@/lib/agent/tools/build-rewrite-plan'
 import { formatResumeRewriteGuardrails } from '@/lib/agent/tools/resume-rewrite-guidelines'
 import { buildTargetedRewritePlan } from '@/lib/agent/tools/build-targeting-plan'
 import { rewriteSection } from '@/lib/agent/tools/rewrite-section'
-import type { AtsAnalysisResult, CoreRequirement, RewriteSectionInput, TargetingPlan } from '@/types/agent'
+import type { ToolErrorCode } from '@/lib/agent/tool-errors'
+import type {
+  AtsAnalysisResult,
+  CoreRequirement,
+  RewriteSectionInput,
+  RewriteSectionOutput,
+  TargetingPlan,
+} from '@/types/agent'
 import type {
   GeneratedClaimTrace,
   JobCompatibilityAssessment,
@@ -28,6 +35,19 @@ import type {
 import type { CVState, GapAnalysisResult } from '@/types/cv'
 
 type RewriteSectionName = RewriteSectionInput['section']
+type RewriteSectionFailureOutput = Extract<RewriteSectionOutput, { success: false }>
+
+class RewriteSectionFailureError extends Error {
+  readonly code: ToolErrorCode
+  readonly section: RewriteSectionName
+
+  constructor(section: RewriteSectionName, output: RewriteSectionFailureOutput) {
+    super(output.error)
+    this.name = 'RewriteSectionFailureError'
+    this.code = output.code
+    this.section = section
+  }
+}
 
 function normalize(value: string | undefined): string {
   return (value ?? '').trim().toLowerCase()
@@ -797,6 +817,8 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
   sectionRewritePlans?: SectionRewritePlan[]
   generatedClaimTrace?: GeneratedClaimTrace[]
   error?: string
+  errorCode?: ToolErrorCode
+  failedSection?: RewriteSectionName
 }> {
   try {
     let optimizedCvState: CVState = structuredClone(params.cvState)
@@ -867,7 +889,7 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
             }, params.userId, params.sessionId)
 
             if (!rewriteResult.output.success) {
-              throw new Error(rewriteResult.output.error)
+              throw new RewriteSectionFailureError(section, rewriteResult.output)
             }
 
             return rewriteResult
@@ -893,6 +915,12 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
             compactedSections,
           },
           error: error instanceof Error ? error.message : 'Failed to rewrite full resume.',
+          ...(error instanceof RewriteSectionFailureError
+            ? {
+              errorCode: error.code,
+              failedSection: error.section,
+            }
+            : {}),
         }
       }
 
@@ -935,7 +963,7 @@ export async function rewriteResumeFull(params: AtsRewriteParams | JobTargetingR
               }, params.userId, params.sessionId)
 
               if (!rewriteResult.output.success) {
-                throw new Error(rewriteResult.output.error)
+                throw new RewriteSectionFailureError(section, rewriteResult.output)
               }
 
               return rewriteResult

@@ -70,6 +70,12 @@ export type ShadowValidationSnapshot = {
   factualViolation: boolean
   generatedClaimTraceCount?: number
   missingTraceCount?: number
+  rewriteSucceeded?: boolean
+  rewriteErrorCode?: string
+  rewriteErrorMessage?: string
+  hasOptimizedCvState?: boolean
+  hasSectionRewritePlans?: boolean
+  traceFallbackUsed?: boolean
 }
 
 export type ShadowBatchResult = {

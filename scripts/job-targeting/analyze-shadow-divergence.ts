@@ -109,6 +109,7 @@ export type ShadowDivergenceReport = {
   possibleFalseNegativeCandidates: number
   factualValidationViolations: number
   rewriteValidationBlockedCases: number
+  rewriteValidationOperationalIssueCases: number
   confirmedFalsePositiveForbiddenClaims: number
   confirmedFalseNegativeCoreExplicit: number
   top30LargestScoreDivergences: Array<{
@@ -125,6 +126,13 @@ const EVENT_NAME = 'job_targeting.compatibility.shadow_comparison'
 
 function round(value: number): number {
   return Math.round(value * 100) / 100
+}
+
+function hasRewriteOperationalIssue(record: ShadowComparisonRecord): boolean {
+  return Boolean(record.validation?.issueTypes?.some((issueType: string) => (
+    /^rewrite_/u.test(issueType)
+    || issueType === 'shadow_trace_fallback_used'
+  )))
 }
 
 export function percentile(values: number[], percentileValue: number): number {
@@ -284,6 +292,7 @@ export function buildShadowDivergenceReport(records: ShadowComparisonRecord[]): 
   const runConfig = buildRunConfig(records)
   const factualValidationViolations = successfulRecords.filter((record) => record.validation?.factualViolation).length
   const rewriteValidationBlockedCases = successfulRecords.filter((record) => record.validation?.blocked).length
+  const rewriteValidationOperationalIssueCases = successfulRecords.filter(hasRewriteOperationalIssue).length
   const confirmedFalsePositiveForbiddenClaims = successfulRecords.filter((record) => (
     record.validation?.issueTypes?.some((issueType) => /forbidden|unsupported|unsafe_direct_claim/u.test(issueType))
   )).length
@@ -318,6 +327,9 @@ export function buildShadowDivergenceReport(records: ShadowComparisonRecord[]): 
   if (rewriteValidationBlockedCases > 0) {
     cutoverReasons.push('rewrite_validation_blocked_cases_present')
   }
+  if (rewriteValidationOperationalIssueCases > 0) {
+    cutoverReasons.push('rewrite_validation_operational_issues_present')
+  }
   if (confirmedFalsePositiveForbiddenClaims > 0) {
     cutoverReasons.push('confirmed_false_positive_forbidden_claims_present')
   }
@@ -351,6 +363,7 @@ export function buildShadowDivergenceReport(records: ShadowComparisonRecord[]): 
     )).length,
     factualValidationViolations,
     rewriteValidationBlockedCases,
+    rewriteValidationOperationalIssueCases,
     confirmedFalsePositiveForbiddenClaims,
     confirmedFalseNegativeCoreExplicit,
     top30LargestScoreDivergences: successfulRecords
@@ -381,6 +394,7 @@ export function renderShadowDivergenceMarkdown(report: ShadowDivergenceReport): 
     `- Low-fit divergent count: ${report.lowFitDivergentCount}`,
     `- Critical gap divergent count: ${report.criticalGapDivergentCount}`,
     `- Factual validation violations: ${report.factualValidationViolations}`,
+    `- Rewrite validation operational issue cases: ${report.rewriteValidationOperationalIssueCases}`,
     `- Pipeline representativeness: ${report.runConfig.pipelineRepresentativeness}`,
     `- Rewrite validation coverage: ${report.runConfig.rewriteValidationCoverage}`,
     `- Persisted shadow results: ${report.runConfig.persist}`,

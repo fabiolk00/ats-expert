@@ -6,8 +6,8 @@ current_phase: 108
 current_phase_name: adicionar camada dinamica de evidencia semantica para targeted rewrite de job_targeting
 current_plan: 01 completed
 status: verifying
-stopped_at: Completed quick task 260502-op1
-last_updated: "2026-05-02T20:50:00.000Z"
+stopped_at: Completed quick task 260502-p91
+last_updated: "2026-05-02T21:22:00.000Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 73
@@ -36,7 +36,7 @@ Current Plan: 01 completed
 Total Plans in Phase: 1
 Status: Phase complete — ready for verification
 Last activity: 2026-05-02
-Last Activity Description: Completed quick task 260502-op1: fixed shadow batch CLI server-only imports and verified the 100-case synthetic smoke run.
+Last Activity Description: Completed quick task 260502-p91: diagnosed shadow batch rewrite validation model-call failures, added specific issue types, trace fallback diagnostics, and verified synthetic 5/25 samples.
 
 Progress: [##########] 100%
 
@@ -52,6 +52,7 @@ Baseline carried forward from earlier shipped milestones:
 - Quick 260502-nby: shadow batch runner, cutover analyzer, and Playwright E2E guard.
 - Quick 260502-nwy: representativeness hardening for shadow batch cutover evidence.
 - Quick 260502-op1: shadow batch CLI smoke runner server-only import fix.
+- Quick 260502-p91: rewrite validation diagnostics and synthetic trace fallback for shadow batch.
 
 ## Accumulated Context
 
@@ -199,6 +200,7 @@ Baseline carried forward from earlier shipped milestones:
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
+| 260502-p91 | Investigate and fix rewrite validation rewrite_failed in shadow batch | 2026-05-02 | working-tree | Validated | [260502-p91-investigate-and-fix-rewrite-validation-r](./quick/260502-p91-investigate-and-fix-rewrite-validation-r/) |
 | 260502-op1 | Fix shadow batch smoke runner server-only CLI imports | 2026-05-02 | 2740387 | Validated | [260502-op1-fix-shadow-batch-smoke-runner-server-onl](./quick/260502-op1-fix-shadow-batch-smoke-runner-server-onl/) |
 | 260502-nwy | Harden job targeting shadow batch representativeness | 2026-05-02 | 2030439 | Validated | [260502-nwy-harden-job-targeting-shadow-batch-repres](./quick/260502-nwy-harden-job-targeting-shadow-batch-repres/) |
 | 260502-nby | Automatizar validacao de 500 casos reais do Job Targeting com Shadow Runner e Playwright E2E | 2026-05-02 | 56f617c | Validated | [260502-nby-automatizar-valida-o-de-500-casos-reais-](./quick/260502-nby-automatizar-valida-o-de-500-casos-reais-/) |
