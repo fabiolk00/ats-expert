@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { buildCompatibilityAssessmentFixture } from '@/lib/agent/job-targeting/__tests__/assessment-fixture'
 import { validateRewrite } from '@/lib/agent/tools/validate-rewrite'
 import type { TargetEvidence, TargetingPlan } from '@/types/agent'
 import type { CVState } from '@/types/cv'
@@ -621,5 +622,49 @@ describe('validateRewrite', () => {
 
     expect(result.issues.some((issue) => issue.message.includes('cargo alvo'))).toBe(false)
     expect(result.issues.some((issue) => issue.message.includes('apagar gaps reais'))).toBe(false)
+  })
+
+  it('enforces assessment claim boundaries when no legacy targeting plan is supplied', () => {
+    const original = buildCvState()
+    const optimized = {
+      ...original,
+      summary: 'Target Role with direct ownership of Adjacent target signal.',
+      skills: ['SQL', 'Power BI', 'Unsupported signal'],
+      education: [{
+        degree: 'Unsupported education',
+        institution: 'Example University',
+        year: '2020',
+      }],
+      certifications: [{
+        name: 'Unsupported certification',
+        issuer: 'Example issuer',
+        year: '2024',
+      }],
+    }
+
+    const result = validateRewrite(original, optimized, {
+      mode: 'job_targeting',
+      jobCompatibilityAssessment: buildCompatibilityAssessmentFixture(),
+    })
+
+    expect(result.blocked).toBe(true)
+    expect(result.hardIssues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        issueType: 'unsupported_skill',
+        section: 'skills',
+      }),
+      expect.objectContaining({
+        issueType: 'unsupported_certification',
+        section: 'certifications',
+      }),
+      expect.objectContaining({
+        issueType: 'unsupported_education',
+        section: 'education',
+      }),
+      expect.objectContaining({
+        issueType: 'target_role_overclaim',
+        section: 'summary',
+      }),
+    ]))
   })
 })

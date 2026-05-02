@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { validateGeneratedClaims } from '@/lib/agent/job-targeting/compatibility/structured-validation'
+import {
+  buildGeneratedClaimTracesFromCvState,
+  validateGeneratedClaims,
+  type GeneratedClaimTrace,
+} from '@/lib/agent/job-targeting/compatibility/structured-validation'
 import type { JobCompatibilityClaimPolicy } from '@/lib/agent/job-targeting/compatibility/types'
+import type { CVState } from '@/types/cv'
 
 const policy: JobCompatibilityClaimPolicy = {
   allowedClaims: [
@@ -36,11 +41,40 @@ const policy: JobCompatibilityClaimPolicy = {
       permission: 'forbidden',
       evidenceBasis: [],
       allowedTerms: [],
-      prohibitedTerms: ['Unsupported signal'],
+      prohibitedTerms: [
+        'Unsupported signal',
+        'Unsupported certification',
+        'Unsupported education',
+      ],
       rationale: 'No supporting evidence exists.',
       requirementIds: ['req-unsupported'],
     },
   ],
+}
+
+const generatedCvState: CVState = {
+  fullName: 'Ana Silva',
+  email: 'ana@example.com',
+  phone: '555-0100',
+  summary: 'Target Role with direct ownership of Adjacent target signal.',
+  experience: [{
+    title: 'Analyst',
+    company: 'Acme',
+    startDate: '2022',
+    endDate: '2024',
+    bullets: ['Delivered reports with Supported signal.'],
+  }],
+  skills: ['Supported signal', 'Unsupported signal'],
+  education: [{
+    degree: 'Unsupported education',
+    institution: 'Example University',
+    year: '2020',
+  }],
+  certifications: [{
+    name: 'Unsupported certification',
+    issuer: 'Example issuer',
+    year: '2024',
+  }],
 }
 
 describe('structured compatibility validation', () => {
@@ -93,5 +127,63 @@ describe('structured compatibility validation', () => {
       issues: [],
       validationVersion: 'job-compat-structured-validation-v1',
     })
+  })
+
+  it('builds deterministic traces for generated CV sections', () => {
+    const traces = buildGeneratedClaimTracesFromCvState(generatedCvState)
+
+    expect(traces).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        section: 'summary',
+        text: generatedCvState.summary,
+      }),
+      expect.objectContaining({
+        section: 'skills',
+        text: 'Unsupported signal',
+      }),
+      expect.objectContaining({
+        section: 'education',
+        text: 'Unsupported education Example University 2020',
+      }),
+      expect.objectContaining({
+        section: 'certifications',
+        text: 'Unsupported certification Example issuer 2024',
+      }),
+    ]))
+  })
+
+  it('classifies forbidden and cautious boundary violations by generated CV section', () => {
+    const traces: GeneratedClaimTrace[] = buildGeneratedClaimTracesFromCvState(generatedCvState)
+    const result = validateGeneratedClaims({
+      generatedClaimTraces: traces,
+      claimPolicy: policy,
+      targetRole: {
+        value: 'Target Role',
+        permission: 'must_not_claim_target_role',
+      },
+    })
+
+    expect(result.blocked).toBe(true)
+    expect(result.issues.map((issue) => issue.type)).toEqual(expect.arrayContaining([
+      'unsupported_skill_added',
+      'unsupported_certification',
+      'unsupported_education_claim',
+      'target_role_asserted_without_permission',
+      'unsafe_direct_claim',
+    ]))
+  })
+
+  it('allows cautious target signals when they are verbalized with related evidence', () => {
+    const result = validateGeneratedClaims({
+      generatedClaimTraces: [{
+        id: 'summary',
+        section: 'summary',
+        text: 'Experience related to Adjacent target signal based on Related resume signal.',
+      }],
+      claimPolicy: policy,
+    })
+
+    expect(result.valid).toBe(true)
+    expect(result.issues).toEqual([])
   })
 })

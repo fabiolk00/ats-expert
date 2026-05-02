@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { buildTargetedRewritePermissionIssues } from '@/lib/agent/job-targeting/validation-policy'
+import { buildCompatibilityAssessmentFixture } from '@/lib/agent/job-targeting/__tests__/assessment-fixture'
 import type { TargetEvidence, TargetingPlan } from '@/types/agent'
 import type { CVState } from '@/types/cv'
 
@@ -272,5 +273,54 @@ describe('buildTargetedRewritePermissionIssues', () => {
     message: expect.stringContaining('senioridade ou domínio não comprovado'),
       section: 'summary',
     }))
+  })
+
+  it('enforces assessment claim policy without requiring legacy target evidence', () => {
+    const issues = buildTargetedRewritePermissionIssues({
+      originalCvState: buildCvState(),
+      optimizedCvState: buildCvState({
+        summary: 'Target Role with direct ownership of Adjacent target signal.',
+        skills: ['Melhoria continua', 'SQL', 'Unsupported signal'],
+        education: [{
+          degree: 'Unsupported education',
+          institution: 'Example University',
+          year: '2020',
+        }],
+        certifications: [{
+          name: 'Unsupported certification',
+          issuer: 'Example issuer',
+          year: '2024',
+        }],
+      }),
+      jobCompatibilityAssessment: buildCompatibilityAssessmentFixture(),
+    })
+
+    expect(issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        issueType: 'unsupported_skill',
+        section: 'skills',
+        severity: 'high',
+      }),
+      expect.objectContaining({
+        issueType: 'unsupported_certification',
+        section: 'certifications',
+        severity: 'high',
+      }),
+      expect.objectContaining({
+        issueType: 'unsupported_education',
+        section: 'education',
+        severity: 'high',
+      }),
+      expect.objectContaining({
+        issueType: 'target_role_overclaim',
+        section: 'summary',
+        severity: 'high',
+      }),
+      expect.objectContaining({
+        issueType: 'unsupported_claim',
+        section: 'summary',
+        severity: 'high',
+      }),
+    ]))
   })
 })

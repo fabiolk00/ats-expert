@@ -1,9 +1,30 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildSafeTargetingEmphasis } from '@/lib/agent/job-targeting/safe-targeting-emphasis'
+import {
+  buildSafeTargetingEmphasis,
+  buildSafeTargetingEmphasisFromAssessment,
+} from '@/lib/agent/job-targeting/safe-targeting-emphasis'
+import { buildCompatibilityAssessmentFixture } from '@/lib/agent/job-targeting/__tests__/assessment-fixture'
 import type { TargetEvidence, TargetedRewritePermissions } from '@/types/agent'
 
 describe('safe targeting emphasis', () => {
+  it('derives direct, cautious, and forbidden emphasis from assessment claim policy', () => {
+    const emphasis = buildSafeTargetingEmphasisFromAssessment(buildCompatibilityAssessmentFixture())
+
+    expect(emphasis.safeDirectEmphasis).toEqual(expect.arrayContaining([
+      'Supported signal',
+    ]))
+    expect(emphasis.cautiousBridgeEmphasis).toEqual([
+      expect.objectContaining({
+        jobSignal: 'Adjacent target signal',
+        forbiddenWording: expect.arrayContaining(['Adjacent target signal']),
+      }),
+    ])
+    expect(emphasis.forbiddenDirectClaims).toEqual(expect.arrayContaining([
+      'Unsupported signal',
+    ]))
+  })
+
   it('keeps explicit BI evidence in direct emphasis while relegating RH bridges to cautious wording', () => {
     const targetEvidence: TargetEvidence[] = [
       {
