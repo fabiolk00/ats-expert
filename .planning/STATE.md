@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 108
 current_phase_name: adicionar camada dinamica de evidencia semantica para targeted rewrite de job_targeting
 current_plan: 01 completed
-status: in_progress
-stopped_at: Completed Phase 108 semantic evidence classification for targeted rewrite
-last_updated: "2026-04-27T09:31:30.0000000-03:00"
+status: verifying
+stopped_at: Completed 260502-g04-05-PLAN.md
+last_updated: "2026-05-02T16:14:24.020Z"
 last_activity: 2026-05-02
 progress:
-  total_phases: 57
-  completed_phases: 11
-  total_plans: 11
-  completed_plans: 11
+  total_phases: 73
+  completed_phases: 6
+  total_plans: 6
+  completed_plans: 6
   percent: 100
 ---
 
@@ -34,9 +34,9 @@ Current Phase: 108
 Current Phase Name: adicionar camada dinamica de evidencia semantica para targeted rewrite de job_targeting
 Current Plan: 01 completed
 Total Plans in Phase: 1
-Status: In progress
+Status: Phase complete — ready for verification
 Last activity: 2026-05-02
-Last Activity Description: Completed quick task 260502-fs2: Corrigir falso negativo no diagnostico de compatibilidade do Job Targeting.
+Last Activity Description: Completed quick task 260502-g04-05: Generic catalog-driven matcher for Job Targeting compatibility refactor.
 
 Progress: [##########] 100%
 
@@ -166,6 +166,9 @@ Baseline carried forward from earlier shipped milestones:
 - Phase 92 completed: Layer 1 now exposes explicit evidence and improvement signals, preserved metric bullets remain eligible with zero diff, and superficial stack-only bullets stay suppressed.
 - Phase 93 completed: summary editorial hardening stays ATS-only, and the post-review fix keeps the new anti-repetition gate from leaking into `job_targeting` or rejecting additive repeated-domain summaries.
 - Phase 94 completed: contextual stack promotion now scores against the rendered refined span, keeps terse stack-only rewrites below the evidence path, and preserves Phase 92 metric precedence.
+- [Phase Quick 260502-g04-05]: Category and adjacent-category matches require residual requirement support so named requirements are not inflated by neighboring catalog families.
+- [Phase Quick 260502-g04-05]: Canonical matcher outputs now live in src/lib/agent/job-targeting/compatibility/types.ts instead of expanding interim src/types/agent.ts contracts.
+- [Phase Quick 260502-g04-05]: Anti-equivalence blocks direct unsafe support and only remains adjacent when catalog adjacency plus residual requirement text are both evidenced.
 
 ### Pending Todos
 
@@ -262,9 +265,10 @@ Baseline carried forward from earlier shipped milestones:
 | 260428-oqb | Hardening tecnico do log do fluxo /job-targeting/override | 2026-04-28 | working-tree | Validated | [260428-oqb-hardening-t-cnico-do-log-do-fluxo-job-ta](./quick/260428-oqb-hardening-t-cnico-do-log-do-fluxo-job-ta/) |
 | 260428-u03 | Job Targeting 2.0 explanations, safe recommendations, and rewrite diff | 2026-04-29 | e487795 | Validated | [260428-u03-job-targeting-2-0-explanations-safe-reco](./quick/260428-u03-job-targeting-2-0-explanations-safe-reco/) |
 | 260428-upq-01 | Smart Generation canonical route and start lock for ATS and job targeting | 2026-04-29 | 73303e9 | Validated | [260428-upq-refactor-smart-generation-as-core-pdf-on](./quick/260428-upq-refactor-smart-generation-as-core-pdf-on/) |
+| 260502-g04-05 | Generic catalog-driven matcher for Job Targeting compatibility refactor | 2026-05-02 | abefb4b | Validated | [260502-g04-refatorar-job-targeting-para-motor-gener](./quick/260502-g04-refatorar-job-targeting-para-motor-gener/) |
 
 ## Session Continuity
 
-Last session: 2026-04-22T09:52:30.000Z
-Stopped at: Completed 260428-upq-01-PLAN.md
+Last session: 2026-05-02T16:13:49.715Z
+Stopped at: Completed 260502-g04-05-PLAN.md
 Resume file: None
