@@ -455,6 +455,23 @@ describe("UserDataPage", () => {
     expect(screen.queryByRole("button", { name: /Melhorar curr/i })).not.toBeInTheDocument()
   })
 
+  it("redirects the profile generation CTA to the dedicated generate resume route when configured", async () => {
+    const user = userEvent.setup()
+    buildFetchMock(createJsonResponse(buildProfileResponse()))
+
+    render(
+      <UserDataPage
+        currentCredits={2}
+        profileGenerationCtaAction="redirect"
+      />,
+    )
+
+    await user.click(await screen.findByRole("button", { name: /Melhorar curr/i }))
+
+    expect(mockPush).toHaveBeenCalledWith("/generate-resume")
+    expect(screen.queryByTestId("ats-panel-cta")).not.toBeInTheDocument()
+  })
+
   it("opens the existing import flow from the profile header", async () => {
     const user = userEvent.setup()
     buildFetchMock(createJsonResponse(buildProfileResponse()))

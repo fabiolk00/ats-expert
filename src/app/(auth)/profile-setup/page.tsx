@@ -28,7 +28,8 @@ export default async function ProfileSetupPage() {
       activeRecurringPlan={activeRecurringPlan}
       currentCredits={appUser?.creditAccount.creditsRemaining ?? 0}
       currentAppUserId={appUser?.id ?? null}
-      showProfileGenerationCta={false}
+      showProfileGenerationCta
+      profileGenerationCtaAction="redirect"
       userImageUrl={clerkUser?.imageUrl ?? null}
     />
   )

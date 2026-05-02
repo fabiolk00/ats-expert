@@ -42,7 +42,7 @@ import {
 import { resolveValidationOverrideCta } from "@/lib/dashboard/validation-override-cta"
 import { assessAtsEnhancementReadiness, getAtsEnhancementBlockingItems } from "@/lib/profile/ats-enhancement"
 import type { PlanSlug } from "@/lib/plans"
-import { PROFILE_SETUP_PATH, buildResumeComparisonPath } from "@/lib/routes/app"
+import { GENERATE_RESUME_PATH, PROFILE_SETUP_PATH, buildResumeComparisonPath } from "@/lib/routes/app"
 import { getDisplayableTargetRole, isSuspiciousTargetRole } from "@/lib/target-role"
 import { repairUtf8Mojibake } from "@/lib/text/repair-utf8-mojibake"
 import { cvStateToTemplateData } from "@/lib/templates/cv-state-to-template-data"
@@ -70,6 +70,7 @@ type ProfileResponse = {
 }
 
 type UserDataInitialView = "profile" | "enhancement"
+type ProfileGenerationCtaAction = "inline" | "redirect"
 
 type UserDataPageProps = {
   activeRecurringPlan?: PlanSlug | null
@@ -78,6 +79,7 @@ type UserDataPageProps = {
   currentAppUserId?: string | null
   initialView?: UserDataInitialView
   showProfileGenerationCta?: boolean
+  profileGenerationCtaAction?: ProfileGenerationCtaAction
 }
 
 type AtsFeature = {
@@ -609,6 +611,7 @@ export default function UserDataPage({
   currentAppUserId = null,
   initialView = "profile",
   showProfileGenerationCta = true,
+  profileGenerationCtaAction = "inline",
 }: UserDataPageProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -859,6 +862,15 @@ export default function UserDataPage({
     }
 
     setActiveView("profile")
+  }
+
+  const handleProfileGenerationCta = (): void => {
+    if (profileGenerationCtaAction === "redirect") {
+      router.push(GENERATE_RESUME_PATH)
+      return
+    }
+
+    setActiveView("enhancement")
   }
 
   const generationMode: SetupGenerationMode = targetJobDescription.trim() ? "job_targeting" : "ats_enhancement"
@@ -1336,7 +1348,7 @@ export default function UserDataPage({
               <span className="text-sm font-medium text-neutral-500">
                 {template.jobTitle || "Cargo principal"}
               </span>
-              <Button
+                <Button
                 type="button"
                 size="icon"
                 aria-label="Editar perfil"
@@ -1345,7 +1357,7 @@ export default function UserDataPage({
                 className="h-7 w-7 rounded-full bg-black text-white hover:bg-black/90 hover:text-white disabled:bg-neutral-200 disabled:text-neutral-400"
               >
                 <PenLine className="h-3.5 w-3.5" />
-              </Button>
+                </Button>
             </div>
 
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -1405,7 +1417,7 @@ export default function UserDataPage({
               {showProfileGenerationCta ? (
               <Button
                 type="button"
-                onClick={() => setActiveView("enhancement")}
+                onClick={handleProfileGenerationCta}
                 className="h-auto gap-1.5 rounded-md bg-neutral-900 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-neutral-800"
               >
                 <Sparkles className="h-3.5 w-3.5" />

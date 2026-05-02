@@ -38,12 +38,14 @@ vi.mock("@/components/resume/user-data-page", () => ({
     currentCredits,
     currentAppUserId,
     showProfileGenerationCta,
+    profileGenerationCtaAction,
     userImageUrl,
   }: {
     activeRecurringPlan: string | null
     currentCredits: number
     currentAppUserId: string | null
     showProfileGenerationCta?: boolean
+    profileGenerationCtaAction?: string
     userImageUrl: string | null
   }) => (
     <div
@@ -52,6 +54,7 @@ vi.mock("@/components/resume/user-data-page", () => ({
       data-current-credits={String(currentCredits)}
       data-current-app-user-id={currentAppUserId ?? ""}
       data-show-profile-generation-cta={String(showProfileGenerationCta)}
+      data-profile-generation-cta-action={profileGenerationCtaAction ?? ""}
       data-user-image-url={userImageUrl ?? ""}
     />
   ),
@@ -87,7 +90,8 @@ describe("ProfileSetupPage", () => {
     expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-current-app-user-id", "usr_123")
     expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-current-credits", "7")
     expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-active-recurring-plan", "monthly")
-    expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-show-profile-generation-cta", "false")
+    expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-show-profile-generation-cta", "true")
+    expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-profile-generation-cta-action", "redirect")
     expect(screen.getByTestId("user-data-page")).toHaveAttribute("data-user-image-url", "https://example.com/avatar.png")
     expect(mockLoadOptionalBillingInfo).toHaveBeenCalledWith("usr_123", "profile_setup")
   })
