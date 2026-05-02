@@ -1,11 +1,6 @@
 import { readFileSync } from 'node:fs'
+import Module from 'node:module'
 import path from 'node:path'
-
-import { runShadowBatch } from '../../src/lib/agent/job-targeting/shadow-batch-runner'
-import {
-  parseShadowComparisonInput,
-  writeShadowDivergenceReport,
-} from './analyze-shadow-divergence'
 
 type CliOptions = {
   input?: string
@@ -88,7 +83,33 @@ function parseArgs(args: string[]): CliOptions {
   return options
 }
 
+function installServerOnlyShimForCli(): void {
+  const moduleWithLoad = Module as unknown as {
+    _load: (request: string, parent: unknown, isMain: boolean) => unknown
+    __curriaServerOnlyShimInstalled?: boolean
+  }
+
+  if (moduleWithLoad.__curriaServerOnlyShimInstalled) {
+    return
+  }
+
+  const originalLoad = moduleWithLoad._load
+  moduleWithLoad._load = function loadWithServerOnlyShim(
+    request: string,
+    parent: unknown,
+    isMain: boolean,
+  ): unknown {
+    if (request === 'server-only') {
+      return {}
+    }
+
+    return originalLoad.call(this, request, parent, isMain)
+  }
+  moduleWithLoad.__curriaServerOnlyShimInstalled = true
+}
+
 async function main() {
+  installServerOnlyShimForCli()
   const options = parseArgs(process.argv.slice(2))
   if (!options.input || !options.output) {
     console.error([
@@ -123,6 +144,7 @@ async function main() {
     }))
   }
 
+  const { runShadowBatch } = await import('../../src/lib/agent/job-targeting/shadow-batch-runner')
   const summary = await runShadowBatch({
     inputPath: options.input,
     outputPath: options.output,
@@ -136,6 +158,10 @@ async function main() {
 
   let cutoverReady: boolean | undefined
   if (options.report !== false) {
+    const {
+      parseShadowComparisonInput,
+      writeShadowDivergenceReport,
+    } = await import('./analyze-shadow-divergence')
     const records = parseShadowComparisonInput(readFileSync(options.output, 'utf8'))
     const report = writeShadowDivergenceReport({
       records,

@@ -2,7 +2,6 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import { DEFAULT_OPENAI_MODEL } from '@/lib/agent/config'
 import { createDatabaseId } from '@/lib/db/ids'
-import { getSupabaseAdminClient } from '@/lib/db/supabase-admin'
 import { createCreatedAtTimestamp } from '@/lib/db/timestamps'
 
 export const MODEL_PRICING_CENTS_PER_MILLION = {
@@ -56,6 +55,7 @@ async function persistApiUsageEntries(entries: ApiUsageInput[]): Promise<void> {
     return
   }
 
+  const { getSupabaseAdminClient } = await import('@/lib/db/supabase-admin')
   const supabase = getSupabaseAdminClient()
   const now = createCreatedAtTimestamp()
 

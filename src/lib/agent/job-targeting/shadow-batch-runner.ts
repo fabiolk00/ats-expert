@@ -20,7 +20,6 @@ import { buildJobTargetingScoreBreakdownFromPlan } from '@/lib/agent/job-targeti
 import { analyzeGap } from '@/lib/agent/tools/gap-analysis'
 import { buildTargetedRewritePlan } from '@/lib/agent/tools/build-targeting-plan'
 import { rewriteResumeFull } from '@/lib/agent/tools/rewrite-resume-full'
-import { createJobCompatibilityShadowComparison } from '@/lib/db/job-compatibility-shadow-comparison'
 import type { JobCompatibilityAssessment } from '@/lib/agent/job-targeting/compatibility/types'
 import type { TargetingPlan } from '@/types/agent'
 import type { GapAnalysisResult } from '@/types/cv'
@@ -344,6 +343,7 @@ export async function processShadowCase(params: {
       : undefined
 
     if (params.persist) {
+      const { createJobCompatibilityShadowComparison } = await import('@/lib/db/job-compatibility-shadow-comparison')
       await createJobCompatibilityShadowComparison({
         caseId: params.testCase.id,
         source: 'batch',
