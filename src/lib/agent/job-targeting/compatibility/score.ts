@@ -1,0 +1,122 @@
+import type {
+  JobCompatibilityScoreBreakdown,
+  JobCompatibilityScoreDimensionBreakdown,
+  JobCompatibilityScoreDimensionId,
+  ProductEvidenceGroup,
+  RequirementEvidence,
+  RequirementKind,
+} from '@/lib/agent/job-targeting/compatibility/types'
+
+export const JOB_COMPATIBILITY_SCORE_VERSION = 'job-compat-score-v1'
+
+export const JOB_COMPATIBILITY_SCORE_WEIGHTS = {
+  skills: 0.34,
+  experience: 0.46,
+  education: 0.2,
+} as const satisfies Record<JobCompatibilityScoreDimensionId, number>
+
+export const JOB_COMPATIBILITY_ADJACENT_DISCOUNT = 0.5
+
+const PRODUCT_GROUP_VALUES = {
+  supported: 1,
+  adjacent: JOB_COMPATIBILITY_ADJACENT_DISCOUNT,
+  unsupported: 0,
+} as const satisfies Record<ProductEvidenceGroup, number>
+
+const SCORE_DIMENSIONS = ['skills', 'experience', 'education'] as const satisfies readonly JobCompatibilityScoreDimensionId[]
+
+export function calculateJobCompatibilityScore(
+  requirements: RequirementEvidence[],
+): JobCompatibilityScoreBreakdown {
+  const dimensions = Object.fromEntries(
+    SCORE_DIMENSIONS.map((dimension) => [
+      dimension,
+      calculateDimensionBreakdown(dimension, requirements),
+    ]),
+  ) as Record<JobCompatibilityScoreDimensionId, JobCompatibilityScoreDimensionBreakdown>
+  const weightedTotal = SCORE_DIMENSIONS.reduce(
+    (total, dimension) => total + dimensions[dimension].weightedScore,
+    0,
+  )
+
+  return {
+    version: JOB_COMPATIBILITY_SCORE_VERSION,
+    total: Math.round(weightedTotal * 100),
+    maxTotal: 100,
+    scoreBreakdown: {
+      adjacentDiscount: JOB_COMPATIBILITY_ADJACENT_DISCOUNT,
+      weights: JOB_COMPATIBILITY_SCORE_WEIGHTS,
+      dimensions,
+      counts: {
+        total: requirements.length,
+        supported: countByProductGroup(requirements, 'supported'),
+        adjacent: countByProductGroup(requirements, 'adjacent'),
+        unsupported: countByProductGroup(requirements, 'unsupported'),
+      },
+      formula: {
+        supportedValue: 1,
+        adjacentValue: JOB_COMPATIBILITY_ADJACENT_DISCOUNT,
+        unsupportedValue: 0,
+      },
+    },
+  }
+}
+
+function calculateDimensionBreakdown(
+  dimension: JobCompatibilityScoreDimensionId,
+  requirements: RequirementEvidence[],
+): JobCompatibilityScoreDimensionBreakdown {
+  const dimensionRequirements = requirements.filter((requirement) => (
+    scoreDimensionForRequirementKind(requirement.kind) === dimension
+  ))
+  const requirementCount = dimensionRequirements.length
+  const rawScore = requirementCount === 0
+    ? 0.5
+    : roundTo(
+      dimensionRequirements.reduce(
+        (total, requirement) => total + PRODUCT_GROUP_VALUES[requirement.productGroup],
+        0,
+      ) / requirementCount,
+      2,
+    )
+
+  return {
+    id: dimension,
+    weight: JOB_COMPATIBILITY_SCORE_WEIGHTS[dimension],
+    requirementCount,
+    supportedCount: countByProductGroup(dimensionRequirements, 'supported'),
+    adjacentCount: countByProductGroup(dimensionRequirements, 'adjacent'),
+    unsupportedCount: countByProductGroup(dimensionRequirements, 'unsupported'),
+    rawScore,
+    weightedScore: roundTo(rawScore * JOB_COMPATIBILITY_SCORE_WEIGHTS[dimension], 2),
+  }
+}
+
+function scoreDimensionForRequirementKind(kind: RequirementKind): JobCompatibilityScoreDimensionId {
+  if (kind === 'education' || kind === 'certification') {
+    return 'education'
+  }
+
+  if (
+    kind === 'responsibility'
+    || kind === 'seniority'
+    || kind === 'industry'
+    || kind === 'business_domain'
+  ) {
+    return 'experience'
+  }
+
+  return 'skills'
+}
+
+function countByProductGroup(
+  requirements: RequirementEvidence[],
+  productGroup: ProductEvidenceGroup,
+): number {
+  return requirements.filter((requirement) => requirement.productGroup === productGroup).length
+}
+
+function roundTo(value: number, places: number): number {
+  const factor = 10 ** places
+  return Math.round(value * factor) / factor
+}
