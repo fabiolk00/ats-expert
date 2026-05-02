@@ -28,6 +28,7 @@ const DIRECTLY_SUPPORTED_LEVELS = new Set<CoreRequirement['evidenceLevel']>([
   'normalized_alias',
   'technical_equivalent',
 ])
+const GENERIC_TOOLING_DETAIL_WORDS = /\b(?:ferramentas?|tooling|stack|plataformas?|sistemas?|software|tecnologias?|technolog(?:y|ies)|ferramental|aplicativos?)\b/iu
 const REDUNDANT_TOKEN_STOPWORDS = new Set([
   'a',
   'as',
@@ -188,7 +189,10 @@ function inferKind(requirement: CoreRequirement, rule?: SkillAdjacencyRule): Tar
     return 'missing_business_domain'
   }
 
-  if (/\b(?:ferramenta|tooling|stack|plataforma|sistema|sql|python|excel|power\s*bi)\b/iu.test(signal)) {
+  if (
+    (requirement.requirementKind === 'required' || requirement.importance === 'core')
+    && GENERIC_TOOLING_DETAIL_WORDS.test(signal)
+  ) {
     return 'missing_tooling_detail'
   }
 

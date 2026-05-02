@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 const scanRoots = [
   'src/lib/agent/job-targeting/compatibility',
+  'src/lib/agent/job-targeting/target-recommendations.ts',
   'src/lib/agent/job-targeting/domain-equivalents.ts',
   'src/lib/agent/job-targeting/skill-adjacency.ts',
 ]
@@ -76,6 +77,7 @@ describe('job targeting runtime hardcode guard', () => {
       'src/lib/agent/job-targeting/compatibility/score.ts',
       'src/lib/agent/job-targeting/compatibility/structured-validation.ts',
       'src/lib/agent/job-targeting/compatibility/types.ts',
+      'src/lib/agent/job-targeting/target-recommendations.ts',
       'src/lib/agent/job-targeting/domain-equivalents.ts',
       'src/lib/agent/job-targeting/skill-adjacency.ts',
     ]))

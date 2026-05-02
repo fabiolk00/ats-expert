@@ -33,16 +33,6 @@ const FALLBACK_TARGET_ROLE = 'Vaga Alvo'
 const TARGET_ROLE_MAX_LENGTH = 90
 const TARGET_ROLE_MAX_WORDS = 12
 
-export const DEFAULT_JOB_TARGETING_DOMAIN_PACK_PATHS = [
-  'src/lib/agent/job-targeting/catalog/domain-packs/data-bi.json',
-  'src/lib/agent/job-targeting/catalog/domain-packs/software-engineering.json',
-  'src/lib/agent/job-targeting/catalog/domain-packs/finance.json',
-  'src/lib/agent/job-targeting/catalog/domain-packs/marketing.json',
-  'src/lib/agent/job-targeting/catalog/domain-packs/operations.json',
-  'src/lib/agent/job-targeting/catalog/domain-packs/sales.json',
-  'src/lib/agent/job-targeting/catalog/domain-packs/hr.json',
-] as const
-
 export interface CompatibilityGapAnalysisInput {
   criticalGaps?: Array<{ id?: string; text: string }>
   reviewNeededGaps?: Array<{ id?: string; text: string }>
@@ -69,9 +59,7 @@ export async function evaluateJobCompatibility({
   userId,
   sessionId,
 }: EvaluateJobCompatibilityInput): Promise<JobCompatibilityAssessment> {
-  const loadedCatalog = catalog ?? await loadJobTargetingCatalog({
-    domainPackPaths: [...DEFAULT_JOB_TARGETING_DOMAIN_PACK_PATHS],
-  })
+  const loadedCatalog = catalog ?? await loadJobTargetingCatalog()
   const targetRole = extractTargetRole(targetJobDescription)
   const extractedRequirements = extractJobRequirements({ targetJobDescription })
   const resumeEvidence = extractResumeEvidence(cvState)

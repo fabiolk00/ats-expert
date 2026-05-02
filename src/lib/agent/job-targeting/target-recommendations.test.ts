@@ -221,6 +221,26 @@ describe('buildTargetRecommendations', () => {
     expect(recommendation.safeExample).toBe('Se for verdadeiro: cite atividade, contexto e resultado real ligados a esse requisito.')
   })
 
+  it('classifies generic core platform requirements as missing tooling detail', () => {
+    const [recommendation] = buildTargetRecommendations({
+      coreRequirements: [
+        buildRequirement({
+          signal: 'plataforma de integracao operacional',
+          requirementKind: 'required',
+        }),
+      ],
+      preferredRequirements: [],
+      supportedSignals: [],
+      adjacentSignals: [],
+      resumeSkillSignals: [],
+    })
+
+    expect(recommendation).toEqual(expect.objectContaining({
+      kind: 'missing_tooling_detail',
+      jobRequirement: 'Plataforma de integracao operacional',
+    }))
+  })
+
   it('deduplicates narrower requirements covered by broader financial-accountability gaps', () => {
     const recommendations = buildTargetRecommendations({
       coreRequirements: [
