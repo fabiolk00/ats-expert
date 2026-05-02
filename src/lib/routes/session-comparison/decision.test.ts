@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { buildCompatibilityAssessmentFixture } from '@/lib/agent/job-targeting/__tests__/assessment-fixture'
+
 import { decideSessionComparison } from './decision'
 
 const { mockLogInfo } = vi.hoisted(() => ({
@@ -339,6 +341,97 @@ describe('session-comparison decision', () => {
       ]),
       criticalGaps: ['Gestão financeira de contas'],
     })
+  })
+
+  it('prefers assessment-derived score breakdowns for new job-targeting sessions', async () => {
+    const decision = await decideSessionComparison({
+      request: new Request('https://example.com/api/session/sess_assessment_target/comparison') as never,
+      params: { id: 'sess_assessment_target' },
+      appUser: { id: 'usr_1' } as never,
+      session: {
+        id: 'sess_assessment_target',
+        userId: 'usr_1',
+        cvState: {
+          fullName: 'Ana',
+          email: 'ana@example.com',
+          phone: '1',
+          summary: 'base summary',
+          experience: [],
+          skills: ['SQL'],
+          education: [],
+        },
+        agentState: {
+          workflowMode: 'job_targeting',
+          lastRewriteMode: 'job_targeting',
+          targetJobDescription: 'Data role',
+          targetingPlan: {
+            targetRole: 'Analista de BI',
+            targetRoleConfidence: 'high',
+            targetRoleSource: 'heuristic',
+            focusKeywords: ['legacy keyword'],
+            mustEmphasize: ['legacy keyword'],
+            shouldDeemphasize: [],
+            missingButCannotInvent: ['Legacy-only gap'],
+            targetEvidence: [],
+            coreRequirementCoverage: {
+              requirements: [],
+              total: 0,
+              supported: 0,
+              unsupported: 0,
+              unsupportedSignals: ['Legacy-only gap'],
+              topUnsupportedSignalsForDisplay: ['Legacy-only gap'],
+            },
+            sectionStrategy: {
+              summary: [],
+              experience: [],
+              skills: [],
+              education: [],
+              certifications: [],
+            },
+          },
+          jobCompatibilityAssessment: buildCompatibilityAssessmentFixture(),
+          jobTargetingExplanation: {
+            targetRole: 'Analista de BI',
+            targetRoleConfidence: 'high',
+            scoreBreakdown: {
+              total: 99,
+              maxTotal: 100,
+              items: [],
+              criticalGaps: ['stale explanation gap'],
+            },
+            targetRecommendations: [],
+            generatedAt: '2026-05-02T12:00:00.000Z',
+            source: 'job_targeting',
+            version: 1,
+          },
+          optimizedCvState: {
+            fullName: 'Ana',
+            email: 'ana@example.com',
+            phone: '1',
+            summary: 'optimized summary',
+            experience: [],
+            skills: ['SQL'],
+            education: [],
+          },
+        },
+        generatedOutput: {
+          status: 'ready',
+        },
+      } as never,
+    })
+
+    expect(decision.kind).toBe('success')
+    if (decision.kind !== 'success') {
+      throw new Error('expected success decision')
+    }
+
+    expect(decision.body.jobTargetingExplanation?.scoreBreakdown).toMatchObject({
+      total: 44,
+      maxTotal: 100,
+      criticalGaps: ['Unsupported signal'],
+    })
+    expect(decision.body.jobTargetingExplanation?.scoreBreakdown?.criticalGaps).not.toContain('Legacy-only gap')
+    expect(decision.body.jobTargetingExplanation?.scoreBreakdown?.criticalGaps).not.toContain('stale explanation gap')
   })
 
   it('returns renderable highlightState for ATS enhancement flows', async () => {

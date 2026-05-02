@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { POST } from './route'
+import { buildCompatibilityAssessmentFixture } from '@/lib/agent/job-targeting/__tests__/assessment-fixture'
 import { tryAcquireOverrideProcessingLock } from '@/lib/agent/job-targeting/override-processing-lock'
 import { runJobTargetingPipeline } from '@/lib/agent/job-targeting-pipeline'
 import { getCurrentAppUser } from '@/lib/auth/app-user'
@@ -361,6 +362,8 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
 
   it('runs the targeted pipeline only after confirmation for pre-rewrite low-fit blocks', async () => {
     const lowFitSession = buildPreRewriteLowFitSession()
+    const jobCompatibilityAssessment = buildCompatibilityAssessmentFixture()
+    lowFitSession.agentState.jobCompatibilityAssessment = jobCompatibilityAssessment
     vi.mocked(getSession).mockResolvedValue(lowFitSession as never)
     vi.mocked(tryAcquireOverrideProcessingLock).mockResolvedValue(buildLockAcquiredResult(lowFitSession) as never)
     vi.mocked(runJobTargetingPipeline).mockResolvedValue({
@@ -434,6 +437,12 @@ describe('POST /api/session/[id]/job-targeting/override', () => {
     )
     expect(updateSession).toHaveBeenLastCalledWith('sess_123', expect.objectContaining({
       agentState: expect.objectContaining({
+        jobCompatibilityAssessment: expect.objectContaining({
+          audit: expect.objectContaining({
+            assessmentVersion: 'job-compat-assessment-v1',
+            scoreVersion: 'job-compat-score-v1',
+          }),
+        }),
         validationOverride: expect.objectContaining({
           enabled: true,
           acceptedLowFit: true,
