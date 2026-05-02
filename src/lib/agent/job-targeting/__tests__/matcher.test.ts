@@ -26,6 +26,17 @@ const domainPackPaths = [
 
 const goldenCasesDir = 'src/lib/agent/job-targeting/__fixtures__/golden-cases'
 
+const lockedGoldenCaseIds = [
+  'data-bi-good-fit-with-specific-gaps',
+  'data-bi-tool-without-related-transform-tool',
+  'correlated-education-good-fit',
+  'software-engineering-low-fit-from-data-profile',
+  'erp-specific-tool-missing',
+  'automation-adjacent-without-rpa',
+  'marketing-ads-good-fit-with-missing-crm',
+  'finance-analyst-missing-accounting-system',
+] as const
+
 type GoldenRequirement = {
   id: string
   kind: 'skill' | 'experience' | 'education'
@@ -304,8 +315,11 @@ describe('catalog-driven requirement evidence matcher', () => {
 
   it('runs all locked golden fixtures through matcher-level classifications', async () => {
     const catalog = await loadJobTargetingCatalog({ domainPackPaths })
+    const fixtures = readGoldenCases()
 
-    readGoldenCases().forEach((fixture) => {
+    expect(fixtures.map((fixture) => fixture.id).sort()).toEqual([...lockedGoldenCaseIds].sort())
+
+    fixtures.forEach((fixture) => {
       const resumeEvidence = extractResumeEvidence(toCvState(fixture))
       const results = fixture.input.job.requirements.map((item) => classifyRequirementEvidence({
         requirement: toMatcherRequirement(item),
